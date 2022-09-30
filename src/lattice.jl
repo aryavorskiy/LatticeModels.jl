@@ -88,10 +88,6 @@ function _propagated_lattice_args(f, l::AbstractLattice)
     end
 end
 
-_map_helper(f, l::AbstractLattice) = [f(l, site) for site in l]
-
-_map_to_lattice(f, l::AbstractLattice) = _map_helper(_propagated_lattice_args(f, l), l)
-
 macro lattice_def(struct_block::Expr)
     if struct_block.head != :struct
         error("Struct block expected")

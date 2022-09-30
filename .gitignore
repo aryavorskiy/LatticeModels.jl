@@ -1,5 +1,3 @@
 .vscode/
 src/unneeded.jl
 profile.pb.gz
-.gitignore
-demo.ipynb
