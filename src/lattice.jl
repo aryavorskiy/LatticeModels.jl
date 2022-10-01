@@ -32,15 +32,13 @@ end
 start(l::FiniteBravaisLattice) = LatticeIndex(fill(1, dims(l)), 1)
 
 function proceed!(l::FiniteBravaisLattice, bvs_len, site::LatticeIndex)
-    if size(l) == site.unit_cell && bvs_len == site.basis_index
-        return false
-    end
-    if site.basis_index == bvs_len
+    @inbounds if site.basis_index == bvs_len
         site.basis_index = 1
         i = length(site.unit_cell)
         while site.unit_cell[i] == size(l)[i]
             site.unit_cell[i] = 1
             i -= 1
+            i == 0 && return false
         end
         site.unit_cell[i] += 1
     else
@@ -62,8 +60,8 @@ function iterate(l::FiniteBravaisLattice, state::Tuple{LatticeIndex, Int, Int})
 end
 
 function coords!(crd::Vector, l::AbstractLattice, site::LatticeIndex, bvs::Bravais, buf::Vector)
-    buf .= site.unit_cell
-    buf .-= _sz(l)
+    copy!(buf, site.unit_cell)
+    buf .-= _sz(l) ./ 2
     buf .-= 0.5
     mul!(crd, bvs.translation_vectors, buf)
     crd += bvs.basis[:, site.basis_index]
@@ -76,7 +74,7 @@ _bravais(::FiniteBravaisLattice, ::Int) = throw(ArgumentError("No Bravais lattic
 _assert_dims(l::LT, ::Int) where LT<:FiniteBravaisLattice = l
 _prettyprint_name(::LT) where {LT<:FiniteBravaisLattice} = string(LT)
 
-function _propagated_lattice_args(f, l::AbstractLattice)
+function _propagate_lattice_args(f, l::AbstractLattice)
     if hasmethod(f, NTuple{dims(l), Number})
         (_l::AbstractLattice, site::LatticeIndex) -> f(coords(_l, site)...)
     elseif hasmethod(f, Tuple{LatticeIndex})
@@ -87,6 +85,8 @@ function _propagated_lattice_args(f, l::AbstractLattice)
         throw(ArgumentError("failed to propagate args: unsupported lambda type"))
     end
 end
+
+_always_true_on_lattice(::AbstractLattice, ::LatticeIndex) = true
 
 macro lattice_def(struct_block::Expr)
     if struct_block.head != :struct
@@ -107,7 +107,7 @@ macro lattice_def(struct_block::Expr)
         end
         function $struct_name(f::Function, args...)
             l = $struct_name(args...)
-            lf = _propagated_lattice_args(f, l)
+            lf = _propagate_lattice_args(f, l)
             SubLattice(l, [lf(l, site) for site in l])
         end
         export $struct_name
@@ -184,7 +184,7 @@ end
 dims(sl::SubLattice) = dims(sl.lattice)
 bravais(sl::SubLattice) = bravais(sl.lattice)
 length(sl::SubLattice) = count(sl.mask)
-coords(sl::SubLattice, state) = coords(sl.lattice, state)
+coords(sl::SubLattice, state::LatticeIndex) = coords(sl.lattice, state)
 
 function iterate(sl::SubLattice)
     site = start(sl.lattice)

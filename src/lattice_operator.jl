@@ -1,5 +1,5 @@
 using LinearAlgebra, Statistics, Logging
-import Base: length, iterate, show, ==
+import Base: length, getindex, show, ==
 
 struct Basis
     lattice::AbstractLattice
@@ -29,6 +29,15 @@ LatticeOperator{T} = LatticeVecOrMat{T} where T<: AbstractMatrix
 size(lv::LatticeVecOrMat) = size(lv.operator)
 dims_internal(lv::LatticeVecOrMat) = lv.basis.internal_dim
 
+@inline _ranges(is::Tuple, N::Int) = _ranges((), is, N)
+@inline _ranges(rngs::Tuple, ::Tuple{}, N::Int) = rngs
+@inline _ranges(rngs::Tuple, is::Tuple, N::Int) = _ranges(rngs, is[1], Base.tail(is), N)
+@inline _ranges(rngs::Tuple, i::Int, is::Tuple, N::Int) =
+    _ranges((rngs..., N * (i-1) + 1:N*i), is, N)
+getindex(lo::LatticeVecOrMat, is::Int...) = lo.operator[_ranges(is, dims_internal(lo))...]
+setindex!(lo::LatticeVecOrMat, val, is::Int...) =
+    (lo.operator[_ranges(is, dims_internal(lo))...] = val)
+
 ==(lvm1::LatticeVecOrMat, lvm2::LatticeVecOrMat) = (lvm1.basis == lvm2.basis) && (lvm1.operator == lvm2.operator)
 
 function show(io::IO, m::MIME"text/plain", lv::LatticeVecOrMat{MT}) where MT<:AbstractMatrix
@@ -43,37 +52,54 @@ function show(io::IO, m::MIME"text/plain", lv::LatticeVecOrMat{MT}) where MT<:Ab
     show(io, m, lv.basis)
 end
 
+function _zero_on_basis(l::AbstractLattice, m::AbstractMatrix)
+    N = size(m)[1]
+    LatticeVecOrMat(Basis(l, N),
+        zero(similar(m, ComplexF64, (N * length(l), N * length(l)))))
+end
+function _zero_on_basis(l::AbstractLattice, f::Function)
+    lf = _propagate_lattice_args(f, l)
+    _zero_on_basis(l, lf(l, first(l)))
+end
+_zero_on_basis(l::AbstractLattice, N::Int) = LatticeVecOrMat(Basis(l, N),
+        zeros(ComplexF64, N * length(l), N * length(l)))
+_zero_on_basis(bas::Basis) = _zero_on_basis(bas.lattice, bas.internal_dim)
+
 convert_inner_type(MT::Type, lo::LatticeVecOrMat) =
     LatticeVecOrMat(lo.basis, convert(MT, lo.operator))
 
-function _diag_operator(lf::Function, l::AbstractLattice)
-    ops = [lf(l, site) for site in l]
-    @assert allequal(size(op) for op in ops) "inconsistent size of lambda return value"
-    if size(ops[begin]) == ()
-        throw(ArgumentError("lambda returns a number, not a matrix"))
+function _diag_operator!(lop::LatticeOperator, lf::Function)
+    l = lop.basis.lattice
+    i = 1
+    try
+        for site in l
+            lop[i, i] += lf(l, site)
+            i += 1
+        end
+    catch e
+        if e isa DimensionMismatch
+            error("check lambda return type; should be AbstractMatrix")
+        else rethrow() end
     end
-    N = size(ops[begin])[begin]
-    matrix = zero(similar(ops[1], ComplexF64, (N * length(l), N * length(l))))
-    for i in 1:length(l)
-        matrix[N * (i - 1) + 1: N * i, N * (i - 1) + 1: N * i] .= ops[i]
+    lop
+end
+function _diag_operator!(lop::LatticeOperator, m::AbstractMatrix)
+    for i in 1:length(lop.basis.lattice)
+        lop[i, i] += m
     end
-    LatticeVecOrMat(Basis(l, N), matrix)
+    lop
 end
 
-diag_operator(f::Function, l::AbstractLattice) = _diag_operator(_propagated_lattice_args(f, l), l)
+diag_operator(f::Function, l::AbstractLattice) =
+    _diag_operator!(_zero_on_basis(l, f), _propagate_lattice_args(f, l))
+diag_operator(l::AbstractLattice, m::AbstractMatrix) =
+    _diag_operator!(_zero_on_basis(l, m), m)
 function diag_operator(f::Function, bas::Basis)
     N = bas.internal_dim
     one = Matrix(I, N, N)
-    lf = _propagated_lattice_args(f, bas.lattice)
-    _diag_operator((l, site) -> lf(l, site)::Number * one, bas.lattice)
-end
-function diag_operator(l::AbstractLattice, m::Matrix)
-    N = size(m)[begin]
-    matrix = zero(similar(m, ComplexF64, (N * length(l), N * length(l))))
-    for i in 1:length(l)
-        matrix[N * (i - 1) + 1: N * i, N * (i - 1) + 1: N * i] .= m
-    end
-    LatticeVecOrMat(Basis(l, N), matrix)
+    lf = _propagate_lattice_args(f, bas.lattice)
+    _diag_operator!(
+        _zero_on_basis(bas), (l, site) -> lf(l, site)::Number * one)
 end
 
 function coord_operators(b::Basis)
@@ -94,14 +120,8 @@ end
 
 coord_operators(l::AbstractLattice, N::Int) = coord_operators(Basis(l, N))
 
-function diag_aggregate(f::Function, lo::LatticeVecOrMat)
-    local N = lo.basis.internal_dim
-    LatticeValue(
-        lo.basis.lattice,
-        [f(lo.operator[N * (i - 1) + 1: N * i, N * (i - 1) + 1: N * i])
-            for i in 1:length(lo.basis.lattice)]
-    )
-end
+diag_aggregate(f::Function, lo::LatticeVecOrMat) =
+    LatticeValue(lo.basis.lattice, [f(lo[i, i]) for i in 1:length(lo.basis.lattice)])
 
 @inline _make_wrapper(op, ::Nothing) = op
 @inline _make_wrapper(op::Number, ::Basis) = op

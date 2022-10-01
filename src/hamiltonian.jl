@@ -2,10 +2,25 @@ using Logging
 import LinearAlgebra: eigen, Hermitian
 import Base: length, getindex
 
+_diag_from_macro(lop::LatticeOperator, ::AbstractLattice, m::AbstractMatrix) =
+    _diag_operator!(lop, m)
+_diag_from_macro(lop::LatticeOperator, l::AbstractLattice, f::Function) =
+    _diag_operator!(lop, _propagate_lattice_args(f, l))
+_diag_from_macro(::LatticeOperator, ::AbstractLattice, ::T) where T =
+    error("unextected argument type $T in @diag")
+_diag_from_macro(l::AbstractLattice, arg::Any) =
+    _diag_from_macro(_zero_on_basis(l, arg), l, arg)
+
+_hops_from_macro(lop::LatticeOperator, l::AbstractLattice, pr_fun::Function, hop::Hopping, field::AbstractField=NoField()) =
+    _hopping_operator!(lop, pr_fun, l, hop, field)
+_hops_from_macro(l::AbstractLattice, pr_fun::Function, hop::Hopping, field::AbstractField=NoField()) =
+    _hops_from_macro(_zero_on_basis(l, hop.hop_operator), l, pr_fun, hop, field)
+
 macro hamiltonian(block)
     lattice_sym = nothing
     field_sym = nothing
-    ham_block = :(+())
+    ham_block = Expr(:block)
+    assign_flag = true
     if Meta.isexpr(block, :block)
         for line in block.args
             if Meta.isexpr(line, :(:=))
@@ -27,50 +42,46 @@ macro hamiltonian(block)
                 macro_args = [a for a in macro_args if (a isa Expr || a isa Symbol)]
                 if macro_name === Symbol("@diag")
                     length(macro_args) != 1 &&
-                        error("wrong arguments for diag part; expected 1, got $(length(macro_args))")
+                        error("@diag accepts only one argument")
                     macro_arg = only(macro_args)
-                    if Meta.isexpr(macro_arg, (:->, :function))
-                        push!(ham_block.args, :(
-                            diag_operator($(esc(macro_arg)), $lattice_sym)
-                        ))
-                    else
-                        push!(ham_block.args, :(
-                            diag_operator($lattice_sym, $(esc(macro_arg)))
-                        ))
-                    end
+                    push!(ham_block.args, :(
+                        _diag_from_macro($lattice_sym, $(esc(macro_arg)))
+                    ))
                 elseif macro_name === Symbol("@hop") || macro_name === Symbol("@hopping")
-                    hopp_kwargs = Dict{Symbol, Any}(a.args for a in macro_args if Meta.isexpr(a, :(=)))
                     lambda_i = findfirst(a -> Meta.isexpr(a, (:function, :->)), macro_args)
-                    op_i = findfirst(a -> !Meta.isexpr(a, (:function, :->, :(=))), macro_args)
-                    if op_i !== nothing && !(:hop_operator in keys(hopp_kwargs))
-                        hopp_kwargs[:hop_operator] = macro_args[op_i]
-                    end
-                    hopcall = :(Hopping())
-                    append!(hopcall.args, [Expr(:kw, k, :($(esc(v)))) for (k, v) in hopp_kwargs])
-                    if lambda_i === nothing
-                        push!(ham_block.args, :(
-                            hopping_operator($lattice_sym, $hopcall)
-                        ))
+                    if lambda_i !== nothing
+                        pr_lambda = :(_propagate_lattice_args($(esc(macro_args[lambda_i])), $lattice_sym))
+                        popat!(macro_args, lambda_i)
                     else
-                        push!(ham_block.args, :(
-                            hopping_operator($(esc(macro_args[lambda_i])), $lattice_sym, $hopcall)
-                        ))
+                        pr_lambda = :_always_true_on_lattice
                     end
-                elseif macro_name === Symbol("@hopping_operator")
-                    error("usage of @hopping_operator macro is forbidden in hamiltonian generator; please consult the manual")
-                else error("unexpected macro call $macro_name")
+                    for arg in macro_args
+                        if Meta.isexpr(arg, :(=))
+                            arg.head = :kw
+                        end
+                    end
+
+                    hopcall = :(Hopping($(esc.(macro_args)...)))
+                    push!(ham_block.args, :(
+                            _hops_from_macro($lattice_sym, $pr_lambda, $hopcall)
+                    ))
+                else error("unexpected macro call $macro_name in @hamiltonian")
                 end
+                assign_flag = false
             end
 
         end
-        if field_sym !== nothing
-            for statement in ham_block.args[2:end]
-                if Meta.isexpr(statement, :call) && statement.args[1] === :hopping_operator
-                    push!(
-                        statement.args,
-                        Expr(:kw, :field, field_sym)
-                    )
-                end
+        isfirst_statement = true
+        for statement in ham_block.args
+            !Meta.isexpr(statement, :call) && continue
+            if statement.args[1] === :_hops_from_macro && field_sym !== nothing
+                push!(statement.args, field_sym)
+            end
+            if isfirst_statement
+                ham_block.args[1] = :(H = $statement)
+                isfirst_statement = false
+            else
+                insert!(statement.args, 2, :H)
             end
         end
         return ham_block

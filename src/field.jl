@@ -7,15 +7,15 @@ vector_potential(::FT, point::Vector) where FT<:AbstractField =
     error("no vector potential function defined for field type $(MT)")
 function vector_potential!(v::Vector, field::AbstractField, point)
     ret_vp = vector_potential(field, point)
-    v[eachindex(ret_vp)] .= ret_vp
+    v[eachindex(ret_vp)] = ret_vp
 end
 
 function _trip_integral!(field::AbstractField, p1, p2, A; n_integrate=1)
     integral = 0.
-    p2 .= (p2 - p1) / n_integrate
+    copy!(p2, (p2 - p1) / n_integrate)
     p1 .-= 0.5p2
     for _ in 1:n_integrate
-        p1 += p2
+        p1 .+= p2
         vector_potential!(A, field, p1)
         integral += A' * p2
     end
@@ -137,7 +137,7 @@ macro field_def(struct_block)
                         local function vector_potential(p::Vector{Float64})
                             A = zero(p)
                             res = $(esc(:vector_potential))(field, p)
-                            A[eachindex(res)] .= res
+                            A[eachindex(res)] = res
                             return A
                         end
                         $fn_body

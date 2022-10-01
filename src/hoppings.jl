@@ -27,7 +27,7 @@ function _tr_and_pbc(axis::Int, pbc::Bool)
     tr_vc[axis] = 1
     return (tr_vc, fill(pbc, axis))
 end
-function Hopping(;site_indices::NTuple{2} = (1, 1), pbc=false, hop_operator=1, kw...)
+function Hopping(hop_operator=1;site_indices::NTuple{2} = (1, 1), pbc=false, kw...)
     if :axis in keys(kw)
         tr_vc, pbc = _tr_and_pbc(kw[:axis], pbc)
     elseif :tr_vector in keys(kw)
@@ -92,13 +92,8 @@ function _match(h::Hopping, l::AbstractLattice, site1::LatticeIndex, site2::Latt
     return ret
 end
 
-function _zero_on_basis(l::AbstractLattice, hop::Hopping)
-    N = dims_internal(hop)
-    return zero(similar(hop.hop_operator, ComplexF64, (N * length(l), N * length(l))))
-end
-
-function _hopping_operator!(matrix::AbstractMatrix, lf::Function, l::AbstractLattice, hop::Hopping, field::AbstractField)
-    N = dims_internal(hop)
+function _hopping_operator!(lop::LatticeOperator, lf::Function, l::AbstractLattice, hop::Hopping, field::AbstractField)
+    _promote_dims!(hop, dims(l))
     d = dims(l)
     p1 = zeros(d)
     p2 = zeros(d)
@@ -108,34 +103,31 @@ function _hopping_operator!(matrix::AbstractMatrix, lf::Function, l::AbstractLat
     for site1 in l
         j = 1
         for site2 in l
-            if _match(hop, l, site1, site2) && lf(l, site1)
+            if @inbounds(_match(hop, l, site1, site2)) && lf(l, site1)
                 coords!(p1, l, site1, bvs, buf)
-                p2 .= p1
-                p2 += hop.tr_vector
+                copy!(p2, p1)
+                p2 .+= hop.tr_vector
                 pmod = exp(2π * im * _trip_integral!(field, p1, p2, buf))
-                matrix[N * (i - 1) + 1: N * i, N * (j - 1) + 1: N * j] += hop.hop_operator * pmod
-                matrix[N * (j - 1) + 1: N * j, N * (i - 1) + 1: N * i] += hop.hop_operator' * pmod'
+                lop[i, j] += hop.hop_operator * pmod
+                lop[j, i] += hop.hop_operator' * pmod'
             end
             j += 1
         end
         i += 1
     end
+    lop
 end
 
 function hopping_operator(f::Function, l::AbstractLattice, hop::Hopping; field::AbstractField=NoField())
-    N = dims_internal(hop)
-    _promote_dims!(hop, dims(l))
-    matrix = _zero_on_basis(l, hop)
-    _hopping_operator!(matrix, _propagated_lattice_args(f, l), l, hop, field)
-    return LatticeVecOrMat(Basis(l, N), matrix)
+    lop = _zero_on_basis(l, hop.hop_operator)
+    _hopping_operator!(lop, _propagate_lattice_args(f, l), l, hop, field)
+    return lop
 end
 
 function hopping_operator(l::AbstractLattice, hop::Hopping; field::AbstractField=NoField())
-    N = dims_internal(hop)
-    _promote_dims!(hop, dims(l))
-    matrix = _zero_on_basis(l, hop)
-    _hopping_operator!(matrix, (::AbstractLattice, ::LatticeIndex) -> true, l, hop, field)
-    return LatticeVecOrMat(Basis(l, N), matrix)
+    lop = _zero_on_basis(l, hop.hop_operator)
+    _hopping_operator!(lop, _always_true_on_lattice, l, hop, field)
+    return lop
 end
 
 macro hopping_operator(for_loop::Expr)
@@ -204,7 +196,7 @@ end
 
 function BondSet(op::LatticeOperator)
     N = dims_internal(op)
-    matrix = Bool[!iszero(op.operator[N * (i - 1) + 1: N * i, N * (j - 1) + 1: N * j])
+    matrix = Bool[!iszero(op[i, j])
                     for i in 1:length(op.basis.lattice), j in 1:length(op.basis.lattice)]
     return BondSet(op.basis.lattice, matrix)
 end
@@ -218,7 +210,7 @@ function BondSet(l::AbstractLattice, hops::Hopping...)
     for site1 in l
         j = 1
         for site2 in l
-            matrix[i, j] = any(_match(h, l, site1, site2) for h in hops)
+            matrix[i, j] = any(@inbounds(_match(h, l, site1, site2)) for h in hops)
             j += 1
         end
         i += 1

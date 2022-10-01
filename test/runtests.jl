@@ -4,10 +4,11 @@ using LatticeModels
 @testset "Workflows" begin
     @test begin
         l = SquareLattice(10, 10)
-        d = diag_operator(l) do site; [1;;] end
+        b = Basis(l, 1)
+        d = diag_operator(b) do site; 1 end
         hx = hopping_operator(l, Hopping(axis=1))
         hy = hopping_operator(l, Hopping(axis=2))
-        H = @on_lattice d + hx + hy
+        H = d + hx + hy
         sp = Spectrum(H)
         P = filled_projector(sp)
         d = diag_aggregate(tr, P)
@@ -25,7 +26,8 @@ using LatticeModels
         end
         P = filled_projector(Spectrum(H))
         X, Y = coord_operators(Basis(l, 2))
-        d = diag_aggregate(m -> real(tr(m)), @on_lattice 4π * im * P * X * (I - P) * Y * P)
+        d = diag_aggregate(tr, 4π * im * P * X * (I - P) * Y * P)
+        rd = d .|> real
         true
     end
 
@@ -52,7 +54,8 @@ using LatticeModels
         P0 = filled_projector(Spectrum(H))
         X, Y = coord_operators(Basis(l, 2))
         @evolution {P0 => h(t) => P} for t in 0:0.1:10
-            d = diag_aggregate(m -> real(tr(m)), 4π * im * P * X * (I - P) * Y * P)
+            d = diag_aggregate(tr, 4π * im * P * X * (I - P) * Y * P)
+            rd = d .|> real
         end
         true
     end
@@ -88,12 +91,21 @@ end
     xy = diag_operator(bas) do x, y; x * y; end
     x2p2ym1 = diag_operator(bas) do x, y; x * 2 + 2y - 1; end
     xd2pxypexpy = diag_operator(bas) do x, y; x / 2 + x * y + exp(y); end
-    @test X ^ 2 == xsq
-    @test X * Y == xy
-    @test X * 2 + 2Y - I == x2p2ym1
-    @test @on_lattice(X / 2 + X * Y + exp(Y)) == xd2pxypexpy
+
     l2 = SquareLattice(5, 20)
     bas2 = Basis(l2, 2)
     X2, Y2 = coord_operators(bas2)
-    @test_throws "basis mismatch" X * X2
+
+    @testset "In-place arithmetics" begin
+        @test X ^ 2 == xsq
+        @test X * Y == xy
+        @test X * 2 + 2Y - I == x2p2ym1
+        @test_throws "basis mismatch" X * X2
+        @test_throws MethodError X * ones(200, 200)
+    end
+    @testset "Wrapper macro" begin
+        @test @on_lattice(X / 2 + X * Y + exp(Y)) == xd2pxypexpy
+        @test_logs (:warn, "avoid using lattice operators and matrices \
+            in one function call") @on_lattice X * ones(200, 200)
+    end
 end

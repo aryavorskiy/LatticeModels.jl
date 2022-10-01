@@ -9,7 +9,7 @@ struct LatticeValue{T}
 end
 
 LatticeValue(f, l::AbstractLattice) =
-    (lf = _propagated_lattice_args(f, l); LatticeValue(l, [lf(l, site) for site in l]))
+    (lf = _propagate_lattice_args(f, l); LatticeValue(l, [lf(l, site) for site in l]))
 
 ==(lv1::LatticeValue, lv2::LatticeValue) = (lv1.lattice == lv2.lattice) && (lv1.vector == lv2.vector)
 eltype(::LatticeValue{T}) where T = T
