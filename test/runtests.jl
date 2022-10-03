@@ -3,13 +3,13 @@ using LatticeModels
 
 @testset "Workflows" begin
     @test begin
-        l = SquareLattice(10, 10)
+        l = SquareLattice(10, 10) do x, y; √(x^2 + y^2) < 5; end
         b = Basis(l, 1)
         d = diag_operator(b) do site; 1 end
         hx = hopping_operator(l, Hopping(axis=1))
         hy = hopping_operator(l, Hopping(axis=2))
         H = d + hx + hy
-        sp = Spectrum(H)
+        sp = spectrum(H)
         P = filled_projector(sp)
         d = diag_aggregate(tr, P)
         true
@@ -24,7 +24,7 @@ using LatticeModels
             @hop axis=1 [1 1; 1 -1] / √2
             @hop axis=2 [1 -im; im -1] / √2
         end
-        P = filled_projector(Spectrum(H))
+        P = filled_projector(spectrum(H))
         X, Y = coord_operators(Basis(l, 2))
         d = diag_aggregate(tr, 4π * im * P * X * (I - P) * Y * P)
         rd = d .|> real
@@ -51,7 +51,7 @@ using LatticeModels
             @hop axis=1 [1 im; im -1] / 2
             @hop axis=2 [1 1; -1 -1] / 2
         end
-        P0 = filled_projector(Spectrum(H))
+        P0 = filled_projector(spectrum(H))
         X, Y = coord_operators(Basis(l, 2))
         @evolution {P0 => h(t) => P} for t in 0:0.1:10
             d = diag_aggregate(tr, 4π * im * P * X * (I - P) * Y * P)

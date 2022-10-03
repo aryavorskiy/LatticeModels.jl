@@ -99,7 +99,8 @@ struct Spectrum
     end
 end
 
-function Spectrum(lop::LatticeOperator{Matrix{T}} where T)
+function spectrum(lop::LatticeOperator{Matrix{T}} where T)
+    @assert all(isfinite.(lop.operator)) "operator matrix has non-finite values (NaN of Inf)"
     vals, vecs = eigen(Hermitian(lop.operator))
     return Spectrum(lop.basis, vecs, vals)
 end

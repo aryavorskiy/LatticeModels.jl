@@ -15,10 +15,7 @@ struct ChargeCurrents <: AbstractCurrents
 end
 
 function current_lambda(curr::ChargeCurrents)
-    return (i::Int, j::Int) -> imag(tr(
-        curr.hamiltonian[i, j] * curr.density[j, i] -
-            curr.density[i, j] * curr.hamiltonian[j, i]
-    ))
+    return (i::Int, j::Int) -> 2imag(tr(curr.density[i, j] * curr.hamiltonian[j, i]))
 end
 lattice(curr::ChargeCurrents) = curr.hamiltonian.basis.lattice
 
@@ -60,6 +57,8 @@ end
     bvs = bravais(l)
     buf = zeros(2)
     arrows_scale --> 1
+    arrows_rtol --> 1e-2
+    seriestype := :quiver
     i = 1
     for site1 in l
         j = 1
@@ -68,10 +67,12 @@ end
             ij_curr = curr_fn(i, j)::Real
             coords!(crd, l, (ij_curr > 0 ? site1 : site2), bvs, buf)
             vc = radius_vector(l, site2, site1)
-            normalize!(vc)
-            push!(Xs, crd[1])
-            push!(Ys, crd[2])
-            push!(Qs, Tuple(vc * ij_curr * plotattributes[:arrows_scale]))
+            vc_n = norm(vc)
+            if vc_n < abs(ij_curr * plotattributes[:arrows_scale] / plotattributes[:arrows_rtol])
+                push!(Xs, crd[1])
+                push!(Ys, crd[2])
+                push!(Qs, Tuple(vc * (ij_curr * plotattributes[:arrows_scale] / vc_n)))
+            end
             j += 1
         end
         i += 1

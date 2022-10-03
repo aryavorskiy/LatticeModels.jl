@@ -52,6 +52,33 @@ function show(io::IO, m::MIME"text/plain", lv::LatticeValue{T}) where T
     show(io, m, lv.lattice)
 end
 
+_supports_heatmap(::FiniteBravaisLattice) = false
+_supports_heatmap(::SquareLattice) = true
+_supports_heatmap(sl::SubLattice) = _supports_heatmap(sl.lattice)
+_heatmap_axes(l::SquareLattice) = [-(ax-1)/2:(ax-1)/2 for ax in _sz(l)]
+_heatmap_axes(sl::SubLattice) = _heatmap_axes(sl.lattice)
+_heatmap_vals(::FiniteBravaisLattice, vec) = vec
+function _heatmap_vals(sl::SubLattice, vec)
+    @assert length(sl) == length(vec)
+    i = 1
+    len = length(sl.mask)
+    newvals = fill(NaN, len)
+    @inbounds for j in 1:len
+        if sl.mask[j]
+            newvals[j] = vec[i]
+            i += 1
+        end
+    end
+    newvals
+end
+
 @recipe function f(lv::LatticeValue)
-    lv.lattice, lv.vector
+    _supports_heatmap(lv.lattice) && (seriestype --> :heatmap)
+    if _supports_heatmap(lv.lattice) && plotattributes[:seriestype] == :heatmap
+        b = _heatmap_vals(lv.lattice, lv.vector)
+        aspect_ratio := :equal
+        _heatmap_axes(lv.lattice)..., reshape(b, Tuple(_sz(lv.lattice)))
+    else
+        lv.lattice, lv.vector
+    end
 end

@@ -105,11 +105,7 @@ macro lattice_def(struct_block::Expr)
             end
             $struct_name(lattice_sz_by_axes::Int...) = $struct_name(lattice_sz_by_axes)
         end
-        function $struct_name(f::Function, args...)
-            l = $struct_name(args...)
-            lf = _propagate_lattice_args(f, l)
-            SubLattice(l, [lf(l, site) for site in l])
-        end
+        $struct_name(f::Function, args...) = sublattice(f, $struct_name(args...))
         export $struct_name
     end
     bravais_flag = false
@@ -181,6 +177,11 @@ struct SubLattice{LT}<:AbstractLattice where LT<:FiniteBravaisLattice
     end
 end
 
+function sublattice(f::Function, l::AbstractLattice)
+    lf = _propagate_lattice_args(f, l)
+    SubLattice(l, [lf(l, site) for site in l])
+end
+
 dims(sl::SubLattice) = dims(sl.lattice)
 bravais(sl::SubLattice) = bravais(sl.lattice)
 length(sl::SubLattice) = count(sl.mask)
@@ -240,11 +241,16 @@ end
     aspect_ratio := :equal
     marker_z := v
     markerstrokewidth := 0
-
-    pts = zeros(Float64, dims(l), length(l))
+    d = dims(l)
+    pts = zeros(Float64, d, length(l))
+    bvs = bravais(l)
+    crd = zeros(d)
+    buf = zeros(d)
     i = 1
+
     for site in l
-        pts[:, i] = coords(l, site)
+        coords!(crd, l, site, bvs, buf)
+        pts[:, i] = crd
         i += 1
     end
     if dims(l) == 1
@@ -269,7 +275,7 @@ end
             X, Y
         elseif plotattributes[:seriestype] == :surface
             X, Y, v
-        else throw(ArgumentError("Unsupported series type $(plotattributes[:seriestype])"))
+        else throw(ArgumentError("unsupported series type $(plotattributes[:seriestype])"))
         end
     end
 end

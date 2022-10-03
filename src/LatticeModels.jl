@@ -1,7 +1,7 @@
 module LatticeModels
 
 include("lattice.jl")
-export @lattice_def, LatticeIndex, AbstractLattice, SubLattice
+export @lattice_def, LatticeIndex, AbstractLattice, SubLattice, sublattice
 
 include("lattice_value.jl")
 include("lattice_operator.jl")
@@ -15,7 +15,7 @@ include("hoppings.jl")
 export Hopping, BondSet, hopping_operator, @hopping_operator
 
 include("hamiltonian.jl")
-export @hamiltonian, Spectrum, projector, filled_projector
+export @hamiltonian, Spectrum, spectrum, projector, filled_projector
 
 include("evolution.jl")
 export @evolution

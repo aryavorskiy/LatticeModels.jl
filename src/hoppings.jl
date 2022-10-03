@@ -108,6 +108,7 @@ function _hopping_operator!(lop::LatticeOperator, lf::Function, l::AbstractLatti
                 copy!(p2, p1)
                 p2 .+= hop.tr_vector
                 pmod = exp(2π * im * _trip_integral!(field, p1, p2, buf))
+                @assert isfinite(pmod) "got NaN or Inf when finding the phase factor"
                 lop[i, j] += hop.hop_operator * pmod
                 lop[j, i] += hop.hop_operator' * pmod'
             end

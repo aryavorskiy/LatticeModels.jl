@@ -37,6 +37,7 @@ function apply_field!(lo::LatticeOperator, field::AbstractField)
                 coords!(p1, l, site1, bvs, bf)
                 coords!(p2, l, site2, bvs, bf)
                 pmod = exp(2π * im * _trip_integral!(field, p1, p2, bf))
+                @assert isfinite(pmod) "got NaN or Inf when finding the phase factor"
                 lo.operator[N * (i - 1) + 1: N * i, N * (j - 1) + 1: N * j] *= pmod
                 lo.operator[N * (j - 1) + 1: N * j, N * (i - 1) + 1: N * i] *= pmod'
             end
@@ -185,8 +186,14 @@ end
 
 _angle(p1, p2) = asin((p1[1] * p2[2] - p2[1] * p1[2]) / norm(p1) / norm(p2) / (1. + 1e-11))
 @field_def struct Flux(B::Number, P::NTuple{2, Number})
-    vector_potential(x, y) = SA[-y + P[2], x - P[1]] / norm(Float64[x, y] .- P)^2 * B
-    trip_integral(p1, p2) = _angle(p1[1:2] .- P, p2[1:2] .- P) * B
+    function trip_integral(p1, p2)
+        p1[1:2] .-= P
+        p2[1:2] .-= P
+        if iszero(p1) || iszero(p2)
+            return 0.
+        end
+        _angle(p1, p2) * B
+    end
     show(io::IO, ::MIME"text/plain") = print(io, "Delta flux field through point $P; B = $B flux quanta")
 end
 

@@ -39,6 +39,7 @@ function _expand_chain(chain)
     end
 end
 
+_expr_depends_on(::Any, ::Symbol) = true
 _expr_depends_on(expr::Symbol, dep_var::Symbol) = (expr === dep_var)
 function _expr_depends_on(expr::Expr, dep_var::Symbol)
     _begin = 1 + Meta.isexpr(expr, (:call, :->))
@@ -53,7 +54,7 @@ function _evolution_operator_call(H_sym, dt_sym, k)
     end
 end
 
-function _evolution_block(rules, loop; k = nothing)
+function _evolution_block(rules, loop; k = nothing, rtol=1e-12)
     if !Meta.isexpr(loop, :for)
         error("for loop expected")
     end
@@ -88,14 +89,15 @@ function _evolution_block(rules, loop; k = nothing)
     hamiltonian_functions = collect(hamiltonian_functions_set)
     ham_i = 1
     for ham_expr in hamiltonian_functions
-        h_eval = Symbol("ham_eval_#$ham_i")
-        h_eval_new = Symbol("ham_eval_new_#$ham_i")
-        p_target_ev = Symbol("evolutor_#$ham_i")
+        h_eval = Symbol("ham_eval_$ham_i")
+        h_eval_new = Symbol("ham_eval_new_$ham_i")
+        p_target_ev = Symbol("evolutor_$ham_i")
         if _expr_depends_on(ham_expr, loop_var)
             push!(inits,
                 :(local $h_eval = $(esc(ham_expr))),
                 :($h_eval_new = $(esc(ham_expr))),
                 :(local $p_target_ev = _unwrap_from_macro(one, $(esc(ham_expr)))))
+            push!(ham_evals, :($h_eval_new = $(esc(ham_expr))))
             push!(evolutor_updates,
                 :(if dt_changed || !isequal($h_eval, $h_eval_new)
                     $p_target_ev = $(_evolution_operator_call(h_eval_new, :dt, k))
@@ -121,8 +123,8 @@ function _evolution_block(rules, loop; k = nothing)
             if length(chain) == 2
                 local ham_expr, ham_var = chain
                 ham_i = findfirst(==(ham_expr), hamiltonian_functions)
-                h_eval = Symbol("ham_eval_#$ham_i")
-                h_eval_new = Symbol("ham_eval_new_#$ham_i")
+                h_eval = Symbol("ham_eval_$ham_i")
+                h_eval_new = Symbol("ham_eval_new_$ham_i")
                 if _expr_depends_on(ham_expr, loop_var)
                     push!(ham_evals, :($(esc(ham_var)) = $h_eval_new))
                 else
@@ -131,9 +133,9 @@ function _evolution_block(rules, loop; k = nothing)
             else
                 p_initial, ham_expr, p_target = chain
                 ham_i = findfirst(==(ham_expr), hamiltonian_functions)
-                h_eval = Symbol("ham_eval_#$ham_i")
-                h_eval_new = Symbol("ham_eval_new_#$ham_i")
-                p_target_ev = Symbol("evolutor_#$ham_i")
+                h_eval = Symbol("ham_eval_$ham_i")
+                h_eval_new = Symbol("ham_eval_new_$ham_i")
+                p_target_ev = Symbol("evolutor_$ham_i")
                 push!(inits,
                     :($(esc(p_target)) = _unwrap_from_macro(copy, $(esc(p_initial)))))
                 push!(p_evolutions,
@@ -151,8 +153,10 @@ function _evolution_block(rules, loop; k = nothing)
         for $(esc(loop_var)) in $(esc(loop_range))
             local dt = $(esc(loop_var)) - t_inner
             dt == 0 && continue
-            dt_changed = abs(dt - dt_old) / dt > 1e-15
-            dt_changed && (dt_old = dt)
+            dt_changed = abs(dt - dt_old) / dt > $rtol
+            if dt_changed
+                dt_old = dt
+            end
             $(ham_evals...)
             $(evolutor_updates...)
             $(p_evolutions...)
@@ -171,9 +175,5 @@ See [Unitary evolution](evolution.md) for more details.
 macro evolution(args...)
     rules, loop = args[end-1:end]
     kwargs = Dict(a.args for a in args[begin:end-2])
-    if :k in keys(kwargs)
-        _evolution_block(rules, loop, k = kwargs[:k])
-    else
-        _evolution_block(rules, loop)
-    end
+    _evolution_block(rules, loop; kwargs...)
 end
