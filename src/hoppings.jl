@@ -1,4 +1,4 @@
-import Base: show, |
+import Base: copy, show, |
 
 struct Hopping{MT<:AbstractMatrix}
     site_indices::Tuple{Int, Int}
@@ -80,19 +80,20 @@ function _promote_dims!(h::Hopping, ndims::Int)
 end
 
 function _match(h::Hopping, l::AbstractLattice, site1::LatticeIndex, site2::LatticeIndex)
-    ret = (site1.basis_index, site2.basis_index) == h.site_indices
+    (site1.basis_index, site2.basis_index) != h.site_indices && return false
     for i in 1:dims(h)
         vi = site2.unit_cell[i] - site1.unit_cell[i] - h.tr_vector[i]
         if h.pbc[i] && (vi % _sz(l)[i] != 0)
-            ret = false
+            return false
         elseif !h.pbc[i] && (vi != 0)
-            ret = false
+            return false
         end
     end
-    return ret
+    return true
 end
 
-function _hopping_operator!(lop::LatticeOperator, lf::Function, l::AbstractLattice, hop::Hopping, field::AbstractField)
+function _hopping_operator!(lop::LatticeOperator, lf::Function, hop::Hopping, field::AbstractField)
+    l = lop.basis.lattice
     _promote_dims!(hop, dims(l))
     d = dims(l)
     p1 = zeros(d)
@@ -121,14 +122,12 @@ end
 
 function hopping_operator(f::Function, l::AbstractLattice, hop::Hopping; field::AbstractField=NoField())
     lop = _zero_on_basis(l, hop.hop_operator)
-    _hopping_operator!(lop, _propagate_lattice_args(f, l), l, hop, field)
-    return lop
+    _hopping_operator!(lop, _propagate_lattice_args(f, l), hop, field)
 end
 
 function hopping_operator(l::AbstractLattice, hop::Hopping; field::AbstractField=NoField())
     lop = _zero_on_basis(l, hop.hop_operator)
-    _hopping_operator!(lop, _always_true_on_lattice, l, hop, field)
-    return lop
+    _hopping_operator!(lop, _always_true_on_lattice, hop, field)
 end
 
 macro hopping_operator(for_loop::Expr)
@@ -182,47 +181,62 @@ macro hopping_operator(for_loop::Expr)
     end
 end
 
-struct BondSet
-    lattice::AbstractLattice
-    bmat::BitMatrix
-    function BondSet(l::AbstractLattice, bmat::BitMatrix)
-        @assert all(size(bmat) .== length(l)) "inconsistent connectivity matrix size"
-        new(l, bmat)
+struct BondSet{LT<:AbstractLattice}
+    lattice::LT
+    sites::Vector{LatticeIndex}
+    bmat::Matrix{Bool}
+    global function _bondset_unsafe(l::LT, sites::Vector{LatticeIndex}, bmat::Matrix{Bool}) where LT<:AbstractLattice
+        new{LT}(l, sites, bmat)
     end
-    BondSet(l::AbstractLattice, bmat::AbstractMatrix{Bool}) = new(l, convert(BitMatrix, bmat))
+    function BondSet(l::AbstractLattice, bmat::AbstractMatrix{Bool})
+        @assert all(size(bmat) .== length(l)) "inconsistent connectivity matrix size"
+        _bondset_unsafe(l, [copy(i) for i in l], Matrix{Bool}(bmat .| bmat' .| Matrix(I, length(l), length(l))))
+    end
+    function BondSet(l::AbstractLattice, bmat::BitMatrix)
+        BondSet(l, convert(BitMatrix, bmat))
+    end
     function BondSet(l::AbstractLattice)
-        new(l, zeros(Bool, length(l), length(l)))
+        BondSet(l, Matrix(I, length(l), length(l)))
     end
 end
 
-function BondSet(op::LatticeOperator)
-    N = dims_internal(op)
+function bonds(op::LatticeOperator)
     matrix = Bool[!iszero(op[i, j])
                     for i in 1:length(op.basis.lattice), j in 1:length(op.basis.lattice)]
     return BondSet(op.basis.lattice, matrix)
 end
 
-function BondSet(l::AbstractLattice, hops::Hopping...)
-    matrix = zeros(Bool, length(l), length(l))
+function bonds(l::AbstractLattice, hops::Hopping...)
+    bs = BondSet(l)
     for h in hops
         _promote_dims!(h, dims(l))
     end
-    i = 1
-    for site1 in l
-        j = 1
-        for site2 in l
-            matrix[i, j] = any(@inbounds(_match(h, l, site1, site2)) for h in hops)
-            j += 1
+    for i in 1:length(l)
+        for j in 1:length(l)
+            site1 = bs.sites[i]
+            site2 = bs.sites[j]
+            isconnect = any(@inbounds(_match(h, l, site1, site2)) for h in hops)
+            bs.bmat[i, j] |= isconnect
+            bs.bmat[j, i] |= isconnect
         end
-        i += 1
     end
-    return BondSet(l, matrix)
+    bs
 end
 
 function |(bss::BondSet...)
     @assert allequal(getproperty.(bss, :lattice))
     return BondSet(bss[1].lattice, .|(getproperty.(bss, :bmat)...))
 end
+
+function ^(bs1::BondSet, n::Int)
+    _bondset_unsafe(bs1.lattice, bs1.sites, Matrix{Bool}(bs1.bmat ^ n .!= 0))
+end
+
+is_adjacent(bs::BondSet, site1::LatticeIndex, site2::LatticeIndex) =
+    bs.bmat[findfirst(==(site1), bs.sites), findfirst(==(site2), bs.sites)]
+
+is_adjacent(bs::BondSet) =
+    (site1::LatticeIndex, site2::LatticeIndex) -> is_adjacent(bs, site1, site2)
 
 function show(io::IO, m::MIME"text/plain", bs::BondSet)
     println(io, "BondSet with $(count(==(true), bs.bmat)) bonds")
@@ -235,12 +249,12 @@ end
     l = bs.lattice
     pts = Tuple{Float64, Float64}[]
     br_pt = fill(NaN, dims(l)) |> Tuple
-    i = 1
-    for site1 in l
-        j = 1
+    for i in 1:length(l)
         A = coords(l, site1)
-        for site2 in l
+        for j in 1:length(l)
             if i != j && bs.bmat[i, j]
+                site1 = bs.sites[i]
+                site2= bs.sites[j]
                 B = coords(l, site2)
                 T = radius_vector(l, site2, site1)
                 push!(pts, Tuple(A))
@@ -250,9 +264,7 @@ end
                 push!(pts, Tuple(B - T/2))
                 push!(pts, br_pt)
             end
-            j += 1
         end
-        i += 1
     end
     @series begin
         label := nothing

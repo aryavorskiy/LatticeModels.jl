@@ -1,5 +1,5 @@
 using RecipesBase, LinearAlgebra, Logging
-import Base: length, size, iterate, show
+import Base: length, size, copy, iterate, show, ==
 
 struct Bravais
     translation_vectors::Matrix{Float64}
@@ -29,7 +29,11 @@ mutable struct LatticeIndex
     basis_index::Int
 end
 
-start(l::FiniteBravaisLattice) = LatticeIndex(fill(1, dims(l)), 1)
+==(::AbstractLattice, ::AbstractLattice) = false
+==(li1::LatticeIndex, li2::LatticeIndex) =
+    li1.basis_index == li2.basis_index && li1.unit_cell == li2.unit_cell
+copy(li::LatticeIndex) = LatticeIndex(copy(li.unit_cell), li.basis_index)
+_first(l::FiniteBravaisLattice) = LatticeIndex(fill(1, dims(l)), 1)
 
 function proceed!(l::FiniteBravaisLattice, bvs_len, site::LatticeIndex)
     @inbounds if site.basis_index == bvs_len
@@ -48,7 +52,7 @@ function proceed!(l::FiniteBravaisLattice, bvs_len, site::LatticeIndex)
 end
 
 function iterate(l::FiniteBravaisLattice)
-    site = start(l)
+    site = _first(l)
     return (site, (site, length(bravais(l)), 1))
 end
 
@@ -106,6 +110,7 @@ macro lattice_def(struct_block::Expr)
             $struct_name(lattice_sz_by_axes::Int...) = $struct_name(lattice_sz_by_axes)
         end
         $struct_name(f::Function, args...) = sublattice(f, $struct_name(args...))
+        ==(l1::$struct_name, l2::$struct_name) = _sz(l1) == _sz(l2)
         export $struct_name
     end
     bravais_flag = false
@@ -188,7 +193,7 @@ length(sl::SubLattice) = count(sl.mask)
 coords(sl::SubLattice, state::LatticeIndex) = coords(sl.lattice, state)
 
 function iterate(sl::SubLattice)
-    site = start(sl.lattice)
+    site = _first(sl.lattice)
     bvs_len = length(bravais(sl))
     index = 1
     while !sl.mask[index]

@@ -105,7 +105,33 @@ end
     end
     @testset "Wrapper macro" begin
         @test @on_lattice(X / 2 + X * Y + exp(Y)) == xd2pxypexpy
+        @test X / 2 + X * Y + @on_lattice(exp(Y)) == xd2pxypexpy
         @test_logs (:warn, "avoid using lattice operators and matrices \
             in one function call") @on_lattice X * ones(200, 200)
+    end
+end
+
+@testset "Hoppings" begin
+    l = SquareLattice(2, 2)
+    ls1 = LatticeIndex([1,1],1)
+    ls2 = LatticeIndex([1,2],1)
+    ls3 = LatticeIndex([2,2],1)
+    @testset "Hopping matching" begin
+        @test !LatticeModels._match(Hopping(axis=1), l, ls1, ls2)
+        @test LatticeModels._match(Hopping(axis=2), l, ls1, ls2)
+    end
+    @testset "Adjacency" begin
+        bs = bonds(l, Hopping(axis=1), Hopping(axis=2))
+        bs2 = bs ^ 2
+        f = is_adjacent(bs)
+        f2 = is_adjacent(bs2)
+        @test is_adjacent(bs, ls1, ls2)
+        @test !is_adjacent(bs, ls1, ls3)
+        @test is_adjacent(bs2, ls1, ls2)
+        @test is_adjacent(bs2, ls1, ls3)
+        @test f(ls1, ls2)
+        @test !f(ls1, ls3)
+        @test f2(ls1, ls2)
+        @test f2(ls1, ls3)
     end
 end

@@ -46,6 +46,25 @@ function materialize(curr::AbstractCurrents)
     m
 end
 
+function materialize(f::Function, curr::AbstractCurrents)
+    l = lattice(curr)
+    m = MaterializedCurrents(l)
+    curr_fn = current_lambda(curr)
+    i = 1
+    for site1 in l
+        j = 1
+        for site2 in l
+            !(f(site1, site2)) && continue
+            ij_curr = curr_fn(i, j)
+            m.currents[i, j] = ij_curr
+            m.currents[j, i] = -ij_curr
+            j += 1
+        end
+        i += 1
+    end
+    m
+end
+
 @recipe function f(curr::AbstractCurrents)
     l = lattice(curr)
     @assert dims(l) == 2 "2D lattice expected"

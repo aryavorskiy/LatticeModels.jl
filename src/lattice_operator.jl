@@ -1,8 +1,8 @@
 using LinearAlgebra, Statistics, Logging
 import Base: length, getindex, show, ==
 
-struct Basis
-    lattice::AbstractLattice
+struct Basis{LT<:AbstractLattice}
+    lattice::LT
     internal_dim::Int
 end
 
@@ -15,16 +15,16 @@ function show(io::IO, m::MIME"text/plain", b::Basis)
     show(io, m, b.lattice)
 end
 
-struct LatticeVecOrMat{MT<:AbstractVecOrMat}
-    basis::Basis
+struct LatticeVecOrMat{LT<:AbstractLattice, MT<:AbstractVecOrMat}
+    basis::Basis{LT}
     operator::MT
-    function LatticeVecOrMat(basis::Basis, operator::AbstractVecOrMat)
+    function LatticeVecOrMat(basis::Basis{LT}, operator::MT) where {LT<:AbstractLattice, MT<:AbstractVecOrMat}
         @assert all(size(operator) .== length(basis))
-        new{typeof(operator)}(basis, operator)
+        new{LT, MT}(basis, operator)
     end
 end
 
-LatticeOperator{T} = LatticeVecOrMat{T} where T<: AbstractMatrix
+LatticeOperator{T} = LatticeVecOrMat{<:AbstractLattice, T} where T<: AbstractMatrix
 
 size(lv::LatticeVecOrMat) = size(lv.operator)
 dims_internal(lv::LatticeVecOrMat) = lv.basis.internal_dim
