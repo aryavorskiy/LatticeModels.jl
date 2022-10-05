@@ -15,16 +15,16 @@ function show(io::IO, m::MIME"text/plain", b::Basis)
     show(io, m, b.lattice)
 end
 
-struct LatticeVecOrMat{LT<:AbstractLattice, MT<:AbstractVecOrMat}
+struct LatticeVecOrMat{LT<:AbstractLattice,MT<:AbstractVecOrMat}
     basis::Basis{LT}
     operator::MT
-    function LatticeVecOrMat(basis::Basis{LT}, operator::MT) where {LT<:AbstractLattice, MT<:AbstractVecOrMat}
+    function LatticeVecOrMat(basis::Basis{LT}, operator::MT) where {LT<:AbstractLattice,MT<:AbstractVecOrMat}
         @assert all(size(operator) .== length(basis))
-        new{LT, MT}(basis, operator)
+        new{LT,MT}(basis, operator)
     end
 end
 
-LatticeOperator{T} = LatticeVecOrMat{<:AbstractLattice, T} where T<: AbstractMatrix
+LatticeOperator{T} = LatticeVecOrMat{<:AbstractLattice,T} where {T<:AbstractMatrix}
 
 size(lv::LatticeVecOrMat) = size(lv.operator)
 dims_internal(lv::LatticeVecOrMat) = lv.basis.internal_dim
@@ -33,20 +33,20 @@ dims_internal(lv::LatticeVecOrMat) = lv.basis.internal_dim
 @inline _ranges(rngs::Tuple, ::Tuple{}, N::Int) = rngs
 @inline _ranges(rngs::Tuple, is::Tuple, N::Int) = _ranges(rngs, is[1], Base.tail(is), N)
 @inline _ranges(rngs::Tuple, i::Int, is::Tuple, N::Int) =
-    _ranges((rngs..., N * (i-1) + 1:N*i), is, N)
+    _ranges((rngs..., N*(i-1)+1:N*i), is, N)
 getindex(lo::LatticeVecOrMat, is::Int...) = lo.operator[_ranges(is, dims_internal(lo))...]
 setindex!(lo::LatticeVecOrMat, val, is::Int...) =
     (lo.operator[_ranges(is, dims_internal(lo))...] = val)
 
 ==(lvm1::LatticeVecOrMat, lvm2::LatticeVecOrMat) = (lvm1.basis == lvm2.basis) && (lvm1.operator == lvm2.operator)
 
-function show(io::IO, m::MIME"text/plain", lv::LatticeVecOrMat{MT}) where MT<:AbstractMatrix
+function show(io::IO, m::MIME"text/plain", lv::LatticeVecOrMat{MT}) where {MT<:AbstractMatrix}
     println(io, join(size(lv), "×") * " LatticeMatrix with inner type $MT")
     print(io, "on ")
     show(io, m, lv.basis)
 end
 
-function show(io::IO, m::MIME"text/plain", lv::LatticeVecOrMat{MT}) where MT<:AbstractVector
+function show(io::IO, m::MIME"text/plain", lv::LatticeVecOrMat{MT}) where {MT<:AbstractVector}
     println(io, "$(length(lv.operator))-length LatticeVector with inner type $MT")
     print(io, "on ")
     show(io, m, lv.basis)
@@ -62,11 +62,13 @@ function _zero_on_basis(l::AbstractLattice, f::Function)
     _zero_on_basis(l, lf(l, first(l)))
 end
 _zero_on_basis(l::AbstractLattice, N::Int) = LatticeVecOrMat(Basis(l, N),
-        zeros(ComplexF64, N * length(l), N * length(l)))
+    zeros(ComplexF64, N * length(l), N * length(l)))
 _zero_on_basis(bas::Basis) = _zero_on_basis(bas.lattice, bas.internal_dim)
 
 convert_inner_type(MT::Type, lo::LatticeVecOrMat) =
     LatticeVecOrMat(lo.basis, convert(MT, lo.operator))
+
+# TODO: check if convert_inner_type() works
 
 function _diag_operator!(lop::LatticeOperator, lf::Function)
     l = lop.basis.lattice
@@ -79,7 +81,9 @@ function _diag_operator!(lop::LatticeOperator, lf::Function)
     catch e
         if e isa DimensionMismatch
             error("check lambda return type; should be AbstractMatrix")
-        else rethrow() end
+        else
+            rethrow()
+        end
     end
     lop
 end
@@ -111,7 +115,7 @@ function coord_operators(b::Basis)
     for site in b.lattice
         crd = coords(b.lattice, site)
         for j in 1:d
-            xyz_operators[N * (i - 1) + 1: N * i, N * (i - 1) + 1: N * i, j] = crd[j] * eye
+            xyz_operators[N*(i-1)+1:N*i, N*(i-1)+1:N*i, j] = crd[j] * eye
         end
         i += 1
     end
@@ -167,7 +171,7 @@ end
 @inline _unwrap_wlattice(f::Function, basis::Any, checked_args::Tuple, ::Tuple{}; kw...) =
     _make_wrapper(f(checked_args...; kw...), basis)
 
-LatticeSummable = Union{LatticeVecOrMat, UniformScaling}
+LatticeSummable = Union{LatticeVecOrMat,UniformScaling}
 import Base: +, -, *, /, ^, adjoint, copy
 @inline +(los::LatticeSummable...) = _unwrap(+, los)
 @inline -(lo::LatticeVecOrMat) = _unwrap(-, (lo,))
@@ -191,7 +195,7 @@ function _wrap_smart!(expr::Expr)
     local _begin = 1
     if Meta.isexpr(expr, :call)
         if expr.args[1] === :.|>
-            lat_sym, fn_sym =  expr.args[2:3]
+            lat_sym, fn_sym = expr.args[2:3]
             expr.args = Any[
                 :_make_wrapper,
                 :(_get_internal($(esc(lat_sym))) .|> $(esc(fn_sym))),

@@ -35,7 +35,8 @@ evolution_operator(H, t::Real, k::Int) = taylor_exp((-im * t) * H, k)
 function _expand_chain(chain)
     if Meta.isexpr(chain, :call) && chain.args[1] == :(=>)
         (_expand_chain(chain.args[2])..., _expand_chain(chain.args[3])...)
-    else (chain,)
+    else
+        (chain,)
     end
 end
 
@@ -54,7 +55,7 @@ function _evolution_operator_call(H_sym, dt_sym, k)
     end
 end
 
-function _evolution_block(rules, loop; k = nothing, rtol=1e-12)
+function _evolution_block(rules, loop; k=nothing, rtol=1e-12)
     if !Meta.isexpr(loop, :for)
         error("for loop expected")
     end
@@ -82,7 +83,8 @@ function _evolution_block(rules, loop; k = nothing, rtol=1e-12)
                 push!(hamiltonian_functions_set, chain[2])
             elseif length(chain) == 2
                 push!(hamiltonian_functions_set, chain[1])
-            else error("invalid argument chain length $(length(chain))")
+            else
+                error("invalid argument chain length $(length(chain))")
             end
         end
     end
@@ -99,18 +101,22 @@ function _evolution_block(rules, loop; k = nothing, rtol=1e-12)
                 :(local $p_target_ev = _unwrap_from_macro(one, $(esc(ham_expr)))))
             push!(ham_evals, :($h_eval_new = $(esc(ham_expr))))
             push!(evolutor_updates,
-                :(if dt_changed || !isequal($h_eval, $h_eval_new)
-                    $p_target_ev = $(_evolution_operator_call(h_eval_new, :dt, k))
-                end),
+                :(
+                    if dt_changed || !isequal($h_eval, $h_eval_new)
+                        $p_target_ev = $(_evolution_operator_call(h_eval_new, :dt, k))
+                    end
+                ),
                 :($h_eval = $h_eval_new))
         else
             push!(inits,
                 :(local $h_eval = $(esc(ham_expr))),
                 :(local $p_target_ev = _unwrap_from_macro(one, $(esc(ham_expr)))))
             push!(evolutor_updates,
-                :(if dt_changed
-                    $p_target_ev = $(_evolution_operator_call(h_eval, :dt, k))
-                end))
+                :(
+                    if dt_changed
+                        $p_target_ev = $(_evolution_operator_call(h_eval, :dt, k))
+                    end
+                ))
         end
         ham_i += 1
     end
@@ -140,7 +146,7 @@ function _evolution_block(rules, loop; k = nothing, rtol=1e-12)
                     :($(esc(p_target)) = _unwrap_from_macro(copy, $(esc(p_initial)))))
                 push!(p_evolutions,
                     :($(esc(p_target)) =
-                            $p_target_ev * $(esc(p_target)) * adjoint($p_target_ev)))
+                        $p_target_ev * $(esc(p_target)) * adjoint($p_target_ev)))
             end
         end
     end
@@ -177,3 +183,5 @@ macro evolution(args...)
     kwargs = Dict(a.args for a in args[begin:end-2])
     _evolution_block(rules, loop; kwargs...)
 end
+
+# TODO: add TimeStorage?

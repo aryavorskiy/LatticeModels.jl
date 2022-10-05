@@ -1,9 +1,9 @@
 import Base: show, +, *
-using LinearAlgebra, StaticArrays, Logging
+using LinearAlgebra, Logging
 abstract type AbstractField end
 
-show(io::IO, ::MIME"text/plain", ::T) where T<:AbstractField = print(io, "$T field")
-vector_potential(::FT, point::Vector) where FT<:AbstractField =
+show(io::IO, ::MIME"text/plain", ::T) where {T<:AbstractField} = print(io, "$T field")
+vector_potential(::FT, point::Vector) where {FT<:AbstractField} =
     error("no vector potential function defined for field type $(MT)")
 function vector_potential!(v::Vector, field::AbstractField, point)
     ret_vp = vector_potential(field, point)
@@ -11,7 +11,7 @@ function vector_potential!(v::Vector, field::AbstractField, point)
 end
 
 function _trip_integral!(field::AbstractField, p1, p2, A; n_integrate=1)
-    integral = 0.
+    integral = 0.0
     copy!(p2, (p2 - p1) / n_integrate)
     p1 .-= 0.5p2
     for _ in 1:n_integrate
@@ -33,13 +33,13 @@ function apply_field!(lo::LatticeOperator, field::AbstractField)
     for site1 in l
         j = 1
         for site2 in l
-            if i > j && !iszero(lo.operator[N * (i - 1) + 1: N * i, N * (j - 1) + 1: N * j])
+            if i > j && !iszero(lo.operator[N*(i-1)+1:N*i, N*(j-1)+1:N*j])
                 coords!(p1, l, site1, bvs, bf)
                 coords!(p2, l, site2, bvs, bf)
                 pmod = exp(2π * im * _trip_integral!(field, p1, p2, bf))
                 @assert isfinite(pmod) "got NaN or Inf when finding the phase factor"
-                lo.operator[N * (i - 1) + 1: N * i, N * (j - 1) + 1: N * j] *= pmod
-                lo.operator[N * (j - 1) + 1: N * j, N * (i - 1) + 1: N * i] *= pmod'
+                lo.operator[N*(i-1)+1:N*i, N*(j-1)+1:N*j] *= pmod
+                lo.operator[N*(j-1)+1:N*j, N*(i-1)+1:N*i] *= pmod'
             end
             j += 1
         end
@@ -63,7 +63,8 @@ function _extract_varname(var)
         return var
     elseif Meta.isexpr(var, :(::)) && var.args[1] isa Symbol
         return var.args[1]
-    else error("cannot extract variable name; invalid definition")
+    else
+        error("cannot extract variable name; invalid definition")
     end
 end
 
@@ -84,7 +85,7 @@ macro field_def(struct_block)
     struct_params = _extract_varname.(struct_args)
     body = struct_block.args[3]
     struct_definition = quote
-        struct $struct_name<:AbstractField
+        struct $struct_name <: AbstractField
             $(struct_args...)
         end
         export $struct_name
@@ -149,14 +150,14 @@ macro field_def(struct_block)
                     :(function $(esc(:Base)).show($(fn_args...), field::$struct_name)
                         $fn_body
                     end
-                ))
+                    ))
             end
         elseif Meta.isexpr(statement, :call) && statement.args[1] == :(:=)
             key, arg = statement.args[2:3]
             if key === :n_integrate
                 push!(struct_definition.args, :(
                     LatticeModels._trip_integral!(field::$struct_name, p1, p2) =
-                    LatticeModels._trip_integral!(field, p1, p2; n_integrate = $arg)
+                        LatticeModels._trip_integral!(field, p1, p2; n_integrate=$arg)
                 ))
             else
                 @warn "skipping unsupported key $key"
@@ -173,24 +174,24 @@ end
 end
 
 @field_def struct Landau(B::Number)
-    vector_potential(x) = SA[0, x * B]
+    vector_potential(x) = (0, x * B)
     trip_integral(p1, p2) = ((p1[1] + p2[1]) / 2) * (p2[2] - p1[2]) * B
     show(io::IO, ::MIME"text/plain") = print(io, "Landau calibration field; B = $B flux quanta per 1×1 plaquette")
 end
 
 @field_def struct Symmetric(B::Number)
-    vector_potential(x, y) = SA[-y, x] * B / 2
+    vector_potential(x, y) = (-y * B / 2, x * B / 2)
     trip_integral(p1, p2) = (p1[1] * p2[2] - p2[1] * p1[2]) / 2 * B
     show(io::IO, ::MIME"text/plain") = print(io, "Symmetric calibration field; B = $B flux quanta per 1×1 plaquette")
 end
 
-_angle(p1, p2) = asin((p1[1] * p2[2] - p2[1] * p1[2]) / norm(p1) / norm(p2) / (1. + 1e-11))
-@field_def struct Flux(B::Number, P::NTuple{2, Number})
+_angle(p1, p2) = asin((p1[1] * p2[2] - p2[1] * p1[2]) / norm(p1) / norm(p2) / (1.0 + 1e-11))
+@field_def struct Flux(B::Number, P::NTuple{2,Number})
     function trip_integral(p1, p2)
         p1[1:2] .-= P
         p2[1:2] .-= P
         if iszero(p1) || iszero(p2)
-            return 0.
+            return 0.0
         end
         _angle(p1, p2) * B
     end
@@ -198,10 +199,10 @@ _angle(p1, p2) = asin((p1[1] * p2[2] - p2[1] * p1[2]) / norm(p1) / norm(p2) / (1
 end
 
 struct FieldSum{N}
-    fields::NTuple{N, AbstractField}
+    fields::NTuple{N,AbstractField}
 end
 _trip_integral!(f::FieldSum, p1, p2) = sum(_trip_integral!(field, p1, p2) for field in f.fields)
-function show(io::IO, m::MIME"text/plain", f::FieldSum{N}) where N
+function show(io::IO, m::MIME"text/plain", f::FieldSum{N}) where {N}
     print(io, "Sum of $N fields:\n")
     i = 1
     for field in f.fields
@@ -211,4 +212,4 @@ function show(io::IO, m::MIME"text/plain", f::FieldSum{N}) where N
     end
 end
 
-+(f::Vararg{AbstractField, N}) where N = FieldSum{N}(f)
++(f::Vararg{AbstractField,N}) where {N} = FieldSum{N}(f)

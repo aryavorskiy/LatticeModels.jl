@@ -13,15 +13,18 @@ struct Bravais
     end
 end
 
+# TODO: make universal classes SquareLattice & AnyBravaisLattice <: AbstractBravaisLattice
+# TODO: also switch to StaticArrays
+
 dims(b::Bravais) = size(b.basis)[1]
 length(b::Bravais) = size(b.basis)[2]
 
 abstract type AbstractLattice end
-abstract type FiniteBravaisLattice<:AbstractLattice end
+abstract type FiniteBravaisLattice <: AbstractLattice end
 
 size(l::FiniteBravaisLattice) = l.lattice_size
 dims(l::FiniteBravaisLattice) = length(l.lattice_size)
-bravais(l::LT) where LT<:FiniteBravaisLattice = _bravais(l, dims(l))
+bravais(l::LT) where {LT<:FiniteBravaisLattice} = _bravais(l, dims(l))
 
 length(l::FiniteBravaisLattice) = prod(size(l)) * length(bravais(l))
 mutable struct LatticeIndex
@@ -56,7 +59,7 @@ function iterate(l::FiniteBravaisLattice)
     return (site, (site, length(bravais(l)), 1))
 end
 
-function iterate(l::FiniteBravaisLattice, state::Tuple{LatticeIndex, Int, Int})
+function iterate(l::FiniteBravaisLattice, state::Tuple{LatticeIndex,Int,Int})
     site, bvs_len, index = state
     !proceed!(l, bvs_len, site) && return nothing
     index += 1
@@ -72,18 +75,18 @@ function coords!(crd::Vector, l::AbstractLattice, site::LatticeIndex, bvs::Brava
 end
 
 coords(l::AbstractLattice, site::LatticeIndex) =
-    bravais(l).basis[:, site.basis_index] +  bravais(l).translation_vectors * (site.unit_cell - _sz(l) / 2 .- 0.5)
+    bravais(l).basis[:, site.basis_index] + bravais(l).translation_vectors * (site.unit_cell - _sz(l) / 2 .- 0.5)
 
 _bravais(::FiniteBravaisLattice, ::Int) = throw(ArgumentError("No Bravais lattice defined for this type"))
-_assert_dims(l::LT, ::Int) where LT<:FiniteBravaisLattice = l
+_assert_dims(l::LT, ::Int) where {LT<:FiniteBravaisLattice} = l
 _prettyprint_name(::LT) where {LT<:FiniteBravaisLattice} = string(LT)
 
 function _propagate_lattice_args(f, l::AbstractLattice)
-    if hasmethod(f, NTuple{dims(l), Number})
+    if hasmethod(f, NTuple{dims(l),Number})
         (_l::AbstractLattice, site::LatticeIndex) -> f(coords(_l, site)...)
     elseif hasmethod(f, Tuple{LatticeIndex})
         (::AbstractLattice, site::LatticeIndex) -> f(site)
-    elseif hasmethod(f, Tuple{LatticeIndex, Vararg{Number, dims(l)}})
+    elseif hasmethod(f, Tuple{LatticeIndex,Vararg{Number,dims(l)}})
         (_l::AbstractLattice, site::LatticeIndex) -> f(site, coords(_l, site)...)
     else
         throw(ArgumentError("failed to propagate args: unsupported lambda type"))
@@ -138,20 +141,20 @@ macro lattice_def(struct_block::Expr)
             if call_args.head == :vcat
                 message = "lattice type $(string(struct_name)) only supports dimension count $(length(call_args.args))"
                 push!(struct_definition.args, :(
-                function _assert_dims(l::$struct_name, dims::Int)
-                    @assert dims == $(length(call_args.args)) $message
-                    return l
-                end))
+                    function _assert_dims(l::$struct_name, dims::Int)
+                        @assert dims == $(length(call_args.args)) $message
+                        return l
+                    end))
             end
             bravais_flag = true
         elseif expr.head == :vcat
             push!(struct_definition.args, :(bravais(::$struct_name) = Bravais($expr)))
             message = "lattice type $(string(struct_name)) only supports dimension count $(length(expr.args))"
             push!(struct_definition.args, :(
-            function _assert_dims(l::$struct_name, dims::Int)
-                @assert dims == $(length(expr.args)) $message
-                return l
-            end))
+                function _assert_dims(l::$struct_name, dims::Int)
+                    @assert dims == $(length(expr.args)) $message
+                    return l
+                end))
             bravais_flag = true
         end
     end
@@ -165,18 +168,18 @@ end
 
 @lattice_def struct TriangularLattice
     name := "triangular lattice"
-    [1 0.5;0 √3/2]
+    [1 0.5; 0 √3/2]
 end
 
 @lattice_def struct HoneycombLattice
     name := "honeycomb lattice"
-    Bravais([1 0.5;0 √3/2], [0 0.5;0 √3/6])
+    Bravais([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])
 end
 
-struct SubLattice{LT}<:AbstractLattice where LT<:FiniteBravaisLattice
+struct SubLattice{LT} <: AbstractLattice where {LT<:FiniteBravaisLattice}
     lattice::LT
     mask::Vector{Bool}
-    function SubLattice(lattice::T, mask::Vector{Bool}) where T
+    function SubLattice(lattice::T, mask::Vector{Bool}) where {T}
         @assert length(mask) == length(lattice) "Lattice site count does not match mask length"
         new{T}(lattice, mask)
     end
@@ -203,7 +206,7 @@ function iterate(sl::SubLattice)
     return (site, (site, bvs_len, index))
 end
 
-function iterate(sl::SubLattice, state::Tuple{LatticeIndex, Int, Int})
+function iterate(sl::SubLattice, state::Tuple{LatticeIndex,Int,Int})
     site, bvs_len, index = state
     !proceed!(sl.lattice, bvs_len, site) && return nothing
     index += 1
@@ -280,7 +283,8 @@ end
             X, Y
         elseif plotattributes[:seriestype] == :surface
             X, Y, v
-        else throw(ArgumentError("unsupported series type $(plotattributes[:seriestype])"))
+        else
+            throw(ArgumentError("unsupported series type $(plotattributes[:seriestype])"))
         end
     end
 end

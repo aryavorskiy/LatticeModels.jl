@@ -70,7 +70,7 @@ end
     @assert dims(l) == 2 "2D lattice expected"
     Xs = Float64[]
     Ys = Float64[]
-    Qs = NTuple{2, Float64}[]
+    Qs = NTuple{2,Float64}[]
     curr_fn = current_lambda(curr)
     crd = zeros(2)
     bvs = bravais(l)

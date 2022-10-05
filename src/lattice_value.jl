@@ -4,7 +4,7 @@ import Base: length, size, getindex, setindex!, eltype, copyto!, show, ==
 struct LatticeValue{T}
     lattice::AbstractLattice
     vector::Vector{T}
-    LatticeValue(lattice::AbstractLattice, vector::Vector{T}) where T =
+    LatticeValue(lattice::AbstractLattice, vector::Vector{T}) where {T} =
         new{T}(lattice, vector)
 end
 
@@ -12,7 +12,7 @@ LatticeValue(f, l::AbstractLattice) =
     (lf = _propagate_lattice_args(f, l); LatticeValue(l, [lf(l, site) for site in l]))
 
 ==(lv1::LatticeValue, lv2::LatticeValue) = (lv1.lattice == lv2.lattice) && (lv1.vector == lv2.vector)
-eltype(::LatticeValue{T}) where T = T
+eltype(::LatticeValue{T}) where {T} = T
 length(lv::LatticeValue) = length(lv.vector)
 size(lv::LatticeValue) = size(lv.vector)
 iterate(lv::LatticeValue) = iterate(lv.vector)
@@ -27,7 +27,7 @@ Base.BroadcastStyle(bs::Broadcast.BroadcastStyle, ::LVStyle) =
     error("cannot broadcast LatticeValue along style $bs")
 Base.BroadcastStyle(::Broadcast.DefaultArrayStyle{0}, ::LVStyle) = LVStyle()
 
-function Base.similar(bc::Broadcast.Broadcasted{LVStyle}, ::Type{Eltype}) where Eltype
+function Base.similar(bc::Broadcast.Broadcasted{LVStyle}, ::Type{Eltype}) where {Eltype}
     l = _extract_lattice(bc.args)
     LatticeValue(l, similar(Vector{Eltype}, axes(bc)))
 end
@@ -46,7 +46,7 @@ function _extract_lattice_s(l::AbstractLattice, lv::LatticeValue, rem_args::Tupl
     _extract_lattice_s(l, rem_args)
 end
 
-function show(io::IO, m::MIME"text/plain", lv::LatticeValue{T}) where T
+function show(io::IO, m::MIME"text/plain", lv::LatticeValue{T}) where {T}
     println(io, "LatticeValue with inner type $T")
     print(io, "on ")
     show(io, m, lv.lattice)
@@ -55,7 +55,7 @@ end
 _supports_heatmap(::FiniteBravaisLattice) = false
 _supports_heatmap(::SquareLattice) = true
 _supports_heatmap(sl::SubLattice) = _supports_heatmap(sl.lattice)
-_heatmap_axes(l::SquareLattice) = [-(ax-1)/2:(ax-1)/2 for ax in _sz(l)]
+_heatmap_axes(l::SquareLattice) = [-(ax - 1)/2:(ax-1)/2 for ax in _sz(l)]
 _heatmap_axes(sl::SubLattice) = _heatmap_axes(sl.lattice)
 _heatmap_vals(::FiniteBravaisLattice, vec) = vec
 function _heatmap_vals(sl::SubLattice, vec)
@@ -82,3 +82,5 @@ end
         lv.lattice, lv.vector
     end
 end
+
+# TODO: add logical indexing support

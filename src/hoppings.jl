@@ -1,7 +1,7 @@
 import Base: copy, show, |
 
 struct Hopping{MT<:AbstractMatrix}
-    site_indices::Tuple{Int, Int}
+    site_indices::Tuple{Int,Int}
     tr_vector::Vector{Int}
     pbc::Vector{Bool}
     hop_operator::MT
@@ -27,14 +27,15 @@ function _tr_and_pbc(axis::Int, pbc::Bool)
     tr_vc[axis] = 1
     return (tr_vc, fill(pbc, axis))
 end
-function Hopping(hop_operator=1;site_indices::NTuple{2} = (1, 1), pbc=false, kw...)
+function Hopping(hop_operator=1; site_indices::NTuple{2}=(1, 1), pbc=false, kw...)
     if :axis in keys(kw)
         tr_vc, pbc = _tr_and_pbc(kw[:axis], pbc)
     elseif :tr_vector in keys(kw)
         tr_vc, pbc = _tr_and_pbc(kw[:tr_vector], pbc)
     elseif site_indices[1] != site_indices[2]
         tr_vc, pbc = _tr_and_pbc(pbc)
-    else throw(ArgumentError("hopping connects site to itself"))
+    else
+        throw(ArgumentError("hopping connects site to itself"))
     end
     Hopping(site_indices, tr_vc, pbc, _wrap_operator(hop_operator))
 end
@@ -68,7 +69,7 @@ function _promote_dims!(h::Hopping, ndims::Int)
         append!(h.pbc, fill(false, ndims - dims(h)))
         append!(h.tr_vector, fill(0, ndims - dims(h)))
     else
-        for _ in 1:dims(h) - ndims
+        for _ in 1:dims(h)-ndims
             if h.tr_vector[end] == 0
                 pop!(h.tr_vector)
                 pop!(h.pbc)
@@ -172,8 +173,8 @@ macro hopping_operator(for_loop::Expr)
                         end
                         matrix = zeros(ComplexF64, N * length(l), N * length(l))
                     end
-                    matrix[N * (i - 1) + 1: N * i, N * (j - 1) + 1: N * j] .= block_res
-                    matrix[N * (j - 1) + 1: N * j, N * (i - 1) + 1: N * i] .= block_res'
+                    matrix[N*(i-1)+1:N*i, N*(j-1)+1:N*j] .= block_res
+                    matrix[N*(j-1)+1:N*j, N*(i-1)+1:N*i] .= block_res'
                 end
             end
         end
@@ -185,7 +186,7 @@ struct BondSet{LT<:AbstractLattice}
     lattice::LT
     sites::Vector{LatticeIndex}
     bmat::Matrix{Bool}
-    global function _bondset_unsafe(l::LT, sites::Vector{LatticeIndex}, bmat::Matrix{Bool}) where LT<:AbstractLattice
+    global function _bondset_unsafe(l::LT, sites::Vector{LatticeIndex}, bmat::Matrix{Bool}) where {LT<:AbstractLattice}
         new{LT}(l, sites, bmat)
     end
     function BondSet(l::AbstractLattice, bmat::AbstractMatrix{Bool})
@@ -202,7 +203,7 @@ end
 
 function bonds(op::LatticeOperator)
     matrix = Bool[!iszero(op[i, j])
-                    for i in 1:length(op.basis.lattice), j in 1:length(op.basis.lattice)]
+                  for i in 1:length(op.basis.lattice), j in 1:length(op.basis.lattice)]
     return BondSet(op.basis.lattice, matrix)
 end
 
@@ -229,7 +230,7 @@ function |(bss::BondSet...)
 end
 
 function ^(bs1::BondSet, n::Int)
-    _bondset_unsafe(bs1.lattice, bs1.sites, Matrix{Bool}(bs1.bmat ^ n .!= 0))
+    _bondset_unsafe(bs1.lattice, bs1.sites, Matrix{Bool}(bs1.bmat^n .!= 0))
 end
 
 is_adjacent(bs::BondSet, site1::LatticeIndex, site2::LatticeIndex) =
@@ -247,21 +248,21 @@ end
 @recipe function f(bs::BondSet)
     aspect_ratio := :equal
     l = bs.lattice
-    pts = Tuple{Float64, Float64}[]
+    pts = Tuple{Float64,Float64}[]
     br_pt = fill(NaN, dims(l)) |> Tuple
     for i in 1:length(l)
         A = coords(l, site1)
         for j in 1:length(l)
             if i != j && bs.bmat[i, j]
                 site1 = bs.sites[i]
-                site2= bs.sites[j]
+                site2 = bs.sites[j]
                 B = coords(l, site2)
                 T = radius_vector(l, site2, site1)
                 push!(pts, Tuple(A))
-                push!(pts, Tuple(A + T/2))
+                push!(pts, Tuple(A + T / 2))
                 push!(pts, br_pt)
                 push!(pts, Tuple(B))
-                push!(pts, Tuple(B - T/2))
+                push!(pts, Tuple(B - T / 2))
                 push!(pts, br_pt)
             end
         end

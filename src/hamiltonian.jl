@@ -6,7 +6,7 @@ _diag_from_macro(lop::LatticeOperator, ::AbstractLattice, m::AbstractMatrix) =
     _diag_operator!(lop, m)
 _diag_from_macro(lop::LatticeOperator, l::AbstractLattice, f::Function) =
     _diag_operator!(lop, _propagate_lattice_args(f, l))
-_diag_from_macro(::LatticeOperator, ::AbstractLattice, ::T) where T =
+_diag_from_macro(::LatticeOperator, ::AbstractLattice, ::T) where {T} =
     error("unextected argument type $T in @diag")
 _diag_from_macro(l::AbstractLattice, arg::Any) =
     _diag_from_macro(_zero_on_basis(l, arg), l, arg)
@@ -62,9 +62,10 @@ function _hamiltonian_block(block::Expr)
 
                 hopcall = :(Hopping($(esc.(macro_args)...)))
                 push!(ham_block.args, :(
-                        _hops_from_macro($lattice_sym, $pr_lambda, $hopcall)
+                    _hops_from_macro($lattice_sym, $pr_lambda, $hopcall)
                 ))
-            else error("unexpected macro call $macro_name in @hamiltonian")
+            else
+                error("unexpected macro call $macro_name in @hamiltonian")
             end
             assign_flag = false
         end
@@ -90,18 +91,18 @@ macro hamiltonian(expr)
     _hamiltonian_block(expr)
 end
 
-struct Spectrum{LT<:AbstractLattice, MT<:AbstractMatrix}
+struct Spectrum{LT<:AbstractLattice,MT<:AbstractMatrix}
     basis::Basis{LT}
     states::MT
     energies::Vector{Float64}
-    function Spectrum(basis::Basis{LT}, states::MT, energies::AbstractVector) where {LT, MT}
+    function Spectrum(basis::Basis{LT}, states::MT, energies::AbstractVector) where {LT,MT}
         @assert length(energies) == size(states)[1] "inconsistent energies list length"
         @assert length(basis) == size(states)[2] "inconsistent basis dimensionality"
-        new{LT, MT}(basis, states, energies)
+        new{LT,MT}(basis, states, energies)
     end
 end
 
-function spectrum(lop::LatticeOperator{Matrix{T}} where T)
+function spectrum(lop::LatticeOperator{Matrix{T}} where {T})
     @assert all(isfinite.(lop.operator)) "operator matrix has non-finite values (NaN of Inf)"
     vals, vecs = eigen(Hermitian(lop.operator))
     return Spectrum(lop.basis, vecs, vals)
