@@ -83,7 +83,7 @@ function _promote_dims!(h::Hopping, ndims::Int)
     end
 end
 
-@propagate_inbounds function _match(h::Hopping, l::Lattice, site1::LatticeIndex, site2::LatticeIndex)
+Base.@propagate_inbounds function _match(h::Hopping, l::Lattice, site1::LatticeIndex, site2::LatticeIndex)
     (site1.basis_index, site2.basis_index) != h.site_indices && return false
     for i in 1:dims(h)
         vi = site2.unit_cell[i] - site1.unit_cell[i] - h.tr_vector[i]
