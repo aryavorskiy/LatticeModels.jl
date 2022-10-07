@@ -2,18 +2,18 @@ using Logging
 import LinearAlgebra: eigen, Hermitian
 import Base: length, getindex
 
-_diag_from_macro(lop::LatticeOperator, ::AbstractLattice, m::AbstractMatrix) =
+_diag_from_macro(lop::LatticeOperator, ::Lattice, m::AbstractMatrix) =
     _diag_operator!(lop, m)
-_diag_from_macro(lop::LatticeOperator, l::AbstractLattice, f::Function) =
+_diag_from_macro(lop::LatticeOperator, l::Lattice, f::Function) =
     _diag_operator!(lop, _propagate_lattice_args(f, l))
-_diag_from_macro(::LatticeOperator, ::AbstractLattice, ::T) where {T} =
+_diag_from_macro(::LatticeOperator, ::Lattice, ::T) where {T} =
     error("unextected argument type $T in @diag")
-_diag_from_macro(l::AbstractLattice, arg::Any) =
+_diag_from_macro(l::Lattice, arg::Any) =
     _diag_from_macro(_zero_on_basis(l, arg), l, arg)
 
-_hops_from_macro(lop::LatticeOperator, l::AbstractLattice, pr_fun::Function, hop::Hopping, field::AbstractField=NoField()) =
+_hops_from_macro(lop::LatticeOperator, l::Lattice, pr_fun::Function, hop::Hopping, field::AbstractField=NoField()) =
     _hopping_operator!(lop, pr_fun, hop, field)
-_hops_from_macro(l::AbstractLattice, pr_fun::Function, hop::Hopping, field::AbstractField=NoField()) =
+_hops_from_macro(l::Lattice, pr_fun::Function, hop::Hopping, field::AbstractField=NoField()) =
     _hops_from_macro(_zero_on_basis(l, hop.hop_operator), l, pr_fun, hop, field)
 
 function _hamiltonian_block(block::Expr)
@@ -60,7 +60,7 @@ function _hamiltonian_block(block::Expr)
                     end
                 end
 
-                hopcall = :(Hopping($(esc.(macro_args)...)))
+                hopcall = :(hopping($(esc.(macro_args)...)))
                 push!(ham_block.args, :(
                     _hops_from_macro($lattice_sym, $pr_lambda, $hopcall)
                 ))
@@ -91,7 +91,7 @@ macro hamiltonian(expr)
     _hamiltonian_block(expr)
 end
 
-struct Spectrum{LT<:AbstractLattice,MT<:AbstractMatrix}
+struct Spectrum{LT<:Lattice,MT<:AbstractMatrix}
     basis::Basis{LT}
     states::MT
     energies::Vector{Float64}

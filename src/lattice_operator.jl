@@ -1,7 +1,7 @@
 using LinearAlgebra, Statistics, Logging
 import Base: length, getindex, show, ==
 
-struct Basis{LT<:AbstractLattice}
+struct Basis{LT<:Lattice}
     lattice::LT
     internal_dim::Int
 end
@@ -15,16 +15,16 @@ function show(io::IO, m::MIME"text/plain", b::Basis)
     show(io, m, b.lattice)
 end
 
-struct LatticeVecOrMat{LT<:AbstractLattice,MT<:AbstractVecOrMat}
+struct LatticeVecOrMat{LT<:Lattice,MT<:AbstractVecOrMat}
     basis::Basis{LT}
     operator::MT
-    function LatticeVecOrMat(basis::Basis{LT}, operator::MT) where {LT<:AbstractLattice,MT<:AbstractVecOrMat}
+    function LatticeVecOrMat(basis::Basis{LT}, operator::MT) where {LT<:Lattice,MT<:AbstractVecOrMat}
         @assert all(size(operator) .== length(basis))
         new{LT,MT}(basis, operator)
     end
 end
 
-LatticeOperator{T} = LatticeVecOrMat{<:AbstractLattice,T} where {T<:AbstractMatrix}
+LatticeOperator{T} = LatticeVecOrMat{<:Lattice,T} where {T<:AbstractMatrix}
 
 size(lv::LatticeVecOrMat) = size(lv.operator)
 dims_internal(lv::LatticeVecOrMat) = lv.basis.internal_dim
@@ -40,7 +40,7 @@ setindex!(lo::LatticeVecOrMat, val, is::Int...) =
 
 ==(lvm1::LatticeVecOrMat, lvm2::LatticeVecOrMat) = (lvm1.basis == lvm2.basis) && (lvm1.operator == lvm2.operator)
 
-function show(io::IO, m::MIME"text/plain", lv::LatticeVecOrMat{MT}) where {MT<:AbstractMatrix}
+function show(io::IO, m::MIME"text/plain", lv::LatticeVecOrMat{LT, MT}) where {LT, MT<:AbstractMatrix}
     println(io, join(size(lv), "×") * " LatticeMatrix with inner type $MT")
     print(io, "on ")
     show(io, m, lv.basis)
@@ -52,16 +52,16 @@ function show(io::IO, m::MIME"text/plain", lv::LatticeVecOrMat{MT}) where {MT<:A
     show(io, m, lv.basis)
 end
 
-function _zero_on_basis(l::AbstractLattice, m::AbstractMatrix)
+function _zero_on_basis(l::Lattice, m::AbstractMatrix)
     N = size(m)[1]
     LatticeVecOrMat(Basis(l, N),
         zero(similar(m, ComplexF64, (N * length(l), N * length(l)))))
 end
-function _zero_on_basis(l::AbstractLattice, f::Function)
+function _zero_on_basis(l::Lattice, f::Function)
     lf = _propagate_lattice_args(f, l)
     _zero_on_basis(l, lf(l, first(l)))
 end
-_zero_on_basis(l::AbstractLattice, N::Int) = LatticeVecOrMat(Basis(l, N),
+_zero_on_basis(l::Lattice, N::Int) = LatticeVecOrMat(Basis(l, N),
     zeros(ComplexF64, N * length(l), N * length(l)))
 _zero_on_basis(bas::Basis) = _zero_on_basis(bas.lattice, bas.internal_dim)
 
@@ -94,9 +94,9 @@ function _diag_operator!(lop::LatticeOperator, m::AbstractMatrix)
     lop
 end
 
-diag_operator(f::Function, l::AbstractLattice) =
+diag_operator(f::Function, l::Lattice) =
     _diag_operator!(_zero_on_basis(l, f), _propagate_lattice_args(f, l))
-diag_operator(l::AbstractLattice, m::AbstractMatrix) =
+diag_operator(l::Lattice, m::AbstractMatrix) =
     _diag_operator!(_zero_on_basis(l, m), m)
 function diag_operator(f::Function, bas::Basis)
     N = bas.internal_dim
@@ -111,18 +111,20 @@ function coord_operators(b::Basis)
     d = dims(b.lattice)
     i = 1
     eye = Matrix(I, (N, N))
-    xyz_operators = zeros(length(b), length(b), d)
+    xyz_operators = [LatticeVecOrMat(b, op_mat)
+        for op_mat
+        in eachslice(zeros(length(b), length(b), d), dims=3)]
     for site in b.lattice
         crd = coords(b.lattice, site)
         for j in 1:d
-            xyz_operators[N*(i-1)+1:N*i, N*(i-1)+1:N*i, j] = crd[j] * eye
+            xyz_operators[j][i, i] = crd[j] * eye
         end
         i += 1
     end
-    return [LatticeVecOrMat(b, op_mat) for op_mat in eachslice(xyz_operators, dims=3)]
+    return xyz_operators
 end
 
-coord_operators(l::AbstractLattice, N::Int) = coord_operators(Basis(l, N))
+coord_operators(l::Lattice, N::Int) = coord_operators(Basis(l, N))
 
 diag_aggregate(f::Function, lo::LatticeVecOrMat) =
     LatticeValue(lo.basis.lattice, [f(lo[i, i]) for i in 1:length(lo.basis.lattice)])

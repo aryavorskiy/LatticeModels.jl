@@ -10,12 +10,12 @@ function vector_potential!(v::Vector, field::AbstractField, point)
     v[eachindex(ret_vp)] = ret_vp
 end
 
-function _trip_integral!(field::AbstractField, p1, p2, A; n_integrate=1)
+function trip_integral(field::AbstractField, p1, p2, A; n_integrate=1)
     integral = 0.0
     copy!(p2, (p2 - p1) / n_integrate)
-    p1 .-= 0.5p2
+    p1 -= 0.5p2
     for _ in 1:n_integrate
-        p1 .+= p2
+        p1 += p2
         vector_potential!(A, field, p1)
         integral += A' * p2
     end
@@ -27,16 +27,13 @@ function apply_field!(lo::LatticeOperator, field::AbstractField)
     bvs = bravais(l)
     N = dims_internal(lo.basis)
     i = 1
-    p1 = zeros(dims(bvs))
-    p2 = zeros(dims(bvs))
-    bf = zeros(dims(bvs))
     for site1 in l
         j = 1
         for site2 in l
             if i > j && !iszero(lo.operator[N*(i-1)+1:N*i, N*(j-1)+1:N*j])
-                coords!(p1, l, site1, bvs, bf)
-                coords!(p2, l, site2, bvs, bf)
-                pmod = exp(2π * im * _trip_integral!(field, p1, p2, bf))
+                p1 = coords(l, site1)
+                p2 = coords(l, site2)
+                pmod = exp(2π * im * trip_integral(field, p1, p2, bf))
                 @assert isfinite(pmod) "got NaN or Inf when finding the phase factor"
                 lo.operator[N*(i-1)+1:N*i, N*(j-1)+1:N*j] *= pmod
                 lo.operator[N*(j-1)+1:N*j, N*(i-1)+1:N*i] *= pmod'
@@ -135,7 +132,7 @@ macro field_def(struct_block)
                 end
                 insert!(fn_args, _begin, :(field::$struct_name))
                 push!(struct_definition.args, :(
-                    function LatticeModels._trip_integral!($(fn_args...))
+                    function LatticeModels.trip_integral($(fn_args...))
                         local function vector_potential(p::Vector{Float64})
                             A = zero(p)
                             res = $(esc(:vector_potential))(field, p)
@@ -151,19 +148,21 @@ macro field_def(struct_block)
                         $fn_body
                     end
                     ))
+            else
+                @warn "function definition $fn_def ignored"
             end
         elseif Meta.isexpr(statement, :call) && statement.args[1] == :(:=)
             key, arg = statement.args[2:3]
             if key === :n_integrate
                 push!(struct_definition.args, :(
-                    LatticeModels._trip_integral!(field::$struct_name, p1, p2) =
-                        LatticeModels._trip_integral!(field, p1, p2; n_integrate=$arg)
+                    LatticeModels.trip_integral(field::$struct_name, p1, p2) =
+                        LatticeModels.trip_integral(field, p1, p2; n_integrate=$arg)
                 ))
             else
-                @warn "skipping unsupported key $key"
+                @warn "unsupported key $key ignored"
             end
         elseif statement isa Expr
-            error("not a function definition")
+            error("not a function definition or key assignment")
         end
     end
     return struct_definition
@@ -185,11 +184,12 @@ end
     show(io::IO, ::MIME"text/plain") = print(io, "Symmetric calibration field; B = $B flux quanta per 1×1 plaquette")
 end
 
-_angle(p1, p2) = asin((p1[1] * p2[2] - p2[1] * p1[2]) / norm(p1) / norm(p2) / (1.0 + 1e-11))
+_angle(p1, p2) = asin(det(hcat(p1, p2)) / norm(p1) / norm(p2) / (1.0 + 1e-11))
 @field_def struct Flux(B::Number, P::NTuple{2,Number})
     function trip_integral(p1, p2)
-        p1[1:2] .-= P
-        p2[1:2] .-= P
+        Pv = SVector(P)
+        p1 = p1[1:2] - Pv
+        p2 = p2[1:2] - Pv
         if iszero(p1) || iszero(p2)
             return 0.0
         end
@@ -201,7 +201,7 @@ end
 struct FieldSum{N}
     fields::NTuple{N,AbstractField}
 end
-_trip_integral!(f::FieldSum, p1, p2) = sum(_trip_integral!(field, p1, p2) for field in f.fields)
+trip_integral(f::FieldSum, p1, p2) = sum(trip_integral(field, p1, p2) for field in f.fields)
 function show(io::IO, m::MIME"text/plain", f::FieldSum{N}) where {N}
     print(io, "Sum of $N fields:\n")
     i = 1

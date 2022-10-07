@@ -20,15 +20,15 @@ end
 lattice(curr::ChargeCurrents) = curr.hamiltonian.basis.lattice
 
 struct MaterializedCurrents <: AbstractCurrents
-    lattice::AbstractLattice
+    lattice::Lattice
     currents::Matrix{Float64}
-    function MaterializedCurrents(l::AbstractLattice, curs::Matrix{Float64})
+    function MaterializedCurrents(l::Lattice, curs::Matrix{Float64})
         @assert all(length(l) .== size(curs)) "dimension mismatch"
         new(l, curs)
     end
 end
 
-MaterializedCurrents(l::AbstractLattice) =
+MaterializedCurrents(l::Lattice) =
     MaterializedCurrents(l, zeros(length(l), length(l)))
 
 lattice(mcurr::MaterializedCurrents) = mcurr.lattice
@@ -72,9 +72,6 @@ end
     Ys = Float64[]
     Qs = NTuple{2,Float64}[]
     curr_fn = current_lambda(curr)
-    crd = zeros(2)
-    bvs = bravais(l)
-    buf = zeros(2)
     arrows_scale --> 1
     arrows_rtol --> 1e-2
     seriestype := :quiver
@@ -84,7 +81,7 @@ end
         for site2 in l
             j ≥ i && continue
             ij_curr = curr_fn(i, j)::Real
-            coords!(crd, l, (ij_curr > 0 ? site1 : site2), bvs, buf)
+            crd = coords(l, (ij_curr > 0 ? site1 : site2))
             vc = radius_vector(l, site2, site1)
             vc_n = norm(vc)
             if vc_n < abs(ij_curr * plotattributes[:arrows_scale] / plotattributes[:arrows_rtol])

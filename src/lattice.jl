@@ -1,263 +1,122 @@
-using RecipesBase, LinearAlgebra, Logging
-import Base: length, size, copy, iterate, show, ==
+using RecipesBase, LinearAlgebra, Logging, StaticArrays
+import Base: length, size, copy, iterate, eltype, show, ==
 
-struct Bravais
-    translation_vectors::Matrix{Float64}
-    basis::Matrix{Float64}
-    function Bravais(translation_vectors::Matrix{<:Real}, basis::Matrix{<:Real})
-        @assert size(basis)[1] == size(translation_vectors)[1]
-        new(translation_vectors .|> Float64, basis .|> Float64)
-    end
-    function Bravais(translation_vectors::Matrix{<:Real})
-        new(translation_vectors, zeros(Float64, (size(translation_vectors)[1], 1)))
+struct Bravais{N,NB}
+    translation_vectors::SMatrix{N,N,Float64}
+    basis::SMatrix{N,NB,Float64}
+    function Bravais(translation_vectors::AbstractMatrix{<:Real}, basis::AbstractMatrix{<:Real})
+        (size(translation_vectors)[1] != size(basis)[1]) && error("inconsistent dimension count")
+        N, NB = size(basis)
+        new{N,NB}(translation_vectors, basis)
     end
 end
+function Bravais(translation_vectors::AbstractMatrix{<:Real})
+    Bravais(translation_vectors, zeros(Float64, (size(translation_vectors)[1], 1)))
+end
 
-# TODO: make universal classes SquareLattice & AnyBravaisLattice <: AbstractBravaisLattice
-# TODO: also switch to StaticArrays
+dims(@nospecialize _::Bravais{N}) where {N} = N
+length(::Bravais{N,NB}) where {N,NB} = NB
 
-dims(b::Bravais) = size(b.basis)[1]
-length(b::Bravais) = size(b.basis)[2]
+struct Lattice{LatticeType,N}
+    lattice_size::NTuple{N,Int}
+    bravais::Bravais{N}
+    mask::Vector{Bool}
+    function Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}, mask::Vector{Bool}) where {N}
+        length(mask) != prod(sz) * length(bvs) &&
+            error("inconsistent mask length")
+        new{sym,N}(sz, bvs, mask)
+    end
+end
+Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}) where {N} =
+    Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}, fill(true, prod(sz) * length(bvs)))
 
-abstract type AbstractLattice end
-abstract type FiniteBravaisLattice <: AbstractLattice end
+==(@nospecialize(l1::Lattice), @nospecialize(l2::Lattice)) =
+    (l1.lattice_size == l2.lattice_size) && (l1.bravais == l2.bravais)
 
-size(l::FiniteBravaisLattice) = l.lattice_size
-dims(l::FiniteBravaisLattice) = length(l.lattice_size)
-bravais(l::LT) where {LT<:FiniteBravaisLattice} = _bravais(l, dims(l))
+size(@nospecialize l::Lattice) = l.lattice_size
+dims(@nospecialize _::Lattice{LatticeType,N}) where {LatticeType,N} = N
+bravais(@nospecialize l::Lattice) = l.bravais
 
-length(l::FiniteBravaisLattice) = prod(size(l)) * length(bravais(l))
-mutable struct LatticeIndex
-    unit_cell::Vector{Int}
+length(@nospecialize l::Lattice) = count(l.mask)
+struct LatticeIndex{N}
+    unit_cell::SVector{N,Int}
     basis_index::Int
 end
 
-==(::AbstractLattice, ::AbstractLattice) = false
-==(li1::LatticeIndex, li2::LatticeIndex) =
+Base.eltype(::Lattice{LatticeType,N}) where {LatticeType,N} = LatticeIndex{N}
+
+==(@nospecialize(li1::LatticeIndex), @nospecialize(li2::LatticeIndex)) =
     li1.basis_index == li2.basis_index && li1.unit_cell == li2.unit_cell
-copy(li::LatticeIndex) = LatticeIndex(copy(li.unit_cell), li.basis_index)
-_first(l::FiniteBravaisLattice) = LatticeIndex(fill(1, dims(l)), 1)
+_first(l::Lattice) = LatticeIndex(@SVector(fill(1, dims(l))), 1)
 
-function proceed!(l::FiniteBravaisLattice, bvs_len, site::LatticeIndex)
-    @inbounds if site.basis_index == bvs_len
-        site.basis_index = 1
-        i = length(site.unit_cell)
-        while site.unit_cell[i] == size(l)[i]
-            site.unit_cell[i] = 1
-            i -= 1
-            i == 0 && return false
+function _next(cinds::CartesianIndices, bvs_len, site::LatticeIndex)
+    if site.basis_index == bvs_len
+        n = iterate(cinds, CartesianIndex(Tuple(site.unit_cell)))
+        if n === nothing
+            nothing
+        else
+            LatticeIndex(SVector(Tuple(n[1])), 1)
         end
-        site.unit_cell[i] += 1
     else
-        site.basis_index += 1
+        LatticeIndex(site.unit_cell, site.basis_index + 1)
     end
-    return true
 end
 
-function iterate(l::FiniteBravaisLattice)
+function iterate(@nospecialize l::Lattice{LatticeType,N}) where {LatticeType,N}
     site = _first(l)
-    return (site, (site, length(bravais(l)), 1))
-end
-
-function iterate(l::FiniteBravaisLattice, state::Tuple{LatticeIndex,Int,Int})
-    site, bvs_len, index = state
-    !proceed!(l, bvs_len, site) && return nothing
-    index += 1
-    return (site, (site, bvs_len, index))
-end
-
-function coords!(crd::Vector, l::AbstractLattice, site::LatticeIndex, bvs::Bravais, buf::Vector)
-    copy!(buf, site.unit_cell)
-    buf .-= _sz(l) ./ 2
-    buf .-= 0.5
-    mul!(crd, bvs.translation_vectors, buf)
-    crd += bvs.basis[:, site.basis_index]
-end
-
-coords(l::AbstractLattice, site::LatticeIndex) =
-    bravais(l).basis[:, site.basis_index] + bravais(l).translation_vectors * (site.unit_cell - _sz(l) / 2 .- 0.5)
-
-_bravais(::FiniteBravaisLattice, ::Int) = throw(ArgumentError("No Bravais lattice defined for this type"))
-_assert_dims(l::LT, ::Int) where {LT<:FiniteBravaisLattice} = l
-_prettyprint_name(::LT) where {LT<:FiniteBravaisLattice} = string(LT)
-
-function _propagate_lattice_args(f, l::AbstractLattice)
-    if hasmethod(f, NTuple{dims(l),Number})
-        (_l::AbstractLattice, site::LatticeIndex) -> f(coords(_l, site)...)
-    elseif hasmethod(f, Tuple{LatticeIndex})
-        (::AbstractLattice, site::LatticeIndex) -> f(site)
-    elseif hasmethod(f, Tuple{LatticeIndex,Vararg{Number,dims(l)}})
-        (_l::AbstractLattice, site::LatticeIndex) -> f(site, coords(_l, site)...)
-    else
-        throw(ArgumentError("failed to propagate args: unsupported lambda type"))
-    end
-end
-
-_always_true_on_lattice(::AbstractLattice, ::LatticeIndex) = true
-
-macro lattice_def(struct_block::Expr)
-    if struct_block.head != :struct
-        error("Struct block expected")
-    end
-    struct_name = struct_block.args[2]
-    if !(struct_name isa Symbol)
-        error("Invalid struct name")
-    end
-    body = struct_block.args[3]
-    struct_definition = quote
-        struct $struct_name <: FiniteBravaisLattice
-            lattice_size::Vector{Int}
-            function $struct_name(lattice_size)
-                _assert_dims(new(lattice_size |> collect), length(lattice_size))
-            end
-            $struct_name(lattice_sz_by_axes::Int...) = $struct_name(lattice_sz_by_axes)
-        end
-        $struct_name(f::Function, args...) = sublattice(f, $struct_name(args...))
-        ==(l1::$struct_name, l2::$struct_name) = _sz(l1) == _sz(l2)
-        export $struct_name
-    end
-    bravais_flag = false
-    for expr in body.args
-        !(expr isa Expr) && continue
-        if expr.head == :(:=)
-            param, value = expr.args
-            if param == :name
-                if value isa String
-                    push!(struct_definition.args, :(_prettyprint_name(::$struct_name) = $value))
-                else
-                    @warn "lattice name should be a string; ignored"
-                end
-            end
-        elseif bravais_flag
-            @warn "multiple Bravais lattice definitions detected; ignored"
-            continue
-        elseif expr.head == :-> && expr.args[1] isa Symbol
-            fn_arg, fn_body = expr.args
-            push!(struct_definition.args, :(_bravais(::$struct_name, $fn_arg::Int) = $fn_body))
-            bravais_flag = true
-        elseif expr.head == :call && expr.args[1] == :Bravais
-            call_args = expr.args[2]
-            push!(struct_definition.args, :(bravais(::$struct_name) = $expr))
-            if call_args.head == :vcat
-                message = "lattice type $(string(struct_name)) only supports dimension count $(length(call_args.args))"
-                push!(struct_definition.args, :(
-                    function _assert_dims(l::$struct_name, dims::Int)
-                        @assert dims == $(length(call_args.args)) $message
-                        return l
-                    end))
-            end
-            bravais_flag = true
-        elseif expr.head == :vcat
-            push!(struct_definition.args, :(bravais(::$struct_name) = Bravais($expr)))
-            message = "lattice type $(string(struct_name)) only supports dimension count $(length(expr.args))"
-            push!(struct_definition.args, :(
-                function _assert_dims(l::$struct_name, dims::Int)
-                    @assert dims == $(length(expr.args)) $message
-                    return l
-                end))
-            bravais_flag = true
-        end
-    end
-    return :($(esc(struct_definition)))
-end
-
-@lattice_def struct SquareLattice
-    name := "square lattice"
-    dims -> Bravais(Matrix(I, (dims, dims)))
-end
-
-@lattice_def struct TriangularLattice
-    name := "triangular lattice"
-    [1 0.5; 0 √3/2]
-end
-
-@lattice_def struct HoneycombLattice
-    name := "honeycomb lattice"
-    Bravais([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])
-end
-
-struct SubLattice{LT} <: AbstractLattice where {LT<:FiniteBravaisLattice}
-    lattice::LT
-    mask::Vector{Bool}
-    function SubLattice(lattice::T, mask::Vector{Bool}) where {T}
-        @assert length(mask) == length(lattice) "Lattice site count does not match mask length"
-        new{T}(lattice, mask)
-    end
-end
-
-function sublattice(f::Function, l::AbstractLattice)
-    lf = _propagate_lattice_args(f, l)
-    SubLattice(l, [lf(l, site) for site in l])
-end
-
-dims(sl::SubLattice) = dims(sl.lattice)
-bravais(sl::SubLattice) = bravais(sl.lattice)
-length(sl::SubLattice) = count(sl.mask)
-coords(sl::SubLattice, state::LatticeIndex) = coords(sl.lattice, state)
-
-function iterate(sl::SubLattice)
-    site = _first(sl.lattice)
-    bvs_len = length(bravais(sl))
+    cinds = CartesianIndex{N}(1):CartesianIndex(size(l))
+    bl = length(l.bravais)
     index = 1
-    while !sl.mask[index]
-        proceed!(sl.lattice, bvs_len, site)
+    while !l.mask[index]
+        site = _next(cinds, bl, site)
+        site === nothing && return nothing
         index += 1
     end
-    return (site, (site, bvs_len, index))
+    (site, (site, cinds, bl, index))
 end
 
-function iterate(sl::SubLattice, state::Tuple{LatticeIndex,Int,Int})
-    site, bvs_len, index = state
-    !proceed!(sl.lattice, bvs_len, site) && return nothing
+function iterate(@nospecialize(l::Lattice), state)
+    site, cinds, bl, index = state
+    site = _next(cinds, bl, site)
+    site === nothing && return nothing
     index += 1
-    while !sl.mask[index]
-        !proceed!(sl.lattice, bvs_len, site) && return nothing
+    while !l.mask[index]
+        site = _next(cinds, bl, site)
+        site === nothing && return nothing
         index += 1
     end
-    return (site, (site, bvs_len, index))
+    (site, (site, cinds, bl, index))
 end
 
-_sz(l::FiniteBravaisLattice) = size(l)
-_sz(l::SubLattice) = size(l.lattice)
+coords(l::Lattice, site::LatticeIndex) =
+    bravais(l).basis[:, site.basis_index] + bravais(l).translation_vectors * (site.unit_cell - SVector(size(l)) / 2 .- 0.5)
 
-function radius_vector(l::AbstractLattice, site1::LatticeIndex, site2::LatticeIndex)
+function radius_vector(l::Lattice, site1::LatticeIndex, site2::LatticeIndex)
     ret_vec = coords(l, site1) - coords(l, site2)
-    tr_diff = (site1.unit_cell - site2.unit_cell) ./ _sz(l)
+    tr_diff = (site1.unit_cell - site2.unit_cell) ./ size(l)
     bravais_tr_vecs = bravais(l).translation_vectors
     for i in eachindex(tr_diff)
         if tr_diff[i] > 0.5
-            ret_vec -= bravais_tr_vecs[:, i] * _sz(l)[i]
+            ret_vec -= bravais_tr_vecs[:, i] * size(l)[i]
         elseif tr_diff[i] < -0.5
-            ret_vec += bravais_tr_vecs[:, i] * _sz(l)[i]
+            ret_vec += bravais_tr_vecs[:, i] * size(l)[i]
         end
     end
     return ret_vec
 end
 
-@recipe function f(sl::SubLattice)
-    show_excluded --> true
-    if plotattributes[:show_excluded]
-        opacity := sl.mask * 0.9 .+ 0.1
-        sl.lattice
-    else
-        sl, nothing
-    end
-end
-
-@recipe function f(l::AbstractLattice, v=nothing)
+@recipe function f(l::Lattice, v=nothing)
     label --> nothing
+    show_excluded --> false
+    # TODO support show_excluded=true
     aspect_ratio := :equal
     marker_z := v
     markerstrokewidth := 0
     d = dims(l)
     pts = zeros(Float64, d, length(l))
-    bvs = bravais(l)
-    crd = zeros(d)
-    buf = zeros(d)
     i = 1
-
     for site in l
-        coords!(crd, l, site, bvs, buf)
+        crd = coords(l, site)
         pts[:, i] = crd
         i += 1
     end
@@ -289,11 +148,55 @@ end
     end
 end
 
-function show(io::IO, ::MIME"text/plain", l::FiniteBravaisLattice)
-    print(io, join(size(l), "×") * " " * _prettyprint_name(l))
+function show(io::IO, ::MIME"text/plain", l::Lattice{LatticeType,N}) where {N,LatticeType}
+    print(io, "$(length(l))-site ", LatticeType)
+    if N != 1
+        print(io, " lattice on ", join(size(l), "×"), " base")
+    elseif !all(l.mask)
+        print(io, " chain on ", size(l)[1], "-cell base")
+    else
+        print(io, " chain")
+    end
+    if N > 1 && length(l.bravais) > 1
+        print(io, " (", length(l.bravais), "-site basis)")
+    end
 end
 
-function show(io::IO, m::MIME"text/plain", sl::SubLattice)
-    print(io, "$(length(sl))-element SubLattice of ")
-    show(io, m, sl.lattice)
+function _propagate_lattice_args(f, l::Lattice)
+    if hasmethod(f, NTuple{dims(l),Number})
+        (_l::Lattice, site::LatticeIndex) -> f(coords(_l, site)...)
+    elseif hasmethod(f, Tuple{LatticeIndex})
+        (::Lattice, site::LatticeIndex) -> f(site)
+    elseif hasmethod(f, Tuple{LatticeIndex,Vararg{Number,dims(l)}})
+        (_l::Lattice, site::LatticeIndex) -> f(site, coords(_l, site)...)
+    else
+        throw(ArgumentError("failed to propagate args: unsupported lambda type"))
+    end
 end
+
+_always_true_on_lattice(::Lattice, ::LatticeIndex) = true
+
+function sublattice(f::Function, l::Lattice{LatticeType}) where {LatticeType}
+    lf = _propagate_lattice_args(f, l)
+    Lattice(LatticeType, size(l), bravais(l),
+        [lf(l, site) for site in l])
+end
+
+function Lattice{T}(f::Function, sz::Int...) where {T}
+    l = Lattice{T}(sz...)
+    sublattice(f, l)
+end
+
+function Lattice{:square}(sz::Vararg{Int,N}) where {N}
+    eye = SMatrix{N,N}(I)
+    Lattice(:square, sz, Bravais(eye))
+end
+
+const SquareLattice = Lattice{:square}
+
+function Lattice{:honeycomb}(xsz::Int, ysz::Int)
+    bvs = Bravais([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])
+    Lattice(:honeycomb, (xsz, ysz), bvs)
+end
+
+const HoneycombLattice = Lattice{:honeycomb}
