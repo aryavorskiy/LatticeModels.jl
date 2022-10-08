@@ -95,9 +95,8 @@ end
 @recipe function f(lv::LatticeValue{:square})
     seriestype --> :heatmap
     if plotattributes[:seriestype] == :heatmap
-        b = _heatmap_vals(lv)
         aspect_ratio := :equal
-        _heatmap_axes(lv.lattice)..., reshape(b, size(lv.lattice))
+        _heatmap_axes(lv.lattice)..., reshape(_heatmap_vals(lv), size(lv.lattice))
     else
         lv.lattice, lv.vector
     end

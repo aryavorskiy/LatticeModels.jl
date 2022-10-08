@@ -101,16 +101,15 @@ function _hopping_operator!(lop::LatticeOperator, lf::Function, hop::Hopping, fi
     l = lop.basis.lattice
     d = dims(l)
     _promote_dims!(hop, d)
-    buf = zeros(d)
     trv = SVector{d}(hop.tr_vector)
     i = 1
     for site1 in l
         j = 1
         for site2 in l
             if @inbounds(_match(hop, l, site1, site2)) && lf(l, site1)
-                p1 = p2 = coords(l, site1)
-                p2 += trv
-                pmod = exp(2π * im * trip_integral(field, p1, p2, buf))
+                p1 = coords(l, site1)
+                p2 = p1 + trv
+                pmod = exp(2π * im * trip_integral(field, p1, p2))
                 !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
                 lop[i, j] += hop.hop_operator * pmod
                 lop[j, i] += hop.hop_operator' * pmod'

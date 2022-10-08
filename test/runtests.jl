@@ -23,7 +23,7 @@ using LatticeModels
         l = SquareLattice(10, 10)
         H = @hamiltonian begin
             lattice := l
-            field := Landau(3)
+            field := LandauField(3)
             @diag [1 0; 0 -1]
             @hop axis = 1 [1 1; 1 -1] / √2
             @hop axis = 2 [1 -im; im -1] / √2
@@ -39,14 +39,14 @@ using LatticeModels
         l = SquareLattice(10, 10)
         H = @hamiltonian begin
             lattice := l
-            field := Landau(0.5)
+            field := LandauField(0.5)
             @diag [1 0; 0 -1]
             @hop axis = 1 [1 im; im -1] / 2
             @hop axis = 2 [1 1; -1 -1] / 2
         end
         h(t) = @hamiltonian begin
             lattice := l
-            field := Landau(t)
+            field := LandauField(t)
             @diag (x, y) -> if √(x^2 + y^2) ≤ 2
                 [1 0; 0 -1]
             else
@@ -72,7 +72,7 @@ using LatticeModels
         heatmap(xy)
         H = @hamiltonian begin
             lattice := l
-            field := Landau(0.5)
+            field := LandauField(0.5)
             @diag [1 0; 0 -1]
             @hop axis = 1 [1 im; im -1] / 2
             @hop axis = 2 [1 1; -1 -1] / 2
@@ -186,5 +186,42 @@ end
         @test !f(ls1, ls3)
         @test f2(ls1, ls2)
         @test f2(ls1, ls3)
+    end
+end
+
+@testset "Field tests" begin
+    @field_def struct LazyLandauField(B::Number)
+        vector_potential(x) = (0, x * B)
+    end
+    l = SquareLattice(10, 10)
+    la = LandauField(0.1)
+    lla = LazyLandauField(0.1)
+    sym = SymmetricField(0.1)
+    @testset "Trip integral" begin
+        p1 = SA[1,2]
+        p2 = SA[3,4]
+        @test LatticeModels.trip_integral(la, p1, p2) ≈
+            LatticeModels.trip_integral(lla, p1, p2)
+        @test LatticeModels.trip_integral(la, p1, p2; n_integrate = 100) ≈
+            LatticeModels.trip_integral(lla, p1, p2)
+        @test LatticeModels.trip_integral(sym, p1, p2; n_integrate = 1) ≈
+            LatticeModels.trip_integral(sym, p1, p2)
+        @test LatticeModels.trip_integral(sym, p1, p2; n_integrate = 100) ≈
+            LatticeModels.trip_integral(sym, p1, p2)
+    end
+
+    @testset "Field application" begin
+        H1 = hopping_operator(l, hopping(axis=1), field=la) +
+            hopping_operator(l, hopping(axis=2), field=la)
+        H2 = hopping_operator(l, hopping(axis=1), field=lla) +
+            hopping_operator(l, hopping(axis=2), field=lla)
+        H3 = hopping_operator(l, hopping(axis=1)) +
+            hopping_operator(l, hopping(axis=2))
+        H4 = copy(H3)
+        apply_field!(H3, la)
+        apply_field!(H4, lla)
+        @test H1.operator ≈ H2.operator
+        @test H2.operator ≈ H3.operator
+        @test H3.operator ≈ H4.operator
     end
 end

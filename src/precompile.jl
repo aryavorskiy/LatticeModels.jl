@@ -54,11 +54,11 @@ function _precompile_()
     Base.precompile(Tuple{typeof(exp),LatticeVecOrMat{SquareLattice,Matrix{ComplexF64}}})   # time: 0.7767232
     Base.precompile(Tuple{typeof(^),LatticeVecOrMat{SquareLattice,SubArray{Float64,2,Array{Float64,3},Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}},Int64},true}},Int64})   # time: 0.5976823
     Base.precompile(Tuple{typeof(^),BondSet{SquareLattice},Int64})   # time: 0.4571465
-    Base.precompile(Tuple{typeof(_hops_from_macro),LatticeVecOrMat{SquareLattice,Matrix{ComplexF64}},SquareLattice,Function,Hopping{Matrix{Float64}},Landau})   # time: 0.4400253
-    Base.precompile(Tuple{typeof(_hopping_operator!),LatticeVecOrMat{SquareLattice,Matrix{ComplexF64}},typeof(_always_true_on_lattice),Hopping{Matrix{Float64}},Landau})   # time: 0.4128046
+    Base.precompile(Tuple{typeof(_hops_from_macro),LatticeVecOrMat{SquareLattice,Matrix{ComplexF64}},SquareLattice,Function,Hopping{Matrix{Float64}},LandauField})   # time: 0.4400253
+    Base.precompile(Tuple{typeof(_hopping_operator!),LatticeVecOrMat{SquareLattice,Matrix{ComplexF64}},typeof(_always_true_on_lattice),Hopping{Matrix{Float64}},LandauField})   # time: 0.4128046
     Base.precompile(Tuple{typeof(filled_projector),Spectrum{SubLattice{SquareLattice},Matrix{ComplexF64}}})   # time: 0.4127565
-    Base.precompile(Tuple{typeof(_hops_from_macro),LatticeVecOrMat{SquareLattice,Matrix{ComplexF64}},SquareLattice,Function,Hopping{Matrix{ComplexF64}},Landau})   # time: 0.3488409
-    Base.precompile(Tuple{typeof(_hopping_operator!),LatticeVecOrMat{SquareLattice,Matrix{ComplexF64}},typeof(_always_true_on_lattice),Hopping{Matrix{ComplexF64}},Landau})   # time: 0.3379313
+    Base.precompile(Tuple{typeof(_hops_from_macro),LatticeVecOrMat{SquareLattice,Matrix{ComplexF64}},SquareLattice,Function,Hopping{Matrix{ComplexF64}},LandauField})   # time: 0.3488409
+    Base.precompile(Tuple{typeof(_hopping_operator!),LatticeVecOrMat{SquareLattice,Matrix{ComplexF64}},typeof(_always_true_on_lattice),Hopping{Matrix{ComplexF64}},LandauField})   # time: 0.3379313
     Base.precompile(Tuple{typeof(hopping_operator),SubLattice{SquareLattice},Hopping{Matrix{Int64}}})   # time: 0.293779
     Base.precompile(Tuple{typeof(*),LatticeVecOrMat{SquareLattice,Matrix{ComplexF64}},LatticeVecOrMat{SquareLattice,SubArray{Float64,2,Array{Float64,3},Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}},Int64},true}}})   # time: 0.2479526
     Base.precompile(Tuple{typeof(spectrum),LatticeVecOrMat{SubLattice{SquareLattice},Matrix{ComplexF64}}})   # time: 0.1582789

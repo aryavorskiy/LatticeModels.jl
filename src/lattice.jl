@@ -177,18 +177,18 @@ function sublattice(f::Function, l::Lattice{LatticeType}) where {LatticeType}
         [lf(l, site) for site in l])
 end
 
-function Lattice{T,N,NB}(f::Function, sz::Vararg{Int,N}) where {T,N,NB}
-    l = Lattice{T,N,NB}(sz...)
+function Lattice{T,N,NB}(f::Function, sz::Vararg{Int,N}; kw...) where {T,N,NB}
+    l = Lattice{T,N,NB}(sz...; kw...)
     sublattice(f, l)
 end
 
-const SizableLattice{T, NB} = Lattice{T,N,NB} where N
+const SizableLattice{T,NB} = Lattice{T,N,NB} where {N}
 
-SizableLattice{T, NB}(sz::Vararg{Int,N}) where {T,N,NB} =
-    Lattice{T,N,NB}(sz...)
+SizableLattice{T,NB}(sz::Vararg{Int,N}; kw...) where {T,N,NB} =
+    Lattice{T,N,NB}(sz...; kw...)
 
-function SizableLattice{T, NB}(f::Function, sz::Vararg{Int,N}) where {T,N,NB}
-    l = Lattice{T,N,NB}(sz...)
+function SizableLattice{T,NB}(f::Function, sz::Vararg{Int,N}; kw...) where {T,N,NB}
+    l = Lattice{T,N,NB}(sz...; kw...)
     sublattice(f, l)
 end
 
@@ -200,9 +200,8 @@ end
 coords(l::SquareLattice, site::LatticeIndex) =
     site.unit_cell - SVector(size(l)) / 2 .- 0.5
 
-function Lattice{:honeycomb,2,2}(xsz::Int, ysz::Int)
+const HoneycombLattice = Lattice{:honeycomb,2,2}
+function HoneycombLattice(xsz::Int, ysz::Int)
     bvs = Bravais([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])
     Lattice(:honeycomb, (xsz, ysz), bvs)
 end
-
-const HoneycombLattice = Lattice{:honeycomb,2,2}

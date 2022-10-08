@@ -186,25 +186,11 @@ import Base: +, -, *, /, ^, adjoint, copy
 @inline adjoint(lo::LatticeVecOrMat) = _unwrap(adjoint, (lo,))
 @inline copy(lo::LatticeVecOrMat) = _unwrap(copy, (lo,))
 
-@inline _get_internal(ao::AbstractVecOrMat) = ao
-@inline _get_basis(_::AbstractVecOrMat) = nothing
-@inline _get_internal(lo::LatticeVecOrMat) = lo.operator
-@inline _get_basis(lo::LatticeVecOrMat) = lo.basis
-
 _wrap_smart!(expr::Any) = expr
 function _wrap_smart!(expr::Expr)
     Meta.isexpr(expr, :escape) && error("do not use @on_lattice macro in other macros")
     local _begin = 1
     if Meta.isexpr(expr, :call)
-        if expr.args[1] === :.|>
-            lat_sym, fn_sym = expr.args[2:3]
-            expr.args = Any[
-                :_make_wrapper,
-                :(_get_internal($(esc(lat_sym))) .|> $(esc(fn_sym))),
-                :(_get_basis($(esc(lat_sym))))
-            ]
-            return expr
-        end
         insert!(expr.args, 1, :(_unwrap_from_macro))
         _begin = 2
     elseif Meta.isexpr(expr, (:function, :->, :kw))

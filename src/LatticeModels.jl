@@ -11,6 +11,7 @@ export LatticeValue, LatticeVecOrMat, Basis,
 
 include("field.jl")
 export @field_def, AbstractField, apply_field!
+export LandauField, SymmetricField, FluxField
 
 include("hoppings.jl")
 export hopping, hopping_operator, bonds, is_adjacent, @hopping_operator

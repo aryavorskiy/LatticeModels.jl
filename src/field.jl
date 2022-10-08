@@ -1,30 +1,26 @@
 import Base: show, +, *
-using LinearAlgebra, Logging
+using LinearAlgebra, StaticArrays, Logging
 abstract type AbstractField end
 
 show(io::IO, ::MIME"text/plain", ::T) where {T<:AbstractField} = print(io, "$T field")
 vector_potential(::FT, point::Vector) where {FT<:AbstractField} =
     error("no vector potential function defined for field type $(MT)")
-function vector_potential!(v::Vector, field::AbstractField, point)
-    ret_vp = vector_potential(field, point)
-    v[eachindex(ret_vp)] = ret_vp
-end
 
-function trip_integral(field::AbstractField, p1, p2, A; n_integrate=1)
+dot_assuming_zeros(m::SVector{M}, n::SVector{N}) where {M, N} = m[1:min(M, N)]' * n[1:min(M, N)]
+
+function trip_integral(field::AbstractField, p1, p2; n_integrate=1)
     integral = 0.0
-    copy!(p2, (p2 - p1) / n_integrate)
-    p1 -= 0.5p2
+    dp = (p2 - p1) / n_integrate
+    p = p1 + 0.5dp
     for _ in 1:n_integrate
-        p1 += p2
-        vector_potential!(A, field, p1)
-        integral += A' * p2
+        integral += dot_assuming_zeros(dp, SVector(vector_potential(field, p)))
+        p += dp
     end
     return integral
 end
 
 function apply_field!(lo::LatticeOperator, field::AbstractField)
     l = lo.basis.lattice
-    bvs = bravais(l)
     N = dims_internal(lo.basis)
     i = 1
     for site1 in l
@@ -33,7 +29,7 @@ function apply_field!(lo::LatticeOperator, field::AbstractField)
             if i > j && !iszero(lo.operator[N*(i-1)+1:N*i, N*(j-1)+1:N*j])
                 p1 = coords(l, site1)
                 p2 = coords(l, site2)
-                pmod = exp(2π * im * trip_integral(field, p1, p2, bf))
+                pmod = exp(2π * im * trip_integral(field, p1, p2))
                 !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
                 lo.operator[N*(i-1)+1:N*i, N*(j-1)+1:N*j] *= pmod
                 lo.operator[N*(j-1)+1:N*j, N*(i-1)+1:N*i] *= pmod'
@@ -71,8 +67,7 @@ macro field_def(struct_block)
     end
     struct_head = struct_block.args[2]
     if Meta.isexpr(struct_head, :call)
-        struct_name = struct_head.args[1]
-        struct_args = struct_head.args[2:end]
+        struct_name, struct_args... = struct_head.args
     elseif struct_head isa Symbol
         struct_name = struct_head
         struct_args = []
@@ -82,10 +77,11 @@ macro field_def(struct_block)
     struct_params = _extract_varname.(struct_args)
     body = struct_block.args[3]
     struct_definition = quote
+        import LatticeModels: trip_integral, vector_potential
+        import Base: show
         struct $struct_name <: AbstractField
             $(struct_args...)
         end
-        export $struct_name
     end
     for statement in body.args
         if Meta.isexpr(statement, (:function, :(=)))
@@ -103,7 +99,7 @@ macro field_def(struct_block)
             if fn_name === :vector_potential
                 if all(isa.(fn_args, Symbol))
                     push!(struct_definition.args, :(
-                        function LatticeModels.vector_potential(field::$struct_name, point::Vector)
+                        function LatticeModels.vector_potential(field::$struct_name, point)
                             $(fn_args...), = point
                             $fn_body
                         end
@@ -120,31 +116,20 @@ macro field_def(struct_block)
                 end
             elseif fn_name === :trip_integral
                 local _begin = 1
-                if Meta.isexpr(fn_args[1], :parameters)
-                    le -= 1
-                    _begin = 2
-                end
+                Meta.isexpr(fn_args[1], :parameters) && (_begin = 2)
                 le = length(fn_args) - _begin + 1
-                if le == 2
-                    push!(fn_args, :A)
-                elseif le != 3
-                    error("invalid positional arguments count; 2 or 3 expected")
-                end
+                le != 2 &&
+                    error("trip_integral must have 2 positional arguments")
                 insert!(fn_args, _begin, :(field::$struct_name))
                 push!(struct_definition.args, :(
                     function LatticeModels.trip_integral($(fn_args...))
-                        local function vector_potential(p::Vector{Float64})
-                            A = zero(p)
-                            res = $(esc(:vector_potential))(field, p)
-                            A[eachindex(res)] = res
-                            return A
-                        end
+                        local vector_potential(p) = LatticeValues.SVector(vector_potential(field, p))
                         $fn_body
                     end
                 ))
             elseif fn_name === :show
                 push!(struct_definition.args, :(import Base: show),
-                    :(function $(esc(:Base)).show($(fn_args...), field::$struct_name)
+                    :(function Base.show($(fn_args...), field::$struct_name)
                         $fn_body
                     end
                     ))
@@ -165,27 +150,27 @@ macro field_def(struct_block)
             error("not a function definition or key assignment")
         end
     end
-    return struct_definition
+    return esc(struct_definition)
 end
 
 @field_def struct NoField
     trip_integral(p1, p2) = 0
 end
 
-@field_def struct Landau(B::Number)
-    vector_potential(x) = (0, x * B)
+@field_def struct LandauField(B::Number)
+    vector_potential(x) = SA[0, x * B]
     trip_integral(p1, p2) = ((p1[1] + p2[1]) / 2) * (p2[2] - p1[2]) * B
     show(io::IO, ::MIME"text/plain") = print(io, "Landau calibration field; B = $B flux quanta per 1×1 plaquette")
 end
 
-@field_def struct Symmetric(B::Number)
-    vector_potential(x, y) = (-y * B / 2, x * B / 2)
+@field_def struct SymmetricField(B::Number)
+    vector_potential(x, y) = SA[-y, x] * B / 2
     trip_integral(p1, p2) = (p1[1] * p2[2] - p2[1] * p1[2]) / 2 * B
     show(io::IO, ::MIME"text/plain") = print(io, "Symmetric calibration field; B = $B flux quanta per 1×1 plaquette")
 end
 
 _angle(p1, p2) = asin(det(hcat(p1, p2)) / norm(p1) / norm(p2) / (1.0 + 1e-11))
-@field_def struct Flux(B::Number, P::NTuple{2,Number})
+@field_def struct FluxField(B::Number, P::NTuple{2,Number})
     function trip_integral(p1, p2)
         Pv = SVector(P)
         p1 = p1[1:2] - Pv
