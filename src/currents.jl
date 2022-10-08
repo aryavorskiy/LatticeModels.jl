@@ -9,7 +9,7 @@ struct ChargeCurrents <: AbstractCurrents
     hamiltonian::LatticeOperator
     density::LatticeOperator
     function ChargeCurrents(ham::LatticeOperator, dens::LatticeOperator)
-        @assert ham.basis == dens.basis "basis mismatch"
+        ham.basis != dens.basis && error("basis mismatch")
         new(ham, dens)
     end
 end
@@ -23,7 +23,7 @@ struct MaterializedCurrents <: AbstractCurrents
     lattice::Lattice
     currents::Matrix{Float64}
     function MaterializedCurrents(l::Lattice, curs::Matrix{Float64})
-        @assert all(length(l) .== size(curs)) "dimension mismatch"
+        !all(length(l) .== size(curs)) && error("dimension mismatch")
         new(l, curs)
     end
 end
@@ -67,7 +67,7 @@ end
 
 @recipe function f(curr::AbstractCurrents)
     l = lattice(curr)
-    @assert dims(l) == 2 "2D lattice expected"
+    dims(l) != 2 && error("2D lattice expected")
     Xs = Float64[]
     Ys = Float64[]
     Qs = NTuple{2,Float64}[]

@@ -34,7 +34,7 @@ function apply_field!(lo::LatticeOperator, field::AbstractField)
                 p1 = coords(l, site1)
                 p2 = coords(l, site2)
                 pmod = exp(2π * im * trip_integral(field, p1, p2, bf))
-                @assert isfinite(pmod) "got NaN or Inf when finding the phase factor"
+                !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
                 lo.operator[N*(i-1)+1:N*i, N*(j-1)+1:N*j] *= pmod
                 lo.operator[N*(j-1)+1:N*j, N*(i-1)+1:N*i] *= pmod'
             end

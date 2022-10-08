@@ -1,3 +1,4 @@
+using StaticArrays
 import Base: copy, show, |, ==
 
 struct Hopping{MT<:AbstractMatrix}
@@ -6,7 +7,7 @@ struct Hopping{MT<:AbstractMatrix}
     pbc::Vector{Bool}
     hop_operator::MT
     function Hopping(site_indices, tr_vector, pbc, hop_operator)
-        @assert length(tr_vector) == length(pbc) "inconsistent dimensionality"
+        length(tr_vector) != length(pbc) && error("inconsistent dimensionality")
         new{typeof(hop_operator)}(site_indices, tr_vector, pbc, hop_operator)
     end
 end
@@ -98,21 +99,19 @@ end
 
 function _hopping_operator!(lop::LatticeOperator, lf::Function, hop::Hopping, field::AbstractField)
     l = lop.basis.lattice
-    _promote_dims!(hop, dims(l))
     d = dims(l)
-    p1 = zeros(d)
-    p2 = zeros(d)
+    _promote_dims!(hop, d)
     buf = zeros(d)
-    bvs = bravais(l)
+    trv = SVector{d}(hop.tr_vector)
     i = 1
     for site1 in l
         j = 1
         for site2 in l
             if @inbounds(_match(hop, l, site1, site2)) && lf(l, site1)
                 p1 = p2 = coords(l, site1)
-                p2 += hop.tr_vector
+                p2 += trv
                 pmod = exp(2π * im * trip_integral(field, p1, p2, buf))
-                @assert isfinite(pmod) "got NaN or Inf when finding the phase factor"
+                !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
                 lop[i, j] += hop.hop_operator * pmod
                 lop[j, i] += hop.hop_operator' * pmod'
             end
@@ -192,7 +191,7 @@ struct BondSet{LT<:Lattice}
         new{LT}(l, sites, bmat)
     end
     function BondSet(l::Lattice, bmat::AbstractMatrix{Bool})
-        @assert all(size(bmat) .== length(l)) "inconsistent connectivity matrix size"
+        !all(size(bmat) .== length(l)) && error("inconsistent connectivity matrix size")
         _bondset_unsafe(l, collect(l), Matrix{Bool}(bmat .| bmat' .| Matrix(I, length(l), length(l))))
     end
     function BondSet(l::Lattice, bmat::BitMatrix)
@@ -227,7 +226,7 @@ function bonds(l::Lattice, hops::Hopping...)
 end
 
 function |(bss::BondSet...)
-    @assert allequal(getproperty.(bss, :lattice))
+    !allequal(getproperty.(bss, :lattice)) && error("inconsistent BondSet size")
     return BondSet(bss[1].lattice, .|(getproperty.(bss, :bmat)...))
 end
 
@@ -253,10 +252,10 @@ end
     pts = Tuple{Float64,Float64}[]
     br_pt = fill(NaN, dims(l)) |> Tuple
     for i in 1:length(l)
+        site1 = bs.sites[i]
         A = coords(l, site1)
         for j in 1:length(l)
             if i != j && bs.bmat[i, j]
-                site1 = bs.sites[i]
                 site2 = bs.sites[j]
                 B = coords(l, site2)
                 T = radius_vector(l, site2, site1)

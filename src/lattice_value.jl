@@ -79,14 +79,13 @@ function show(io::IO, m::MIME"text/plain", lv::LatticeValue{T}) where {T}
 end
 
 _heatmap_axes(l::Lattice{:square}) = [-(ax - 1)/2:(ax-1)/2 for ax in size(l)]
-function _heatmap_vals(sl::Lattice{:square}, vec)
-    @assert length(sl) == length(vec)
+function _heatmap_vals(slv::LatticeValue{:square})
     i = 1
-    len = length(sl.mask)
+    len = length(slv.lattice.mask)
     newvals = fill(NaN, len)
     @inbounds for j in 1:len
-        if sl.mask[j]
-            newvals[j] = vec[i]
+        if slv.lattice.mask[j]
+            newvals[j] = slv.vector[i]
             i += 1
         end
     end
@@ -96,7 +95,7 @@ end
 @recipe function f(lv::LatticeValue{:square})
     seriestype --> :heatmap
     if plotattributes[:seriestype] == :heatmap
-        b = _heatmap_vals(lv.lattice, lv.vector)
+        b = _heatmap_vals(lv)
         aspect_ratio := :equal
         _heatmap_axes(lv.lattice)..., reshape(b, size(lv.lattice))
     else

@@ -96,14 +96,14 @@ struct Spectrum{LT<:Lattice,MT<:AbstractMatrix}
     states::MT
     energies::Vector{Float64}
     function Spectrum(basis::Basis{LT}, states::MT, energies::AbstractVector) where {LT,MT}
-        @assert length(energies) == size(states)[1] "inconsistent energies list length"
-        @assert length(basis) == size(states)[2] "inconsistent basis dimensionality"
+        length(energies) != size(states)[1] && error("inconsistent energies list length")
+        length(basis) != size(states)[2] && error("inconsistent basis dimensionality")
         new{LT,MT}(basis, states, energies)
     end
 end
 
 function spectrum(lop::LatticeOperator{Matrix{T}} where {T})
-    @assert all(isfinite.(lop.operator)) "operator matrix has non-finite values (NaN of Inf)"
+    !all(isfinite.(lop.operator)) && error("NaN of Inf in operator matrix")
     vals, vecs = eigen(Hermitian(lop.operator))
     return Spectrum(lop.basis, vecs, vals)
 end

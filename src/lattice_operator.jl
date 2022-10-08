@@ -19,7 +19,7 @@ struct LatticeVecOrMat{LT<:Lattice,MT<:AbstractVecOrMat}
     basis::Basis{LT}
     operator::MT
     function LatticeVecOrMat(basis::Basis{LT}, operator::MT) where {LT<:Lattice,MT<:AbstractVecOrMat}
-        @assert all(size(operator) .== length(basis))
+        !all(size(operator) .== length(basis)) && error("inconsistent vector/matrix size")
         new{LT,MT}(basis, operator)
     end
 end

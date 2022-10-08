@@ -5,26 +5,27 @@ struct Bravais{N,NB}
     translation_vectors::SMatrix{N,N,Float64}
     basis::SMatrix{N,NB,Float64}
     function Bravais(translation_vectors::AbstractMatrix{<:Real}, basis::AbstractMatrix{<:Real})
-        (size(translation_vectors)[1] != size(basis)[1]) && error("inconsistent dimension count")
+        (size(translation_vectors)[1] != size(basis)[1]) &&
+            error("inconsistent dimension count (got $(size(translation_vectors)[1]), $(size(basis)[1]))")
         N, NB = size(basis)
         new{N,NB}(translation_vectors, basis)
     end
 end
 function Bravais(translation_vectors::AbstractMatrix{<:Real})
-    Bravais(translation_vectors, zeros(Float64, (size(translation_vectors)[1], 1)))
+    Bravais(translation_vectors, zeros((size(translation_vectors)[1], 1)))
 end
 
 dims(@nospecialize _::Bravais{N}) where {N} = N
 length(::Bravais{N,NB}) where {N,NB} = NB
 
-struct Lattice{LatticeType,N}
+struct Lattice{LatticeType,N,NB}
     lattice_size::NTuple{N,Int}
-    bravais::Bravais{N}
+    bravais::Bravais{N,NB}
     mask::Vector{Bool}
-    function Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}, mask::Vector{Bool}) where {N}
+    function Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N,NB}, mask::Vector{Bool}) where {N,NB}
         length(mask) != prod(sz) * length(bvs) &&
             error("inconsistent mask length")
-        new{sym,N}(sz, bvs, mask)
+        new{sym,N,NB}(sz, bvs, mask)
     end
 end
 Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}) where {N} =
@@ -33,63 +34,57 @@ Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}) where {N} =
 ==(@nospecialize(l1::Lattice), @nospecialize(l2::Lattice)) =
     (l1.lattice_size == l2.lattice_size) && (l1.bravais == l2.bravais)
 
-size(@nospecialize l::Lattice) = l.lattice_size
-dims(@nospecialize _::Lattice{LatticeType,N}) where {LatticeType,N} = N
-bravais(@nospecialize l::Lattice) = l.bravais
+size(l::Lattice) = l.lattice_size
+dims(::Lattice{LatticeType,N}) where {LatticeType,N} = N
+bravais(l::Lattice) = l.bravais
 
-length(@nospecialize l::Lattice) = count(l.mask)
+length(l::Lattice) = count(l.mask)
 struct LatticeIndex{N}
     unit_cell::SVector{N,Int}
     basis_index::Int
 end
 
+LatticeIndex(tup::NTuple{N,Int}) where {N} = LatticeIndex{N - 1}(SVector(tup[1:end-1]), tup[end])
+
 Base.eltype(::Lattice{LatticeType,N}) where {LatticeType,N} = LatticeIndex{N}
 
 ==(@nospecialize(li1::LatticeIndex), @nospecialize(li2::LatticeIndex)) =
     li1.basis_index == li2.basis_index && li1.unit_cell == li2.unit_cell
-_first(l::Lattice) = LatticeIndex(@SVector(fill(1, dims(l))), 1)
 
-function _next(cinds::CartesianIndices, bvs_len, site::LatticeIndex)
-    if site.basis_index == bvs_len
-        n = iterate(cinds, CartesianIndex(Tuple(site.unit_cell)))
-        if n === nothing
-            nothing
-        else
-            LatticeIndex(SVector(Tuple(n[1])), 1)
-        end
-    else
-        LatticeIndex(site.unit_cell, site.basis_index + 1)
-    end
-end
-
-function iterate(@nospecialize l::Lattice{LatticeType,N}) where {LatticeType,N}
-    site = _first(l)
-    cinds = CartesianIndex{N}(1):CartesianIndex(size(l))
-    bl = length(l.bravais)
+function iterate(l::Lattice{LT,N,NB} where {LT}) where {N,NB}
+    site = LatticeIndex(@SVector(fill(1, N)), 1)
+    cinds = CartesianIndex{N + 1}(1):CartesianIndex(l.lattice_size..., NB)
+    cind, st = iterate(cinds)
     index = 1
     while !l.mask[index]
-        site = _next(cinds, bl, site)
-        site === nothing && return nothing
+        nx = iterate(cinds, cind)
+        nx === nothing && return nothing
+        cind, st = nx
         index += 1
     end
-    (site, (site, cinds, bl, index))
+    (LatticeIndex(Tuple(cind)), (l.mask, cinds, cind, index))
 end
 
-function iterate(@nospecialize(l::Lattice), state)
-    site, cinds, bl, index = state
-    site = _next(cinds, bl, site)
-    site === nothing && return nothing
+function iterate(@nospecialize(_::Lattice), state)
+    mask, cinds, cind, index = state
+    nx = iterate(cinds, cind)
+    nx === nothing && return nothing
+    cind, st = nx
     index += 1
-    while !l.mask[index]
-        site = _next(cinds, bl, site)
-        site === nothing && return nothing
+    while !mask[index]
+        nx = iterate(cinds, cind)
+        nx === nothing && return nothing
+        cind, st = nx
         index += 1
     end
-    (site, (site, cinds, bl, index))
+    (LatticeIndex(Tuple(cind)), (mask, cinds, cind, index))
 end
 
 coords(l::Lattice, site::LatticeIndex) =
     bravais(l).basis[:, site.basis_index] + bravais(l).translation_vectors * (site.unit_cell - SVector(size(l)) / 2 .- 0.5)
+
+coords(l::Lattice{LT,N,1} where {LT,N}, site::LatticeIndex) =
+    bravais(l).translation_vectors * (site.unit_cell - SVector(size(l)) / 2 .- 0.5)
 
 function radius_vector(l::Lattice, site1::LatticeIndex, site2::LatticeIndex)
     ret_vec = coords(l, site1) - coords(l, site2)
@@ -182,21 +177,32 @@ function sublattice(f::Function, l::Lattice{LatticeType}) where {LatticeType}
         [lf(l, site) for site in l])
 end
 
-function Lattice{T}(f::Function, sz::Int...) where {T}
-    l = Lattice{T}(sz...)
+function Lattice{T,N,NB}(f::Function, sz::Vararg{Int,N}) where {T,N,NB}
+    l = Lattice{T,N,NB}(sz...)
     sublattice(f, l)
 end
 
-function Lattice{:square}(sz::Vararg{Int,N}) where {N}
+const SizableLattice{T, NB} = Lattice{T,N,NB} where N
+
+SizableLattice{T, NB}(sz::Vararg{Int,N}) where {T,N,NB} =
+    Lattice{T,N,NB}(sz...)
+
+function SizableLattice{T, NB}(f::Function, sz::Vararg{Int,N}) where {T,N,NB}
+    l = Lattice{T,N,NB}(sz...)
+    sublattice(f, l)
+end
+
+const SquareLattice{N} = Lattice{:square,N,1}
+function SquareLattice{N}(sz::Vararg{Int,N}) where {N}
     eye = SMatrix{N,N}(I)
     Lattice(:square, sz, Bravais(eye))
 end
+coords(l::SquareLattice, site::LatticeIndex) =
+    site.unit_cell - SVector(size(l)) / 2 .- 0.5
 
-const SquareLattice = Lattice{:square}
-
-function Lattice{:honeycomb}(xsz::Int, ysz::Int)
+function Lattice{:honeycomb,2,2}(xsz::Int, ysz::Int)
     bvs = Bravais([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])
     Lattice(:honeycomb, (xsz, ysz), bvs)
 end
 
-const HoneycombLattice = Lattice{:honeycomb}
+const HoneycombLattice = Lattice{:honeycomb,2,2}

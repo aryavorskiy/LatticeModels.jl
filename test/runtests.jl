@@ -3,7 +3,7 @@ using LatticeModels
 
 @testset "Workflows" begin
     @test begin
-        l = Lattice{:square}(10, 10) do x, y
+        l = SquareLattice(10, 10) do x, y
             √(x^2 + y^2) < 5
         end
         b = Basis(l, 1)
@@ -20,7 +20,7 @@ using LatticeModels
     end
 
     @test begin
-        l = Lattice{:square}(10, 10)
+        l = SquareLattice(10, 10)
         H = @hamiltonian begin
             lattice := l
             field := Landau(3)
@@ -36,7 +36,7 @@ using LatticeModels
     end
 
     @test begin
-        l = Lattice{:square}(10, 10)
+        l = SquareLattice(10, 10)
         H = @hamiltonian begin
             lattice := l
             field := Landau(0.5)
@@ -66,7 +66,7 @@ using LatticeModels
     end
 
     @test begin
-        l = Lattice{:square}(10, 10)
+        l = SquareLattice(10, 10)
         X, Y = coord_operators(l, 2)
         xy = LatticeValue(l) do x, y; x * y; end
         heatmap(xy)
@@ -81,12 +81,14 @@ using LatticeModels
         quiver!(ChargeCurrents(H, P))
         sl = sublattice(l) do x,y; x ≤ y; end
         scatter!(sl)
+        plot!(bonds(H))
+        plot!(bonds(l, hopping(tr_vector=[1,1])))
         true
     end
 end
 
 @testset "LatticeValue tests" begin
-    l = Lattice{:square}(10, 10)
+    l = SquareLattice(10, 10)
     bas = Basis(l, 1)
     X, Y = coord_operators(bas)
     xtr = diag_aggregate(tr, X)
@@ -110,7 +112,7 @@ end
     y .= x .* y
     @test y == xy
     @test_throws "cannot broadcast" x .* ones(100)
-    l2 = Lattice{:square}(5, 20)
+    l2 = SquareLattice(5, 20)
     x2 = LatticeValue(l2) do x, y
         x
     end
@@ -118,7 +120,7 @@ end
 end
 
 @testset "LatticeOperator tests" begin
-    l = Lattice{:square}(10, 10)
+    l = SquareLattice(10, 10)
     bas = Basis(l, 2)
     X, Y = coord_operators(bas)
     xsq = diag_operator(bas) do x, y
@@ -134,7 +136,7 @@ end
         x / 2 + x * y + exp(y)
     end
 
-    l2 = Lattice{:square}(5, 20)
+    l2 = SquareLattice(5, 20)
     bas2 = Basis(l2, 2)
     X2, Y2 = coord_operators(bas2)
 
@@ -157,7 +159,7 @@ in one function call"
 end
 
 @testset "Hopping tests" begin
-    l = Lattice{:square}(2, 2)
+    l = SquareLattice(2, 2)
     ls1 = LatticeIndex(SA[1, 1], 1)
     ls2 = LatticeIndex(SA[1, 2], 1)
     ls3 = LatticeIndex(SA[2, 2], 1)
