@@ -5,9 +5,10 @@ export @lattice_def, LatticeIndex, Lattice, sublattice
 export SquareLattice, HoneycombLattice
 
 include("lattice_value.jl")
+export LatticeValue, coord_values
 include("lattice_operator.jl")
-export LatticeValue, LatticeVecOrMat, Basis,
-    convert_inner_type, diag_operator, coord_operators, diag_aggregate, @on_lattice
+export LatticeOperator, Basis, ⊗,
+    diag_operator, coord_operators, diag_aggregate, @on_lattice
 
 include("field.jl")
 export @field_def, AbstractField, apply_field!
@@ -23,7 +24,7 @@ include("evolution.jl")
 export @evolution
 
 include("currents.jl")
-export AbstractCurrents, ChargeCurrents,
+export AbstractCurrents, DensityCurrents,
     materialize, current_lambda, lattice
 
 # include("precompile.jl")

@@ -5,19 +5,39 @@ abstract type AbstractCurrents end
 current_lambda(::AbstractCurrents) = error("not implemented")
 lattice(::AbstractCurrents) = error("not implemented")
 
-struct ChargeCurrents <: AbstractCurrents
+struct DensityCurrents <: AbstractCurrents
     hamiltonian::LatticeOperator
     density::LatticeOperator
-    function ChargeCurrents(ham::LatticeOperator, dens::LatticeOperator)
+    function DensityCurrents(ham::LatticeOperator, dens::LatticeOperator)
         ham.basis != dens.basis && error("basis mismatch")
         new(ham, dens)
     end
 end
 
-function current_lambda(curr::ChargeCurrents)
-    return (i::Int, j::Int) -> 2imag(tr(curr.density[i, j] * curr.hamiltonian[j, i]))
+current_lambda(curr::DensityCurrents) =
+    (i::Int, j::Int) -> 2imag(tr(curr.density[i, j] * curr.hamiltonian[j, i]))
+lattice(curr::DensityCurrents) = curr.hamiltonian.basis.lattice
+
+struct SubCurrents{CT<:AbstractCurrents} <: AbstractCurrents
+    parent_currents::CT
+    lattice::Lattice
+    indices::Vector{Int}
 end
-lattice(curr::ChargeCurrents) = curr.hamiltonian.basis.lattice
+function SubCurrents(parent_currents::CT, indices::Vector{Int}) where CT
+    l = lattice(parent_currents)
+    m = zeros(Bool, length(l))
+    m[indices] .= true
+    new_mask = zero(l.mask)
+    new_mask[l.mask] = m
+    SubCurrents{CT}(parent_currents,
+        Lattice(lattice_type(l), size(l), bravais(l), new_mask), indices)
+end
+
+function current_lambda(scurr::SubCurrents)
+    in_fn = current_lambda(scurr.parent_currents)
+    (i::Int, j::Int) -> in_fn(scurr.indices[i], scurr.indices[j])
+end
+lattice(scurr::SubCurrents) = scurr.lattice
 
 struct MaterializedCurrents <: AbstractCurrents
     lattice::Lattice
@@ -33,6 +53,18 @@ MaterializedCurrents(l::Lattice) =
 
 lattice(mcurr::MaterializedCurrents) = mcurr.lattice
 current_lambda(mcurr::MaterializedCurrents) = (i::Int, j::Int) -> mcurr.currents[i, j]
+
+function getindex(curr::AbstractCurrents, lvm::LatticeValue{Bool})
+    lattice(curr) != lvm.lattice && error("lattice mismatch")
+    indices = findall(lvm.vector)
+    SubCurrents(curr, indices)
+end
+
+function getindex(curr::MaterializedCurrents, lvm::LatticeValue{Bool})
+    lattice(curr) != lvm.lattice && error("lattice mismatch")
+    indices = findall(lvm.vector)
+    MaterializedCurrents(curr.lattice[lvm], curr.currents[indices, indices])
+end
 
 function materialize(curr::AbstractCurrents)
     l = lattice(curr)

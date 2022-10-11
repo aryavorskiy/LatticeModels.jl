@@ -2,19 +2,15 @@ using Logging
 import LinearAlgebra: eigen, Hermitian
 import Base: length, getindex
 
-_diag_from_macro(lop::LatticeOperator, ::Lattice, m::AbstractMatrix) =
-    _diag_operator!(lop, m)
-_diag_from_macro(lop::LatticeOperator, l::Lattice, f::Function) =
-    _diag_operator!(lop, _propagate_lattice_args(f, l))
-_diag_from_macro(::LatticeOperator, ::Lattice, ::T) where {T} =
-    error("unextected argument type $T in @diag")
-_diag_from_macro(l::Lattice, arg::Any) =
-    _diag_from_macro(_zero_on_basis(l, arg), l, arg)
+_diag_from_macro(lop::LatticeOperator, ::Lattice, selector) =
+    _diag_operator!(lop, selector)
+_diag_from_macro(l::Lattice, selector) =
+    _diag_from_macro(_zero_on_basis(l, selector), l, selector)
 
-_hops_from_macro(lop::LatticeOperator, l::Lattice, pr_fun::Function, hop::Hopping, field::AbstractField=NoField()) =
-    _hopping_operator!(lop, pr_fun, hop, field)
-_hops_from_macro(l::Lattice, pr_fun::Function, hop::Hopping, field::AbstractField=NoField()) =
-    _hops_from_macro(_zero_on_basis(l, hop.hop_operator), l, pr_fun, hop, field)
+_hops_from_macro(lop::LatticeOperator, ::Lattice, selector, hop::Hopping, field::AbstractField=NoField()) =
+    _hopping_operator!(lop, selector, hop, field)
+_hops_from_macro(l::Lattice, selector, hop::Hopping, field::AbstractField=NoField()) =
+    _hops_from_macro(_zero_on_basis(l, hop.hop_operator), l, selector, hop, field)
 
 function _hamiltonian_block(block::Expr)
     lattice_sym = nothing
@@ -49,10 +45,10 @@ function _hamiltonian_block(block::Expr)
             elseif macro_name === Symbol("@hop") || macro_name === Symbol("@hopping")
                 lambda_i = findfirst(a -> Meta.isexpr(a, (:function, :->)), macro_args)
                 if lambda_i !== nothing
-                    pr_lambda = :(_propagate_lattice_args($(esc(macro_args[lambda_i])), $lattice_sym))
+                    pr_lambda = esc(macro_args[lambda_i])
                     popat!(macro_args, lambda_i)
                 else
-                    pr_lambda = :_always_true_on_lattice
+                    pr_lambda = :nothing
                 end
                 for arg in macro_args
                     if Meta.isexpr(arg, :(=))
@@ -102,7 +98,7 @@ struct Spectrum{LT<:Lattice,MT<:AbstractMatrix}
     end
 end
 
-function spectrum(lop::LatticeOperator{Matrix{T}} where {T})
+function spectrum(lop::LatticeOperator{LT, Matrix{T}} where {LT,T})
     !all(isfinite.(lop.operator)) && error("NaN of Inf in operator matrix")
     vals, vecs = eigen(Hermitian(lop.operator))
     return Spectrum(lop.basis, vecs, vals)

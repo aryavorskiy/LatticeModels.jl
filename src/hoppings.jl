@@ -97,7 +97,10 @@ Base.@propagate_inbounds function _match(h::Hopping, l::Lattice, site1::LatticeI
     return true
 end
 
-function _hopping_operator!(lop::LatticeOperator, lf::Function, hop::Hopping, field::AbstractField)
+@inline _get_bool_value(::Nothing, ::Lattice, ::LatticeIndex, ::Int) = true
+@inline _get_bool_value(f::Function, l::Lattice, site::LatticeIndex, ::Int) = f(site, coords(l, site))
+@inline _get_bool_value(lv::LatticeValue{Bool}, ::Lattice, ::LatticeIndex, i::Int) = lv.vector[i]
+function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field::AbstractField)
     l = lop.basis.lattice
     d = dims(l)
     _promote_dims!(hop, d)
@@ -106,7 +109,7 @@ function _hopping_operator!(lop::LatticeOperator, lf::Function, hop::Hopping, fi
     for site1 in l
         j = 1
         for site2 in l
-            if @inbounds(_match(hop, l, site1, site2)) && lf(l, site1)
+            if @inbounds(_match(hop, l, site1, site2)) && _get_bool_value(selector, l, site1, i)
                 p1 = coords(l, site1)
                 p2 = p1 + trv
                 pmod = exp(2π * im * trip_integral(field, p1, p2))
@@ -121,14 +124,19 @@ function _hopping_operator!(lop::LatticeOperator, lf::Function, hop::Hopping, fi
     lop
 end
 
-function hopping_operator(f::Function, l::Lattice, hop::Hopping; field::AbstractField=NoField())
+function hopping_operator(lf::Function, l::Lattice, hop::Hopping; field::AbstractField=NoField())
     lop = _zero_on_basis(l, hop.hop_operator)
-    _hopping_operator!(lop, _propagate_lattice_args(f, l), hop, field)
+    _hopping_operator!(lop, lf, hop, field)
+end
+
+function hopping_operator(l::Lattice, hop::Hopping, lv::LatticeValue{Bool}; field::AbstractField=NoField())
+    lop = _zero_on_basis(l, hop.hop_operator)
+    _hopping_operator!(lop, lv, hop, field)
 end
 
 function hopping_operator(l::Lattice, hop::Hopping; field::AbstractField=NoField())
     lop = _zero_on_basis(l, hop.hop_operator)
-    _hopping_operator!(lop, _always_true_on_lattice, hop, field)
+    _hopping_operator!(lop, nothing, hop, field)
 end
 
 macro hopping_operator(for_loop::Expr)

@@ -7,7 +7,7 @@ This package provides a set of tools to simulate different quantum lattice syste
 ## Installation
 
 ```jldoctest
-julia> # type ] in REPL to enter pkg mode; then type the rollowing command
+julia> # type ] in REPL to enter pkg mode; then type the following command
 pkg> add https://github.com/aryavorskiy/LatticeModels.jl
 ```
 or
@@ -52,7 +52,7 @@ a = Animation()
     plot(density, clims=(0,1))
 
     # Show currents on the plot
-    plot!(ChargeCurrents(h, P), arrows_scale=7)
+    plot!(DensityCurrents(h, P), arrows_scale=7)
 
     # Some more tweaks to the plot...
     print("\rt = $t")
@@ -63,6 +63,6 @@ end
 gif(a, "animation.gif")
 ```
 
-After execution we will get the following animation:
+This code creates an animation which displays local density and currents on a heatmap:
 
 ![](animation.gif)

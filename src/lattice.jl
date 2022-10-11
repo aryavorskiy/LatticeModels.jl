@@ -31,13 +31,14 @@ end
 Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}) where {N} =
     Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}, fill(true, prod(sz) * length(bvs)))
 
-==(@nospecialize(l1::Lattice), @nospecialize(l2::Lattice)) =
-    (l1.lattice_size == l2.lattice_size) && (l1.bravais == l2.bravais)
+==(l1::T, l2::T) where {T<:Lattice} =
+    (size(l1) == size(l2)) && (bravais(l1) == bravais(l2))
 
 size(l::Lattice) = l.lattice_size
-dims(::Lattice{LatticeType,N}) where {LatticeType,N} = N
+lattice_type(::Lattice{LT}) where {LT} = LT
+dims(::Lattice{LT,N} where {LT}) where {N} = N
+basis_length(::Lattice{LT,N,NB} where {LT,N}) where {NB} = NB
 bravais(l::Lattice) = l.bravais
-
 length(l::Lattice) = count(l.mask)
 struct LatticeIndex{N}
     unit_cell::SVector{N,Int}
@@ -53,7 +54,7 @@ Base.eltype(::Lattice{LatticeType,N}) where {LatticeType,N} = LatticeIndex{N}
 
 function iterate(l::Lattice{LT,N,NB} where {LT}) where {N,NB}
     site = LatticeIndex(@SVector(fill(1, N)), 1)
-    cinds = CartesianIndex{N + 1}(1):CartesianIndex(l.lattice_size..., NB)
+    cinds = CartesianIndex{N + 1}(1):CartesianIndex(size(l)..., NB)
     cind, st = iterate(cinds)
     index = 1
     while !l.mask[index]
@@ -152,29 +153,14 @@ function show(io::IO, ::MIME"text/plain", l::Lattice{LatticeType,N}) where {N,La
     else
         print(io, " chain")
     end
-    if N > 1 && length(l.bravais) > 1
-        print(io, " (", length(l.bravais), "-site basis)")
+    if N > 1 && basis_length(l) > 1
+        print(io, " (", basis_length(l), "-site basis)")
     end
 end
 
-function _propagate_lattice_args(f, l::Lattice)
-    if hasmethod(f, NTuple{dims(l),Number})
-        (_l::Lattice, site::LatticeIndex) -> f(coords(_l, site)...)
-    elseif hasmethod(f, Tuple{LatticeIndex})
-        (::Lattice, site::LatticeIndex) -> f(site)
-    elseif hasmethod(f, Tuple{LatticeIndex,Vararg{Number,dims(l)}})
-        (_l::Lattice, site::LatticeIndex) -> f(site, coords(_l, site)...)
-    else
-        throw(ArgumentError("failed to propagate args: unsupported lambda type"))
-    end
-end
-
-_always_true_on_lattice(::Lattice, ::LatticeIndex) = true
-
-function sublattice(f::Function, l::Lattice{LatticeType}) where {LatticeType}
-    lf = _propagate_lattice_args(f, l)
+function sublattice(lf::Function, l::Lattice{LatticeType}) where {LatticeType}
     Lattice(LatticeType, size(l), bravais(l),
-        [lf(l, site) for site in l])
+        [lf(site, coords(l, site)) for site in l])
 end
 
 function Lattice{T,N,NB}(f::Function, sz::Vararg{Int,N}; kw...) where {T,N,NB}

@@ -1,5 +1,5 @@
 using LinearAlgebra, Statistics, Logging
-import Base: length, getindex, show, ==
+import Base: length, getindex, show, copy, ==, zero
 
 struct Basis{LT<:Lattice}
     lattice::LT
@@ -24,7 +24,14 @@ struct LatticeVecOrMat{LT<:Lattice,MT<:AbstractVecOrMat}
     end
 end
 
-LatticeOperator{T} = LatticeVecOrMat{<:Lattice,T} where {T<:AbstractMatrix}
+const LatticeVector{LT,T} = LatticeVecOrMat{LT,T} where {LT<:Lattice,T<:AbstractVector}
+const LatticeOperator{LT,T} = LatticeVecOrMat{LT,T} where {LT<:Lattice,T<:AbstractMatrix}
+
+function LatticeOperator(op::UniformScaling, bas::Basis)
+    N = bas.internal_dim
+    m = Matrix(op, N, N)
+    diag_operator(bas.lattice, m)
+end
 
 size(lv::LatticeVecOrMat) = size(lv.operator)
 dims_internal(lv::LatticeVecOrMat) = lv.basis.internal_dim
@@ -40,7 +47,7 @@ setindex!(lo::LatticeVecOrMat, val, is::Int...) =
 
 ==(lvm1::LatticeVecOrMat, lvm2::LatticeVecOrMat) = (lvm1.basis == lvm2.basis) && (lvm1.operator == lvm2.operator)
 
-function show(io::IO, m::MIME"text/plain", lv::LatticeVecOrMat{LT, MT}) where {LT, MT<:AbstractMatrix}
+function show(io::IO, m::MIME"text/plain", lv::LatticeVecOrMat{LT,MT}) where {LT,MT<:AbstractMatrix}
     println(io, join(size(lv), "×") * " LatticeMatrix with inner type $MT")
     print(io, "on ")
     show(io, m, lv.basis)
@@ -52,70 +59,80 @@ function show(io::IO, m::MIME"text/plain", lv::LatticeVecOrMat{MT}) where {MT<:A
     show(io, m, lv.basis)
 end
 
+struct TensorProduct{LVT<:LatticeValue{<:Number},MT<:AbstractMatrix}
+    lattice_value::LVT
+    matrix::MT
+end
+
+⊗(lv::LatticeValue, m::Matrix) = TensorProduct(lv, m)
+⊗(m::Matrix, lv::LatticeValue) = TensorProduct(lv, m)
+
+dims_internal(tp::TensorProduct) = size(tp.matrix)[1]
+basis(tp::TensorProduct) = Basis(tp.lattice_value.lattice, dims_internal(tp))
+zero(tp::TensorProduct) = _zero_on_basis(tp.lattice_value.lattice, tp.matrix)
+copy(tp::TensorProduct) = materialize(tp)
+
 function _zero_on_basis(l::Lattice, m::AbstractMatrix)
     N = size(m)[1]
     LatticeVecOrMat(Basis(l, N),
         zero(similar(m, ComplexF64, (N * length(l), N * length(l)))))
 end
-function _zero_on_basis(l::Lattice, f::Function)
-    lf = _propagate_lattice_args(f, l)
-    _zero_on_basis(l, lf(l, first(l)))
+function _zero_on_basis(l::Lattice, lf::Function)
+    _zero_on_basis(l, lf(first(l), coords(l, first(l))))
 end
 _zero_on_basis(l::Lattice, N::Int) = LatticeVecOrMat(Basis(l, N),
     zeros(ComplexF64, N * length(l), N * length(l)))
 _zero_on_basis(bas::Basis) = _zero_on_basis(bas.lattice, bas.internal_dim)
+function _zero_on_basis(l::Lattice, tp::TensorProduct)
+    l != tp.lattice_value.lattice &&
+        error("lattice mismatch:\n$l\n$(tp.lattice_value.lattice)")
+    zero(tp)
+end
 
-convert_inner_type(MT::Type, lo::LatticeVecOrMat) =
-    LatticeVecOrMat(lo.basis, convert(MT, lo.operator))
-
-# TODO: check if convert_inner_type() works
-
-function _diag_operator!(lop::LatticeOperator, lf::Function)
+@inline _get_matrix_value(f::Function, l::Lattice, site::LatticeIndex, ::Int) = f(site, coords(l, site))
+@inline _get_matrix_value(m::AbstractMatrix, ::Lattice, ::LatticeIndex, ::Int) = m
+@inline _get_matrix_value(tp::TensorProduct, ::Lattice, ::LatticeIndex, i::Int) = tp.lattice_value.vector[i] * tp.matrix
+function _diag_operator!(lop::LatticeOperator, op_object)
     l = lop.basis.lattice
     i = 1
     try
         for site in l
-            lop[i, i] += lf(l, site)
+            lop[i, i] += _get_matrix_value(op_object, l, site, i)
             i += 1
         end
     catch e
         if e isa DimensionMismatch
-            error("check lambda return type; should be AbstractMatrix")
+            error("dimension mismatch")
         else
             rethrow()
         end
     end
     lop
 end
-function _diag_operator!(lop::LatticeOperator, m::AbstractMatrix)
-    for i in 1:length(lop.basis.lattice)
-        lop[i, i] += m
-    end
-    lop
-end
 
-diag_operator(f::Function, l::Lattice) =
-    _diag_operator!(_zero_on_basis(l, f), _propagate_lattice_args(f, l))
-diag_operator(l::Lattice, m::AbstractMatrix) =
-    _diag_operator!(_zero_on_basis(l, m), m)
-function diag_operator(f::Function, bas::Basis)
+materialize(tp::TensorProduct) = _diag_operator!(_zero_on_basis(basis(tp)), tp)
+diag_operator(f::Function, l::Lattice) = _diag_operator!(_zero_on_basis(l, f), f)
+diag_operator(l::Lattice, m::AbstractMatrix) = _diag_operator!(_zero_on_basis(l, m), m)
+function diag_operator(lf::Function, bas::Basis)
     N = bas.internal_dim
-    one = Matrix(I, N, N)
-    lf = _propagate_lattice_args(f, bas.lattice)
-    _diag_operator!(
-        _zero_on_basis(bas), (l, site) -> lf(l, site)::Number * one)
+    eye = Matrix(I, N, N)
+    _diag_operator!(_zero_on_basis(bas), (site, crd) -> lf(site, crd)::Number * eye)
+end
+function diag_operator(bas::Basis, lv::LatticeValue{<:Number})
+    N = bas.internal_dim
+    eye = Matrix(I, N, N)
+    _diag_operator!(_zero_on_basis(bas), lv ⊗ eye)
 end
 
-function coord_operators(b::Basis)
-    N = b.internal_dim
-    d = dims(b.lattice)
+function coord_operators(bas::Basis)
+    N = bas.internal_dim
+    d = dims(bas.lattice)
     i = 1
-    eye = Matrix(I, (N, N))
-    xyz_operators = [LatticeVecOrMat(b, op_mat)
-        for op_mat
-        in eachslice(zeros(length(b), length(b), d), dims=3)]
-    for site in b.lattice
-        crd = coords(b.lattice, site)
+    eye = Matrix(I, N, N)
+    xyz_operators = [LatticeVecOrMat(bas, op_mat) for op_mat in
+                     eachslice(zeros(length(bas), length(bas), d), dims=3)]
+    for site in bas.lattice
+        crd = coords(bas.lattice, site)
         for j in 1:d
             xyz_operators[j][i, i] = crd[j] * eye
         end
