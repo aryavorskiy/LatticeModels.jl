@@ -34,6 +34,8 @@ Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}) where {N} =
 ==(l1::T, l2::T) where {T<:Lattice} =
     (size(l1) == size(l2)) && (bravais(l1) == bravais(l2))
 
+copy(l::Lattice{LatticeSym}) where LatticeSym =
+    Lattice(LatticeSym, size(l), bravais(l), copy(l.mask))
 size(l::Lattice) = l.lattice_size
 lattice_type(::Lattice{LT}) where {LT} = LT
 dims(::Lattice{LT,N} where {LT}) where {N} = N
@@ -53,7 +55,6 @@ Base.eltype(::Lattice{LatticeType,N}) where {LatticeType,N} = LatticeIndex{N}
     li1.basis_index == li2.basis_index && li1.unit_cell == li2.unit_cell
 
 function iterate(l::Lattice{LT,N,NB} where {LT}) where {N,NB}
-    site = LatticeIndex(@SVector(fill(1, N)), 1)
     cinds = CartesianIndex{N + 1}(1):CartesianIndex(size(l)..., NB)
     cind, st = iterate(cinds)
     index = 1
@@ -63,10 +64,10 @@ function iterate(l::Lattice{LT,N,NB} where {LT}) where {N,NB}
         cind, st = nx
         index += 1
     end
-    (LatticeIndex(Tuple(cind)), (l.mask, cinds, cind, index))
+    LatticeIndex(Tuple(cind)), (l.mask, cinds, cind, index)
 end
 
-function iterate(@nospecialize(_::Lattice), state)
+function iterate(::Lattice, state)
     mask, cinds, cind, index = state
     nx = iterate(cinds, cind)
     nx === nothing && return nothing
@@ -78,7 +79,7 @@ function iterate(@nospecialize(_::Lattice), state)
         cind, st = nx
         index += 1
     end
-    (LatticeIndex(Tuple(cind)), (mask, cinds, cind, index))
+    LatticeIndex(Tuple(cind)), (mask, cinds, cind, index)
 end
 
 coords(l::Lattice, site::LatticeIndex) =
@@ -101,10 +102,16 @@ function radius_vector(l::Lattice, site1::LatticeIndex, site2::LatticeIndex)
     return ret_vec
 end
 
-@recipe function f(l::Lattice, v=nothing)
+@recipe function f(l::Lattice)
+    l_without_mask = copy(l)
+    fill!(l_without_mask.mask, true)
+    opacity := l.mask .* 0.9 .+ 0.1
+    l_without_mask, nothing
+end
+
+@recipe function f(l::Lattice, v)
     label --> nothing
     show_excluded --> false
-    # TODO support show_excluded=true
     aspect_ratio := :equal
     marker_z := v
     markerstrokewidth := 0

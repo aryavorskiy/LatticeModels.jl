@@ -1,5 +1,5 @@
 using Logging
-import LinearAlgebra: eigen, Hermitian
+import LinearAlgebra: eigen, Hermitian, eigvals, eigvecs
 import Base: length, getindex
 
 _diag_from_macro(lop::LatticeOperator, ::Lattice, selector) =
@@ -25,14 +25,14 @@ function _hamiltonian_block(block::Expr)
             key, value = line.args
             if key === :lattice
                 lattice_sym !== nothing &&
-                    error("cannot overwrite key $key")
+                    error("cannot overwrite key :$key")
                 lattice_sym = :($(esc(value)))
             elseif key === :field
                 field_sym !== nothing &&
-                    error("cannot overwrite key $key")
+                    error("cannot overwrite key :$key")
                 field_sym = :($(esc(value)))
             else
-                @warn "skipping unused key $key"
+                @warn "skipping unused key :$key"
             end
         elseif Meta.isexpr(line, :macrocall)
             lattice_sym === nothing && error("define lattice first")
@@ -49,22 +49,22 @@ function _hamiltonian_block(block::Expr)
                     _diag_from_macro($lattice_sym, $(esc(macro_arg)))
                 ))
             elseif macro_name === Symbol("@hop") || macro_name === Symbol("@hopping")
-                lambda_i = findfirst(a -> Meta.isexpr(a, (:function, :->)), macro_args)
-                if lambda_i !== nothing
-                    pr_lambda = esc(macro_args[lambda_i])
-                    popat!(macro_args, lambda_i)
-                else
-                    pr_lambda = :nothing
+                args_is = findall(a -> !Meta.isexpr(a, :(=), 2), macro_args)
+                hop_operator = 1
+                local selector_sym = :nothing
+                if length(args_is) ≥ 1
+                    hop_operator = esc(macro_args[args_is[1]])
                 end
+                if length(args_is) ≥ 2
+                    selector_sym = esc(macro_args[args_is[2]])
+                end
+                deleteat!(macro_args, args_is)
                 for arg in macro_args
-                    if Meta.isexpr(arg, :(=))
-                        arg.head = :kw
-                    end
+                    arg.head = :kw
                 end
-
-                hopcall = :(hopping($(esc.(macro_args)...)))
+                hopcall = :(hopping($hop_operator, $(esc.(macro_args)...)))
                 push!(ham_block.args, :(
-                    _hops_from_macro($lattice_sym, $pr_lambda, $hopcall)
+                    _hops_from_macro($lattice_sym, $selector_sym, $hopcall)
                 ))
             else
                 error("unexpected macro call $macro_name in @hamiltonian")
@@ -98,8 +98,8 @@ struct Spectrum{LT<:Lattice,MT<:AbstractMatrix}
     states::MT
     energies::Vector{Float64}
     function Spectrum(basis::Basis{LT}, states::MT, energies::AbstractVector) where {LT,MT}
-        length(energies) != size(states)[1] && error("inconsistent energies list length")
-        length(basis) != size(states)[2] && error("inconsistent basis dimensionality")
+        length(basis) != size(states)[1] && error("inconsistent basis dimensionality")
+        length(energies) != size(states)[2] && error("inconsistent energies list length")
         new{LT,MT}(basis, states, energies)
     end
 end
@@ -110,10 +110,11 @@ function spectrum(lop::LatticeOperator{LT, Matrix{T}} where {LT,T})
     Spectrum(lop.basis, vecs, vals)
 end
 
+eigvals(sp::Spectrum) = sp.energies
+eigvecs(sp::Spectrum) = sp.states
+
 length(sp::Spectrum) = length(sp.energies)
 getindex(sp::Spectrum, i::Int) = LatticeArray(sp.basis, sp.states[:, i])
-getindex(sp::Spectrum, mask::AbstractVector{Bool}) =
-    Spectrum(sp.basis, sp.states[:, mask], sp.energies[mask])
 function getindex(sp::Spectrum; E::Number)
     min_e_dst = abs(E - sp.energies[1])
     i = 1
@@ -125,6 +126,8 @@ function getindex(sp::Spectrum; E::Number)
     end
     LatticeArray(sp.basis, sp.states[:, i])
 end
+getindex(sp::Spectrum, mask) =
+    Spectrum(sp.basis, sp.states[:, mask], sp.energies[mask])
 
 function show(io::IO, ::MIME"text/plain", sp::Spectrum)
     println(io, "Spectrum with $(length(sp)) eigenstates")

@@ -33,8 +33,8 @@ evolution_operator(H, t::Real) = exp((-im * t) * H)
 evolution_operator(H, t::Real, k::Int) = taylor_exp((-im * t) * H, k)
 
 function _expand_chain(chain)
-    if Meta.isexpr(chain, :call) && chain.args[1] == :(=>)
-        (_expand_chain(chain.args[2])..., _expand_chain(chain.args[3])...)
+    if Meta.isexpr(chain, :-->)
+        (_expand_chain(chain.args[1])..., _expand_chain(chain.args[2])...)
     else
         (chain,)
     end
@@ -72,23 +72,31 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12)
     p_evolutions = []
 
     if typeof(rules) != Expr || rules.head ∉ (:braces, :bracescat)
-        error("evolution specifier should be a braces notation, not '$(loop.head)'")
+        error("evolution specifier list should be a braces notation, not '$(loop.head)'")
     end
 
-    hamiltonian_functions_set = Set()
+    hamiltonian_functions = []
+    hamiltonian_aliases = Dict{Symbol, Int}()
     for statement in rules.args
-        if statement isa Expr
+        if Meta.isexpr(statement, :(:=))
+            ham_sym, ham_expr = statement.args
+            !(ham_sym isa Symbol) && error("assignment lvalue must be a Symbol")
+            if ham_sym in keys(hamiltonian_aliases)
+                error("redefinition of alias $statement not allowed
+                (previous $ham_sym := $(hamiltonian_functions[hamiltonian_aliases[ham_sym]]))")
+            end
+            !(ham_expr in hamiltonian_functions) && push!(hamiltonian_functions, ham_expr)
+            hamiltonian_aliases[ham_sym] = findfirst(==(ham_expr), hamiltonian_functions)
+        elseif statement isa Expr
             chain = _expand_chain(statement)
             if length(chain) == 3
-                push!(hamiltonian_functions_set, chain[2])
-            elseif length(chain) == 2
-                push!(hamiltonian_functions_set, chain[1])
+                !(chain[2] in keys(hamiltonian_aliases)) &&
+                    push!(hamiltonian_functions, chain[2])
             else
-                error("invalid argument chain length $(length(chain))")
+                error("invalid specifier:\n$statement")
             end
         end
     end
-    hamiltonian_functions = collect(hamiltonian_functions_set)
     ham_i = 1
     for ham_expr in hamiltonian_functions
         h_eval = Symbol("ham_eval_$ham_i")
@@ -122,32 +130,30 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12)
     end
 
     for statement in rules.args
-        if typeof(statement) == LineNumberNode
+        if statement isa LineNumberNode
             continue
-        elseif typeof(statement) == Expr
-            chain = _expand_chain(statement)
-            if length(chain) == 2
-                local ham_expr, ham_var = chain
-                ham_i = findfirst(==(ham_expr), hamiltonian_functions)
-                h_eval = Symbol("ham_eval_$ham_i")
-                h_eval_new = Symbol("ham_eval_new_$ham_i")
-                if _expr_depends_on(ham_expr, loop_var)
-                    push!(ham_evals, :($(esc(ham_var)) = $h_eval_new))
-                else
-                    push!(ham_evals, :($(esc(ham_var)) = $h_eval))
-                end
+        elseif Meta.isexpr(statement, :(:=))
+            local ham_var, ham_expr = statement.args
+            ham_i = findfirst(==(ham_expr), hamiltonian_functions)
+            h_eval = Symbol("ham_eval_$ham_i")
+            h_eval_new = Symbol("ham_eval_new_$ham_i")
+            if _expr_depends_on(ham_expr, loop_var)
+                push!(ham_evals, :($(esc(ham_var)) = $h_eval_new))
             else
-                p_initial, ham_expr, p_target = chain
-                ham_i = findfirst(==(ham_expr), hamiltonian_functions)
-                h_eval = Symbol("ham_eval_$ham_i")
-                h_eval_new = Symbol("ham_eval_new_$ham_i")
-                p_target_ev = Symbol("evolutor_$ham_i")
-                push!(inits,
-                    :($(esc(p_target)) = _unwrap_from_macro(copy, $(esc(p_initial)))))
-                push!(p_evolutions,
-                    :($(esc(p_target)) =
-                        $p_target_ev * $(esc(p_target)) * adjoint($p_target_ev)))
+                push!(ham_evals, :($(esc(ham_var)) = $h_eval))
             end
+        elseif statement isa Expr
+            p_initial, ham_expr, p_target = _expand_chain(statement)
+            ham_i = get(hamiltonian_aliases, ham_expr, findfirst(==(ham_expr), hamiltonian_functions))
+            ham_i === nothing && error()
+            h_eval = Symbol("ham_eval_$ham_i")
+            h_eval_new = Symbol("ham_eval_new_$ham_i")
+            p_target_ev = Symbol("evolutor_$ham_i")
+            push!(inits,
+                :($(esc(p_target)) = _unwrap_from_macro(copy, $(esc(p_initial)))))
+            push!(p_evolutions,
+                :($(esc(p_target)) =
+                    $p_target_ev * $(esc(p_target)) * adjoint($p_target_ev)))
         end
     end
     quote
@@ -183,5 +189,3 @@ macro evolution(args...)
     kwargs = Dict(a.args for a in args[begin:end-2])
     _evolution_block(rules, loop; kwargs...)
 end
-
-# TODO: add TimeStorage?

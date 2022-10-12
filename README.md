@@ -25,7 +25,7 @@ using Plots, LinearAlgebra
 l = SquareLattice(10, 10)
 
 # Define a Hofstadter model hamiltonian
-H(B) = @hamiltonian begin   
+h(B) = @hamiltonian begin   
     lattice := l
     # Add hoppings along axis x and y
     @hop axis = 1
@@ -44,8 +44,8 @@ P_0 = filled_projector(sp)
 τ = 10
 a = Animation()
 @evolution {
-    P_0 => H(0.1 * min(t, τ) / τ) => P,
-    H(0.1 * min(t, τ) / τ) => h
+    H := h(0.1 * min(t, τ) / τ)
+    P_0 --> H --> P
 } for t in 0:0.1:2τ
     # Find the partial trace and plot it
     density = diag_aggregate(m -> real(tr(m)), P)

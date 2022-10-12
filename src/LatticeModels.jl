@@ -18,7 +18,7 @@ include("hoppings.jl")
 export hopping, hopping_operator, bonds, is_adjacent, @hopping_operator
 
 include("hamiltonian.jl")
-export @hamiltonian, Spectrum, spectrum, projector, filled_projector
+export @hamiltonian, Spectrum, spectrum, eigvals, eigvecs, projector, filled_projector
 
 include("evolution.jl")
 export @evolution

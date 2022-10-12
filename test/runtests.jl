@@ -35,7 +35,7 @@ using LatticeModels
 
     @test begin
         l = SquareLattice(10, 10)
-        H = @hamiltonian begin
+        H0 = @hamiltonian begin
             lattice := l
             field := LandauField(0.5)
             @diag [1 0; 0 -1]
@@ -53,9 +53,9 @@ using LatticeModels
                 @hop axis = 2 [1 1; -1 -1] / 2
             end
         end
-        P0 = filled_projector(spectrum(H))
+        P0 = filled_projector(spectrum(H0))
         X, Y = coord_operators(Basis(l, 2))
-        @evolution {P0 => h(t) => P, h(t) => H} for t in 0:0.1:10
+        @evolution {H := h(t), P0 --> H --> P} for t in 0:0.1:10
             d = diag_aggregate(tr, 4π * im * P * X * (I - P) * Y * P)
             ch = materialize(DensityCurrents(H, P))
             rd = d .|> real
@@ -186,6 +186,11 @@ end
             "avoid using lattice operators and matrices \
 in one function call"
         ) @on_lattice X * ones(200, 200)
+        @test_logs (
+            :warn,
+            "avoid using lattice operators and matrices \
+in one function call"
+        ) @on_lattice ones(200, 200) * Y
     end
 end
 
@@ -200,7 +205,7 @@ end
         @test hopping(axis=1) == LatticeModels.promote_dims!(hopping(tr_vector=[1, 0]), 1)
         @test hopping(axis=1, pbc=[true, false]) == hopping(tr_vector=[1, 0], pbc=[true, false])
         @test hopping([-1;;], axis=1) == hopping(-1, axis=1)
-        @test_throws "cannot shrink" LatticeModels.promote_dims!(hopping(tr_vector=[0,1]),1)
+        @test_throws "cannot shrink" LatticeModels.promote_dims!(hopping(tr_vector=[0, 1]), 1)
     end
     @testset "Hopping matching" begin
         @test !LatticeModels._match(hopping(axis=1), l, ls1, ls2)
@@ -229,9 +234,14 @@ end
         vector_potential(x) = (0, x * B)
         n_integrate := 100
     end
+    @field_def struct StrangeLandauField(B::Number)
+        vector_potential(point...) = (0, point[1] * B)
+        trip_integral(p1, p2) = 123
+    end
     l = SquareLattice(10, 10)
     la = LandauField(0.1)
     lla = LazyLandauField(0.1)
+    sla = StrangeLandauField(0.1)
     sym = SymmetricField(0.1)
     @testset "Trip integral" begin
         p1 = SA[1, 2]
@@ -242,6 +252,11 @@ end
               LatticeModels.trip_integral(lla, p1, p2)
         @test LatticeModels.trip_integral(lla, p1, p2; n_integrate=100) ==
               LatticeModels.trip_integral(lla, p1, p2)
+
+        @test LatticeModels.trip_integral(sla, p1, p2; n_integrate=100) ≈
+              LatticeModels.trip_integral(la, p1, p2)
+        @test LatticeModels.trip_integral(sla, p1, p2) == 123
+
         @test LatticeModels.trip_integral(sym, p1, p2; n_integrate=1) ≈
               LatticeModels.trip_integral(sym, p1, p2)
         @test LatticeModels.trip_integral(sym, p1, p2; n_integrate=100) ≈
@@ -264,7 +279,33 @@ end
     end
 end
 
-@testset "Currents" begin
+@testset "Hamiltonian tests" begin
+    l = HoneycombLattice(10, 10) do site, (x, y)
+        x < y
+    end
+    x, y = coord_values(l)
+    H1 = @hamiltonian begin
+        lattice := l
+        field := LandauField(0.5)
+        @diag [1 0; 0 -1] ⊗ (@. x + y)
+        @hop [1 0; 0 -1] axis = 2 (@. x + 1 < y)
+    end
+    H2 = @hamiltonian begin
+        lattice := l
+        @hop tr_vector = [0, 1] [1 0; 0 -1] (site, (x, y)) -> (x + 1 < y)
+        @diag (site, (x, y)) -> [x+y 0; 0 -x-y]
+        field := LandauField(0.5)
+    end
+    @test H1 == H2
+    sp = spectrum(H1)
+    Es = eigvals(sp)
+    states = eigvecs(sp)
+    @test length(sp) == size(states)[2]
+    @test sp[1] == sp[E=-100]
+    @test filled_projector(sp).operator ≈ projector(sp[Es .< 0]).operator
+end
+
+@testset "Currents tests" begin
     l = SquareLattice(10, 10)
     x, y = coord_values(l)
     H = @hamiltonian begin
@@ -277,9 +318,9 @@ end
     P = filled_projector(spectrum(H))
     dc = DensityCurrents(H, P)
     bs = bonds(H)
-    m1 = materialize(dc)[x .< y]
-    m2 = materialize(dc[x .< y])
-    m3 = materialize(is_adjacent(bs), dc[x .< y])
+    m1 = materialize(dc)[x.<y]
+    m2 = materialize(dc[x.<y])
+    m3 = materialize(is_adjacent(bs), dc[x.<y])
     @test m1.currents == m2.currents
     @test m2.currents == m3.currents
 end
