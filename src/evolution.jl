@@ -14,8 +14,8 @@ function taylor_exp(A::AbstractMatrix, k::Int)
     return B
 end
 
-exp(A::LatticeOperator) = LatticeVecOrMat(A.basis, exp(A.operator))
-taylor_exp(A::LatticeOperator, k::Int) = LatticeVecOrMat(A.basis, taylor_exp(A.operator, k))
+exp(A::LatticeOperator) = LatticeArray(A.basis, exp(A.operator))
+taylor_exp(A::LatticeOperator, k::Int) = LatticeArray(A.basis, taylor_exp(A.operator, k))
 
 @doc raw"""
     evolution_operator(H, t[, k])
@@ -44,7 +44,7 @@ _expr_depends_on(::Any, ::Symbol) = true
 _expr_depends_on(expr::Symbol, dep_var::Symbol) = (expr === dep_var)
 function _expr_depends_on(expr::Expr, dep_var::Symbol)
     _begin = 1 + Meta.isexpr(expr, (:call, :->))
-    return any(_expr_depends_on(e, dep_var) for e in expr.args[_begin:end])
+    any(_expr_depends_on(e, dep_var) for e in expr.args[_begin:end])
 end
 
 function _evolution_operator_call(H_sym, dt_sym, k)
@@ -150,7 +150,7 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12)
             end
         end
     end
-    return quote
+    quote
         local $(esc(loop_var)) = first($(esc(loop_range)))
         $(inits...)
         local t_inner = zero(eltype($(esc(loop_range))))

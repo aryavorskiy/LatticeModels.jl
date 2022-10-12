@@ -68,7 +68,7 @@ end
 dims(h::Hopping) = length(h.tr_vector)
 dims_internal(h::Hopping) = size(h.hop_operator)[1]
 
-function _promote_dims!(h::Hopping, ndims::Int)
+function promote_dims!(h::Hopping, ndims::Int)
     if ndims ≥ dims(h)
         append!(h.pbc, fill(false, ndims - dims(h)))
         append!(h.tr_vector, fill(0, ndims - dims(h)))
@@ -82,6 +82,7 @@ function _promote_dims!(h::Hopping, ndims::Int)
             end
         end
     end
+    h
 end
 
 Base.@propagate_inbounds function _match(h::Hopping, l::Lattice, site1::LatticeIndex, site2::LatticeIndex)
@@ -103,7 +104,7 @@ end
 function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field::AbstractField)
     l = lop.basis.lattice
     d = dims(l)
-    _promote_dims!(hop, d)
+    promote_dims!(hop, d)
     trv = SVector{d}(hop.tr_vector)
     i = 1
     for site1 in l
@@ -186,7 +187,7 @@ macro hopping_operator(for_loop::Expr)
                 end
             end
         end
-        LatticeVecOrMat(Basis(l, N), matrix)
+        LatticeArray(Basis(l, N), matrix)
     end
 end
 
@@ -218,7 +219,7 @@ end
 function bonds(l::Lattice, hops::Hopping...)
     bs = BondSet(l)
     for h in hops
-        _promote_dims!(h, dims(l))
+        promote_dims!(h, dims(l))
     end
     for i in 1:length(l)
         for j in 1:length(l)

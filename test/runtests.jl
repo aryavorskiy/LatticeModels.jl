@@ -176,7 +176,7 @@ end
     end
     @testset "Lattice-value constructor" begin
         @test diag_operator(bas, x .* y) == xy
-        @test materialize((x .* y) ⊗ [1 0; 0 1]) == xy
+        @test (x .* y) ⊗ [1 0; 0 1] == xy
     end
     @testset "Wrapper macro" begin
         @test @on_lattice(X / 2 + X * Y + exp(Y)) == xd2pxypexpy
@@ -197,12 +197,16 @@ end
     @testset "Constructor" begin
         @test hopping(axis=1) == hopping(tr_vector=[1])
         @test hopping(axis=1) != hopping(tr_vector=[1, 0])
+        @test hopping(axis=1) == LatticeModels.promote_dims!(hopping(tr_vector=[1, 0]), 1)
         @test hopping(axis=1, pbc=[true, false]) == hopping(tr_vector=[1, 0], pbc=[true, false])
         @test hopping([-1;;], axis=1) == hopping(-1, axis=1)
+        @test_throws "cannot shrink" LatticeModels.promote_dims!(hopping(tr_vector=[0,1]),1)
     end
     @testset "Hopping matching" begin
         @test !LatticeModels._match(hopping(axis=1), l, ls1, ls2)
         @test LatticeModels._match(hopping(axis=2), l, ls1, ls2)
+        @test LatticeModels._match(hopping(axis=1), l, ls2, ls3)
+        @test !LatticeModels._match(hopping(axis=2), l, ls2, ls3)
     end
     @testset "Adjacency" begin
         bs = bonds(l, hopping(axis=1), hopping(axis=2))
@@ -223,6 +227,7 @@ end
 @testset "Field tests" begin
     @field_def struct LazyLandauField(B::Number)
         vector_potential(x) = (0, x * B)
+        n_integrate := 100
     end
     l = SquareLattice(10, 10)
     la = LandauField(0.1)
@@ -234,6 +239,8 @@ end
         @test LatticeModels.trip_integral(la, p1, p2) ≈
               LatticeModels.trip_integral(lla, p1, p2)
         @test LatticeModels.trip_integral(la, p1, p2; n_integrate=100) ≈
+              LatticeModels.trip_integral(lla, p1, p2)
+        @test LatticeModels.trip_integral(lla, p1, p2; n_integrate=100) ==
               LatticeModels.trip_integral(lla, p1, p2)
         @test LatticeModels.trip_integral(sym, p1, p2; n_integrate=1) ≈
               LatticeModels.trip_integral(sym, p1, p2)
@@ -269,7 +276,10 @@ end
     end
     P = filled_projector(spectrum(H))
     dc = DensityCurrents(H, P)
+    bs = bonds(H)
     m1 = materialize(dc)[x .< y]
     m2 = materialize(dc[x .< y])
+    m3 = materialize(is_adjacent(bs), dc[x .< y])
     @test m1.currents == m2.currents
+    @test m2.currents == m3.currents
 end

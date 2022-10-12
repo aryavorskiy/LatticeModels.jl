@@ -12,6 +12,9 @@ _hops_from_macro(lop::LatticeOperator, ::Lattice, selector, hop::Hopping, field:
 _hops_from_macro(l::Lattice, selector, hop::Hopping, field::AbstractField=NoField()) =
     _hops_from_macro(_zero_on_basis(l, hop.hop_operator), l, selector, hop, field)
 
+_lazy_tp(m::AbstractMatrix, lv::LatticeValue) = TensorProduct(lv, m)
+_lazy_tp(lv::LatticeValue, m::AbstractMatrix) = TensorProduct(lv, m)
+
 function _hamiltonian_block(block::Expr)
     lattice_sym = nothing
     field_sym = nothing
@@ -39,6 +42,9 @@ function _hamiltonian_block(block::Expr)
                 length(macro_args) != 1 &&
                     error("@diag accepts only one argument")
                 macro_arg = only(macro_args)
+                if Meta.isexpr(macro_arg, :call, 3) && macro_arg.args[1] == :⊗
+                    macro_arg.args[1] = :(LatticeModels._lazy_tp)
+                end
                 push!(ham_block.args, :(
                     _diag_from_macro($lattice_sym, $(esc(macro_arg)))
                 ))
@@ -101,11 +107,11 @@ end
 function spectrum(lop::LatticeOperator{LT, Matrix{T}} where {LT,T})
     !all(isfinite.(lop.operator)) && error("NaN of Inf in operator matrix")
     vals, vecs = eigen(Hermitian(lop.operator))
-    return Spectrum(lop.basis, vecs, vals)
+    Spectrum(lop.basis, vecs, vals)
 end
 
 length(sp::Spectrum) = length(sp.energies)
-getindex(sp::Spectrum, i::Int) = LatticeVecOrMat(sp.basis, sp.states[:, i])
+getindex(sp::Spectrum, i::Int) = LatticeArray(sp.basis, sp.states[:, i])
 getindex(sp::Spectrum, mask::AbstractVector{Bool}) =
     Spectrum(sp.basis, sp.states[:, mask], sp.energies[mask])
 function getindex(sp::Spectrum; E::Number)
@@ -117,7 +123,7 @@ function getindex(sp::Spectrum; E::Number)
             min_e_dst = abs(E - sp.energies[j])
         end
     end
-    LatticeVecOrMat(sp.basis, sp.states[:, i])
+    LatticeArray(sp.basis, sp.states[:, i])
 end
 
 function show(io::IO, ::MIME"text/plain", sp::Spectrum)
@@ -125,14 +131,9 @@ function show(io::IO, ::MIME"text/plain", sp::Spectrum)
     println(io, "Eigenvalues in range $(minimum(sp.energies)) .. $(maximum(sp.energies))")
 end
 
-function projector(sp::Spectrum)
-    return LatticeVecOrMat(sp.basis, sp.states * sp.states')
-end
+projector(sp::Spectrum) = LatticeArray(sp.basis, sp.states * sp.states')
 
-function projector(f::Function, sp::Spectrum)
-    return LatticeVecOrMat(sp.basis, sp.states * (f.(sp.energies) .* sp.states'))
-end
+projector(f::Function, sp::Spectrum) =
+    LatticeArray(sp.basis, sp.states * (f.(sp.energies) .* sp.states'))
 
-function filled_projector(sp::Spectrum, fermi_level=0)
-    return projector(E -> E < fermi_level, sp)
-end
+filled_projector(sp::Spectrum, fermi_level=0) = projector(E -> E < fermi_level, sp)

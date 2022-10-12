@@ -86,7 +86,10 @@ function materialize(f::Function, curr::AbstractCurrents)
     for site1 in l
         j = 1
         for site2 in l
-            !(f(site1, site2)) && continue
+            if i == j || !(f(site1, site2))
+                j += 1
+                continue
+            end
             ij_curr = curr_fn(i, j)
             m.currents[i, j] = ij_curr
             m.currents[j, i] = -ij_curr

@@ -16,7 +16,7 @@ function trip_integral(field::AbstractField, p1, p2; n_integrate=1)
         integral += dot_assuming_zeros(dp, SVector(vector_potential(field, p)))
         p += dp
     end
-    return integral
+    integral
 end
 
 function apply_field!(lo::LatticeOperator, field::AbstractField)
@@ -136,8 +136,8 @@ macro field_def(struct_block)
             else
                 @warn "function definition $fn_def ignored"
             end
-        elseif Meta.isexpr(statement, :call) && statement.args[1] == :(:=)
-            key, arg = statement.args[2:3]
+        elseif Meta.isexpr(statement, :(:=), 2)
+            key, arg = statement.args
             if key === :n_integrate
                 push!(struct_definition.args, :(
                     LatticeModels.trip_integral(field::$struct_name, p1, p2) =
@@ -147,10 +147,10 @@ macro field_def(struct_block)
                 @warn "unsupported key $key ignored"
             end
         elseif statement isa Expr
-            error("not a function definition or key assignment")
+            error("not a function definition or key assignment:\n$statement")
         end
     end
-    return esc(struct_definition)
+    esc(struct_definition)
 end
 
 @field_def struct NoField
