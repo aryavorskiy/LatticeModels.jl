@@ -88,9 +88,9 @@ function _zero_on_basis(l::Lattice, tp::TensorProduct)
     zero(tp)
 end
 
-@inline _get_matrix_value(f::Function, l::Lattice, site::LatticeIndex, ::Int) = f(site, coords(l, site))
-@inline _get_matrix_value(m::AbstractMatrix, ::Lattice, ::LatticeIndex, ::Int) = m
-@inline _get_matrix_value(tp::TensorProduct, ::Lattice, ::LatticeIndex, i::Int) = tp.lattice_value.vector[i] * tp.matrix
+@inline _get_matrix_value(f::Function, l::Lattice, site::LatticeSite, ::Int) = f(site, coords(l, site))
+@inline _get_matrix_value(m::AbstractMatrix, ::Lattice, ::LatticeSite, ::Int) = m
+@inline _get_matrix_value(tp::TensorProduct, ::Lattice, ::LatticeSite, i::Int) = tp.lattice_value.vector[i] * tp.matrix
 function _diag_operator!(lop::LatticeOperator, op_object)
     l = lop.basis.lattice
     i = 1

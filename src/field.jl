@@ -6,7 +6,7 @@ show(io::IO, ::MIME"text/plain", ::T) where {T<:AbstractField} = print(io, "$T f
 vector_potential(::FT, point::Vector) where {FT<:AbstractField} =
     error("no vector potential function defined for field type $(MT)")
 
-dot_assuming_zeros(m::SVector{M}, n::SVector{N}) where {M, N} = m[1:min(M, N)]' * n[1:min(M, N)]
+dot_assuming_zeros(m::SVector{M}, n::SVector{N}) where {M,N} = m[1:min(M, N)]' * n[1:min(M, N)]
 
 function trip_integral(field::AbstractField, p1, p2; n_integrate=1)
     integral = 0.0
@@ -158,7 +158,7 @@ end
 end
 
 @field_def struct LandauField(B::Number)
-    vector_potential(x) = SA[0, x * B]
+    vector_potential(x) = SA[0, x*B]
     trip_integral(p1, p2) = ((p1[1] + p2[1]) / 2) * (p2[2] - p1[2]) * B
     show(io::IO, ::MIME"text/plain") = print(io, "Landau calibration field; B = $B flux quanta per 1×1 plaquette")
 end

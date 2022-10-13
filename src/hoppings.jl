@@ -85,7 +85,7 @@ function promote_dims!(h::Hopping, ndims::Int)
     h
 end
 
-Base.@propagate_inbounds function _match(h::Hopping, l::Lattice, site1::LatticeIndex, site2::LatticeIndex)
+Base.@propagate_inbounds function _match(h::Hopping, l::Lattice, site1::LatticeSite, site2::LatticeSite)
     (site1.basis_index, site2.basis_index) != h.site_indices && return false
     for i in 1:dims(h)
         vi = site2.unit_cell[i] - site1.unit_cell[i] - h.tr_vector[i]
@@ -98,9 +98,9 @@ Base.@propagate_inbounds function _match(h::Hopping, l::Lattice, site1::LatticeI
     return true
 end
 
-@inline _get_bool_value(::Nothing, ::Lattice, ::LatticeIndex, ::Int) = true
-@inline _get_bool_value(f::Function, l::Lattice, site::LatticeIndex, ::Int) = f(site, coords(l, site))
-@inline _get_bool_value(lv::LatticeValue{Bool}, ::Lattice, ::LatticeIndex, i::Int) = lv.vector[i]
+@inline _get_bool_value(::Nothing, ::Lattice, ::LatticeSite, ::Int) = true
+@inline _get_bool_value(f::Function, l::Lattice, site::LatticeSite, ::Int) = f(site, coords(l, site))
+@inline _get_bool_value(lv::LatticeValue{Bool}, ::Lattice, ::LatticeSite, i::Int) = lv.vector[i]
 function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field::AbstractField)
     l = lop.basis.lattice
     d = dims(l)
@@ -193,9 +193,9 @@ end
 
 struct BondSet{LT<:Lattice}
     lattice::LT
-    sites::Vector{LatticeIndex}
+    sites::Vector{LatticeSite}
     bmat::Matrix{Bool}
-    global function _bondset_unsafe(l::LT, sites::Vector{<:LatticeIndex}, bmat::Matrix{Bool}) where {LT<:Lattice}
+    global function _bondset_unsafe(l::LT, sites::Vector{<:LatticeSite}, bmat::Matrix{Bool}) where {LT<:Lattice}
         new{LT}(l, sites, bmat)
     end
     function BondSet(l::Lattice, bmat::AbstractMatrix{Bool})
@@ -242,11 +242,11 @@ function ^(bs1::BondSet, n::Int)
     _bondset_unsafe(bs1.lattice, bs1.sites, Matrix{Bool}(bs1.bmat^n .!= 0))
 end
 
-is_adjacent(bs::BondSet, site1::LatticeIndex, site2::LatticeIndex) =
+is_adjacent(bs::BondSet, site1::LatticeSite, site2::LatticeSite) =
     bs.bmat[findfirst(==(site1), bs.sites), findfirst(==(site2), bs.sites)]
 
 is_adjacent(bs::BondSet) =
-    (site1::LatticeIndex, site2::LatticeIndex) -> is_adjacent(bs, site1, site2)
+    (site1::LatticeSite, site2::LatticeSite) -> is_adjacent(bs, site1, site2)
 
 function show(io::IO, m::MIME"text/plain", bs::BondSet)
     println(io, "BondSet with $(count(==(true), bs.bmat)) bonds")

@@ -76,7 +76,7 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12)
     end
 
     hamiltonian_functions = []
-    hamiltonian_aliases = Dict{Symbol, Int}()
+    hamiltonian_aliases = Dict{Symbol,Int}()
     for statement in rules.args
         if Meta.isexpr(statement, :(:=))
             ham_sym, ham_expr = statement.args

@@ -23,7 +23,7 @@ struct SubCurrents{CT<:AbstractCurrents} <: AbstractCurrents
     lattice::Lattice
     indices::Vector{Int}
 end
-function SubCurrents(parent_currents::CT, indices::Vector{Int}) where CT
+function SubCurrents(parent_currents::CT, indices::Vector{Int}) where {CT}
     l = lattice(parent_currents)
     m = zeros(Bool, length(l))
     m[indices] .= true

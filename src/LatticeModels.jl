@@ -1,7 +1,7 @@
 module LatticeModels
 
 include("lattice.jl")
-export @lattice_def, LatticeIndex, Lattice, sublattice
+export Bravais, LatticeSite, Lattice, sublattice
 export SquareLattice, HoneycombLattice
 
 include("lattice_value.jl")

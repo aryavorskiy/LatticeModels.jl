@@ -104,7 +104,7 @@ struct Spectrum{LT<:Lattice,MT<:AbstractMatrix}
     end
 end
 
-function spectrum(lop::LatticeOperator{LT, Matrix{T}} where {LT,T})
+function spectrum(lop::LatticeOperator{LT,Matrix{T}} where {LT,T})
     !all(isfinite.(lop.operator)) && error("NaN of Inf in operator matrix")
     vals, vecs = eigen(Hermitian(lop.operator))
     Spectrum(lop.basis, vecs, vals)
