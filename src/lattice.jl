@@ -156,11 +156,34 @@ function radius_vector(lattice::Lattice, site1::LatticeSite, site2::LatticeSite)
     return ret_vec
 end
 
-@recipe function f(l::Lattice)
-    l_without_mask = copy(l)
-    fill!(l_without_mask.mask, true)
-    opacity := l.mask .* 0.9 .+ 0.1
-    l_without_mask, nothing
+@recipe function f(l::Lattice; show_excluded_sites=false, high_contrast=false)
+    if high_contrast
+        markersize := 4
+        markercolor := :black
+        markerstrokealpha := 1
+        markerstrokestyle := :solid
+        markerstrokewidth := 2
+        markerstrokecolor := :white
+    end
+    if show_excluded_sites
+        l_without_mask = copy(l)
+        fill!(l_without_mask.mask, true)
+        opacity := l.mask .* 0.9 .+ 0.1
+        l_without_mask, nothing
+    else
+        l, nothing
+    end
+end
+
+function collect_coords(l::Lattice)
+    d = dims(l)
+    pts = zeros(d, length(l))
+    i = 1
+    for site in l
+        pts[:, i] = coords(l, site)
+        i += 1
+    end
+    pts
 end
 
 @recipe function f(l::Lattice, v)
@@ -168,18 +191,8 @@ end
     show_excluded --> false
     aspect_ratio := :equal
     marker_z := v
-    markerstrokewidth := 0
-    d = dims(l)
-    pts = zeros(Float64, d, length(l))
-    i = 1
-    for site in l
-        crd = coords(l, site)
-        pts[:, i] = crd
-        i += 1
-    end
-    if dims(l) == 1
-        pts = vcat(pts, zeros(Float64, 1, length(l)))
-    end
+    markerstrokewidth --> 0
+    pts = collect_coords(l)
     if dims(l) == 3
         X, Y, Z = eachrow(pts)
         Xr, Yr, Zr = eachrow(round.(pts, digits=3))
@@ -189,7 +202,12 @@ end
         end
         X, Y, Z
     else
-        X, Y = eachrow(pts[1:2, :])
+        if dims(l) == 1
+            X = vec(pts)
+            Y = zero(X)
+        else
+            X, Y = eachrow(pts[1:2, :])
+        end
         Xr, Yr = eachrow(round.(pts[1:2, :], digits=3))
         seriestype --> :scatter
         if v !== nothing && RecipesBase.is_key_supported(:hover)
@@ -248,12 +266,12 @@ end
 
 """
     SquareLattice{N}
-Basically the same as `Lattice{:square,N,1}`.
+Type alias for `Lattice{:square,N,1}`.
 
 ---
     SquareLattice(sz::Int...)
 
-Constructs a square lattice with size `sz`.
+Constructs a square lattice of size `sz`.
 """
 const SquareLattice{N} = Lattice{:square,N,1}
 function SquareLattice{N}(sz::Vararg{Int,N}) where {N}
@@ -263,6 +281,15 @@ end
 coords(l::SquareLattice, site::LatticeSite) =
     site.unit_cell - SVector(size(l)) / 2 .- 0.5
 
+"""
+    HoneycombLattice
+Type alias for `Lattice{:honeycomb,2,2}`.
+
+---
+    HoneycombLattice(xsz::Int, ysz::Int)
+
+Constructs a honeycomb lattice with a `xsz`×`ysz` macro cell.
+"""
 const HoneycombLattice = Lattice{:honeycomb,2,2}
 function HoneycombLattice(xsz::Int, ysz::Int)
     bvs = Bravais([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])

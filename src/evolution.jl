@@ -105,7 +105,7 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12)
         if _expr_depends_on(ham_expr, loop_var)
             push!(inits,
                 :(local $h_eval = $(esc(ham_expr))),
-                :($h_eval_new = $(esc(ham_expr))),
+                :(local $h_eval_new = $(esc(ham_expr))),
                 :(local $p_target_ev = _unwrap_from_macro(one, $(esc(ham_expr)))))
             push!(ham_evals, :($h_eval_new = $(esc(ham_expr))))
             push!(evolutor_updates,
@@ -150,7 +150,7 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12)
             h_eval_new = Symbol("ham_eval_new_$ham_i")
             p_target_ev = Symbol("evolutor_$ham_i")
             push!(inits,
-                :($(esc(p_target)) = _unwrap_from_macro(copy, $(esc(p_initial)))))
+                :(local $(esc(p_target)) = _unwrap_from_macro(copy, $(esc(p_initial)))))
             push!(p_evolutions,
                 :($(esc(p_target)) =
                     $p_target_ev * $(esc(p_target)) * adjoint($p_target_ev)))

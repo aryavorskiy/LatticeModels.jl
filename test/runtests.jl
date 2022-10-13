@@ -196,9 +196,9 @@ end
 
 @testset "Hopping tests" begin
     l = SquareLattice(2, 2)
-    ls1 = LatticeIndex(SA[1, 1], 1)
-    ls2 = LatticeIndex(SA[1, 2], 1)
-    ls3 = LatticeIndex(SA[2, 2], 1)
+    ls1 = LatticeSite(SA[1, 1], 1)
+    ls2 = LatticeSite(SA[1, 2], 1)
+    ls3 = LatticeSite(SA[2, 2], 1)
     @testset "Constructor" begin
         @test hopping(axis=1) == hopping(tr_vector=[1])
         @test hopping(axis=1) != hopping(tr_vector=[1, 0])

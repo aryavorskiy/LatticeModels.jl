@@ -6,24 +6,14 @@ struct LatticeValue{T,LatticeSym}
     vector::Vector{T}
     function LatticeValue(lattice::Lattice{LatticeSym}, vector::AbstractVector{T}) where {T,LatticeSym}
         length(lattice) != length(vector) &&
-            error("inconsistent vector length")
+            error("inconsistent vector length:\nlattice: $(length(lattice)), vector: $(length(vector))")
         new{T,LatticeSym}(lattice, vector)
     end
 end
 
 LatticeValue(lf, l::Lattice) = LatticeValue(l, [lf(site, coords(l, site)) for site in l])
 
-function coord_values(l::Lattice)
-    d = dims(l)
-    i = 1
-    xyz_values = zeros(length(l), d)
-    for site in l
-        crd = coords(l, site)
-        xyz_values[i, :] = crd
-        i += 1
-    end
-    [LatticeValue(l, vec) for vec in eachcol(xyz_values)]
-end
+coord_values(l::Lattice) = [LatticeValue(l, vec) for vec in eachrow(collect_coords(l))]
 
 ==(lv1::LatticeValue, lv2::LatticeValue) = (lv1.lattice == lv2.lattice) && (lv1.vector == lv2.vector)
 eltype(::LatticeValue{T}) where {T} = T
@@ -95,16 +85,32 @@ function _heatmap_vals(slv::LatticeValue{<:Number,:square})
     newvals
 end
 
+function plot_fallback(lv::LatticeValue)
+    l = lv.lattice
+    new_l = Lattice(:uncertain, size(l), bravais(l), l.mask)
+    LatticeValue(new_l, lv.vector)
+end
+
 @recipe function f(lv::LatticeValue{<:Number,:square})
-    seriestype --> :heatmap
-    if plotattributes[:seriestype] == :heatmap
+    if get(plotattributes, :seriestype, :unknown) === :heatmap
         aspect_ratio := :equal
         _heatmap_axes(lv.lattice)..., reshape(_heatmap_vals(lv), size(lv.lattice))
     else
-        lv.lattice, lv.vector
+        plot_fallback(lv)
     end
 end
 
-@recipe function f(lv::LatticeValue)
-    lv.lattice, lv.vector
+@recipe function f(lv::LatticeValue; project_axis=:none)
+    if project_axis !== :none
+        axis_no =   project_axis isa Int ? project_axis :
+                    project_axis === :x ? 1 :
+                    project_axis === :y ? 2 :
+                    project_axis === :z ? 3 : 0
+        axis_no ∉ 1:3 && error("unsupported projection axis '$project_axis'")
+        crds = collect_coords(lv.lattice)[axis_no, :]
+        perm = sortperm(crds)
+        crds[perm], lv.vector[perm]
+    else
+        lv.lattice, lv.vector
+    end
 end
