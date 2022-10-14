@@ -100,7 +100,7 @@ end
 
 @inline _get_bool_value(::Nothing, ::Lattice, ::LatticeSite, ::Int) = true
 @inline _get_bool_value(f::Function, l::Lattice, site::LatticeSite, ::Int) = f(site, coords(l, site))
-@inline _get_bool_value(lv::LatticeValue{Bool}, ::Lattice, ::LatticeSite, i::Int) = lv.vector[i]
+@inline _get_bool_value(lv::LatticeValue{Bool}, ::Lattice, ::LatticeSite, i::Int) = lv.values[i]
 function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field::AbstractField)
     l = lop.basis.lattice
     d = dims(l)
@@ -203,7 +203,7 @@ struct BondSet{LT<:Lattice}
         _bondset_unsafe(l, collect(l), Matrix{Bool}(bmat .| bmat' .| Matrix(I, length(l), length(l))))
     end
     function BondSet(l::Lattice, bmat::BitMatrix)
-        BondSet(l, convert(BitMatrix, bmat))
+        BondSet(l, convert(Matrix{Bool}, bmat))
     end
     function BondSet(l::Lattice)
         BondSet(l, Matrix(I, length(l), length(l)))

@@ -1,28 +1,47 @@
 using LinearAlgebra, Statistics, Logging
 import Base: length, size, getindex, setindex!, eltype, copyto!, show, ==
 
+"""
+    LatticeValue{T, LatticeSym}
+
+Represents a value of type `T` on a `Lattice{LatticeSym}` lattice.
+
+Fields:
+- lattice: the `Lattice` object the value is defined on
+- values: the values on different sites
+"""
 struct LatticeValue{T,LatticeSym}
-    lattice::Lattice
-    vector::Vector{T}
-    function LatticeValue(lattice::Lattice{LatticeSym}, vector::AbstractVector{T}) where {T,LatticeSym}
-        length(lattice) != length(vector) &&
-            error("inconsistent vector length:\nlattice: $(length(lattice)), vector: $(length(vector))")
-        new{T,LatticeSym}(lattice, vector)
+    lattice::Lattice{LatticeSym}
+    values::Vector{T}
+    """
+        LatticeValue(lattice::Lattice, vector::AbstractVector)
+
+    Constructs a LatticeValue object.
+    """
+    function LatticeValue(lattice::Lattice{LatticeSym}, values::AbstractVector{T}) where {T,LatticeSym}
+        length(lattice) != length(values) &&
+            error("inconsistent vector length:\nlattice: $(length(lattice)), vector: $(length(values))")
+        new{T,LatticeSym}(lattice, values)
     end
 end
 
 LatticeValue(lf, l::Lattice) = LatticeValue(l, [lf(site, coords(l, site)) for site in l])
 
+"""
+    coord_values(lattice::Lattice)
+
+Generates a tuple of `LatticeValue`s representing coordinate functions.
+"""
 coord_values(l::Lattice) = [LatticeValue(l, vec) for vec in eachrow(collect_coords(l))]
 
-==(lv1::LatticeValue, lv2::LatticeValue) = (lv1.lattice == lv2.lattice) && (lv1.vector == lv2.vector)
+==(lv1::LatticeValue, lv2::LatticeValue) = (lv1.lattice == lv2.lattice) && (lv1.values == lv2.values)
 eltype(::LatticeValue{T}) where {T} = T
-length(lv::LatticeValue) = length(lv.vector)
-size(lv::LatticeValue) = size(lv.vector)
-getindex(lv::LatticeValue, cartesian_i::CartesianIndex{1}) = lv.vector[cartesian_i]
+length(lv::LatticeValue) = length(lv.values)
+size(lv::LatticeValue) = size(lv.values)
+getindex(lv::LatticeValue, cartesian_i::CartesianIndex{1}) = lv.values[cartesian_i]
 
 struct LVStyle <: Broadcast.BroadcastStyle end
-copyto!(lv::LatticeValue, src::Broadcast.Broadcasted{LVStyle}) = (copyto!(lv.vector, src); return lv)
+copyto!(lv::LatticeValue, src::Broadcast.Broadcasted{LVStyle}) = (copyto!(lv.values, src); return lv)
 Base.broadcastable(lv::LatticeValue) = lv
 Base.BroadcastStyle(::Type{<:LatticeValue}) = LVStyle()
 Base.BroadcastStyle(bs::Broadcast.BroadcastStyle, ::LVStyle) =
@@ -62,13 +81,13 @@ end
 function getindex(l::Lattice{LatticeSym,N,NB}, lvm::LatticeValue{Bool,LatticeSym}) where {LatticeSym,N,NB}
     l != lvm.lattice && error("lattice mismatch")
     new_mask = zero(l.mask)
-    new_mask[l.mask] = lvm.vector
+    new_mask[l.mask] = lvm.values
     Lattice(LatticeSym, size(l), bravais(l), new_mask)
 end
 
 function getindex(lv::LatticeValue, lvm::LatticeValue{Bool})
     lv.lattice != lvm.lattice && error("lattice mismatch")
-    LatticeValue(lv.lattice[lvm], lv.vector[lvm.vector])
+    LatticeValue(lv.lattice[lvm], lv.values[lvm.values])
 end
 
 _heatmap_axes(l::SquareLattice) = [-(ax - 1)/2:(ax-1)/2 for ax in size(l)]
@@ -78,17 +97,23 @@ function _heatmap_vals(slv::LatticeValue{<:Number,:square})
     newvals = fill(NaN, len)
     @inbounds for j in 1:len
         if slv.lattice.mask[j]
-            newvals[j] = slv.vector[i]
+            newvals[j] = slv.values[i]
             i += 1
         end
     end
     newvals
 end
 
+"""
+    plot_fallback(lv::LatticeValue)
+
+Creates a copy of `lv` lattice value with its `LatticeSym` overwritten to `:uncertain`.
+Use it to invoke the default plot recipe for `LatticeValues` when defining a custom one.
+"""
 function plot_fallback(lv::LatticeValue)
     l = lv.lattice
     new_l = Lattice(:uncertain, size(l), bravais(l), l.mask)
-    LatticeValue(new_l, lv.vector)
+    LatticeValue(new_l, lv.values)
 end
 
 @recipe function f(lv::LatticeValue{<:Number,:square})
@@ -109,8 +134,8 @@ end
         axis_no ∉ 1:3 && error("unsupported projection axis '$project_axis'")
         crds = collect_coords(lv.lattice)[axis_no, :]
         perm = sortperm(crds)
-        crds[perm], lv.vector[perm]
+        crds[perm], lv.values[perm]
     else
-        lv.lattice, lv.vector
+        lv.lattice, lv.values
     end
 end

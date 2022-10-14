@@ -3,8 +3,8 @@ using LinearAlgebra, StaticArrays, Logging
 abstract type AbstractField end
 
 show(io::IO, ::MIME"text/plain", ::T) where {T<:AbstractField} = print(io, "$T field")
-vector_potential(::FT, point::Vector) where {FT<:AbstractField} =
-    error("no vector potential function defined for field type $(MT)")
+vector_potential(::FT, point) where {FT<:AbstractField} =
+    error("no vector potential function defined for field type $(FT)")
 
 dot_assuming_zeros(m::SVector{M}, n::SVector{N}) where {M,N} = m[1:min(M, N)]' * n[1:min(M, N)]
 
@@ -171,6 +171,10 @@ end
 
 _angle(p1, p2) = asin(det(hcat(p1, p2)) / norm(p1) / norm(p2) / (1.0 + 1e-11))
 @field_def struct FluxField(B::Number, P::NTuple{2,Number})
+    function vector_potential(x, y)
+        norm = (x^2 + y^2)
+        (-y / norm * B, x / norm * B)
+    end
     function trip_integral(p1, p2)
         Pv = SVector(P)
         p1 = p1[1:2] - Pv
@@ -183,9 +187,10 @@ _angle(p1, p2) = asin(det(hcat(p1, p2)) / norm(p1) / norm(p2) / (1.0 + 1e-11))
     show(io::IO, ::MIME"text/plain") = print(io, "Delta flux field through point $P; B = $B flux quanta")
 end
 
-struct FieldSum{N}
+struct FieldSum{N} <: AbstractField
     fields::NTuple{N,AbstractField}
 end
+vector_potential(f::FieldSum, p1) = sum(SVector(vector_potential(field, p1)) for field in f.fields)
 trip_integral(f::FieldSum, p1, p2) = sum(trip_integral(field, p1, p2) for field in f.fields)
 function show(io::IO, m::MIME"text/plain", f::FieldSum{N}) where {N}
     print(io, "Sum of $N fields:\n")

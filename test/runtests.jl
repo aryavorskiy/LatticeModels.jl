@@ -68,7 +68,8 @@ using LatticeModels
         X, Y = coord_operators(l, 2)
         x, y = coord_values(l)
         xy = x .* y
-        heatmap(xy)
+        p = plot(layout=3)
+        heatmap!(p[1], xy)
         H = @hamiltonian begin
             lattice := l
             field := LandauField(0.5)
@@ -77,11 +78,16 @@ using LatticeModels
             @hop axis = 2 [1 1; -1 -1] / 2
         end
         P = filled_projector(spectrum(H), 0.1)
-        quiver!(DensityCurrents(H, P)[x.<y])
-        sl = l[x.<y]
-        scatter!(sl)
-        plot!(bonds(H))
-        plot!(bonds(l, hopping(tr_vector=[1, 1])))
+        @evolution k=2 {P --> H --> PP} for t in 0:0.1:1; end
+
+        quiver!(p[1], DensityCurrents(H, P)[x.<y])
+        scatter!(p[1], l)
+        scatter!(p[1], l[x.<y], high_contrast=true)
+        scatter!(p[1], xy[x.≥y])
+        plot!(p[1], bonds(H))
+        plot!(p[1], bonds(l, hopping(tr_vector=[1, 1])))
+        surface!(p[2], xy)
+        scatter!(p[3], SquareLattice(3, 4, 5))
         true
     end
 end
@@ -177,6 +183,7 @@ end
     @testset "Lattice-value constructor" begin
         @test diag_operator(bas, x .* y) == xy
         @test (x .* y) ⊗ [1 0; 0 1] == xy
+        @test [1 0; 0 1] ⊗ (x .* y) == xy
     end
     @testset "Wrapper macro" begin
         @test @on_lattice(X / 2 + X * Y + exp(Y)) == xd2pxypexpy
@@ -215,9 +222,11 @@ end
     end
     @testset "Adjacency" begin
         bs = bonds(l, hopping(axis=1), hopping(axis=2))
+        bs1 = bonds(l, hopping(axis=1)) | bonds(l, hopping(axis=2))
         bs2 = bs^2
         f = is_adjacent(bs)
         f2 = is_adjacent(bs2)
+        @test bs.bmat == bs1.bmat
         @test is_adjacent(bs, ls1, ls2)
         @test !is_adjacent(bs, ls1, ls3)
         @test is_adjacent(bs2, ls1, ls2)
@@ -227,6 +236,10 @@ end
         @test f2(ls1, ls2)
         @test f2(ls1, ls3)
     end
+    x, y = coord_values(l)
+    op1 = hopping_operator(l, hopping(axis=1), x .< y)
+    op2 = hopping_operator(l, hopping(axis=1)) do site, (x, y); x < y; end
+    @test op1 == op2
 end
 
 @testset "Field tests" begin
@@ -243,6 +256,7 @@ end
     lla = LazyLandauField(0.1)
     sla = StrangeLandauField(0.1)
     sym = SymmetricField(0.1)
+    flx = FluxField(0.1, (0, 0))
     @testset "Trip integral" begin
         p1 = SA[1, 2]
         p2 = SA[3, 4]
@@ -261,6 +275,11 @@ end
               LatticeModels.trip_integral(sym, p1, p2)
         @test LatticeModels.trip_integral(sym, p1, p2; n_integrate=100) ≈
               LatticeModels.trip_integral(sym, p1, p2)
+
+        @test LatticeModels.trip_integral(flx, p1, p2; n_integrate=1000) ≈
+              LatticeModels.trip_integral(flx, p1, p2) atol=1e-8
+        @test LatticeModels.trip_integral(flx + sym, p1, p2; n_integrate=1000) ≈
+              LatticeModels.trip_integral(flx + sym, p1, p2) atol=1e-8
     end
 
     @testset "Field application" begin

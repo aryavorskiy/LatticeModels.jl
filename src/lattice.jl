@@ -156,8 +156,9 @@ function radius_vector(lattice::Lattice, site1::LatticeSite, site2::LatticeSite)
     return ret_vec
 end
 
-@recipe function f(l::Lattice; show_excluded_sites=false, high_contrast=false)
+@recipe function f(l::Lattice; show_excluded_sites=true, high_contrast=false)
     if high_contrast
+        show_excluded_sites = false
         markersize := 4
         markercolor := :black
         markerstrokealpha := 1
@@ -188,7 +189,6 @@ end
 
 @recipe function f(l::Lattice, v)
     label --> nothing
-    show_excluded --> false
     aspect_ratio := :equal
     marker_z := v
     markerstrokewidth --> 0
@@ -208,9 +208,9 @@ end
         else
             X, Y = eachrow(pts[1:2, :])
         end
-        Xr, Yr = eachrow(round.(pts[1:2, :], digits=3))
         seriestype --> :scatter
         if v !== nothing && RecipesBase.is_key_supported(:hover)
+            Xr, Yr = round.((X, Y), digits=3)
             hover := string.(round.(v, digits=3), " @ (", Xr, ", ", Yr, ")")
         end
         if plotattributes[:seriestype] == :scatter
@@ -286,12 +286,12 @@ coords(l::SquareLattice, site::LatticeSite) =
 Type alias for `Lattice{:honeycomb,2,2}`.
 
 ---
-    HoneycombLattice(xsz::Int, ysz::Int)
+    HoneycombLattice(sz::Vararg{Int, 2})
 
-Constructs a honeycomb lattice with a `xsz`×`ysz` macro cell.
+Constructs a honeycomb lattice with a `sz`-size macro cell.
 """
 const HoneycombLattice = Lattice{:honeycomb,2,2}
-function HoneycombLattice(xsz::Int, ysz::Int)
+function HoneycombLattice(sz::Vararg{Int, 2})
     bvs = Bravais([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])
-    Lattice(:honeycomb, (xsz, ysz), bvs)
+    Lattice(:honeycomb, sz, bvs)
 end

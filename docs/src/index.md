@@ -84,8 +84,10 @@ using LinearAlgebra, Plots
 l = SquareLattice(11, 11)
 x, y = coord_values(l)
 
+# The Pauli matrices
 σ = [[0 1; 1 0], [0 -im; im 0], [1 0; 0 -1]]
 
+# Initial hamiltonian: m=1 everywhere
 H1 = @hamiltonian begin   
     lattice := l
     @diag σ[3]
@@ -93,9 +95,11 @@ H1 = @hamiltonian begin
     @hop (σ[3] - im * σ[2]) / 2 axis = 2
 end
 
-H2 = @hamiltonian begin   
+# Quenched hamiltonian: m=-1 in the central 3x3 square
+M = @. (abs(x) < 1.5 && abs(y) < 1.5) * -2 + 1
+H2 = @hamiltonian begin
     lattice := l
-    @diag (@. (abs(x) < 2 && abs(y) < 2) * -2 + 1) ⊗ σ[3]
+    @diag M ⊗ σ[3]
     @hop (σ[3] - im * σ[1]) / 2 axis = 1
     @hop (σ[3] - im * σ[2]) / 2 axis = 2
 end
@@ -110,16 +114,19 @@ a = Animation()
     H := H2
     P_0 --> H --> P
 } for t in 0:0.1:2τ
-    # Find the partial trace and plot it
     p = plot(layout=2, size=(900, 500))
-    lcm_operator = 4pi * im * P * X * P * Y * P
 
+    # Local Chern marker heatmap
+    lcm_operator = 4pi * im * P * X * P * Y * P
     chern_marker = diag_aggregate(tr, lcm_operator) .|> real
     heatmap!(p[1], chern_marker, clims=(-2, 2))
 
+    # Select sites on y=0 line (use ≈ to avoid rounding errors)
     chern_marker_on_sw = chern_marker[@. y ≈ 0]
+    # Mark selected sites on the heatmap
     plot!(p[1], chern_marker_on_sw.lattice, high_contrast=true)
-    plot!(p[2], chern_marker_on_sw, project_axis=:x, ylims=(-2,2), lab=:none)
+    # Add a line plot
+    plot!(p[2], chern_marker_on_sw, project_axis=:x, ylims=(-3, 3), lab=:none)
 
     plot!(plot_title="t = $t")
     frame(a)
