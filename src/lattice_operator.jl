@@ -1,13 +1,21 @@
 using LinearAlgebra, Statistics, Logging
 import Base: length, getindex, show, copy, ==, zero
 
+"""
+    Basis{LT} where {LT<:Lattice}
+
+A basis on a lattice with some number of internal states on each site.
+Fields:
+- `lattice`: the [`Lattice`](@ref) of the basis
+- `internal_dim`: the number of internal states on each site
+"""
 struct Basis{LT<:Lattice}
     lattice::LT
     internal_dim::Int
 end
-
-length(b::Basis) = length(b.lattice) * b.internal_dim
+lattice(b::Basis) = b.lattice
 dims_internal(b::Basis) = b.internal_dim
+length(b::Basis) = length(lattice(b)) * dims_internal(b)
 
 function show(io::IO, m::MIME"text/plain", b::Basis)
     println(io, "Basis with $(b.internal_dim)-dimensional internal phase space")
@@ -15,6 +23,12 @@ function show(io::IO, m::MIME"text/plain", b::Basis)
     show(io, m, b.lattice)
 end
 
+"""
+    LatticeArray{LT, MT} where {LT<:Lattice, MT<:AbstractArray}
+
+A wrapper object for array representing a wave function or linear operator.
+Stores information about its basis to perform lattice checks.
+"""
 struct LatticeArray{LT<:Lattice,MT<:AbstractArray}
     basis::Basis{LT}
     operator::MT
@@ -27,14 +41,25 @@ end
 const LatticeVector{LT,T} = LatticeArray{LT,T} where {LT<:Lattice,T<:AbstractVector}
 const LatticeOperator{LT,T} = LatticeArray{LT,T} where {LT<:Lattice,T<:AbstractMatrix}
 
+"""
+    LatticeOperator{LT, MT}
+
+The same as `LatticeArray{LT, MT}` where `MT<:AbstractMatrix`.
+
+---
+    LatticeOperator(uniform_scaling, basis)
+
+Creates a `LatticeOperator` representation of a `UniformScaling` operator on given basis.
+"""
 function LatticeOperator(op::UniformScaling, bas::Basis)
-    N = bas.internal_dim
+    N = dims_internal(bas)
     m = Matrix(op, N, N)
-    diag_operator(bas.lattice, m)
+    diag_operator(lattice(bas), m)
 end
 
-size(lv::LatticeArray) = size(lv.operator)
-dims_internal(lv::LatticeArray) = lv.basis.internal_dim
+size(la::LatticeArray) = size(la.operator)
+lattice(la::LatticeArray) = lattice(la.basis)
+dims_internal(la::LatticeArray) = dims_internal(la.basis)
 
 @inline _ranges(is::Tuple, N::Int) = _ranges((), is, N)
 @inline _ranges(rngs::Tuple, ::Tuple{}, N::Int) = rngs
@@ -59,14 +84,25 @@ function show(io::IO, m::MIME"text/plain", lv::LatticeArray{MT}) where {MT<:Abst
     show(io, m, lv.basis)
 end
 
+"""
+    TensorProduct{LVT, MT} where {LVT<:LatticeValue{<:Number}, MT<:AbstractMatrix}
+
+A lazy representation of an operator as a tensor product of two distinct phase spaces.
+One affects only the internal space, the other - only the lattice space.
+
+The `lattice_value ⊗ matrix` notation computes the value of the `TensorProduct` eagerly,
+which means that the result will be a `LatticeOperator`.
+However, in the `@hamiltonian` macro lazy computation is forced.
+"""
 struct TensorProduct{LVT<:LatticeValue{<:Number},MT<:AbstractMatrix}
     lattice_value::LVT
     matrix::MT
 end
 
 dims_internal(tp::TensorProduct) = size(tp.matrix)[1]
-basis(tp::TensorProduct) = Basis(tp.lattice_value.lattice, dims_internal(tp))
-zero(tp::TensorProduct) = _zero_on_basis(tp.lattice_value.lattice, tp.matrix)
+lattice(tp::TensorProduct) = lattice(tp.lattice_value)
+basis(tp::TensorProduct) = Basis(lattice(tp), dims_internal(tp))
+zero(tp::TensorProduct) = _zero_on_basis(lattice(tp), tp.matrix)
 copy(tp::TensorProduct) = materialize(tp)
 ⊗(lv::LatticeValue, m::Matrix) = copy(TensorProduct(lv, m))
 ⊗(m::Matrix, lv::LatticeValue) = copy(TensorProduct(lv, m))
@@ -81,10 +117,10 @@ function _zero_on_basis(l::Lattice, lf::Function)
 end
 _zero_on_basis(l::Lattice, N::Int) = LatticeArray(Basis(l, N),
     zeros(ComplexF64, N * length(l), N * length(l)))
-_zero_on_basis(bas::Basis) = _zero_on_basis(bas.lattice, bas.internal_dim)
+_zero_on_basis(bas::Basis) = _zero_on_basis(lattice(bas), dims_internal(bas))
 function _zero_on_basis(l::Lattice, tp::TensorProduct)
-    l != tp.lattice_value.lattice &&
-        error("lattice mismatch:\n$l\n$(tp.lattice_value.lattice)")
+    l != lattice(tp) &&
+        error("lattice mismatch:\n$l\n$(lattice(tp))")
     zero(tp)
 end
 
@@ -92,7 +128,7 @@ end
 @inline _get_matrix_value(m::AbstractMatrix, ::Lattice, ::LatticeSite, ::Int) = m
 @inline _get_matrix_value(tp::TensorProduct, ::Lattice, ::LatticeSite, i::Int) = tp.lattice_value.values[i] * tp.matrix
 function _diag_operator!(lop::LatticeOperator, op_object)
-    l = lop.basis.lattice
+    l = lattice(lop)
     i = 1
     try
         for site in l
@@ -110,21 +146,59 @@ function _diag_operator!(lop::LatticeOperator, op_object)
 end
 
 materialize(tp::TensorProduct) = _diag_operator!(_zero_on_basis(basis(tp)), tp)
+
+"""
+    diag_operator(site_fun, lattice)
+
+Creates a diagonal operator by applying the `site_fun` function to each site of `lattice`.
+The `site_fun` function must accept a `LatticeSite` and its coordinates and return a matrix
+which will be an operator affecting the internal state of the site.
+"""
 diag_operator(f::Function, l::Lattice) = _diag_operator!(_zero_on_basis(l, f), f)
+
+"""
+    diag_operator(lattice, matrix)
+
+Creates a diagonal operator which affects only the internal state the same way on every site.
+`matrix` is an `AbstractMatrix` representing the linear operator on the internal space.
+
+Note that the matrix of the output `LatticeOperator` will be similar to `matrix`:
+for instance, if `matrix` is sparse, so will be the output.
+"""
 diag_operator(l::Lattice, m::AbstractMatrix) = _diag_operator!(_zero_on_basis(l, m), m)
+
+"""
+    diag_operator(site_fun, basis)
+
+Creates a diagonal operator which affects only the lattice space.
+The `site_fun` function must accept a `LatticeSite` and its coordinates and return a number
+which will be the diagonal element of the operator in lattice space.
+"""
 function diag_operator(lf::Function, bas::Basis)
-    N = bas.internal_dim
+    N = dims_internal(bas)
     eye = Matrix(I, N, N)
     _diag_operator!(_zero_on_basis(bas), (site, crd) -> lf(site, crd)::Number * eye)
 end
+
+"""
+    diag_operator(basis, lattice_value)
+
+Creates a diagonal operator which affects only the lattice space.
+The `lattice_value` argument must be a `LatticeValue` storing diagonal elements of the operator in lattice space.
+"""
 function diag_operator(bas::Basis, lv::LatticeValue{<:Number})
-    N = bas.internal_dim
+    N = dims_internal(bas)
     eye = Matrix(I, N, N)
     _diag_operator!(_zero_on_basis(bas), TensorProduct(lv, eye))
 end
 
+"""
+    coord_operators(basis)
+
+Returns a `Tuple` of coordinate `LatticeOperator`s for given basis.
+"""
 function coord_operators(bas::Basis)
-    N = bas.internal_dim
+    N = dims_internal(bas)
     d = dims(bas.lattice)
     i = 1
     eye = Matrix(I, N, N)
@@ -140,10 +214,21 @@ function coord_operators(bas::Basis)
     return xyz_operators
 end
 
+"""
+    coord_operators(lattice, ndims)
+
+The same as `coord_operators(Basis(lattice, ndims))`.
+"""
 coord_operators(l::Lattice, N::Int) = coord_operators(Basis(l, N))
 
+"""
+    diag_aggregate(function, lattice_operator)
+
+Creates a `LatticeValue` where a site maps to the result of `function` on the matrix
+of the operator narrowed to that site.
+"""
 diag_aggregate(f::Function, lo::LatticeArray) =
-    LatticeValue(lo.basis.lattice, [f(lo[i, i]) for i in 1:length(lo.basis.lattice)])
+    LatticeValue(lattice(lo), [f(lo[i, i]) for i in 1:length(lattice(lo))])
 
 @inline _make_wrapper(op, ::Nothing) = op
 @inline _make_wrapper(op::Number, ::Basis) = op
@@ -222,6 +307,24 @@ function _wrap_smart!(expr::Expr)
     return expr
 end
 
+"""
+    @on_lattice
+
+Replaces all `LatticeArray`s in subsequent function calls with actual arrays stored inside them.
+Throws an error if lattice operators in one function call are defined on different lattices,
+shows a warning if a lattice array is used in one call with a normal array.
+
+## Example
+```julia
+l = SquareLattice(10, 10)
+bas = Basis(l, 2)
+X, Y = coord_operators(bas)
+xexpypy = diag_operator(bas) do site, (x, y)
+    x * exp(y) + y
+end
+xexpy == @on_lattice X * exp(Y) + Y     # true
+```
+"""
 macro on_lattice(expr)
     we = _wrap_smart!(expr)
     return we

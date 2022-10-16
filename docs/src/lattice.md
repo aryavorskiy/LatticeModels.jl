@@ -1,5 +1,3 @@
-# Define a lattice
-
 ## Simple Bravais lattice
 
 The simplest variant of a finite Bravais lattice is a *macro cell*, 
@@ -14,11 +12,19 @@ which will be translation ranges along all dimensions.
 
 Note that lattices of some types can be of any dimensionality, while others can not.
 
-```@repl env
-SquareLattice(10, 10)
-SquareLattice(3, 3, 3)
-HoneycombLattice(5, 5)
-HoneycombLattice(3, 3, 2)
+```jldoctest; setup=:(using LatticeModels)
+julia> SquareLattice(10, 10)
+100-site square lattice on 10×10 base
+
+julia> SquareLattice(3, 3, 3)
+27-site square lattice on 3×3×3 base
+
+julia> HoneycombLattice(5, 5)
+50-site honeycomb lattice on 5×5 base (2-site basis)
+
+julia> HoneycombLattice(3, 3, 2)
+ERROR: MethodError: no method matching HoneycombLattice(::Int64, ::Int64, ::Int64)
+[...]
 ```
 
 A lattice can be scatter-plotted to see how its sites are located.
@@ -67,7 +73,7 @@ l3 = SquareLattice(10, 10) do site, (x, y); abs(x) > 3 || abs(y) > 3; end
 
 This notation is exactly the same as the low-level way, but done in one line.
 
-!!! warn
+!!! warning
     This notation should be used only if you need to access site indices or if the `x, y` coordinate values will not be needed further in the program.
 
 The plot recipe for sublattices shows excluded sites with translucent markers by default. Passing keyword argument `show_excluded_sites=false` disables this.
@@ -93,9 +99,11 @@ const SquareLattice{N} = Lattice{:square, N, 1}
 
 **Define the constructor**
 
-The only arguments allowed are the macro cell size. The [`Bravais`](@ref) object must be generated in the constructor and passed to the default constructor `Lattice(sym, sz, bvs)`.
+The only positional arguments allowed are the macro cell size.[^1] The [`Bravais`](@ref) object must be generated in the constructor and passed to the default constructor `Lattice(sym, sz, bvs)`.
 
-Let us define our own lattice type to make things clearer:
+[^1]: This is done with purpose to achieve code consistency. Also in-place sublattice generation will almost certainly be broken. Use keyword arguments if you need additional parameters for some lattice type.
+
+Let us define our own lattice type:
 ```@example env
 const GrapheneLattice = Lattice{:graphene, 3, 2}
 function GrapheneLattice(sz::Vararg{Int, 3})
@@ -113,7 +121,7 @@ end
 plot(gl, show_excluded_sites=false)
 ```
 
-!!! warn
+!!! warning
     Please note that if the type alias is dimension-parametric, you must define the constructor *for a concrete type*:
     ```julia
     SquareLattice(sz::Vararg{Int, N}) where N = ...     # Wrong!

@@ -7,7 +7,7 @@ export SquareLattice, HoneycombLattice
 include("lattice_value.jl")
 export LatticeValue, coord_values
 include("lattice_operator.jl")
-export LatticeOperator, Basis, ⊗,
+export LatticeOperator, Basis, ⊗, lattice, basis,
     diag_operator, coord_operators, diag_aggregate, @on_lattice
 
 include("field.jl")

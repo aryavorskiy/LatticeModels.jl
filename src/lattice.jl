@@ -80,6 +80,7 @@ length(l::Lattice) = count(l.mask)
 """
     LatticeSite{N}
 A site of a `Lattice{LatticeSym, N, NB}` lattice.
+
 Fields:
 - `unit_cell`: a set of translations along all axes representing the unit cell the site is located in.
 - `basis_index`: the number of site in the lattice basis.
@@ -191,7 +192,6 @@ end
     label --> nothing
     aspect_ratio := :equal
     marker_z := v
-    markerstrokewidth --> 0
     pts = collect_coords(l)
     if dims(l) == 3
         X, Y, Z = eachrow(pts)

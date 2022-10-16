@@ -55,13 +55,13 @@ lattice(mcurr::MaterializedCurrents) = mcurr.lattice
 current_lambda(mcurr::MaterializedCurrents) = (i::Int, j::Int) -> mcurr.currents[i, j]
 
 function getindex(curr::AbstractCurrents, lvm::LatticeValue{Bool})
-    lattice(curr) != lvm.lattice && error("lattice mismatch")
+    lattice(curr) != lattice(lvm) && error("lattice mismatch")
     indices = findall(lvm.values)
     SubCurrents(curr, indices)
 end
 
 function getindex(curr::MaterializedCurrents, lvm::LatticeValue{Bool})
-    lattice(curr) != lvm.lattice && error("lattice mismatch")
+    lattice(curr) != lattice(lvm) && error("lattice mismatch")
     indices = findall(lvm.values)
     MaterializedCurrents(curr.lattice[lvm], curr.currents[indices, indices])
 end

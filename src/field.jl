@@ -20,7 +20,7 @@ function trip_integral(field::AbstractField, p1, p2; n_integrate=1)
 end
 
 function apply_field!(lo::LatticeOperator, field::AbstractField)
-    l = lo.basis.lattice
+    l = lattice(lo)
     N = dims_internal(lo.basis)
     i = 1
     for site1 in l

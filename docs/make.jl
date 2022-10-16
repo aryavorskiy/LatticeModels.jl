@@ -3,10 +3,16 @@ using LatticeModels
 
 push!(LOAD_PATH,"../src/")
 
+format = Documenter.HTML(edit_link = "master",
+                         prettyurls = get(ENV, "CI", nothing) == "true",
+                         assets = [joinpath("assets", "favicon.ico")]
+)
+
 makedocs(
     modules = [LatticeModels],
     sitename = "LatticeModels.jl",
     authors = "A. Yavorsky",
+    format = format,
     pages = [
         "Home" => "index.md",
         "Tutorial" => [

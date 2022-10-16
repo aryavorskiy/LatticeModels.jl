@@ -102,7 +102,7 @@ end
 @inline _get_bool_value(f::Function, l::Lattice, site::LatticeSite, ::Int) = f(site, coords(l, site))
 @inline _get_bool_value(lv::LatticeValue{Bool}, ::Lattice, ::LatticeSite, i::Int) = lv.values[i]
 function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field::AbstractField)
-    l = lop.basis.lattice
+    l = lattice(lop)
     d = dims(l)
     promote_dims!(hop, d)
     trv = SVector{d}(hop.tr_vector)
@@ -212,8 +212,8 @@ end
 
 function bonds(op::LatticeOperator)
     matrix = Bool[!iszero(op[i, j])
-                  for i in 1:length(op.basis.lattice), j in 1:length(op.basis.lattice)]
-    return BondSet(op.basis.lattice, matrix)
+                  for i in 1:length(lattice(op)), j in 1:length(lattice(op))]
+    return BondSet(lattice(op), matrix)
 end
 
 function bonds(l::Lattice, hops::Hopping...)

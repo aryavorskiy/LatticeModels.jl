@@ -124,7 +124,7 @@ a = Animation()
     # Select sites on y=0 line (use ≈ to avoid rounding errors)
     chern_marker_on_sw = chern_marker[@. y ≈ 0]
     # Mark selected sites on the heatmap
-    plot!(p[1], chern_marker_on_sw.lattice, high_contrast=true)
+    plot!(p[1], lattice(chern_marker_on_sw), high_contrast=true)
     # Add a line plot
     plot!(p[2], chern_marker_on_sw, project_axis=:x, ylims=(-3, 3), lab=:none)
 
