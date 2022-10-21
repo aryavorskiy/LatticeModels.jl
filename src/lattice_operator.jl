@@ -23,7 +23,7 @@ function show(io::IO, m::MIME"text/plain", b::Basis)
     show(io, m, b.lattice)
 end
 
-"""
+@doc """
     LatticeArray{LT, MT} where {LT<:Lattice, MT<:AbstractArray}
 
 A wrapper object for array representing a wave function or linear operator.
@@ -229,6 +229,13 @@ of the operator narrowed to that site.
 """
 diag_aggregate(f::Function, lo::LatticeArray) =
     LatticeValue(lattice(lo), [f(lo[i, i]) for i in 1:length(lattice(lo))])
+
+"""
+    ptrace(lattice_operator)
+
+Same as `diag_aggregate(tr, lattice_operator)`
+"""
+ptrace(lo::LatticeArray) = diag_aggregate(tr, lo)
 
 @inline _make_wrapper(op, ::Nothing) = op
 @inline _make_wrapper(op::Number, ::Basis) = op

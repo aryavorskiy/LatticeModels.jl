@@ -50,7 +50,7 @@ a = Animation()
     P_0 --> H --> P
 } for t in 0:0.1:2τ
     # Find the partial trace and plot it
-    density = diag_aggregate(m -> real(tr(m)), P)
+    density = real.(ptrace(P))
     plot(density, clims=(0,1))
 
     # Show currents on the plot

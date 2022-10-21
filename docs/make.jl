@@ -18,10 +18,10 @@ makedocs(
         "Tutorial" => [
             "Defining a lattice" => "lattice.md",
             "Lattice values" => "lattice_values.md",
+            "Lattice operators" => "lattice_operator.md",
             "Hamiltonian generation" => "hamiltonian.md",
             "Currents" => "currents.md",
-            "Unitary evolution" => "evolution.md",
-            "Visualization" => "plot.md"
+            "Unitary evolution" => "evolution.md"
         ],
         "Advanced options" => "advanced.md",
         "Library" => "library.md"

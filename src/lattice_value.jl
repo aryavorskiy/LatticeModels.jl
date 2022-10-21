@@ -36,6 +36,12 @@ Generates a tuple of `LatticeValue`s representing coordinate functions.
 """
 coord_values(l::Lattice) = [LatticeValue(l, vec) for vec in eachrow(collect_coords(l))]
 
+import Base: rand, randn
+rand(l::Lattice) = LatticeValue(l, rand(length(l)))
+rand(T::Type, l::Lattice) = LatticeValue(l, rand(T, length(l)))
+randn(l::Lattice) = LatticeValue(l, randn(length(l)))
+randn(T::Type, l::Lattice) = LatticeValue(l, randn(T, length(l)))
+
 ==(lv1::LatticeValue, lv2::LatticeValue) = (lv1.lattice == lv2.lattice) && (lv1.values == lv2.values)
 eltype(::LatticeValue{T}) where {T} = T
 length(lv::LatticeValue) = length(lv.values)

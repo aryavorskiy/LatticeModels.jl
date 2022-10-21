@@ -122,8 +122,9 @@ plot(gl, show_excluded_sites=false)
 ```
 
 !!! warning
-    Please note that if the type alias is dimension-parametric, you must define the constructor *for a concrete type*:
+    Please note that if the type alias is dimension-parametric, you must define the constructor *for a concrete type*, otherwise you will almost definitely break the lattice constructor dispatch:
     ```julia
     SquareLattice(sz::Vararg{Int, N}) where N = ...     # Wrong!
     SquareLattice{N}(sz::Vararg{Int, N}) where N = ...  # Correct
     ```
+    In the second example `SquareLattice(sz::Vararg{Int, N})` constructor will be generated automatically.

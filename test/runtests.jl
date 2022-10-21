@@ -85,7 +85,7 @@ using LatticeModels
         scatter!(p[1], l[x.<y], high_contrast=true)
         scatter!(p[1], xy[x.≥y])
         plot!(p[1], bonds(H))
-        plot!(p[1], bonds(l, hopping(tr_vector=[1, 1])))
+        plot!(p[1], bonds(l, hopping(translate_uc=[1, 1])))
         surface!(p[2], xy)
         scatter!(p[3], SquareLattice(3, 4, 5))
         true
@@ -127,6 +127,7 @@ end
     X, Y = coord_operators(bas)
     x, y = coord_values(l)
     xtr = diag_aggregate(tr, X)
+    xtr2 = ptrace(X)
     xm2 = LatticeValue(l) do site, (x, y)
         2x
     end
@@ -137,6 +138,7 @@ end
         x * y
     end
     @test x == xtr
+    @test x == xtr2
     @test x .* y == xy
     @test x .* 2 == xm2
     @test 2 .* x == xm2
@@ -207,12 +209,12 @@ end
     ls2 = LatticeSite(SA[1, 2], 1)
     ls3 = LatticeSite(SA[2, 2], 1)
     @testset "Constructor" begin
-        @test hopping(axis=1) == hopping(tr_vector=[1])
-        @test hopping(axis=1) != hopping(tr_vector=[1, 0])
-        @test hopping(axis=1) == LatticeModels.promote_dims!(hopping(tr_vector=[1, 0]), 1)
-        @test hopping(axis=1, pbc=[true, false]) == hopping(tr_vector=[1, 0], pbc=[true, false])
+        @test hopping(axis=1) == hopping(translate_uc=[1])
+        @test hopping(axis=1) != hopping(translate_uc=[1, 0])
+        @test hopping(axis=1) == LatticeModels.promote_dims!(hopping(translate_uc=[1, 0]), 1)
+        @test hopping(axis=1, pbc=[true, false]) == hopping(translate_uc=[1, 0], pbc=[true, false])
         @test hopping([-1;;], axis=1) == hopping(-1, axis=1)
-        @test_throws "cannot shrink" LatticeModels.promote_dims!(hopping(tr_vector=[0, 1]), 1)
+        @test_throws "cannot shrink" LatticeModels.promote_dims!(hopping(translate_uc=[0, 1]), 1)
     end
     @testset "Hopping matching" begin
         @test !LatticeModels._match(hopping(axis=1), l, ls1, ls2)
@@ -283,10 +285,10 @@ end
     end
 
     @testset "Field application" begin
-        H1 = hopping_operator(l, hopping(axis=1), field=la) +
-             hopping_operator(l, hopping(axis=2), field=la)
-        H2 = hopping_operator(l, hopping(axis=1), field=lla) +
-             hopping_operator(l, hopping(axis=2), field=lla)
+        H1 = hopping_operator(l, hopping(axis=1), la) +
+             hopping_operator(l, hopping(axis=2), la)
+        H2 = hopping_operator(l, hopping(axis=1), lla) +
+             hopping_operator(l, hopping(axis=2), lla)
         H3 = hopping_operator(l, hopping(axis=1)) +
              hopping_operator(l, hopping(axis=2))
         H4 = copy(H3)
@@ -311,7 +313,7 @@ end
     end
     H2 = @hamiltonian begin
         lattice := l
-        @hop tr_vector = [0, 1] [1 0; 0 -1] (site, (x, y)) -> (x + 1 < y)
+        @hop translate_uc = [0, 1] [1 0; 0 -1] (site, (x, y)) -> (x + 1 < y)
         @diag (site, (x, y)) -> [x+y 0; 0 -x-y]
         field := LandauField(0.5)
     end

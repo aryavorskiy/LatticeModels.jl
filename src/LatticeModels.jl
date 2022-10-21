@@ -8,7 +8,7 @@ include("lattice_value.jl")
 export LatticeValue, coord_values
 include("lattice_operator.jl")
 export LatticeOperator, Basis, ⊗, lattice, basis,
-    diag_operator, coord_operators, diag_aggregate, @on_lattice
+    diag_operator, coord_operators, diag_aggregate, ptrace, @on_lattice
 
 include("field.jl")
 export @field_def, AbstractField, apply_field!

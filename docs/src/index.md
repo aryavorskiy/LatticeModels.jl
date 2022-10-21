@@ -11,14 +11,14 @@ This package provides a set of tools to simulate different quantum lattice syste
 
 ## Usage examples
 
-### Currents in Hofstadter model on a ring-shaped sample
+### Currents in Hubbard model on a ring-shaped sample
 
 In this example we delete part of the sites in the middle of a square lattice. 
 Then we adiabatically turn on magnetic field through the hole and see currents emerge.
 
-The Hofstadter model hamiltonian is evaluated according to this formula:
+The Hubbard model hamiltonian is defined by this formula:
 
-$$\hat{H} = \sum_\text{x-links} c^\dagger_i c_j + \sum_\text{y-links} c^\dagger_i c_j + h. c.$$
+$$\hat{H} = \sum_\text{x-bonds} c^\dagger_i c_j + \sum_\text{y-bonds} c^\dagger_i c_j + h. c.$$
 
 ```@example
 using LatticeModels
@@ -28,7 +28,7 @@ l = SquareLattice(10, 10) do site, (x, y)
     abs(x) > 1 || abs(y) > 1
 end
 
-# Define a Hofstadter model hamiltonian
+# Define a spinless Hubbard model hamiltonian
 h(B) = @hamiltonian begin   
     lattice := l
     # Add hoppings along axis x and y
@@ -51,8 +51,7 @@ a = Animation()
     P_0 --> H --> P
 } for t in 0:0.1:2τ
     # Find the partial trace and plot it
-    density = diag_aggregate(m -> real(tr(m)), P)
-    heatmap(density, clims=(0,1))
+    heatmap(real.(ptrace(P)), clims=(0,1))
 
     # Show currents on the plot
     plot!(DensityCurrents(H, P), arrows_scale=7, arrows_rtol=0.1)
@@ -70,8 +69,8 @@ The Chern insulator hamiltonian is described by this formula:
 
 $$\hat{H} = 
 \sum_i m_i c^\dagger_i \sigma_z c_i + \left(
-\sum_\text{x-links} c^\dagger_i \frac{\sigma_z - i \sigma_x}{2} c_j + 
-\sum_\text{y-links} c^\dagger_i \frac{\sigma_z - i \sigma_y}{2} c_j + 
+\sum_\text{x-bonds} c^\dagger_i \frac{\sigma_z - i \sigma_x}{2} c_j + 
+\sum_\text{y-bonds} c^\dagger_i \frac{\sigma_z - i \sigma_y}{2} c_j + 
 h. c. \right)$$
 
 In this experiment we create a filled state density matrix for a system with $m_i = 1$. 
@@ -118,7 +117,7 @@ a = Animation()
 
     # Local Chern marker heatmap
     lcm_operator = 4pi * im * P * X * P * Y * P
-    chern_marker = diag_aggregate(tr, lcm_operator) .|> real
+    chern_marker = ptrace(lcm_operator) .|> real
     heatmap!(p[1], chern_marker, clims=(-2, 2))
 
     # Select sites on y=0 line (use ≈ to avoid rounding errors)
