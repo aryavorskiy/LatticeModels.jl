@@ -24,10 +24,10 @@ However, if you want to apply some other array operations (like `exp`), you can 
 julia> X, Y = coord_operators(SquareLattice(5, 5), 2);
 
 julia> X * sin(Y)
-ERROR: MethodError
+ERROR: MethodError: no method matching sin
 
 julia> @on_lattice X * sin(Y)
-50×50 LatticeMatrix with inner type Matrix{Float64}
+50×50 LatticeOperator with inner type Matrix{Float64}
 on Basis with 2-dimensional internal phase space
 on 25-site square lattice on 5×5 base
 ```
@@ -35,7 +35,7 @@ on 25-site square lattice on 5×5 base
 ## Diagonal operators
 
 A *lattice-diagonal* operator can be represented as 
-$\hat{A} = \sum_i \hat{s}_i \hat{c}^\dagger_i \hat{c}_i$ , where $\hat{s}_i$ is an operator defined on the internal space.
+$\hat{A} = \sum_i \hat{s}_i \hat{c}^\dagger_i \hat{c}_i$ , where $\hat{s}_i$ is an operator defined on the internal space and $\hat{c}^\dagger_i, \hat{c}_i$ are standard quantization operators.
 
 Such an operator can be defined generally in two ways: 
 

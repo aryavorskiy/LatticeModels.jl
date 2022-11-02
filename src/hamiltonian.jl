@@ -89,10 +89,45 @@ function _hamiltonian_block(block::Expr)
     ham_block
 end
 
+"""
+    @hamiltonian block
+
+Creates a hamiltonian according to the rules defined in the `block`.
+
+Each line in the block must be a `:=` assignment or a macro-like diagonal/hopping operator description.
+
+The lattice on and the magnetic field for the hamiltonian can be set by assigning `lattice` and `field`.
+
+`@diag` stands for a diagonal part of the hamiltonian - after this you can use a matrix
+(representing the operator affecting the internal state),
+a function or a `⊗` tensor product notation.
+
+`@hop` stands for a hopping part of the hamiltonian - list arguments to pass to the `hopping` function after this macrocall.
+
+## Examples
+
+For example let's generate a Chern insulator hamiltonian.
+```julia
+l = SquareLattice(10, 10)
+x, y = coord_values(l)
+H = @hamiltonian begin
+    lattice := l
+    field := LandauField(0.5)   # Landau-calibrated uniform magnetic field, 0.5 flux quanta per 1×1
+    @diag (@. abs(x) < 2) ⊗ [1 0; 0 -1]
+    @hop [1 im; im -1] / 2 axis = 1
+    @hop [1 1; -1 -1] / 2 axis = 2
+end
+```
+"""
 macro hamiltonian(expr)
     _hamiltonian_block(expr)
 end
 
+"""
+    Spectrum{LT, MT} where {LT<:Lattice, MT<:AbstractMatrix}
+
+Eigenvalues and eigenvectors for some operator.
+"""
 struct Spectrum{LT<:Lattice,MT<:AbstractMatrix}
     basis::Basis{LT}
     states::MT
@@ -104,7 +139,14 @@ struct Spectrum{LT<:Lattice,MT<:AbstractMatrix}
     end
 end
 
-function spectrum(lop::LatticeOperator{LT,Matrix{T}} where {LT,T})
+const LatticeOperatorMT{MT} = LatticeOperator{LT,<:MT} where {LT}
+
+"""
+    spectrum(operator)
+
+Finds eigenvalues and eigenvectors for a `LatticeOperator` and stores in in a Spectrum.
+"""
+function spectrum(lop::LatticeOperatorMT{Matrix})
     !all(isfinite.(lop.operator)) && error("NaN of Inf in operator matrix")
     vals, vecs = eigen(Hermitian(lop.operator))
     Spectrum(lop.basis, vecs, vals)
@@ -134,9 +176,25 @@ function show(io::IO, ::MIME"text/plain", sp::Spectrum)
     println(io, "Eigenvalues in range $(minimum(sp.energies)) .. $(maximum(sp.energies))")
 end
 
+"""
+    projector(spectrum)
+
+Creates a `LatticeOperator` that projects onto the eigenvectors of the spectrum
+"""
 projector(sp::Spectrum) = LatticeArray(sp.basis, sp.states * sp.states')
 
+"""
+    projector(fun, spectrum)
+
+Creates a `LatticeOperator` that projects onto the eigenvectors of the spectrum
+with amplitude defined by the `fun` functions, which takes the eigenvalue and returns a number (or a boolean).
+"""
 projector(f::Function, sp::Spectrum) =
     LatticeArray(sp.basis, sp.states * (f.(sp.energies) .* sp.states'))
 
+"""
+    filled_projector(spectrum[, fermi_level])
+
+Creates a `LatticeOperator` that projects onto the eigenvectors which have eigenvalues less than `fermi_level` (0 by default).
+"""
 filled_projector(sp::Spectrum, fermi_level=0) = projector(E -> E < fermi_level, sp)

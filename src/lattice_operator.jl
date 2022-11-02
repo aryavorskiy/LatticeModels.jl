@@ -72,16 +72,13 @@ setindex!(lo::LatticeArray, val, is::Int...) =
 
 ==(lvm1::LatticeArray, lvm2::LatticeArray) = (lvm1.basis == lvm2.basis) && (lvm1.operator == lvm2.operator)
 
-function show(io::IO, m::MIME"text/plain", lv::LatticeArray{LT,MT}) where {LT,MT<:AbstractMatrix}
-    println(io, join(size(lv), "×") * " LatticeMatrix with inner type $MT")
+_typename(::LatticeVector) = "LatticeVector"
+_typename(::LatticeOperator) = "LatticeOperator"
+_typename(::LatticeArray) = "LatticeArray"
+function show(io::IO, m::MIME"text/plain", la::LatticeArray{LT,MT} where LT) where {MT}
+    println(io, join(size(la), "×"), " ", _typename(la), " with inner type $MT")
     print(io, "on ")
-    show(io, m, lv.basis)
-end
-
-function show(io::IO, m::MIME"text/plain", lv::LatticeArray{MT}) where {MT<:AbstractVector}
-    println(io, "$(length(lv.operator))-length LatticeVector with inner type $MT")
-    print(io, "on ")
-    show(io, m, lv.basis)
+    show(io, m, la.basis)
 end
 
 """

@@ -247,7 +247,7 @@ end
 @testset "Field tests" begin
     @field_def struct LazyLandauField(B::Number)
         vector_potential(x) = (0, x * B)
-        n_integrate := 100
+        n_steps := 100
     end
     @field_def struct StrangeLandauField(B::Number)
         vector_potential(point...) = (0, point[1] * B)
@@ -264,23 +264,23 @@ end
         p2 = SA[3, 4]
         @test LatticeModels.trip_integral(la, p1, p2) ≈
               LatticeModels.trip_integral(lla, p1, p2)
-        @test LatticeModels.trip_integral(la, p1, p2; n_integrate=100) ≈
+        @test LatticeModels.trip_integral(la, p1, p2; n_steps=100) ≈
               LatticeModels.trip_integral(lla, p1, p2)
-        @test LatticeModels.trip_integral(lla, p1, p2; n_integrate=100) ==
+        @test LatticeModels.trip_integral(lla, p1, p2; n_steps=100) ==
               LatticeModels.trip_integral(lla, p1, p2)
 
-        @test LatticeModels.trip_integral(sla, p1, p2; n_integrate=100) ≈
+        @test LatticeModels.trip_integral(sla, p1, p2; n_steps=100) ≈
               LatticeModels.trip_integral(la, p1, p2)
         @test LatticeModels.trip_integral(sla, p1, p2) == 123
 
-        @test LatticeModels.trip_integral(sym, p1, p2; n_integrate=1) ≈
+        @test LatticeModels.trip_integral(sym, p1, p2; n_steps=1) ≈
               LatticeModels.trip_integral(sym, p1, p2)
-        @test LatticeModels.trip_integral(sym, p1, p2; n_integrate=100) ≈
+        @test LatticeModels.trip_integral(sym, p1, p2; n_steps=100) ≈
               LatticeModels.trip_integral(sym, p1, p2)
 
-        @test LatticeModels.trip_integral(flx, p1, p2; n_integrate=1000) ≈
+        @test LatticeModels.trip_integral(flx, p1, p2; n_steps=1000) ≈
               LatticeModels.trip_integral(flx, p1, p2) atol=1e-8
-        @test LatticeModels.trip_integral(flx + sym, p1, p2; n_integrate=1000) ≈
+        @test LatticeModels.trip_integral(flx + sym, p1, p2; n_steps=1000) ≈
               LatticeModels.trip_integral(flx + sym, p1, p2) atol=1e-8
     end
 

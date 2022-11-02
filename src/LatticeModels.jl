@@ -12,7 +12,7 @@ export LatticeOperator, Basis, ⊗, lattice, basis,
 
 include("field.jl")
 export @field_def, AbstractField, apply_field!
-export LandauField, SymmetricField, FluxField
+export LandauField, SymmetricField, FluxField, NoField
 
 include("hoppings.jl")
 export hopping, hopping_operator, bonds, is_adjacent, @hopping_operator

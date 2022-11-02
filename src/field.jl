@@ -3,36 +3,56 @@ using LinearAlgebra, StaticArrays, Logging
 abstract type AbstractField end
 
 show(io::IO, ::MIME"text/plain", ::T) where {T<:AbstractField} = print(io, "$T field")
+@doc raw"""
+    vector_potential(field, point)
+
+Returns vector potential $\overrightarrow{A}$ for `field` in location `point`.
+
+This function should be defined for new field types, but it is not necessary
+unless you want to use built-in trapezoidal rule integrating.
+"""
 vector_potential(::FT, point) where {FT<:AbstractField} =
     error("no vector potential function defined for field type $(FT)")
 
 dot_assuming_zeros(m::SVector{M}, n::SVector{N}) where {M,N} = m[1:min(M, N)]' * n[1:min(M, N)]
 
-function trip_integral(field::AbstractField, p1, p2; n_integrate=1)
+@doc raw"""
+    trip_integral(field, p1, p2; n_steps=1)
+
+Calculates the $\int_{p1}^{p2} \overrightarrow{A} \cdot \overrightarrow{dl}$ integral using the trapezoidal rule.
+Increase `n_steps` to improve accuracy (for linear fields like Landau or symmetrical calibrations the formula is accurate).
+If needed, redefine this function for specific field types - this is likely to boost accuracy and performance.
+"""
+function trip_integral(field::AbstractField, p1, p2; n_steps=1)
     integral = 0.0
-    dp = (p2 - p1) / n_integrate
+    dp = (p2 - p1) / n_steps
     p = p1 + 0.5dp
-    for _ in 1:n_integrate
+    for _ in 1:n_steps
         integral += dot_assuming_zeros(dp, SVector(vector_potential(field, p)))
         p += dp
     end
     integral
 end
 
-function apply_field!(lo::LatticeOperator, field::AbstractField)
-    l = lattice(lo)
-    N = dims_internal(lo.basis)
+"""
+    apply_field!(hamiltonian, field[; nsteps])
+
+Applies magnetic field to given hamiltonian matrix by adjusting the phase factors.
+"""
+function apply_field!(ham::LatticeOperator, field::AbstractField)
+    l = lattice(ham)
+    N = dims_internal(ham)
     i = 1
     for site1 in l
         j = 1
         for site2 in l
-            if i > j && !iszero(lo.operator[N*(i-1)+1:N*i, N*(j-1)+1:N*j])
+            if i > j && !iszero(ham.operator[N*(i-1)+1:N*i, N*(j-1)+1:N*j])
                 p1 = coords(l, site1)
                 p2 = coords(l, site2)
                 pmod = exp(2π * im * trip_integral(field, p1, p2))
                 !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
-                lo.operator[N*(i-1)+1:N*i, N*(j-1)+1:N*j] *= pmod
-                lo.operator[N*(j-1)+1:N*j, N*(i-1)+1:N*i] *= pmod'
+                ham.operator[N*(i-1)+1:N*i, N*(j-1)+1:N*j] *= pmod
+                ham.operator[N*(j-1)+1:N*j, N*(i-1)+1:N*i] *= pmod'
             end
             j += 1
         end
@@ -61,6 +81,11 @@ function _extract_varname(var)
     end
 end
 
+"""
+    @field_def block
+
+Defines a new magnetic field type.
+"""
 macro field_def(struct_block)
     if !Meta.isexpr(struct_block, :struct)
         error("Struct block expected")
@@ -138,10 +163,10 @@ macro field_def(struct_block)
             end
         elseif Meta.isexpr(statement, :(:=), 2)
             key, arg = statement.args
-            if key === :n_integrate
+            if key === :n_steps
                 push!(struct_definition.args, :(
                     LatticeModels.trip_integral(field::$struct_name, p1, p2) =
-                        LatticeModels.trip_integral(field, p1, p2; n_integrate=$arg)
+                        LatticeModels.trip_integral(field, p1, p2; n_steps=$arg)
                 ))
             else
                 @warn "unsupported key $key ignored"
@@ -156,20 +181,43 @@ end
 @field_def struct NoField
     trip_integral(p1, p2) = 0
 end
+"""
+    NoField <: AbstractField
+
+A stub object representing zero magnetic field.
+Use it as a default magnetic field argument in functions - this will not cause any performance overhead.
+"""
+NoField
 
 @field_def struct LandauField(B::Number)
     vector_potential(x) = SA[0, x*B]
     trip_integral(p1, p2) = ((p1[1] + p2[1]) / 2) * (p2[2] - p1[2]) * B
     show(io::IO, ::MIME"text/plain") = print(io, "Landau calibration field; B = $B flux quanta per 1×1 plaquette")
 end
+"""
+    LandauField <: AbstractField
+
+An object representing Landau calibrated uniform magnetic field along z-axis.
+Fields:
+- `B`: The magnetic field value
+"""
+LandauField
 
 @field_def struct SymmetricField(B::Number)
     vector_potential(x, y) = SA[-y, x] * B / 2
     trip_integral(p1, p2) = (p1[1] * p2[2] - p2[1] * p1[2]) / 2 * B
     show(io::IO, ::MIME"text/plain") = print(io, "Symmetric calibration field; B = $B flux quanta per 1×1 plaquette")
 end
+"""
+    SymmetricField <: AbstractField
 
-_angle(p1, p2) = asin(det(hcat(p1, p2)) / norm(p1) / norm(p2) / (1.0 + 1e-11))
+An object representing symmetrically calibrated uniform magnetic field along z-axis.
+Fields:
+- `B`: The magnetic field value
+"""
+SymmetricField
+
+_angle(p1, p2) = asin((1.0 - 1e-11) * det(hcat(p1, p2)) / norm(p1) / norm(p2))
 @field_def struct FluxField(B::Number, P::NTuple{2,Number})
     function vector_potential(x, y)
         norm = (x^2 + y^2)
@@ -186,6 +234,15 @@ _angle(p1, p2) = asin(det(hcat(p1, p2)) / norm(p1) / norm(p2) / (1.0 + 1e-11))
     end
     show(io::IO, ::MIME"text/plain") = print(io, "Delta flux field through point $P; B = $B flux quanta")
 end
+"""
+    FluxField <: AbstractField
+
+An object representing a small magnetic flux through given point. The field is directed along z-axis.
+Fields:
+- `B`: The magnetic field value
+- `point`: A `NTuple{2, Number}` representing the point where the magnetic flux is located.
+"""
+FluxField
 
 struct FieldSum{N} <: AbstractField
     fields::NTuple{N,AbstractField}
@@ -199,6 +256,7 @@ function show(io::IO, m::MIME"text/plain", f::FieldSum{N}) where {N}
         print("#$i: ")
         show(io, m, field)
         println()
+        i += 1
     end
 end
 

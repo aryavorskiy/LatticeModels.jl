@@ -1,13 +1,42 @@
 import Base: getindex
 using LinearAlgebra
 
-abstract type AbstractCurrents end
-current_lambda(::AbstractCurrents) = error("not implemented")
-lattice(::AbstractCurrents) = error("not implemented")
+"""
+    AbstractCurrents
 
+Supertype for all type representing currents-like values on a lattice.
+Subtypes must implement `current_lambda` and `lattice` functions.
+"""
+abstract type AbstractCurrents end
+
+"""
+    current_lambda(<:AbstractCurrents)
+
+Returns a function that takes two integer indices of sites in a lattice and returns the current between these two sites.
+"""
+current_lambda(::T) where {T<:AbstractCurrents} = error("current_lambda(::$T) must be explicitly implemented")
+
+"""
+    lattice(<:AbstractCurrents)
+
+Gets the lattice where the given `AbstractCurrents` object is defined.
+"""
+lattice(::T) where {T<:AbstractCurrents} = error("lattice(::$T) must be explicitly implemented")
+
+"""
+    DensityCurrents <: AbstractCurrents
+
+Density currents for given density matrix and given hamiltonian.
+"""
 struct DensityCurrents <: AbstractCurrents
     hamiltonian::LatticeOperator
     density::LatticeOperator
+
+    """
+        DensityCurrents(hamiltonian, density_mat)
+
+    Constructs a `DensityCurrents` object for given `hamiltonian` and `density_mat`.
+    """
     function DensityCurrents(ham::LatticeOperator, dens::LatticeOperator)
         ham.basis != dens.basis && error("basis mismatch")
         new(ham, dens)
@@ -18,19 +47,24 @@ current_lambda(curr::DensityCurrents) =
     (i::Int, j::Int) -> 2imag(tr(curr.density[i, j] * curr.hamiltonian[j, i]))
 lattice(curr::DensityCurrents) = curr.hamiltonian.basis.lattice
 
+"""
+    SubCurrents{<:AbstractCurrents} <: AbstractCurrents
+
+A lazy wrapper for a `SubCurrents` object that representing the same currents but on a smaller lattice.
+"""
 struct SubCurrents{CT<:AbstractCurrents} <: AbstractCurrents
     parent_currents::CT
     lattice::Lattice
     indices::Vector{Int}
-end
-function SubCurrents(parent_currents::CT, indices::Vector{Int}) where {CT}
-    l = lattice(parent_currents)
-    m = zeros(Bool, length(l))
-    m[indices] .= true
-    new_mask = zero(l.mask)
-    new_mask[l.mask] = m
-    SubCurrents{CT}(parent_currents,
-        Lattice(lattice_type(l), size(l), bravais(l), new_mask), indices)
+    function SubCurrents(parent_currents::CT, indices::Vector{Int}) where {CT}
+        l = lattice(parent_currents)
+        m = zeros(Bool, length(l))
+        m[indices] .= true
+        new_mask = zero(l.mask)
+        new_mask[l.mask] = m
+        new{CT}(parent_currents,
+            Lattice(lattice_type(l), size(l), bravais(l), new_mask), indices)
+    end
 end
 
 function current_lambda(scurr::SubCurrents)
@@ -39,6 +73,11 @@ function current_lambda(scurr::SubCurrents)
 end
 lattice(scurr::SubCurrents) = scurr.lattice
 
+"""
+    MaterializedCurrents <: AbstractCurrents
+
+A `AbstractCurrents` instance that stores values for all currents explicitly.
+"""
 struct MaterializedCurrents <: AbstractCurrents
     lattice::Lattice
     currents::Matrix{Float64}
@@ -66,6 +105,14 @@ function getindex(curr::MaterializedCurrents, lvm::LatticeValue{Bool})
     MaterializedCurrents(curr.lattice[lvm], curr.currents[indices, indices])
 end
 
+"""
+    materialize([function, ]currents)
+
+Creates a `MaterializedCurrents` instance for `currents`.
+
+If `function` is provided, it must accept two `LatticeSite`s and return if the current between this site must be calculated or not.
+This can be useful to avoid exsessive calculations.
+"""
 function materialize(curr::AbstractCurrents)
     l = lattice(curr)
     m = MaterializedCurrents(l)
