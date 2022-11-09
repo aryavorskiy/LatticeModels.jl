@@ -7,8 +7,8 @@ function taylor_exp(A::AbstractMatrix, k::Int)
         return B
     end
     M = copy(A)
-    for _ in 2:k
-        M *= A / k
+    for i in 2:k
+        M *= A / i
         B += M
     end
     return B
@@ -31,6 +31,10 @@ $ \mathcal{U}(t) = e^{-\frac{1}{i\hbar} \hat{H} t} $
 """
 evolution_operator(H, t::Real) = exp((-im * t) * H)
 evolution_operator(H, t::Real, k::Int) = taylor_exp((-im * t) * H, k)
+
+evolved(P::AbstractMatrix, ev::AbstractMatrix) = ev * P * ev'
+evolved(V::AbstractVector, ev::AbstractMatrix) = ev * V
+evolved(LA, ev) = @on_lattice evolved(LA, ev)
 
 function _expand_chain(chain)
     if Meta.isexpr(chain, :-->)
@@ -153,7 +157,7 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12)
                 :(local $(esc(p_target)) = _unwrap_from_macro(copy, $(esc(p_initial)))))
             push!(p_evolutions,
                 :($(esc(p_target)) =
-                    $p_target_ev * $(esc(p_target)) * adjoint($p_target_ev)))
+                    evolved($(esc(p_target)), $p_target_ev)))
         end
     end
     quote

@@ -10,14 +10,14 @@ Subtypes must implement `current_lambda` and `lattice` functions.
 abstract type AbstractCurrents end
 
 """
-    current_lambda(<:AbstractCurrents)
+    current_lambda(::AbstractCurrents)
 
 Returns a function that takes two integer indices of sites in a lattice and returns the current between these two sites.
 """
 current_lambda(::T) where {T<:AbstractCurrents} = error("current_lambda(::$T) must be explicitly implemented")
 
 """
-    lattice(<:AbstractCurrents)
+    lattice(::AbstractCurrents)
 
 Gets the lattice where the given `AbstractCurrents` object is defined.
 """
@@ -48,7 +48,7 @@ current_lambda(curr::DensityCurrents) =
 lattice(curr::DensityCurrents) = curr.hamiltonian.basis.lattice
 
 """
-    SubCurrents{<:AbstractCurrents} <: AbstractCurrents
+    SubCurrents{CT<:AbstractCurrents} <: AbstractCurrents
 
 A lazy wrapper for a `SubCurrents` object that representing the same currents but on a smaller lattice.
 """
@@ -110,7 +110,7 @@ end
 
 Creates a `MaterializedCurrents` instance for `currents`.
 
-If `function` is provided, it must accept two `LatticeSite`s and return if the current between this site must be calculated or not.
+If `function` is provided, it must accept a `Lattice` and two `LatticeSite`s and return if the current between this site must be calculated or not.
 This can be useful to avoid exsessive calculations.
 """
 function materialize(curr::AbstractCurrents)
@@ -133,7 +133,7 @@ function materialize(f::Function, curr::AbstractCurrents)
     for site1 in l
         j = 1
         for site2 in l
-            if i == j || !(f(site1, site2))
+            if i == j || !(f(l, site1, site2))
                 j += 1
                 continue
             end
@@ -146,6 +146,12 @@ function materialize(f::Function, curr::AbstractCurrents)
     end
     m
 end
+
+is_adjacent(bs::BondSet) =
+    (::Lattice, site1::LatticeSite, site2::LatticeSite) -> is_adjacent(bs, site1, site2)
+
+is_near(r::Number) =
+    (l::Lattice, site1::LatticeSite, site2::LatticeSite) -> norm(radius_vector(l, site1, site2)) ≤ r
 
 @recipe function f(curr::AbstractCurrents)
     l = lattice(curr)

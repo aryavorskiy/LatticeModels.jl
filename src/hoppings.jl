@@ -321,9 +321,6 @@ end
 is_adjacent(bs::BondSet, site1::LatticeSite, site2::LatticeSite) =
     bs.bmat[findfirst(==(site1), bs.sites), findfirst(==(site2), bs.sites)]
 
-is_adjacent(bs::BondSet) =
-    (site1::LatticeSite, site2::LatticeSite) -> is_adjacent(bs, site1, site2)
-
 function show(io::IO, m::MIME"text/plain", bs::BondSet)
     println(io, "BondSet with $(count(==(true), bs.bmat)) bonds")
     print(io, "on ")

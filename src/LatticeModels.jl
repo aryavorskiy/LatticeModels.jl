@@ -25,7 +25,7 @@ export @evolution
 
 include("currents.jl")
 export AbstractCurrents, DensityCurrents,
-    materialize, current_lambda, lattice
+    materialize, current_lambda, lattice, is_near
 
 # include("precompile.jl")
 # _precompile_()

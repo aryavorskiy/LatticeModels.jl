@@ -233,10 +233,10 @@ end
         @test !is_adjacent(bs, ls1, ls3)
         @test is_adjacent(bs2, ls1, ls2)
         @test is_adjacent(bs2, ls1, ls3)
-        @test f(ls1, ls2)
-        @test !f(ls1, ls3)
-        @test f2(ls1, ls2)
-        @test f2(ls1, ls3)
+        @test f(l, ls1, ls2)
+        @test !f(l, ls1, ls3)
+        @test f2(l, ls1, ls2)
+        @test f2(l, ls1, ls3)
     end
     x, y = coord_values(l)
     op1 = hopping_operator(l, hopping(axis=1), x .< y)
@@ -263,10 +263,10 @@ end
         p1 = SA[1, 2]
         p2 = SA[3, 4]
         @test LatticeModels.trip_integral(la, p1, p2) ≈
-              LatticeModels.trip_integral(lla, p1, p2)
-        @test LatticeModels.trip_integral(la, p1, p2; n_steps=100) ≈
-              LatticeModels.trip_integral(lla, p1, p2)
+            LatticeModels.trip_integral(la, p1, p2; n_steps=100)
         @test LatticeModels.trip_integral(lla, p1, p2; n_steps=100) ==
+              LatticeModels.trip_integral(lla, p1, p2)
+        @test LatticeModels.trip_integral(la, p1, p2) ≈
               LatticeModels.trip_integral(lla, p1, p2)
 
         @test LatticeModels.trip_integral(sla, p1, p2; n_steps=100) ≈
