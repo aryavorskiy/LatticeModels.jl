@@ -1,8 +1,8 @@
 module LatticeModels
 
 include("lattice.jl")
-export Bravais, LatticeSite, Lattice, sublattice
-export SquareLattice, HoneycombLattice
+export Bravais, LatticeSite, Lattice, sublattice, site_coords, site_index,
+    SquareLattice, HoneycombLattice
 
 include("lattice_value.jl")
 export LatticeValue, coord_values
@@ -15,7 +15,8 @@ export @field_def, AbstractField, apply_field!
 export LandauField, SymmetricField, FluxField, NoField
 
 include("hoppings.jl")
-export hopping, hopping_operator, bonds, is_adjacent, @hopping_operator
+export hopping, hopping_operator, pairs_by_domains, pairs_by_lhs, pairs_by_rhs,
+    bonds, is_adjacent, @hopping_operator
 
 include("hamiltonian.jl")
 export @hamiltonian, Spectrum, spectrum, eigvals, eigvecs, projector, filled_projector
@@ -25,7 +26,7 @@ export @evolution
 
 include("currents.jl")
 export AbstractCurrents, DensityCurrents,
-    materialize, current_lambda, lattice, is_near
+    materialize, current_lambda, lattice, pairs_by_adjacent, pairs_by_distance
 
 # include("precompile.jl")
 # _precompile_()

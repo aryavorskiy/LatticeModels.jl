@@ -78,7 +78,8 @@ using LatticeModels
             @hop axis = 2 [1 1; -1 -1] / 2
         end
         P = filled_projector(spectrum(H), 0.1)
-        @evolution k=2 {P --> H --> PP} for t in 0:0.1:1; end
+        @evolution k = 2 {P --> H --> PP} for t in 0:0.1:1
+        end
 
         quiver!(p[1], DensityCurrents(H, P)[x.<y])
         scatter!(p[1], l)
@@ -94,6 +95,7 @@ end
 
 @testset "Lattice tests" begin
     sql = SquareLattice(10, 20)
+    @test [site_index(s, sql) for s in sql] == 1:length(sql)
     x, y = coord_values(sql)
     s_0 = SquareLattice(10, 20) do site, (x, y)
         x < y
@@ -205,9 +207,7 @@ end
 
 @testset "Hopping tests" begin
     l = SquareLattice(2, 2)
-    ls1 = LatticeSite(SA[1, 1], 1)
-    ls2 = LatticeSite(SA[1, 2], 1)
-    ls3 = LatticeSite(SA[2, 2], 1)
+    ls1, _, ls2, ls3 = l
     @testset "Constructor" begin
         @test hopping(axis=1) == hopping(translate_uc=[1])
         @test hopping(axis=1) != hopping(translate_uc=[1, 0])
@@ -226,21 +226,24 @@ end
         bs = bonds(l, hopping(axis=1), hopping(axis=2))
         bs1 = bonds(l, hopping(axis=1)) | bonds(l, hopping(axis=2))
         bs2 = bs^2
-        f = is_adjacent(bs)
-        f2 = is_adjacent(bs2)
+        f = pairs_by_adjacent(bs)
+        f2 = pairs_by_adjacent(bs2)
         @test bs.bmat == bs1.bmat
         @test is_adjacent(bs, ls1, ls2)
         @test !is_adjacent(bs, ls1, ls3)
         @test is_adjacent(bs2, ls1, ls2)
         @test is_adjacent(bs2, ls1, ls3)
-        @test f(l, ls1, ls2)
-        @test !f(l, ls1, ls3)
-        @test f2(l, ls1, ls2)
-        @test f2(l, ls1, ls3)
+        @test f(l, site_index(ls1, l), site_index(ls2, l))
+        @test !f(l, site_index(ls1, l), site_index(ls3, l))
+        @test f2(l, site_index(ls1, l), site_index(ls2, l))
+        @test f2(l, site_index(ls1, l), site_index(ls3, l))
     end
     x, y = coord_values(l)
-    op1 = hopping_operator(l, hopping(axis=1), x .< y)
-    op2 = hopping_operator(l, hopping(axis=1)) do site, (x, y); x < y; end
+    op1 = hopping_operator(pairs_by_lhs(x .< y), l, hopping(axis=1))
+    op2 = hopping_operator(l, hopping(axis=1)) do l, i, j
+        x, y = site_coords(l, l[i])
+        x < y
+    end
     @test op1 == op2
 end
 
@@ -263,7 +266,7 @@ end
         p1 = SA[1, 2]
         p2 = SA[3, 4]
         @test LatticeModels.trip_integral(la, p1, p2) ≈
-            LatticeModels.trip_integral(la, p1, p2; n_steps=100)
+              LatticeModels.trip_integral(la, p1, p2; n_steps=100)
         @test LatticeModels.trip_integral(lla, p1, p2; n_steps=100) ==
               LatticeModels.trip_integral(lla, p1, p2)
         @test LatticeModels.trip_integral(la, p1, p2) ≈
@@ -279,9 +282,9 @@ end
               LatticeModels.trip_integral(sym, p1, p2)
 
         @test LatticeModels.trip_integral(flx, p1, p2; n_steps=1000) ≈
-              LatticeModels.trip_integral(flx, p1, p2) atol=1e-8
+              LatticeModels.trip_integral(flx, p1, p2) atol = 1e-8
         @test LatticeModels.trip_integral(flx + sym, p1, p2; n_steps=1000) ≈
-              LatticeModels.trip_integral(flx + sym, p1, p2) atol=1e-8
+              LatticeModels.trip_integral(flx + sym, p1, p2) atol = 1e-8
     end
 
     @testset "Field application" begin
@@ -309,11 +312,11 @@ end
         lattice := l
         field := LandauField(0.5)
         @diag [1 0; 0 -1] ⊗ (@. x + y)
-        @hop [1 0; 0 -1] axis = 2 (@. x + 1 < y)
+        @hop [1 0; 0 -1] axis = 2 pairs_by_lhs(@. x + 1 < y)
     end
     H2 = @hamiltonian begin
         lattice := l
-        @hop translate_uc = [0, 1] [1 0; 0 -1] (site, (x, y)) -> (x + 1 < y)
+        @hop translate_uc = [0, 1] [1 0; 0 -1] (l, i, j) -> ((x, y) = site_coords(l, l[i]); x + 1 < y)
         @diag (site, (x, y)) -> [x+y 0; 0 -x-y]
         field := LandauField(0.5)
     end
@@ -323,25 +326,29 @@ end
     states = eigvecs(sp)
     @test length(sp) == size(states)[2]
     @test sp[1] == sp[E=-100]
-    @test filled_projector(sp).operator ≈ projector(sp[Es .< 0]).operator
+    @test filled_projector(sp).operator ≈ projector(sp[Es.<0]).operator
 end
 
 @testset "Currents tests" begin
     l = SquareLattice(10, 10)
     x, y = coord_values(l)
-    H = @hamiltonian begin
+    H(B) = @hamiltonian begin
         lattice := l
-        field := LandauField(0.5)
+        field := LandauField(B)
         @diag [1 0; 0 -1]
         @hop axis = 1 [1 im; im -1] / 2
         @hop axis = 2 [1 1; -1 -1] / 2
     end
-    P = filled_projector(spectrum(H))
-    dc = DensityCurrents(H, P)
-    bs = bonds(H)
+    P = filled_projector(spectrum(H(0)))
+    dc = DensityCurrents(H(0.1), P)
+    bs = bonds(H(0.1))
     m1 = materialize(dc)[x.<y]
     m2 = materialize(dc[x.<y])
-    m3 = materialize(is_adjacent(bs), dc[x.<y])
+    m3 = materialize(pairs_by_adjacent(bs), dc)[x.<y]
+    m4 = materialize(pairs_by_adjacent(bs), dc[x.<y])
+    md = materialize(pairs_by_distance(≤(2)), dc[x.<y])
     @test m1.currents == m2.currents
-    @test m2.currents == m3.currents
+    @test m1.currents == m3.currents
+    @test m1.currents == m4.currents
+    @test m1.currents == md.currents
 end

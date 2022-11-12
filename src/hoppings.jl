@@ -135,9 +135,9 @@ Base.@propagate_inbounds function _match(h::Hopping, l::Lattice, site1::LatticeS
     true
 end
 
-@inline _get_bool_value(::Nothing, ::Lattice, ::LatticeSite, ::Int) = true
-@inline _get_bool_value(f::Function, l::Lattice, site::LatticeSite, ::Int) = f(site, coords(l, site))
-@inline _get_bool_value(lv::LatticeValue{Bool}, ::Lattice, ::LatticeSite, i::Int) = lv.values[i]
+@inline _get_bool_value(::Nothing, ::Lattice, ::Int, ::Int) = true
+@inline _get_bool_value(f::Function, l::Lattice, i::Int, j::Int) =
+    f(l, i, j)
 function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field::AbstractField)
     l = lattice(lop)
     d = dims(l)
@@ -147,8 +147,8 @@ function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field:
     for site1 in l
         j = 1
         for site2 in l
-            if @inbounds(_match(hop, l, site1, site2)) && _get_bool_value(selector, l, site1, i)
-                p1 = coords(l, site1)
+            if @inbounds(_match(hop, l, site1, site2)) && _get_bool_value(selector, l, i, j)
+                p1 = site_coords(l, site1)
                 p2 = p1 + trv
                 pmod = exp(2π * im * trip_integral(field, p1, p2))
                 !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
@@ -169,13 +169,11 @@ Creates a hopping operator:
 $$\hat{A} = \sum_{pairs} \hat{t} \hat{c}^\dagger_j \hat{c}_i + h. c.$$
 
 ---
-    hopping_operator(function, lattice, hopping[, field])
+    hopping_operator(lattice, hopping[, field])
     hopping_operator(excl_function, lattice, hopping[, field])
-    hopping_operator(lattice, hopping, excl_value[, field])
 
 Arguments:
-- `excl_function`: takes a `LatticeSite` and its coordinate vector, returns whether the pair with this site should be included.
-- `excl_value`: same as `excl_function`, but represented as a `LatticeValue{Bool}`
+- `excl_function`: takes a `Lattice`, two `LatticeSite`s and their two integer indices also, returns whether this pair should be included.
 - `lattice`: the lattice to create the operator on.
 - `hopping`: the `Hopping` object describing the site pairs and the $\hat{t}$ operator.
 - `field`: the `AbstractField` object that defines the magnetic field to generate phase factors using Peierls substitution.
@@ -184,14 +182,43 @@ function hopping_operator(lf::Function, l::Lattice, hop::Hopping, field::Abstrac
     lop = _zero_on_basis(l, hop.hop_operator)
     _hopping_operator!(lop, lf, hop, field)
 end
-function hopping_operator(l::Lattice, hop::Hopping, lv::LatticeValue{Bool}, field::AbstractField=NoField())
-    lop = _zero_on_basis(l, hop.hop_operator)
-    _hopping_operator!(lop, lv, hop, field)
-end
 function hopping_operator(l::Lattice, hop::Hopping, field::AbstractField=NoField())
     lop = _zero_on_basis(l, hop.hop_operator)
     _hopping_operator!(lop, nothing, hop, field)
 end
+
+"""
+    pairs_by_domains(lattice_value)
+
+A selector function used for hopping operator definition or currents materialization.
+
+Takes a `LatticeValue` and generates a lambda which accepts a lattice and two integer site indices,
+returning whether the value of `lattice_value` is the same on two sites.
+"""
+pairs_by_domains(lv::LatticeValue) =
+    (::Lattice, i::Int, j::Int) -> lv[CartesianIndex(i)] == lv[CartesianIndex(j)]
+
+"""
+    pairs_by_lhs(lattice_value)
+
+A selector function used for hopping operator definition or currents materialization.
+
+Takes a `LatticeValue` and generates a lambda which accepts a lattice and two integer site indices,
+returning whether the value of `lattice_value` is true on the first site.
+"""
+pairs_by_lhs(lv::LatticeValue{Bool}) =
+    (::Lattice, i::Int, ::Int) -> lv[CartesianIndex(i)]
+
+"""
+    pairs_by_rhs(lattice_value)
+
+A selector function used for hopping operator definition or currents materialization.
+
+Takes a `LatticeValue` and generates a lambda which accepts a lattice and two integer site indices,
+returning whether the value of `lattice_value` is true on the second site.
+"""
+pairs_by_rhs(lv::LatticeValue{Bool}) =
+    (::Lattice, ::Int, j::Int) -> lv[CartesianIndex(j)]
 
 macro hopping_operator(for_loop::Expr)
     if for_loop.head !== :for
@@ -255,14 +282,10 @@ by taking its power: `bs2 = bs1 ^ n`.
 """
 struct BondSet{LT<:Lattice}
     lattice::LT
-    sites::Vector{LatticeSite}
     bmat::Matrix{Bool}
-    global function _bondset_unsafe(l::LT, sites::Vector{<:LatticeSite}, bmat) where {LT<:Lattice}
-        new{LT}(l, sites, bmat)
-    end
-    function BondSet(l::Lattice, bmat::AbstractMatrix{Bool})
+    function BondSet(l::LT, bmat::AbstractMatrix{Bool}) where {LT<:Lattice}
         !all(size(bmat) .== length(l)) && error("inconsistent connectivity matrix size")
-        _bondset_unsafe(l, collect(l), bmat .| bmat' .| Matrix(I, length(l), length(l)))
+        new{LT}(l, bmat .| bmat' .| Matrix(I, length(l), length(l)))
     end
     function BondSet(l::Lattice, bmat::BitMatrix)
         BondSet(l, convert(Matrix{Bool}, bmat))
@@ -295,8 +318,8 @@ function bonds(l::Lattice, hops::Hopping...)
     end
     for i in 1:length(l)
         for j in 1:length(l)
-            site1 = bs.sites[i]
-            site2 = bs.sites[j]
+            site1 = bs.lattice[i]
+            site2 = bs.lattice[j]
             isconnect = any(@inbounds(_match(h, l, site1, site2)) for h in hops)
             bs.bmat[i, j] |= isconnect
             bs.bmat[j, i] |= isconnect
@@ -309,20 +332,23 @@ import Base: !, ^, |
 
 function |(bss::BondSet...)
     !allequal(getproperty.(bss, :lattice)) && error("inconsistent BondSet size")
-    _bondset_unsafe(bss[1].lattice, bss[1].sites, .|(getproperty.(bss, :bmat)...))
+    BondSet(bss[1].lattice, .|(getproperty.(bss, :bmat)...))
 end
 
 ^(bs1::BondSet, n::Int) =
-    _bondset_unsafe(bs1.lattice, bs1.sites, bs1.bmat^n .!= 0)
+    BondSet(bs1.lattice, bs1.bmat^n .!= 0)
 
 !(bs::BondSet) =
-    _bondset_unsafe(bs.lattice, bs.sites, Matrix(I, length(bs.lattice), length(bs.lattice)) .| .!(bs.bmat))
+    BondSet(bs.lattice, Matrix(I, length(bs.lattice), length(bs.lattice)) .| .!(bs.bmat))
+
+is_adjacent(bs::BondSet, site1_i::Int, site2_i::Int) =
+    bs.bmat[site1_i, site2_i]
 
 is_adjacent(bs::BondSet, site1::LatticeSite, site2::LatticeSite) =
-    bs.bmat[findfirst(==(site1), bs.sites), findfirst(==(site2), bs.sites)]
+    bs.bmat[site_index(site1, bs.lattice), site_index(site2, bs.lattice)]
 
 function show(io::IO, m::MIME"text/plain", bs::BondSet)
-    println(io, "BondSet with $(count(==(true), bs.bmat)) bonds")
+    println(io, "BondSet with $(count(bs.bmat)) bonds")
     print(io, "on ")
     show(io, m, bs.lattice)
 end
@@ -333,12 +359,12 @@ end
     pts = Tuple{Float64,Float64}[]
     br_pt = fill(NaN, dims(l)) |> Tuple
     for i in 1:length(l)
-        site1 = bs.sites[i]
-        A = coords(l, site1)
+        site1 = bs.lattice[i]
+        A = site_coords(l, site1)
         for j in 1:length(l)
             if i != j && bs.bmat[i, j]
-                site2 = bs.sites[j]
-                B = coords(l, site2)
+                site2 = bs.lattice[j]
+                B = site_coords(l, site2)
                 T = radius_vector(l, site2, site1)
                 push!(pts, Tuple(A))
                 push!(pts, Tuple(A + T / 2))

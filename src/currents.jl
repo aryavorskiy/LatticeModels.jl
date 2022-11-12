@@ -129,29 +129,38 @@ function materialize(f::Function, curr::AbstractCurrents)
     l = lattice(curr)
     m = MaterializedCurrents(l)
     curr_fn = current_lambda(curr)
-    i = 1
-    for site1 in l
-        j = 1
-        for site2 in l
-            if i == j || !(f(l, site1, site2))
-                j += 1
-                continue
-            end
-            ij_curr = curr_fn(i, j)
-            m.currents[i, j] = ij_curr
-            m.currents[j, i] = -ij_curr
-            j += 1
+    for i in 1:length(l), j in 1:i-1
+        if !f(l, i, j)
+            continue
         end
-        i += 1
+        ij_curr = curr_fn(i, j)
+        m.currents[i, j] = ij_curr
+        m.currents[j, i] = -ij_curr
     end
     m
 end
 
-is_adjacent(bs::BondSet) =
-    (::Lattice, site1::LatticeSite, site2::LatticeSite) -> is_adjacent(bs, site1, site2)
+"""
+    pairs_by_adjacent(bonds)
 
-is_near(r::Number) =
-    (l::Lattice, site1::LatticeSite, site2::LatticeSite) -> norm(radius_vector(l, site1, site2)) ≤ r
+A selector function used for hopping operator definition or currents materialization.
+
+Takes a `BondSet` and generates a lambda which accepts a lattice and two integer site indices,
+returning whether the two sites are connected by the `bonds`.
+"""
+pairs_by_adjacent(bs::BondSet) =
+    (l::Lattice, i::Int, j::Int) -> is_adjacent(bs, l[i], l[j])
+
+"""
+    pairs_by_distance(function)
+
+A selector function used for hopping operator definition or currents materialization.
+
+Takes a function and generates a lambda which accepts a lattice and two integer site indices,
+returning whether `function` applied to distence between the two sites returned `true`.
+"""
+pairs_by_distance(f) =
+    (l::Lattice, i::Int, j::Int) -> f(norm(radius_vector(l, l[i], l[j])))::Bool
 
 @recipe function f(curr::AbstractCurrents)
     l = lattice(curr)
@@ -169,7 +178,7 @@ is_near(r::Number) =
         for site2 in l
             j ≥ i && continue
             ij_curr = curr_fn(i, j)::Real
-            crd = coords(l, (ij_curr > 0 ? site1 : site2))
+            crd = site_coords(l, (ij_curr > 0 ? site1 : site2))
             vc = radius_vector(l, site2, site1)
             vc_n = norm(vc)
             if vc_n < abs(ij_curr * plotattributes[:arrows_scale] / plotattributes[:arrows_rtol])
@@ -177,9 +186,7 @@ is_near(r::Number) =
                 push!(Ys, crd[2])
                 push!(Qs, Tuple(vc * (ij_curr * plotattributes[:arrows_scale] / vc_n)))
             end
-            j += 1
         end
-        i += 1
     end
     quiver := Qs
     Xs, Ys

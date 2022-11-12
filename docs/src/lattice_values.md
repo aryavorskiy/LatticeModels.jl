@@ -56,4 +56,4 @@ plot!(p[2], lv_on_line, project_axis=:y)
 ```
 
 Note that we can show the sites we selected by plotting the lattice of the selected values with `high_contrast=true`.
-This options make the plot markers black-and-white, which prevents them from blending in with the heatmap in the background.
+This options hides the indices and translucent marks, and also makes the plot markers black-and-white, which prevents them from blending in with the heatmap in the background.

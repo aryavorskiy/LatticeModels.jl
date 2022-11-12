@@ -1,5 +1,5 @@
 using RecipesBase, LinearAlgebra, Logging, StaticArrays
-import Base: length, size, copy, iterate, eltype, show, ==
+import Base: length, size, copy, iterate, getindex, eltype, show, ==, isless
 
 """
     Bravais{N, NB}
@@ -86,22 +86,55 @@ Fields:
 - `basis_index`: the number of site in the lattice basis.
 
 This type is used to iterate over all sites of a `Lattice{LatticeSym, N, NB}`.
-The exact location of a `LatticeSite` can be found using the `coords(lattice, site)` function.
+The exact location of a `LatticeSite` can be found using the `site_coords(lattice, site)` function.
 """
 struct LatticeSite{N}
     unit_cell::SVector{N,Int}
     basis_index::Int
 end
 
-LatticeSite(tup::NTuple{N,Int}) where {N} = LatticeSite{N - 1}(SVector(tup[1:end-1]), tup[end])
+LatticeSite(tup::NTuple{N,Int}) where {N} = LatticeSite{N - 1}(SVector(tup[2:end]), tup[1])
+
+_cind(site::LatticeSite) = CartesianIndex(site.basis_index, site.unit_cell...)
+
+_cinds(l::Lattice{LatticeSym,N,NB} where {LatticeSym}) where {N,NB} =
+    CartesianIndex{N + 1}(1):CartesianIndex(NB, size(l)...)
+
+function getindex(l::Lattice{LatticeSym, N, NB} where LatticeSym, i::Int) where {N, NB}
+    counter = 0
+    cinds = _cinds(l)
+    i ≤ 0 && throw(BoundsError(l, i))
+    for j in 1:length(l.mask)
+        counter += l.mask[j]
+        if counter == i
+            return LatticeSite(Tuple(cinds[j]))
+        end
+    end
+    throw(BoundsError(l, i))
+end
+
+"""
+    site_index(site, lattice)
+
+Returns the integer index for given `site` in `lattice`.
+Returns `nothing` if the site is not present in the lattice.
+"""
+function site_index(site::LatticeSite, l::Lattice)
+    i = findfirst(==(_cind(site)), vec(_cinds(l)))
+    !l.mask[i] && return nothing
+    count(@view l.mask[1:i])
+end
 
 Base.eltype(::Lattice{LatticeSym,N}) where {LatticeSym,N} = LatticeSite{N}
 
-==(@nospecialize(li1::LatticeSite), @nospecialize(li2::LatticeSite)) =
-    li1.basis_index == li2.basis_index && li1.unit_cell == li2.unit_cell
+==(@nospecialize(site1::LatticeSite), @nospecialize(site2::LatticeSite)) =
+    site1.basis_index == site2.basis_index && site1.unit_cell == site2.unit_cell
 
-function iterate(l::Lattice{LatticeSym,N,NB} where {LatticeSym}) where {N,NB}
-    cinds = CartesianIndex{N + 1}(1):CartesianIndex(size(l)..., NB)
+isless(@nospecialize(site1::LatticeSite), @nospecialize(site2::LatticeSite)) =
+    isless(_cind(site1), _cind(site2))
+
+function iterate(l::Lattice)
+    cinds = _cinds(l)
     cind, st = iterate(cinds)
     index = 1
     while !l.mask[index]
@@ -129,13 +162,13 @@ function iterate(::Lattice, state)
 end
 
 """
-    coords(lattice::Lattice, site::LatticeSite) -> vector
+    site_coords(lattice::Lattice, site::LatticeSite) -> vector
 Finds the location in space of lattice site `site` on lattice `lattice`.
 """
-coords(lattice::Lattice, site::LatticeSite) =
+site_coords(lattice::Lattice, site::LatticeSite) =
     bravais(lattice).basis[:, site.basis_index] + bravais(lattice).translation_vectors * (site.unit_cell - SVector(size(lattice)) / 2 .- 0.5)
 
-coords(lattice::Lattice{LatticeSym,N,1} where {LatticeSym,N}, site::LatticeSite) =
+site_coords(lattice::Lattice{LatticeSym,N,1} where {LatticeSym,N}, site::LatticeSite) =
     bravais(lattice).translation_vectors * (site.unit_cell - SVector(size(lattice)) / 2 .- 0.5)
 
 """
@@ -144,7 +177,7 @@ Finds the vector between two sites on a lattice according to possibly periodic b
 (`site2` will be translated along the macro cell to minimize the distance between them).
 """
 function radius_vector(lattice::Lattice, site1::LatticeSite, site2::LatticeSite)
-    ret_vec = coords(lattice, site1) - coords(lattice, site2)
+    ret_vec = site_coords(lattice, site1) - site_coords(lattice, site2)
     tr_diff = (site1.unit_cell - site2.unit_cell) ./ size(lattice)
     bravais_tr_vecs = bravais(lattice).translation_vectors
     for i in eachindex(tr_diff)
@@ -157,9 +190,10 @@ function radius_vector(lattice::Lattice, site1::LatticeSite, site2::LatticeSite)
     return ret_vec
 end
 
-@recipe function f(l::Lattice; show_excluded_sites=true, high_contrast=false)
+@recipe function f(l::Lattice; show_excluded_sites=true, show_indices=true, high_contrast=false)
     if high_contrast
         show_excluded_sites = false
+        show_indices = false
         markersize := 4
         markercolor := :black
         markerstrokealpha := 1
@@ -168,13 +202,19 @@ end
         markerstrokecolor := :white
     end
     if show_excluded_sites
-        l_without_mask = copy(l)
-        fill!(l_without_mask.mask, true)
+        l_outp = copy(l)
+        fill!(l_outp.mask, true)
+        annots = repeat(Any[""], length(l_outp))
+        annots[l.mask] = [(i, :left, :top, :grey, 10) for i in 1:length(l)]
         opacity := l.mask .* 0.9 .+ 0.1
-        l_without_mask, nothing
     else
-        l, nothing
+        l_outp = l
+        annots = [(i, :left, :top, :grey, 10) for i in 1:length(l)]
     end
+    if show_indices
+        series_annotations := annots
+    end
+    l_outp, nothing
 end
 
 function collect_coords(l::Lattice)
@@ -182,7 +222,7 @@ function collect_coords(l::Lattice)
     pts = zeros(d, length(l))
     i = 1
     for site in l
-        pts[:, i] = coords(l, site)
+        pts[:, i] = site_coords(l, site)
         i += 1
     end
     pts
@@ -245,7 +285,7 @@ and return a boolean value.
 """
 function sublattice(f::Function, l::Lattice{LatticeSym}) where {LatticeSym}
     new_mask = zero(l.mask)
-    new_mask[l.mask] = [f(site, coords(l, site)) for site in l]
+    new_mask[l.mask] = [f(site, site_coords(l, site)) for site in l]
     Lattice(LatticeSym, size(l), bravais(l), new_mask)
 end
 
@@ -278,7 +318,7 @@ function SquareLattice{N}(sz::Vararg{Int,N}) where {N}
     eye = SMatrix{N,N}(I)
     Lattice(:square, sz, Bravais(eye))
 end
-coords(l::SquareLattice, site::LatticeSite) =
+site_coords(l::SquareLattice, site::LatticeSite) =
     site.unit_cell - SVector(size(l)) / 2 .- 0.5
 
 """

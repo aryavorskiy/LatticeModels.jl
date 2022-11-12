@@ -41,18 +41,17 @@ Applies magnetic field to given hamiltonian matrix by adjusting the phase factor
 """
 function apply_field!(ham::LatticeOperator, field::AbstractField)
     l = lattice(ham)
-    N = dims_internal(ham)
     i = 1
     for site1 in l
         j = 1
         for site2 in l
-            if i > j && !iszero(ham.operator[N*(i-1)+1:N*i, N*(j-1)+1:N*j])
-                p1 = coords(l, site1)
-                p2 = coords(l, site2)
+            if i > j && !iszero(ham[i, j])
+                p1 = site_coords(l, site1)
+                p2 = site_coords(l, site2)
                 pmod = exp(2π * im * trip_integral(field, p1, p2))
                 !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
-                ham.operator[N*(i-1)+1:N*i, N*(j-1)+1:N*j] *= pmod
-                ham.operator[N*(j-1)+1:N*j, N*(i-1)+1:N*i] *= pmod'
+                ham[i, j] *= pmod
+                ham[j, i] *= pmod'
             end
             j += 1
         end

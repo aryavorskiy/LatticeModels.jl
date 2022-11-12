@@ -75,7 +75,7 @@ setindex!(lo::LatticeArray, val, is::Int...) =
 _typename(::LatticeVector) = "LatticeVector"
 _typename(::LatticeOperator) = "LatticeOperator"
 _typename(::LatticeArray) = "LatticeArray"
-function show(io::IO, m::MIME"text/plain", la::LatticeArray{LT,MT} where LT) where {MT}
+function show(io::IO, m::MIME"text/plain", la::LatticeArray{LT,MT} where {LT}) where {MT}
     println(io, join(size(la), "×"), " ", _typename(la), " with inner type $MT")
     print(io, "on ")
     show(io, m, la.basis)
@@ -110,7 +110,7 @@ function _zero_on_basis(l::Lattice, m::AbstractMatrix)
         zero(similar(m, ComplexF64, (N * length(l), N * length(l)))))
 end
 function _zero_on_basis(l::Lattice, lf::Function)
-    _zero_on_basis(l, lf(first(l), coords(l, first(l))))
+    _zero_on_basis(l, lf(first(l), site_coords(l, first(l))))
 end
 _zero_on_basis(l::Lattice, N::Int) = LatticeArray(Basis(l, N),
     zeros(ComplexF64, N * length(l), N * length(l)))
@@ -121,7 +121,7 @@ function _zero_on_basis(l::Lattice, tp::TensorProduct)
     zero(tp)
 end
 
-@inline _get_matrix_value(f::Function, l::Lattice, site::LatticeSite, ::Int) = f(site, coords(l, site))
+@inline _get_matrix_value(f::Function, l::Lattice, site::LatticeSite, ::Int) = f(site, site_coords(l, site))
 @inline _get_matrix_value(m::AbstractMatrix, ::Lattice, ::LatticeSite, ::Int) = m
 @inline _get_matrix_value(tp::TensorProduct, ::Lattice, ::LatticeSite, i::Int) = tp.lattice_value.values[i] * tp.matrix
 function _diag_operator!(lop::LatticeOperator, op_object)
@@ -202,7 +202,7 @@ function coord_operators(bas::Basis)
     xyz_operators = [LatticeArray(bas, op_mat) for op_mat in
                      eachslice(zeros(length(bas), length(bas), d), dims=3)]
     for site in bas.lattice
-        crd = coords(bas.lattice, site)
+        crd = site_coords(bas.lattice, site)
         for j in 1:d
             xyz_operators[j][i, i] = crd[j] * eye
         end

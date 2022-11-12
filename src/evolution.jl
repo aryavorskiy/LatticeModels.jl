@@ -114,7 +114,7 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12)
             push!(ham_evals, :($h_eval_new = $(esc(ham_expr))))
             push!(evolutor_updates,
                 :(
-                    if dt_changed || !isequal($h_eval, $h_eval_new)
+                    if dt_changed || $h_eval != $h_eval_new
                         $p_target_ev = $(_evolution_operator_call(h_eval_new, :dt, k))
                     end
                 ),

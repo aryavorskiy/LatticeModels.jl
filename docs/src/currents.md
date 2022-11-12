@@ -19,7 +19,7 @@ P = filled_projector(spectrum(H), -0.5)
 
 curr = DensityCurrents(H, P)                    # Create Currents object
 heatmap(ptrace(P) .|> real)
-plot!(curr, arrows_scale=5, arrows_rtol=0.1, color=:blue)    # Quiver-plot the currents
+plot!(curr, arrows_scale=25, arrows_rtol=0.1, color=:blue)    # Quiver-plot the currents
 ```
 
 What happened here? The formula for the density current from site $i$ to site $j$ is $J_{ij} = \text{tr}(-i \hat{h}_{ij} \hat{c}^\dagger_i \hat{c}_j \hat{\rho} + h. c.) = 2 \text{Im tr}(\hat{h}_{ij} \hat{c}^\dagger_i \hat{c}_j \hat{\rho})$. 
@@ -32,7 +32,7 @@ You can display currents between certain sites by using a boolean-typed `Lattice
 ```@example env
 x, y = coord_values(l)
 sub_curr = curr[x .< y]
-plot!(sub_curr, color=:green)
+plot!(sub_curr, arrows_scale=25, arrows_rtol=0.1, color=:green)
 ```
 
 ## Interface
@@ -46,4 +46,10 @@ It is quite likely that you might want to define your own type of currents. All 
 
 An `AbstractCurrents` is a lazy object - this allows to avoid excessive computation, but the computations that are needed will be repeated every time when we use the object. That's where the `MaterializedCurrents` come in, having all their values stored explicitly in an array.
 
-To convert any type of currents to `MaterializedCurrents`, simply use the [`materialize`](@ref) function. You can avoid evaluating some currents (for example, if you know beforehand that they must be zero) by passing a lambda as a first argument (or with `do`-syntax): it must take the `Lattice` and two `LatticeSite`s and return whether the current between these sites must be evaluated.
+To convert any type of currents to `MaterializedCurrents`, simply use the [`materialize`](@ref) function. You can avoid evaluating some currents (for example, if you know beforehand that they must be zero) by passing a lambda as a first argument (or with `do`-syntax): it must take the `Lattice` and two integer indices and return whether the current between these sites must be evaluated.
+
+You can find it similar to the selector function we used back in [Hopping operators](@ref Hopping-operators), which indeed is.
+You may find the following selector functions useful:
+
+- [`pairs_by_adjacent`](@ref) will keep only the currents between adjacent sites.
+- [`pairs_by_distance`](@ref) will allow you to select pairs of sites depending on the distance between them. 

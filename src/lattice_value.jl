@@ -25,7 +25,7 @@ struct LatticeValue{T,LatticeSym}
     end
 end
 
-LatticeValue(lf, l::Lattice) = LatticeValue(l, [lf(site, coords(l, site)) for site in l])
+LatticeValue(lf, l::Lattice) = LatticeValue(l, [lf(site, site_coords(l, site)) for site in l])
 
 lattice(l::LatticeValue) = l.lattice
 
@@ -96,6 +96,12 @@ end
 function getindex(lv::LatticeValue, lvm::LatticeValue{Bool})
     lattice(lv) != lattice(lvm) && error("lattice mismatch")
     LatticeValue(lv.lattice[lvm], lv.values[lvm.values])
+end
+
+Base.@propagate_inbounds function getindex(lv::LatticeValue, site::LatticeSite)
+    i = site_index(site, lattice(lv))
+    @boundscheck i === nothing && throw(BoundsError(lv, site))
+    lv.values[i]
 end
 
 _heatmap_axes(l::SquareLattice) = [-(ax - 1)/2:(ax-1)/2 for ax in size(l)]

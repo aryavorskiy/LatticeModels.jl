@@ -121,6 +121,21 @@ bs = bonds(hop_op)
 
 using Plots
 plot(bs)
-plot!(l, show_excluded_sites=false)
+plot!(l, show_excluded_sites=false, show_indices=false)
 ```
 
+Note that you can remove some of the hoppings by using *selector functions*:
+a *selector* a lambda which accepts a `Lattice` and two integer indices and return whether the sites should be connected by a hopping or not. Therefore, a *selector function* is a function that generates a selector depending on some parameters.
+
+For example, let's consider we want to split the lattice into two domains which are not connected to each other.
+In such case we must firstly generate a `LatticeValue` defining which site corresponds to which domain:
+
+```@example env
+domains = @. abs(x) < 1 && abs(y) < 1 # A 2x2 square in the center of the lattice
+hop_op2 = hopping_operator(pairs_by_domains(domains), l, hop1) + 
+          hopping_operator(pairs_by_domains(domains), l, hop2) + 
+          hopping_operator(pairs_by_domains(domains), l, hop3)
+
+plot(bonds(hop_op2))
+plot!(domains)
+```
