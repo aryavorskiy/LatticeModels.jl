@@ -16,7 +16,7 @@ bas = Basis(l, 2)
 X, Y = coord_operators(bas) # Same as coord_operators(l, 2)
 ```
 
-You can use arithmetic operators with `LatticeArray`s freely - after checking that the bases match they will be applied to the contained arrays,
+You can use arithmetic operators with `LatticeArray`s freely: after checking that the bases match they will be applied to the contained arrays,
 and the result will be wrapped into a new `LatticeArray`. 
 However, if you want to apply some other array operations (like `exp`), you can use the `@on_lattice` macro which will wrap the call as needed.
 
@@ -29,7 +29,7 @@ ERROR: MethodError: no method matching sin
 julia> @on_lattice X * sin(Y)
 50×50 LatticeOperator with inner type Matrix{Float64}
 on Basis with 2-dimensional internal phase space
-on 25-site square lattice on 5×5 base
+on 25-site square lattice on 5×5 macro cell
 ```
 
 ## Diagonal operators
@@ -83,12 +83,12 @@ A *hopping* operator is described by the following formula:
 
 $$\hat{A} = \sum_{\text{adjacent }(i, j)} \hat{h} \hat{c}^\dagger_j \hat{c}_i + h. c.$$
 
-The `Hopping` struct is a lazy representation of such an operator - it stores a matrix of the $\hat{h}$ operator 
+The `Hopping` struct is a lazy representation of such an operator: it stores a matrix of the $\hat{h}$ operator 
 and information about which sites should be considered *adjacent*. 
-The relative location of the connected sites is defined by their indices in the lattice basis 
+The relative location of the connected sites is defined by their respective indices in the lattice basis 
 and the relative location of their unit cells as translations along lattice axes (represented as an integer vector).
 
-A `Hopping` object can be created with the `hopping` function - its only positional argument is 
+A `Hopping` object can be created with the `hopping` function. Its only positional argument is 
 the $\hat{h}$ operator matrix and keyword arguments `site_indices` and `translate_uc`. 
 
 ```@repl env
@@ -124,6 +124,8 @@ plot(bs)
 plot!(l, show_excluded_sites=false, show_indices=false)
 ```
 
+## Selector functions
+
 Note that you can remove some of the hoppings by using *selector functions*:
 a *selector* a lambda which accepts a `Lattice` and two integer indices and return whether the sites should be connected by a hopping or not. Therefore, a *selector function* is a function that generates a selector depending on some parameters.
 
@@ -139,3 +141,5 @@ hop_op2 = hopping_operator(pairs_by_domains(domains), l, hop1) +
 plot(bonds(hop_op2))
 plot!(domains)
 ```
+
+See also [`pairs_by_domains`](@ref), [`pairs_by_lhs`](@ref), [`pairs_by_rhs`](@ref).

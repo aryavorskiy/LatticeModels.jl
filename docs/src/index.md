@@ -125,7 +125,7 @@ a = Animation()
     # Mark selected sites on the heatmap
     plot!(p[1], lattice(chern_marker_on_sw), high_contrast=true)
     # Add a line plot
-    plot!(p[2], chern_marker_on_sw, project_axis=:x, ylims=(-3, 3), lab=:none)
+    plot!(p[2], project(chern_marker_on_sw, :x), ylims=(-3, 3), lab=:none)
 
     plot!(plot_title="t = $t")
     frame(a)

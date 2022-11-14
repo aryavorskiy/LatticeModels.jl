@@ -14,26 +14,35 @@ Note that lattices of some types can be of any dimensionality, while others can 
 
 ```jldoctest; setup=:(using LatticeModels)
 julia> SquareLattice(10, 10)
-100-site square lattice on 10×10 base
+100-site square lattice on 10×10 macro cell
 
 julia> SquareLattice(3, 3, 3)
-27-site square lattice on 3×3×3 base
+27-site square lattice on 3×3×3 macro cell
 
 julia> HoneycombLattice(5, 5)
-50-site honeycomb lattice on 5×5 base (2-site basis)
+50-site honeycomb lattice on 5×5 macro cell (2-site basis)
 
 julia> HoneycombLattice(3, 3, 2)
 ERROR: MethodError: no method matching HoneycombLattice(::Int64, ::Int64, ::Int64)
 [...]
 ```
 
-A lattice can be scatter-plotted to see how its sites are located.
+A lattice can be scatter-plotted to see how its sites are located and which index is assigned to each site:
 
 ```@example env
 p = plot(size=(800, 350), layout=2)
 plot!(p[1], SquareLattice(10, 5))
 plot!(p[2], HoneycombLattice(8, 4))
 ```
+
+## Lattice sites
+
+A [`LatticeSite`](@ref) is a struct describing where a site of some Bravais lattice is located: 
+it stores the location of the unit cell and the site's number in the lattice basis.
+No information about its spatial coordinates is stored explicitly, but it can be obtained by passing the corresponding `Lattice` and the site to the [`site_coords`](@ref) function.
+
+Iterating over any `Lattice` will yield `LatticeSite`s. 
+You can also get them by indexing the `Lattice` object with integers, but it is relatively slow.
 
 ## Sublattices
 
@@ -50,7 +59,7 @@ l1 = l[@. abs(x) > 3 || abs(y) > 3]
 ```
 
 Here we first create the macro cell, then find the coordinate values for its sites.
-After that we use LatticeValue broadcasting - see [Lattice values](@ref) for more detail.
+After that we use LatticeValue broadcasting, see [Lattice values](@ref) for more detail.
 
 !!! tip
     This way to define sublattices is preferred, because code like this is the most readable.
@@ -122,8 +131,6 @@ gl = GrapheneLattice(6, 6, 3) do site, (x, y, z)
 end
 plot(gl, show_excluded_sites=false, show_indices=false)
 ```
-
-Here we
 
 !!! warning
     Please note that if the type alias is dimension-parametric, you must define the constructor *for a concrete type*, otherwise you will almost definitely break the lattice constructor dispatch:

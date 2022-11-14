@@ -20,14 +20,16 @@ x, y = coord_values(l)
 lv == x .+ y .+ 1
 ```
 
+!!! note
+    A wave function cannot and must not be stored as a `LatticeValue`, use `LatticeVector` instead. 
+    The reason is that a `LatticeValue` does not take one-site phase spaces into account, which renders them unusable for these purposes.
+    
+    Linear algebra operations and `@on_lattice` wrapping are deliberately unsupported for `LatticeValue`s.
+
 Lattice values implement a scatter plot recipe, which colors the plot markers according to the value:
 ```@example env
 plot(lv, markersize=20)
 ```
-
-!!! note
-    A wave function cannot and must not be stored as a `LatticeValue` - use `LatticeVector` instead. 
-    The reason is that a `LatticeValues` does not take one-site phase spaces into account.
 
 Depending on the lattice type, additional plot recipes can be available. For example, a lattice value on a square lattice can be plotted as a heatmap:
 
@@ -52,7 +54,7 @@ p = plot(layout=(2, 1))
 
 heatmap!(p[1], lv)
 plot!(p[1], lattice(lv_on_line), high_contrast=true)
-plot!(p[2], lv_on_line, project_axis=:y)
+plot!(p[2], project(lv_on_line, :y))
 ```
 
 Note that we can show the sites we selected by plotting the lattice of the selected values with `high_contrast=true`.

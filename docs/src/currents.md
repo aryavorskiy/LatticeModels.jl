@@ -23,7 +23,7 @@ plot!(curr, arrows_scale=25, arrows_rtol=0.1, color=:blue)    # Quiver-plot the 
 ```
 
 What happened here? The formula for the density current from site $i$ to site $j$ is $J_{ij} = \text{tr}(-i \hat{h}_{ij} \hat{c}^\dagger_i \hat{c}_j \hat{\rho} + h. c.) = 2 \text{Im tr}(\hat{h}_{ij} \hat{c}^\dagger_i \hat{c}_j \hat{\rho})$. 
-The `curr` object contains this formula inside - and when this object is passed to the `plot` function, all needed currents are evaluated.
+The `curr` object contains this formula inside and when this object is passed to the `plot` function, all needed currents are evaluated.
 
 A current between each pair of sites is shown as an arrow directed from one to another with its length proportional to the strength of the current. The `arrows_scale` keyword argument scales all arrows by given factor, while `arrows_rtol` hides all arrows that are shorter than some fraction of the distance between the sites.
 
@@ -44,7 +44,7 @@ It is quite likely that you might want to define your own type of currents. All 
 
 ## Materialized currents
 
-An `AbstractCurrents` is a lazy object - this allows to avoid excessive computation, but the computations that are needed will be repeated every time when we use the object. That's where the `MaterializedCurrents` come in, having all their values stored explicitly in an array.
+An `AbstractCurrents` is a lazy object. This allows to avoid excessive computation, but the computations that are needed will be repeated every time when we use that object. That's where the `MaterializedCurrents` come in, having all their values stored explicitly in an array.
 
 To convert any type of currents to `MaterializedCurrents`, simply use the [`materialize`](@ref) function. You can avoid evaluating some currents (for example, if you know beforehand that they must be zero) by passing a lambda as a first argument (or with `do`-syntax): it must take the `Lattice` and two integer indices and return whether the current between these sites must be evaluated.
 

@@ -43,7 +43,7 @@ $$\hat{H} =
 \sum_\text{y-bonds} c^\dagger_i \frac{\sigma_z - i \sigma_y}{2} c_j + 
 h. c. \right)$$
 
-Here we want the $m_i$ values to be represented by any number-typed `LatticeValue` - so the most convenient way to do it is to use tensor product notation:
+Here we want the $m_i$ values to be represented by any number-typed `LatticeValue`, so the most convenient way to do it is to use tensor product notation:
 
 ```@example env
 # The Pauli matrices
@@ -60,7 +60,7 @@ end
 nothing # hide
 ```
 
-Note that the `field` parameter is defaulted to `NoField()` - this is a magnetic field object representing zero field. Other available magnetic field objects are:
+Note that the `field` parameter is defaulted to `NoField()` (this is a magnetic field object representing zero field). Other available magnetic field objects are:
 
 - `LandauField(B::Real)` - Landau-calibrated uniform magnetic field
 - `SymmetricField(B::Real)` - symmetrically calibrated uniform magnetic field
@@ -92,3 +92,7 @@ P = projector(sp_filled)    # The same thing
 P = filled_projector(sp, 0) # The same thing
 P = filled_projector(sp)    # The same thing
 ```
+
+!!! warning
+    The [`spectrum`](@ref) function finds the eigenvalues and eigenvectors using `LinearAlgebra.eigen`.
+    You will probably have to define it for array types that do not support default `LinearAlgebra` routines.

@@ -131,17 +131,20 @@ end
 """
     plot_fallback(lv::LatticeValue)
 
-Creates a copy of `lv` lattice value with its `LatticeSym` overwritten to `:uncertain`.
+Creates a copy of `lv` lattice value with its `LatticeSym` overwritten to `:plot_fallback`.
 Use it to invoke the default plot recipe for `LatticeValues` when defining a custom one.
 """
 function plot_fallback(lv::LatticeValue)
     l = lattice(lv)
-    new_l = Lattice(:uncertain, size(l), bravais(l), l.mask)
+    new_l = Lattice(:plot_fallback, size(l), bravais(l), l.mask)
     LatticeValue(new_l, lv.values)
 end
 
-@recipe function f(lv::LatticeValue{<:Number,:square})
-    if get(plotattributes, :seriestype, :unknown) === :heatmap
+const PlottableLatticeValue{LT} = LatticeValue{<:Number, LT}
+
+@recipe function f(lv::PlottableLatticeValue{:square})
+    seriestype --> :heatmap
+    if plotattributes[:seriestype] === :heatmap
         aspect_ratio := :equal
         axes_lims = [-(ax - 1)/2:(ax-1)/2 for ax in size(lattice(lv))]
         heatmap_values = reshape(macro_cell_values(lv), reverse(size(lattice(lv))))'
@@ -151,17 +154,24 @@ end
     end
 end
 
-@recipe function f(lv::LatticeValue; project_axis=:none)
-    if project_axis !== :none
-        axis_no =   project_axis isa Int ? project_axis :
-                    project_axis === :x ? 1 :
-                    project_axis === :y ? 2 :
-                    project_axis === :z ? 3 : 0
-        axis_no ∉ 1:3 && error("unsupported projection axis '$project_axis'")
-        crds = collect_coords(lattice(lv))[axis_no, :]
-        perm = sortperm(crds)
-        crds[perm], lv.values[perm]
-    else
-        lv.lattice, lv.values
-    end
+@recipe function f(lv::PlottableLatticeValue)
+    lv.lattice, lv.values
+end
+
+"""
+    project(lattice_value, axis)
+
+Creates a mapping from site coordinates to values of `lattice_value`.
+The coordinate axis to project the sites onto can be set with the `axis` argument -
+it can be either an integer from 1 to 3 or a `Symbol` (`:x`, `:y` or `:z`).
+"""
+function project(lv::PlottableLatticeValue, axis)
+    axis_no = axis isa Int ? axis :
+        axis === :x ? 1 :
+        axis === :y ? 2 :
+        axis === :z ? 3 : 0
+    axis_no ∉ 1:3 && error("unsupported projection axis '$axis'")
+    crds = collect_coords(lattice(lv))[axis_no, :]
+    perm = sortperm(crds)
+    crds[perm], lv.values[perm]
 end

@@ -28,7 +28,7 @@ using LatticeModels
         end
         P = filled_projector(spectrum(H))
         X, Y = coord_operators(Basis(l, 2))
-        d = diag_aggregate(tr, 4π * im * P * X * (I - P) * Y * P)
+        d = ptrace(4π * im * P * X * (I - P) * Y * P)
         rd = d .|> real
         true
     end
@@ -68,8 +68,8 @@ using LatticeModels
         X, Y = coord_operators(l, 2)
         x, y = coord_values(l)
         xy = x .* y
-        p = plot(layout=3)
-        heatmap!(p[1], xy)
+        p = plot(layout=4)
+        plot!(p[1], xy)
         H = @hamiltonian begin
             lattice := l
             field := LandauField(0.5)
@@ -89,6 +89,7 @@ using LatticeModels
         plot!(p[1], bonds(l, hopping(translate_uc=[1, 1])))
         surface!(p[2], xy)
         scatter!(p[3], SquareLattice(3, 4, 5))
+        plot!(p[4], project(xy, :x))
         true
     end
 end
@@ -139,6 +140,10 @@ end
     xy = LatticeValue(l) do site, (x, y)
         x * y
     end
+    idxs = LatticeValue(l) do site, crd
+        site_index(site, l)
+    end
+    @test [idxs[s] for s in l] == 1:length(l)
     @test x == xtr
     @test x == xtr2
     @test x .* y == xy

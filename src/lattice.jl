@@ -201,18 +201,19 @@ end
         markerstrokewidth := 2
         markerstrokecolor := :white
     end
+    annot_markers = [(i, :left, :top, :grey, 8) for i in 1:length(l)]
     if show_excluded_sites
         l_outp = copy(l)
         fill!(l_outp.mask, true)
-        annots = repeat(Any[""], length(l_outp))
-        annots[l.mask] = [(i, :left, :top, :grey, 10) for i in 1:length(l)]
+        annotations = repeat(Any[""], length(l_outp))
+        annotations[l.mask] = annot_markers
         opacity := l.mask .* 0.9 .+ 0.1
     else
         l_outp = l
-        annots = [(i, :left, :top, :grey, 10) for i in 1:length(l)]
+        annotations = annot_markers
     end
     if show_indices
-        series_annotations := annots
+        series_annotations := annotations
     end
     l_outp, nothing
 end
@@ -266,9 +267,9 @@ end
 function show(io::IO, ::MIME"text/plain", l::Lattice{LatticeSym,N}) where {N,LatticeSym}
     print(io, "$(length(l))-site ", LatticeSym)
     if N != 1
-        print(io, " lattice on ", join(size(l), "×"), " base")
+        print(io, " lattice on ", join(size(l), "×"), " macro cell")
     elseif !all(l.mask)
-        print(io, " chain on ", size(l)[1], "-cell base")
+        print(io, " chain on ", size(l)[1], " unit cells")
     else
         print(io, " chain")
     end

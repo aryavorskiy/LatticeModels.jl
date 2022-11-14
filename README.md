@@ -26,7 +26,7 @@ using Plots, LinearAlgebra
 # First create a lattice
 l = SquareLattice(10, 10)
 
-# Define a Hofstadter model hamiltonian
+# Define a Hubbard model hamiltonian
 h(B) = @hamiltonian begin   
     lattice := l
     # Add hoppings along axis x and y

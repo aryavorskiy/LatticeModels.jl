@@ -5,7 +5,7 @@ export Bravais, LatticeSite, Lattice, sublattice, site_coords, site_index,
     SquareLattice, HoneycombLattice
 
 include("lattice_value.jl")
-export LatticeValue, coord_values
+export LatticeValue, coord_values, project
 include("lattice_operator.jl")
 export LatticeOperator, Basis, ⊗, lattice, basis,
     diag_operator, coord_operators, diag_aggregate, ptrace, @on_lattice
@@ -28,7 +28,7 @@ include("currents.jl")
 export AbstractCurrents, DensityCurrents,
     materialize, current_lambda, lattice, pairs_by_adjacent, pairs_by_distance
 
-# include("precompile.jl")
-# _precompile_()
+include("precompile.jl")
+_precompile_()
 
 end # module LatticeModels

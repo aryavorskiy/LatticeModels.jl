@@ -26,7 +26,7 @@ nothing # hide
 ```
 
 The [`@evolution`](@ref) macro creates a scope where the hamiltonian and wave functions (or density matrices) are evaluated for the given time interval. 
-It takes two arguments - a braced list with evolution specifiers and a for-loop that iterates over the time interval:
+It takes two arguments: a braced list with evolution specifiers and a for-loop that iterates over the time interval:
 
 ```@example env
 l = SquareLattice(10, 10)
@@ -79,7 +79,7 @@ The evolution macro avoids calculations where possible to improve performance. I
 - If the hamiltonian expression does not explicitly depend on the loop variable (`t` in the example), it will be considered constant and evaluated only once at the beginning. Otherwise it will be evaluated on every iteration in the loop scope.
 - If several states evolve according to the same hamiltonian, both the hamiltonian and the $\mathcal{U}(t, dt)$ evolution operator will be evaluated only once per iteration.
 
-To improve performance with small time intervals you can calculate the matrix exponent as a Taylor polynomial - its order can be set via `k` keyword.
+To improve performance with small time intervals you can calculate the matrix exponent as a Taylor polynomial. Its order can be set via `k` keyword.
 
 Keyword assignments should be placed before the rules list:
 

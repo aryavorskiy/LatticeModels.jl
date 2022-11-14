@@ -106,7 +106,7 @@ a function or a `⊗` tensor product notation.
 
 ## Examples
 
-For example let's generate a Chern insulator hamiltonian.
+This is how a Chern insulator hamiltonian is generated.
 ```julia
 l = SquareLattice(10, 10)
 x, y = coord_values(l)
@@ -145,8 +145,12 @@ const LatticeOperatorMT{MT} = LatticeOperator{LT,<:MT} where {LT}
     spectrum(operator)
 
 Finds eigenvalues and eigenvectors for a `LatticeOperator` and stores in in a Spectrum.
+
+!!! note
+    This method finds eigenvalues and eigenvectors using `LinearAlgebra.eigen`, which can be not defined for some array types.
+    Consider redefining it for your array type or constructing the Spectrum object explicitly.
 """
-function spectrum(lop::LatticeOperatorMT{Matrix})
+function spectrum(lop::LatticeOperator)
     !all(isfinite.(lop.operator)) && error("NaN of Inf in operator matrix")
     vals, vecs = eigen(Hermitian(lop.operator))
     Spectrum(lop.basis, vecs, vals)
@@ -159,13 +163,7 @@ length(sp::Spectrum) = length(sp.energies)
 getindex(sp::Spectrum, i::Int) = LatticeArray(sp.basis, sp.states[:, i])
 function getindex(sp::Spectrum; E::Number)
     min_e_dst = abs(E - sp.energies[1])
-    i = 1
-    for j in 2:length(sp)
-        if abs(E - sp.energies[j]) < min_e_dst
-            i = j
-            min_e_dst = abs(E - sp.energies[j])
-        end
-    end
+    i = argmin(@. abs(E - sp.energies))
     LatticeArray(sp.basis, sp.states[:, i])
 end
 getindex(sp::Spectrum, mask) =

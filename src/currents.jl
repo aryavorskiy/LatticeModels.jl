@@ -186,7 +186,9 @@ pairs_by_distance(f) =
                 push!(Ys, crd[2])
                 push!(Qs, Tuple(vc * (ij_curr * plotattributes[:arrows_scale] / vc_n)))
             end
+            j += 1
         end
+        i += 1
     end
     quiver := Qs
     Xs, Ys
