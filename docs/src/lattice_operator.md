@@ -77,6 +77,10 @@ lv = diag_aggregate(tr, op) # same as ptrace(op)
 lv == 2 .* x
 ```
 
+!!! tip
+    `ptrace` returns a complex-valued `LatticeValue` for most linear operators, which means that the imaginary part must be taken before plotting.
+    Consider [`site_density`](@ref) instead. This function is also applicable to wave functions represented as `LatticeVector`.
+
 ## Hopping operators
 
 A *hopping* operator is described by the following formula:

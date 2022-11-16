@@ -14,7 +14,7 @@ All you have to do is assign `lattice` and also `field` if needed, and then defi
 
 Let's take a look at the example on the [Usage examples](@ref) page:
 
-A simple Hubbard model hamiltonian for a square lattice is defined by the formula 
+A simple tight-binding model hamiltonian for a square lattice is defined by the formula 
 $$\hat{H} = \sum_\text{x-bonds} c^\dagger_i c_j + \sum_\text{y-bonds} c^\dagger_i c_j + h. c.$$
 
 We can create a matrix for this operator on a `xsize`×`ysize` square lattice with the following code:
@@ -24,7 +24,7 @@ using LatticeModels
 ```
 
 ```@example env
-Hubbard(xsize, ysize, field=NoField()) = @hamiltonian begin
+TightBinding(xsize, ysize, field=NoField()) = @hamiltonian begin
     lattice := SquareLattice(xsize, ysize)
     field := field
     @hop axis = 1   # x-bonds
@@ -75,8 +75,8 @@ A `Spectrum` object contains eigenvalues and eigenvectors of some hermitian oper
 It is a very convenient way to work with eigenvectors. Check this out:
 
 ```@repl env
-sp = spectrum(Hubbard(5, 5))
-sp[1]       # Get the first eigenstate (e. g. ground state)
+sp = spectrum(TightBinding(5, 5))
+sp[1]       # Get the first eigenstate (e. g. the state with lowest energy)
 sp[3]       # Get the third eigenstate
 sp[E = 0]   # Get eigenstate with energy nearest to 0
 sp[1:3]     # Create a new Spectrum with states from #1 to #3
@@ -96,3 +96,16 @@ P = filled_projector(sp)    # The same thing
 !!! warning
     The [`spectrum`](@ref) function finds the eigenvalues and eigenvectors using `LinearAlgebra.eigen`.
     You will probably have to define it for array types that do not support default `LinearAlgebra` routines.
+
+One more thing you can do with `Spectrum`s is finding the density of states (DOS) and the local density of states (LDOS). 
+The DOS is the imaginary part of $\text{tr}\left(\frac{1}{\hat{H} - E - i\delta}\right)$ operator, whereas the LDOS is its partial trace.
+
+It's highly recommended to use the built-in [`dos`](@ref) and [`ldos`](@ref) functions, because the `Spectrum` object stores the $\hat{H}$ operator already diagonalized, which makes calculations much faster.
+
+```@example env
+using Plots
+
+p = plot(layout=2, size=(800, 340))
+plot!(p[1], -4:0.1:4, dos(sp, 0.2), title="DOS with δ = 0.2")
+plot!(p[2], ldos(sp, 1, 0.2), title="LDOS at E = 1 with δ = 0.2")
+```

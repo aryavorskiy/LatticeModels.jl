@@ -158,6 +158,7 @@ end
 
 eigvals(sp::Spectrum) = sp.energies
 eigvecs(sp::Spectrum) = sp.states
+basis(sp::Spectrum) = sp.basis
 
 length(sp::Spectrum) = length(sp.energies)
 getindex(sp::Spectrum, i::Int) = LatticeArray(sp.basis, sp.states[:, i])
@@ -196,3 +197,24 @@ projector(f::Function, sp::Spectrum) =
 Creates a `LatticeOperator` that projects onto the eigenvectors which have eigenvalues less than `fermi_level` (0 by default).
 """
 filled_projector(sp::Spectrum, fermi_level=0) = projector(E -> E < fermi_level, sp)
+
+@doc raw"""
+    dos(spectrum, δ)
+
+Generates a function to calculate density of states, which is defined as
+$\text{tr}\left(\frac{1}{\hat{H} - E - i\delta}\right)$ and can be understood as a sum
+of Lorenz distributions with width equal to $\delta$.
+"""
+dos(sp::Spectrum, δ::Real) = (E -> imag(sum(1 ./ (eigvals(sp) .- (E + im * δ)))))
+
+@doc raw"""
+    ldos(spectrum, E, δ)
+
+Calculates local density of states, which is defined as the imaginary part of partial trace of
+$\frac{1}{\hat{H} - E - i\delta}$ operator.
+"""
+function ldos(sp::Spectrum, E::Real, δ::Real)
+    Es = eigvals(sp)
+    Vs = eigvecs(sp)
+    imag.(ptrace(LatticeArray(basis(sp), Vs * (@.(1 / (Es - E - im * δ)) .* Vs'))))
+end

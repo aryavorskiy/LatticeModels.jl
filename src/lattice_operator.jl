@@ -33,7 +33,7 @@ struct LatticeArray{LT<:Lattice,MT<:AbstractArray}
     basis::Basis{LT}
     operator::MT
     function LatticeArray(basis::Basis{LT}, operator::MT) where {LT<:Lattice,MT<:AbstractArray}
-        !all(size(operator) .== length(basis)) && error("inconsistent vector/matrix size")
+        !all((ax in (1, length(basis))) for ax in size(operator)) && error("inconsistent vector/matrix size")
         new{LT,MT}(basis, operator)
     end
 end
@@ -59,13 +59,16 @@ end
 
 size(la::LatticeArray) = size(la.operator)
 lattice(la::LatticeArray) = lattice(la.basis)
-dims_internal(la::LatticeArray) = dims_internal(la.basis)
+basis(la::LatticeArray) = la.basis
+dims_internal(x) = dims_internal(basis(x))
 
 @inline _ranges(is::Tuple, N::Int) = _ranges((), is, N)
 @inline _ranges(rngs::Tuple, ::Tuple{}, N::Int) = rngs
 @inline _ranges(rngs::Tuple, is::Tuple, N::Int) = _ranges(rngs, is[1], Base.tail(is), N)
 @inline _ranges(rngs::Tuple, i::Int, is::Tuple, N::Int) =
     _ranges((rngs..., N*(i-1)+1:N*i), is, N)
+@inline _ranges(rngs::Tuple, ::Colon, is::Tuple, N::Int) =
+    _ranges((rngs..., :), is, N)
 getindex(lo::LatticeArray, is::Int...) = lo.operator[_ranges(is, dims_internal(lo))...]
 setindex!(lo::LatticeArray, val, is::Int...) =
     (lo.operator[_ranges(is, dims_internal(lo))...] = val)
@@ -233,6 +236,23 @@ diag_aggregate(f::Function, lo::LatticeArray) =
 Same as `diag_aggregate(tr, lattice_operator)`
 """
 ptrace(lo::LatticeArray) = diag_aggregate(tr, lo)
+
+"""
+    site_density(lattice_vector)
+    site_density(lattice_operator)
+
+A convenience function to find local density for wave functions (represented by `lattice_vector`)
+and density matrices(represented by `lattice_operator`).
+
+For wave functions it yields the total probability of the particle of being on every site.
+For density matrices the partial trace is returned.
+The return type is `LatticeValue` for both types of arguments.
+"""
+site_density(lo::LatticeOperator) = real.(ptrace(lo))
+function site_density(lv::LatticeVector)
+    l = lattice(lv)
+    LatticeValue(l, [norm(lv[i])^2 for i in 1:length(l)])
+end
 
 @inline _make_wrapper(op, ::Nothing) = op
 @inline _make_wrapper(op::Number, ::Basis) = op

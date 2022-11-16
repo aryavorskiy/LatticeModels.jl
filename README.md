@@ -26,7 +26,7 @@ using Plots, LinearAlgebra
 # First create a lattice
 l = SquareLattice(10, 10)
 
-# Define a Hubbard model hamiltonian
+# Define a tight-binding model hamiltonian
 h(B) = @hamiltonian begin   
     lattice := l
     # Add hoppings along axis x and y
@@ -50,8 +50,7 @@ a = Animation()
     P_0 --> H --> P
 } for t in 0:0.1:2τ
     # Find the partial trace and plot it
-    density = real.(ptrace(P))
-    plot(density, clims=(0,1))
+    plot(site_density(P), clims=(0,1))
 
     # Show currents on the plot
     plot!(DensityCurrents(H, P), arrows_scale=7)

@@ -35,12 +35,14 @@ sub_curr = curr[x .< y]
 plot!(sub_curr, arrows_scale=25, arrows_rtol=0.1, color=:green)
 ```
 
+Here all currents **between** sites in the upper-left coordinate triangle are marked green.
+
 ## Interface
 
 It is quite likely that you might want to define your own type of currents. All you need to do is inherit the `AbstractCurrents` type and define two functions:
 
 - `lattice(::MyCurrents)` must return the lattice which the currents are defined on
-- `currents_lambda(::MyCurrents)` must return a lambda which takes two integer site indices and returns the current between these two sites. Note that the function must be skew-symmetric, e. g. `curr_lambda(i, j) == -curr_lambda(j, i)`
+- `currents_lambda(::MyCurrents)` must return a lambda which takes two integer site indices and returns the current between these two sites. Note that the function must be skew-symmetric, e. g. `curr_lambda(i, j) == -curr_lambda(j, i)`.
 
 ## Materialized currents
 
@@ -53,3 +55,30 @@ You may find the following selector functions useful:
 
 - [`pairs_by_adjacent`](@ref) will keep only the currents between adjacent sites.
 - [`pairs_by_distance`](@ref) will allow you to select pairs of sites depending on the distance between them. 
+
+## Mapping currents
+
+In some cases we want to find out how currents depend on some lattice properties: for example, the distance between sites.
+In such case, the [`map_currents`](@ref) function can be quite helpful.
+
+Let's find the mean and the standard deviation for currents between sites given the distance between them:
+
+```@example env
+using LinearAlgebra, Statistics
+
+dist, adcurr = map_currents(
+    curr, 
+    aggr_fn=(x -> [mean(abs.(x)), std(abs.(x))]),
+    sorted=true
+) do l, site1, site2
+    norm(site_coords(l, site1) - site_coords(l, site2))
+end
+
+acurr, dcurr = eachrow(hcat(adcurr...))
+scatter(dist, acurr, err=dcurr, xlims=(0, 14))
+```
+
+What happened here? The `map_currents` function found the distance and the current between each pair of sites. Then for each distance between sites it found the mean and standard deviation for currents in such pairs, and stored it as a vector of vectors.
+In the next line we extracted the mean and standard deviation into separate lists, and plotted the obtained data.
+
+From this picture we can see that there are no density currents between non-adjacent sites, as one must have expected.

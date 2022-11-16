@@ -11,14 +11,50 @@ This package provides a set of tools to simulate different quantum lattice syste
 
 ## Usage examples
 
-### Currents in Hubbard model on a ring-shaped sample
+### Local density for lowest states in a tight-binding model
+
+The tight-binding model hamiltonian is defined by this formula:
+
+$$\hat{H} = \sum_\text{x-bonds} c^\dagger_i c_j + \sum_\text{y-bonds} c^\dagger_i c_j + h. c.$$
+
+Here we will find its eigenstates and plot their local density on heatmaps.
+
+```@example
+using LatticeModels
+using LinearAlgebra, Plots
+# Generate a 40x40 square lattice
+l = SquareLattice(40, 40)
+# Define the tight-binding model hamiltonian
+H = @hamiltonian begin 
+    lattice := l
+    # Add hoppings along axis x and y
+    @hop axis = 1
+    @hop axis = 2
+end
+
+# Calculate eigenvalues and eigenvectors
+sp = spectrum(H)
+
+n = 5
+clims = (0, 0.0045)
+p = plot(layout = @layout[ grid(n, n) a{0.1w}], size=(1000, 850))
+for i in 1:n^2
+    E_rounded = round(eigvals(sp)[i], sigdigits=4)
+    plot!(p[i], site_density(sp[i]), title="\$E_{$i} = $E_rounded\$", clims=clims, cbar=:none)
+end
+
+# The following 2 lines are kinda hacky; they draw one colorbar for all heatmaps
+plot!(p[n^2+1], framestyle=:none)
+scatter!([NaN], zcolor=[NaN], clims=clims, leg=:none, cbar=:right, background=:transparent, 
+    framestyle=:none, inset=bbox(0.0, 0.05, 0.95, 0.9), subplot=n^2+2)
+```
+
+### Currents in a tight-binding model on a ring-shaped sample
 
 In this example we delete part of the sites in the middle of a square lattice. 
 Then we adiabatically turn on magnetic field through the hole and see currents emerge.
 
-The Hubbard model hamiltonian is defined by this formula:
-
-$$\hat{H} = \sum_\text{x-bonds} c^\dagger_i c_j + \sum_\text{y-bonds} c^\dagger_i c_j + h. c.$$
+The tight-binding hamiltonian is the same as in the example above.
 
 ```@example
 using LatticeModels
@@ -27,18 +63,13 @@ using LinearAlgebra, Plots
 l = SquareLattice(10, 10) do site, (x, y)
     abs(x) > 1 || abs(y) > 1
 end
-
-# Define a spinless Hubbard model hamiltonian
 h(B) = @hamiltonian begin   
     lattice := l
-    # Add hoppings along axis x and y
     @hop axis = 1
     @hop axis = 2
     # Add magnetic field through (0, 0) point
     field := FluxField(B, (0, 0))
 end
-
-# Calculate eigenvalues and eigenvectors
 sp = spectrum(h(0))
 
 # Find density matrix for filled bands (e. g. energy < 0)
@@ -51,7 +82,7 @@ a = Animation()
     P_0 --> H --> P
 } for t in 0:0.1:2τ
     # Find the partial trace and plot it
-    heatmap(real.(ptrace(P)), clims=(0,1))
+    plot(site_density(P), clims=(0,1))
 
     # Show currents on the plot
     plot!(DensityCurrents(H, P), arrows_scale=7, arrows_rtol=0.1)
@@ -113,12 +144,12 @@ a = Animation()
     H := H2
     P_0 --> H --> P
 } for t in 0:0.1:2τ
-    p = plot(layout=2, size=(900, 500))
+    p = plot(layout=2, size=(900, 400))
 
     # Local Chern marker heatmap
     lcm_operator = 4pi * im * P * X * P * Y * P
     chern_marker = ptrace(lcm_operator) .|> real
-    heatmap!(p[1], chern_marker, clims=(-2, 2))
+    plot!(p[1], chern_marker, clims=(-2, 2))
 
     # Select sites on y=0 line (use ≈ to avoid rounding errors)
     chern_marker_on_sw = chern_marker[@. y ≈ 0]

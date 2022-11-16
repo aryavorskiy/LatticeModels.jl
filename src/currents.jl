@@ -162,6 +162,48 @@ returning whether `function` applied to distence between the two sites returned 
 pairs_by_distance(f) =
     (l::Lattice, i::Int, j::Int) -> f(norm(radius_vector(l, l[i], l[j])))::Bool
 
+"""
+    map_currents(map_fn, currents[; aggr_fn, sort])
+
+Accepts a function that takes a `Lattice` and two `LatticeSite`s and returns any value.
+Applies `map_fn` to every site pair and returns two `Vector`s: one with currents, one with results of `map_fn`.
+
+**Keyword arguments:**
+- `aggr_fn`: if a function is provided, all currents with the same mapped value will be aggregated into one value.
+For example, if `aggr_fn=(x -> mean(abs.(x)))`, and `map_fn` finds the distance between the sites,
+the returned lists will store the distance between sites and the average absolute current between sites with such distance.
+"""
+function map_currents(f::Function, curr::AbstractCurrents; aggr_fn::Union{Nothing, Function}=nothing, sorted::Bool=false)
+    l = lattice(curr)
+    curr_fn = current_lambda(curr)
+    cs = Float64[]
+    ms = only(Base.return_types(f, (Lattice, LatticeSite, LatticeSite)))[]
+    i = 1
+    for site1 in l
+        j = 1
+        for site2 in l
+            if site1 > site2
+                push!(cs, curr_fn(i, j))
+                push!(ms, f(l, site1, site2))
+            else
+                break
+            end
+            j += 1
+        end
+        i += 1
+    end
+    if aggr_fn !== nothing
+        ms_set = collect(Set(ms))
+        cs = [aggr_fn(cs[ms .== m]) for m in ms_set]
+        ms = ms_set
+    end
+    if sorted
+        perm = sortperm(ms)
+        return ms[perm], cs[perm]
+    end
+    ms, cs
+end
+
 @recipe function f(curr::AbstractCurrents)
     l = lattice(curr)
     dims(l) != 2 && error("2D lattice expected")
