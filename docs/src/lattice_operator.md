@@ -143,7 +143,7 @@ hop_op2 = hopping_operator(pairs_by_domains(domains), l, hop1) +
           hopping_operator(pairs_by_domains(domains), l, hop3)
 
 plot(bonds(hop_op2))
-plot!(domains)
+plot!(domains, cbar=false)
 ```
 
 See also [`pairs_by_domains`](@ref), [`pairs_by_lhs`](@ref), [`pairs_by_rhs`](@ref).

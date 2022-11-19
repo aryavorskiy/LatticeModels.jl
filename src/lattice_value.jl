@@ -104,8 +104,6 @@ Base.@propagate_inbounds function getindex(lv::LatticeValue, site::LatticeSite)
     lv.values[i]
 end
 
-_heatmap_axes(l::SquareLattice) = [-(ax - 1)/2:(ax-1)/2 for ax in size(l)]
-
 raw"""
     macro_cell_values(lv::LatticeValue)
 

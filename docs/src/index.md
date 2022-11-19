@@ -2,6 +2,16 @@
 
 This package provides a set of tools to simulate different quantum lattice systems.
 
+## Installation
+
+```jldoctest
+pkg> add https://github.com/aryavorskiy/LatticeModels.jl
+```
+or
+```julia
+import Pkg; Pkg.install(url="https://github.com/aryavorskiy/LatticeModels.jl")
+```
+
 ## Package features
 - Bravais lattices with arbitrary geometry and any possible count of internal states on one sites.
 - Versatile hamiltonian generation tools.
@@ -163,4 +173,39 @@ a = Animation()
 end
 
 gif(a, "animation.gif")
+```
+
+### LDOS animation
+
+Local density can be a bit ambiguous for degenerate eigenstates. That's where the LDOS (Refer to [`ldos`](@ref) documentation) will be helpful.
+
+Let's take the same hamiltonian from the previous example and create a LDOS animation.
+
+```@example
+using LatticeModels
+using LinearAlgebra, Plots
+l = SquareLattice(40, 40)
+σ = [[0 1; 1 0], [0 -im; im 0], [1 0; 0 -1]]
+H = @hamiltonian begin   
+    lattice := l
+    @diag σ[3]
+    @hop (σ[3] - im * σ[1]) / 2 axis = 1
+    @hop (σ[3] - im * σ[2]) / 2 axis = 2
+end
+
+sp = spectrum(H)
+δ = 0.1
+Es = -4:0.1:4
+Es_d = -4:0.01:4
+ldosf = ldos(sp, δ)
+a = @animate for E in Es
+    print("\rE = $E") # hide
+    p = plot(layout=2, size=(800, 400))
+    plot!(p[1], Es_d, dos(sp, δ), lab="", title="DOS")
+    vline!(p[1], [E], lab="")
+    plot!(p[2], ldosf(E), clims=(0, NaN), title="LDOS")
+    plot!(p, plot_title="E = $E, δ = $δ")
+end
+
+gif(a, "animation.gif", fps=10)
 ```

@@ -58,9 +58,9 @@ function LatticeOperator(op::UniformScaling, bas::Basis)
 end
 
 size(la::LatticeArray) = size(la.operator)
-lattice(la::LatticeArray) = lattice(la.basis)
 basis(la::LatticeArray) = la.basis
 dims_internal(x) = dims_internal(basis(x))
+lattice(x) = lattice(basis(x))
 
 @inline _ranges(is::Tuple, N::Int) = _ranges((), is, N)
 @inline _ranges(rngs::Tuple, ::Tuple{}, N::Int) = rngs
@@ -346,7 +346,7 @@ X, Y = coord_operators(bas)
 xexpypy = diag_operator(bas) do site, (x, y)
     x * exp(y) + y
 end
-xexpy == @on_lattice X * exp(Y) + Y     # true
+xexpypy == @on_lattice X * exp(Y) + Y     # true
 ```
 """
 macro on_lattice(expr)

@@ -39,6 +39,7 @@ using LatticeModels
             lattice := l
             field := LandauField(0.5)
             @diag [1 0; 0 -1]
+            @diag rand(l) ⊗ [1 0; 0 1]
             @hop axis = 1 [1 im; im -1] / 2
             @hop axis = 2 [1 1; -1 -1] / 2
         end
@@ -49,6 +50,7 @@ using LatticeModels
                 lattice := l
                 field := LandauField(t)
                 @diag ms ⊗ [1 0; 0 -1]
+                @diag randn(l) ⊗ [1 0; 0 1]
                 @hop axis = 1 [1 im; im -1] / 2
                 @hop axis = 2 [1 1; -1 -1] / 2
             end
@@ -181,11 +183,17 @@ end
     l2 = SquareLattice(5, 20)
     bas2 = Basis(l2, 2)
     X2, Y2 = coord_operators(bas2)
+    vcv = zeros(length(bas))
+    vcv[1] = 1
+    vc = LatticeModels.LatticeArray(bas, vcv)
+    xf = site_coords(l, l[1])[1]
 
     @testset "In-place arithmetics" begin
+        @test X - Y == X + -Y
         @test X^2 == xsq
         @test X * Y == xy
         @test X * 2 + 2Y - I == x2p2ym1
+        @test vc' * X * vc == xf
         @test_throws "basis mismatch" X * X2
         @test_throws MethodError X * ones(200, 200)
     end
@@ -212,36 +220,42 @@ end
 
 @testset "Hopping tests" begin
     l = SquareLattice(2, 2)
-    ls1, _, ls2, ls3 = l
+    ls1, _, ls3, ls4 = l
     @testset "Constructor" begin
         @test hopping(axis=1) == hopping(translate_uc=[1])
         @test hopping(axis=1) != hopping(translate_uc=[1, 0])
-        @test hopping(axis=1) == LatticeModels.promote_dims!(hopping(translate_uc=[1, 0]), 1)
-        @test hopping(axis=1, pbc=[true, false]) == hopping(translate_uc=[1, 0], pbc=[true, false])
+        @test hopping(axis=1) == LatticeModels.promote_dims!(hopping(translate_uc=[1, 0], pbc=[false, true]), 1)
+        @test hopping(site_indices=(1,2)) == LatticeModels.promote_dims!(hopping(site_indices=(1,2), pbc=[false, true]), 1)
+        @test hopping(axis=2, pbc=true) == hopping(translate_uc=[0, 1], pbc=[true, true])
         @test hopping([-1;;], axis=1) == hopping(-1, axis=1)
+        @test_throws "to hopping indices" hopping(site_indices=(1, 2, 3))
+        @test_throws "connects site to itself" hopping(translate_uc=[0, 0], site_indices=2)
         @test_throws "cannot shrink" LatticeModels.promote_dims!(hopping(translate_uc=[0, 1]), 1)
     end
     @testset "Hopping matching" begin
-        @test !LatticeModels._match(hopping(axis=1), l, ls1, ls2)
-        @test LatticeModels._match(hopping(axis=2), l, ls1, ls2)
-        @test LatticeModels._match(hopping(axis=1), l, ls2, ls3)
-        @test !LatticeModels._match(hopping(axis=2), l, ls2, ls3)
+        @test !LatticeModels._match(hopping(axis=1), l, ls1, ls3)
+        @test LatticeModels._match(hopping(axis=2), l, ls1, ls3)
+        @test LatticeModels._match(hopping(axis=1), l, ls3, ls4)
+        @test !LatticeModels._match(hopping(axis=2), l, ls3, ls4)
     end
-    @testset "Adjacency" begin
+    @testset "Bonds" begin
         bs = bonds(l, hopping(axis=1), hopping(axis=2))
         bs1 = bonds(l, hopping(axis=1)) | bonds(l, hopping(axis=2))
         bs2 = bs^2
         f = pairs_by_adjacent(bs)
         f2 = pairs_by_adjacent(bs2)
+        @test bs.bmat == (!!bs).bmat
         @test bs.bmat == bs1.bmat
-        @test is_adjacent(bs, ls1, ls2)
-        @test !is_adjacent(bs, ls1, ls3)
-        @test is_adjacent(bs2, ls1, ls2)
+        @test is_adjacent(bs, ls1, ls3)
+        @test is_adjacent(bs, 1, 3)
+        @test !is_adjacent(bs, ls1, ls4)
+        @test !is_adjacent(bs, 1, 4)
         @test is_adjacent(bs2, ls1, ls3)
-        @test f(l, site_index(ls1, l), site_index(ls2, l))
-        @test !f(l, site_index(ls1, l), site_index(ls3, l))
-        @test f2(l, site_index(ls1, l), site_index(ls2, l))
+        @test is_adjacent(bs2, ls1, ls4)
+        @test f(l, site_index(ls1, l), site_index(ls3, l))
+        @test !f(l, site_index(ls1, l), site_index(ls4, l))
         @test f2(l, site_index(ls1, l), site_index(ls3, l))
+        @test f2(l, site_index(ls1, l), site_index(ls4, l))
     end
     x, y = coord_values(l)
     op1 = hopping_operator(pairs_by_lhs(x .< y), l, hopping(axis=1))
@@ -257,39 +271,43 @@ end
         vector_potential(x) = (0, x * B)
         n_steps := 100
     end
-    @field_def struct StrangeLandauField(B::Number)
-        vector_potential(point...) = (0, point[1] * B)
-        trip_integral(p1, p2) = 123
+    @field_def struct StrangeLandauField
+        vector_potential(point...) = (0, point[1] * 0.1)
+        path_integral(p1, p2) = 123
     end
+    @field_def struct EmptyField end
     l = SquareLattice(10, 10)
     la = LandauField(0.1)
     lla = LazyLandauField(0.1)
-    sla = StrangeLandauField(0.1)
+    sla = StrangeLandauField()
     sym = SymmetricField(0.1)
     flx = FluxField(0.1, (0, 0))
-    @testset "Trip integral" begin
+    emf = EmptyField()
+    @testset "Path integral" begin
         p1 = SA[1, 2]
         p2 = SA[3, 4]
-        @test LatticeModels.trip_integral(la, p1, p2) ≈
-              LatticeModels.trip_integral(la, p1, p2; n_steps=100)
-        @test LatticeModels.trip_integral(lla, p1, p2; n_steps=100) ==
-              LatticeModels.trip_integral(lla, p1, p2)
-        @test LatticeModels.trip_integral(la, p1, p2) ≈
-              LatticeModels.trip_integral(lla, p1, p2)
+        @test LatticeModels.path_integral(la, p1, p2) ≈
+              LatticeModels.path_integral(la, p1, p2; n_steps=100)
+        @test LatticeModels.path_integral(lla, p1, p2; n_steps=100) ==
+              LatticeModels.path_integral(lla, p1, p2)
+        @test LatticeModels.path_integral(la, p1, p2) ≈
+              LatticeModels.path_integral(lla, p1, p2)
 
-        @test LatticeModels.trip_integral(sla, p1, p2; n_steps=100) ≈
-              LatticeModels.trip_integral(la, p1, p2)
-        @test LatticeModels.trip_integral(sla, p1, p2) == 123
+        @test LatticeModels.path_integral(sla, p1, p2; n_steps=100) ≈
+              LatticeModels.path_integral(la, p1, p2)
+        @test LatticeModels.path_integral(sla, p1, p2) == 123
 
-        @test LatticeModels.trip_integral(sym, p1, p2; n_steps=1) ≈
-              LatticeModels.trip_integral(sym, p1, p2)
-        @test LatticeModels.trip_integral(sym, p1, p2; n_steps=100) ≈
-              LatticeModels.trip_integral(sym, p1, p2)
+        @test LatticeModels.path_integral(sym, p1, p2; n_steps=1) ≈
+              LatticeModels.path_integral(sym, p1, p2)
+        @test LatticeModels.path_integral(sym, p1, p2; n_steps=100) ≈
+              LatticeModels.path_integral(sym, p1, p2)
 
-        @test LatticeModels.trip_integral(flx, p1, p2; n_steps=1000) ≈
-              LatticeModels.trip_integral(flx, p1, p2) atol = 1e-8
-        @test LatticeModels.trip_integral(flx + sym, p1, p2; n_steps=1000) ≈
-              LatticeModels.trip_integral(flx + sym, p1, p2) atol = 1e-8
+        @test LatticeModels.path_integral(flx, p1, p2; n_steps=1000) ≈
+              LatticeModels.path_integral(flx, p1, p2) atol = 1e-8
+        @test LatticeModels.path_integral(flx + sym, p1, p2; n_steps=1000) ≈
+              LatticeModels.path_integral(flx + sym, p1, p2) atol = 1e-8
+
+        @test_throws "no vector potential function" LatticeModels.vector_potential(emf, SA[1, 2, 3])
     end
 
     @testset "Field application" begin
@@ -321,7 +339,8 @@ end
     end
     H2 = @hamiltonian begin
         lattice := l
-        @hop translate_uc = [0, 1] [1 0; 0 -1] (l, i, j) -> ((x, y) = site_coords(l, l[i]); x + 1 < y)
+        @hop translate_uc = [0, 1] pbc = [true, false] [1 0; 0 -1] (l, i, j) ->
+                                                ((x, y) = site_coords(l, l[i]); x + 1 < y)
         @diag (site, (x, y)) -> [x+y 0; 0 -x-y]
         field := LandauField(0.5)
     end
@@ -332,6 +351,16 @@ end
     @test length(sp) == size(states)[2]
     @test sp[1] == sp[E=-100]
     @test filled_projector(sp).operator ≈ projector(sp[Es.<0]).operator
+
+    # LDOS tests
+    E = 2
+    δ = 0.2
+    Es = eigvals(sp)
+    Vs = eigvecs(sp)
+    ld1 = imag.(ptrace(LatticeModels.LatticeArray(basis(sp), Vs * (@.(1 / (Es - E - im * δ)) .* Vs'))))
+    ldosf = ldos(sp, δ)
+    @test ldos(sp, E, δ).values ≈ ld1.values
+    @test ldosf(E).values ≈ ld1.values
 end
 
 @testset "Currents tests" begin

@@ -37,7 +37,7 @@ function _tr_and_pbc(axis::Int, pbc::Bool)
     tr_vc[axis] = 1
     return (tr_vc, fill(pbc, axis))
 end
-_get_site_indices(::Type{T}) where T = error("Cannot convert object of type $T to lattice indices")
+_get_site_indices(::T) where T = error("Cannot convert object of type $T to hopping indices")
 _get_site_indices(i::Int) = (i, i)
 _get_site_indices(t::NTuple{2, Int}) = t
 
@@ -150,7 +150,7 @@ function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field:
             if @inbounds(_match(hop, l, site1, site2)) && _get_bool_value(selector, l, i, j)
                 p1 = site_coords(l, site1)
                 p2 = p1 + trv
-                pmod = exp(2π * im * trip_integral(field, p1, p2))
+                pmod = exp(2π * im * path_integral(field, p1, p2))
                 !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
                 lop[i, j] += hop.hop_operator * pmod
                 lop[j, i] += hop.hop_operator' * pmod'
@@ -375,8 +375,6 @@ end
             end
         end
     end
-    @series begin
-        label := nothing
-        pts
-    end
+    label := nothing
+    pts
 end

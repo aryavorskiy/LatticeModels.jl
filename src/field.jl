@@ -17,13 +17,13 @@ vector_potential(::FT, point) where {FT<:AbstractField} =
 dot_assuming_zeros(m::SVector{M}, n::SVector{N}) where {M,N} = m[1:min(M, N)]' * n[1:min(M, N)]
 
 @doc raw"""
-    trip_integral(field, p1, p2; n_steps=1)
+    path_integral(field, p1, p2; n_steps=1)
 
 Calculates the $\int_{p1}^{p2} \overrightarrow{A} \cdot \overrightarrow{dl}$ integral using the trapezoidal rule.
 Increase `n_steps` to improve accuracy (for linear fields like Landau or symmetrical calibrations the formula is accurate).
 If needed, redefine this function for specific field types - this is likely to boost accuracy and performance.
 """
-function trip_integral(field::AbstractField, p1, p2; n_steps=1)
+function path_integral(field::AbstractField, p1, p2; n_steps=1)
     integral = 0.0
     dp = (p2 - p1) / n_steps
     p = p1 + 0.5dp
@@ -48,7 +48,7 @@ function apply_field!(ham::LatticeOperator, field::AbstractField)
             if i > j && !iszero(ham[i, j])
                 p1 = site_coords(l, site1)
                 p2 = site_coords(l, site2)
-                pmod = exp(2π * im * trip_integral(field, p1, p2))
+                pmod = exp(2π * im * path_integral(field, p1, p2))
                 !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
                 ham[i, j] *= pmod
                 ham[j, i] *= pmod'
@@ -101,7 +101,7 @@ macro field_def(struct_block)
     struct_params = _extract_varname.(struct_args)
     body = struct_block.args[3]
     struct_definition = quote
-        import LatticeModels: trip_integral, vector_potential
+        import LatticeModels: path_integral, vector_potential
         import Base: show
         struct $struct_name <: AbstractField
             $(struct_args...)
@@ -138,15 +138,15 @@ macro field_def(struct_block)
                 else
                     error("invalid argument types")
                 end
-            elseif fn_name === :trip_integral
+            elseif fn_name === :path_integral
                 local _begin = 1
                 Meta.isexpr(fn_args[1], :parameters) && (_begin = 2)
                 le = length(fn_args) - _begin + 1
                 le != 2 &&
-                    error("trip_integral must have 2 positional arguments")
+                    error("path_integral must have 2 positional arguments")
                 insert!(fn_args, _begin, :(field::$struct_name))
                 push!(struct_definition.args, :(
-                    function LatticeModels.trip_integral($(fn_args...))
+                    function LatticeModels.path_integral($(fn_args...))
                         local vector_potential(p) = LatticeValues.SVector(vector_potential(field, p))
                         $fn_body
                     end
@@ -164,8 +164,8 @@ macro field_def(struct_block)
             key, arg = statement.args
             if key === :n_steps
                 push!(struct_definition.args, :(
-                    LatticeModels.trip_integral(field::$struct_name, p1, p2) =
-                        LatticeModels.trip_integral(field, p1, p2; n_steps=$arg)
+                    LatticeModels.path_integral(field::$struct_name, p1, p2) =
+                        LatticeModels.path_integral(field, p1, p2; n_steps=$arg)
                 ))
             else
                 @warn "unsupported key $key ignored"
@@ -178,7 +178,7 @@ macro field_def(struct_block)
 end
 
 @field_def struct NoField
-    trip_integral(p1, p2) = 0
+    path_integral(p1, p2) = 0
 end
 """
     NoField <: AbstractField
@@ -190,7 +190,7 @@ NoField
 
 @field_def struct LandauField(B::Number)
     vector_potential(x) = SA[0, x*B]
-    trip_integral(p1, p2) = ((p1[1] + p2[1]) / 2) * (p2[2] - p1[2]) * B
+    path_integral(p1, p2) = ((p1[1] + p2[1]) / 2) * (p2[2] - p1[2]) * B
     show(io::IO, ::MIME"text/plain") = print(io, "Landau calibration field; B = $B flux quanta per 1×1 plaquette")
 end
 """
@@ -204,7 +204,7 @@ LandauField
 
 @field_def struct SymmetricField(B::Number)
     vector_potential(x, y) = SA[-y, x] * B / 2
-    trip_integral(p1, p2) = (p1[1] * p2[2] - p2[1] * p1[2]) / 2 * B
+    path_integral(p1, p2) = (p1[1] * p2[2] - p2[1] * p1[2]) / 2 * B
     show(io::IO, ::MIME"text/plain") = print(io, "Symmetric calibration field; B = $B flux quanta per 1×1 plaquette")
 end
 """
@@ -222,7 +222,7 @@ _angle(p1, p2) = asin((1.0 - 1e-11) * det(hcat(p1, p2)) / norm(p1) / norm(p2))
         norm = (x^2 + y^2)
         (-y / norm * B, x / norm * B)
     end
-    function trip_integral(p1, p2)
+    function path_integral(p1, p2)
         Pv = SVector(P)
         p1 = p1[1:2] - Pv
         p2 = p2[1:2] - Pv
@@ -247,7 +247,7 @@ struct FieldSum{N} <: AbstractField
     fields::NTuple{N,AbstractField}
 end
 vector_potential(f::FieldSum, p1) = sum(SVector(vector_potential(field, p1)) for field in f.fields)
-trip_integral(f::FieldSum, p1, p2) = sum(trip_integral(field, p1, p2) for field in f.fields)
+path_integral(f::FieldSum, p1, p2) = sum(path_integral(field, p1, p2) for field in f.fields)
 function show(io::IO, m::MIME"text/plain", f::FieldSum{N}) where {N}
     print(io, "Sum of $N fields:\n")
     i = 1

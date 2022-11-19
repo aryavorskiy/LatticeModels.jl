@@ -105,7 +105,14 @@ It's highly recommended to use the built-in [`dos`](@ref) and [`ldos`](@ref) fun
 ```@example env
 using Plots
 
-p = plot(layout=2, size=(800, 340))
+p = plot(layout=@layout[_ a{0.5w} _; grid(1, 2)], size=(800, 800))
 plot!(p[1], -4:0.1:4, dos(sp, 0.2), title="DOS with δ = 0.2")
 plot!(p[2], ldos(sp, 1, 0.2), title="LDOS at E = 1 with δ = 0.2")
+
+# These two lines produce exactly the same result as the previous
+ldos_fun = ldos(sp, 0.2)
+plot!(p[3], ldos_fun(1), title="LDOS at E = 1 with δ = 0.2 (via function)")
 ```
+
+!!! tip
+    If you want to find the LDOS for the same `spectrum` and $\delta$, but for many different energy values, consider using `ldos(spectrum, delta)`: it improves performance dramatically.

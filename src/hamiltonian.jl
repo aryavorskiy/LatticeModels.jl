@@ -216,5 +216,24 @@ $\frac{1}{\hat{H} - E - i\delta}$ operator.
 function ldos(sp::Spectrum, E::Real, δ::Real)
     Es = eigvals(sp)
     Vs = eigvecs(sp)
-    imag.(ptrace(LatticeArray(basis(sp), Vs * (@.(1 / (Es - E - im * δ)) .* Vs'))))
+    l = lattice(sp)
+    N = dims_internal(sp)
+    inves = imag.(1 ./ (Es .- (E + im * δ)))'
+    LatticeValue(l, [sum(abs2.(Vs[(i-1)*N+1:i*N, :]) .* inves) for i in 1:length(l)])
+end
+
+"""
+    ldos(spectrum, δ)
+
+Generates a function that accepts the energy `E` and returns `ldos(spectrum, E, δ)`.
+Use this if you want to find the LDOS for many different values of `E` -
+the produced function is optimized and reduces overall computation time dramatically.
+"""
+function ldos(sp::Spectrum, δ::Real)
+    Es = eigvals(sp)
+    l = lattice(sp)
+    N = dims_internal(sp)
+    density_sums = reshape(
+        sum(reshape(abs2.(eigvecs(sp)), (N, :, length(sp))), dims=1), (:, length(sp)))
+    E -> LatticeValue(l, vec(sum(density_sums .* imag.(1 ./ (Es .- (E + im * δ)))', dims=2)))
 end
