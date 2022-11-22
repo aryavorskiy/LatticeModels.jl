@@ -22,6 +22,7 @@ using LatticeModels
         H = @hamiltonian begin
             lattice := l
             field := LandauField(3)
+            dims_internal := 2
             @diag [1 0; 0 -1]
             @hop axis = 1 [1 1; 1 -1] / √2
             @hop axis = 2 [1 -im; im -1] / √2
@@ -38,8 +39,9 @@ using LatticeModels
         H0 = @hamiltonian begin
             lattice := l
             field := LandauField(0.5)
+            dims_internal := 2
             @diag [1 0; 0 -1]
-            @diag rand(l) ⊗ [1 0; 0 1]
+            @diag rand(l)
             @hop axis = 1 [1 im; im -1] / 2
             @hop axis = 2 [1 1; -1 -1] / 2
         end
@@ -49,8 +51,9 @@ using LatticeModels
             @hamiltonian begin
                 lattice := l
                 field := LandauField(t)
+                dims_internal := 2
                 @diag ms ⊗ [1 0; 0 -1]
-                @diag randn(l) ⊗ [1 0; 0 1]
+                @diag randn(l)
                 @hop axis = 1 [1 im; im -1] / 2
                 @hop axis = 2 [1 1; -1 -1] / 2
             end
@@ -75,6 +78,7 @@ using LatticeModels
         H = @hamiltonian begin
             lattice := l
             field := LandauField(0.5)
+            dims_internal := 2
             @diag [1 0; 0 -1]
             @hop axis = 1 [1 im; im -1] / 2
             @hop axis = 2 [1 1; -1 -1] / 2
@@ -83,7 +87,8 @@ using LatticeModels
         @evolution k = 2 {P --> H --> PP} for t in 0:0.1:1
         end
 
-        quiver!(p[1], DensityCurrents(H, P)[x.<y])
+        dc = DensityCurrents(H, P)
+        quiver!(p[1], dc[x.<y])
         scatter!(p[1], l)
         scatter!(p[1], l[x.<y], high_contrast=true)
         scatter!(p[1], xy[x.≥y])
@@ -92,6 +97,10 @@ using LatticeModels
         surface!(p[2], xy)
         scatter!(p[3], SquareLattice(3, 4, 5))
         plot!(p[4], project(xy, :x))
+        mpcs = map_currents(dc, aggr_fn=sum, sorted=true) do l, s1, s2
+            norm(site_coords(l, s1) - site_coords(l, s2))
+        end
+        plot!(p[4], mpcs)
         true
     end
 end
@@ -331,20 +340,35 @@ end
         x < y
     end
     x, y = coord_values(l)
+    H0 = [1 0; 0 -1] ⊗ (@. x + y) + hopping_operator(l, hopping([1 0; 0 -1], axis=2), LandauField(0.5)) do l, i, j
+        local (x, y) = site_coords(l, l[i])
+        x + 1 < y
+    end
     H1 = @hamiltonian begin
         lattice := l
         field := LandauField(0.5)
+        dims_internal := 2
         @diag [1 0; 0 -1] ⊗ (@. x + y)
         @hop [1 0; 0 -1] axis = 2 pairs_by_lhs(@. x + 1 < y)
     end
     H2 = @hamiltonian begin
         lattice := l
+        dims_internal := 2
         @hop translate_uc = [0, 1] pbc = [true, false] [1 0; 0 -1] (l, i, j) ->
                                                 ((x, y) = site_coords(l, l[i]); x + 1 < y)
         @diag (site, (x, y)) -> [x+y 0; 0 -x-y]
         field := LandauField(0.5)
     end
-    @test H1 == H2
+    @test H1 == H0
+    @test H2 == H0
+
+    H3 = hopping_operator(l, hopping(-0.25, axis=1)) + hopping_operator(l, hopping(0.25, axis=2))
+    H4 = @hamiltonian begin
+        lattice := l
+        @hop -0.25 axis = 1
+        @hop [0.25;;] axis = 2
+    end
+    @test H3 == H4
     sp = spectrum(H1)
     Es = eigvals(sp)
     states = eigvecs(sp)
@@ -369,6 +393,7 @@ end
     H(B) = @hamiltonian begin
         lattice := l
         field := LandauField(B)
+        dims_internal := 2
         @diag [1 0; 0 -1]
         @hop axis = 1 [1 im; im -1] / 2
         @hop axis = 2 [1 1; -1 -1] / 2

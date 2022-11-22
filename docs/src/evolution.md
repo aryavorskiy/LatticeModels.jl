@@ -18,6 +18,7 @@ using LatticeModels, Plots
 Chern(l, B) = @hamiltonian begin
     lattice := l
     field := LandauField(B)
+    dims_internal := 2
     @diag σ[3]
     @hop axis=1 (σ[3] - im * σ[1]) / 2
     @hop axis=2 (σ[3] - im * σ[2]) / 2

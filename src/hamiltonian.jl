@@ -2,42 +2,33 @@ using Logging
 import LinearAlgebra: eigen, Hermitian, eigvals, eigvecs
 import Base: length, getindex
 
-_diag_from_macro(lop::LatticeOperator, ::Lattice, selector) =
-    _diag_operator!(lop, selector)
-_diag_from_macro(l::Lattice, selector) =
-    _diag_from_macro(_zero_on_basis(l, selector), l, selector)
-
-_hops_from_macro(lop::LatticeOperator, ::Lattice, selector, hop::Hopping, field::AbstractField=NoField()) =
-    _hopping_operator!(lop, selector, hop, field)
-_hops_from_macro(l::Lattice, selector, hop::Hopping, field::AbstractField=NoField()) =
-    _hops_from_macro(_zero_on_basis(l, hop.hop_operator), l, selector, hop, field)
-
 _lazy_tp(m::AbstractMatrix, lv::LatticeValue) = TensorProduct(lv, m)
 _lazy_tp(lv::LatticeValue, m::AbstractMatrix) = TensorProduct(lv, m)
 
 function _hamiltonian_block(block::Expr)
-    lattice_sym = nothing
-    field_sym = nothing
-    ham_block = Expr(:block)
-    assign_flag = true
+    assignments = Dict{Symbol, Any}()
     for line in block.args
-        if Meta.isexpr(line, :(:=))
-            key, value = line.args
-            if key === :lattice
-                lattice_sym !== nothing &&
-                    error("cannot overwrite key :$key")
-                lattice_sym = :($(esc(value)))
-            elseif key === :field
-                field_sym !== nothing &&
-                    error("cannot overwrite key :$key")
-                field_sym = :($(esc(value)))
-            else
-                @warn "skipping unused key :$key"
+        if Meta.isexpr(line, :(:=), 2)
+            k, v = line.args
+            if k in keys(assignments)
+                error("cannot overwrite key :$k with value '$v' ('$(assignments[k])' assigned before)")
             end
-        elseif Meta.isexpr(line, :macrocall)
-            lattice_sym === nothing && error("define lattice first")
+            assignments[k] = esc(v)
+        end
+    end
+    !(:lattice in keys(assignments)) &&
+        error("lattice not defined")
+    lattice_sym = assignments[:lattice]
+    field_sym = get(assignments, :field, :(NoField()))
+    arrtype_sym = get(assignments, :arrtype, :(Matrix{ComplexF64}))
+    dim_int_sym = get(assignments, :dims_internal, 1)
+    ham_block = quote
+        H = _zero_on_basis($lattice_sym, $dim_int_sym, $arrtype_sym)
+    end
+    for line in block.args
+        if Meta.isexpr(line, :macrocall)
             macro_name, macro_args... = line.args
-            macro_args = [a for a in macro_args if (a isa Expr || a isa Symbol)]
+            macro_args = [a for a in macro_args if !(a isa QuoteNode || a isa LineNumberNode)]
             if macro_name === Symbol("@diag")
                 length(macro_args) != 1 &&
                     error("@diag accepts only one argument")
@@ -46,12 +37,12 @@ function _hamiltonian_block(block::Expr)
                     macro_arg.args[1] = :(LatticeModels._lazy_tp)
                 end
                 push!(ham_block.args, :(
-                    _diag_from_macro($lattice_sym, $(esc(macro_arg)))
+                    _diag_operator!(H, $(esc(macro_arg)))
                 ))
-            elseif macro_name === Symbol("@hop") || macro_name === Symbol("@hopping")
+            elseif macro_name === Symbol("@hop")
                 args_is = findall(a -> !Meta.isexpr(a, :(=), 2), macro_args)
                 hop_operator = 1
-                local selector_sym = :nothing
+                selector_sym = :nothing
                 if length(args_is) ≥ 1
                     hop_operator = esc(macro_args[args_is[1]])
                 end
@@ -64,26 +55,11 @@ function _hamiltonian_block(block::Expr)
                 end
                 hopcall = :(hopping($hop_operator, $(esc.(macro_args)...)))
                 push!(ham_block.args, :(
-                    _hops_from_macro($lattice_sym, $selector_sym, $hopcall)
+                    _hopping_operator!(H, $selector_sym, $hopcall, $field_sym)
                 ))
             else
                 error("unexpected macro call $macro_name in @hamiltonian")
             end
-            assign_flag = false
-        end
-
-    end
-    isfirst_statement = true
-    for statement in ham_block.args
-        !Meta.isexpr(statement, :call) && continue
-        if statement.args[1] === :_hops_from_macro && field_sym !== nothing
-            push!(statement.args, field_sym)
-        end
-        if isfirst_statement
-            ham_block.args[1] = :(H = $statement)
-            isfirst_statement = false
-        else
-            insert!(statement.args, 2, :H)
         end
     end
     ham_block
@@ -97,6 +73,8 @@ Creates a hamiltonian according to the rules defined in the `block`.
 Each line in the block must be a `:=` assignment or a macro-like diagonal/hopping operator description.
 
 The lattice on and the magnetic field for the hamiltonian can be set by assigning `lattice` and `field`.
+You may also need to set the internal dimension count if it is not equal to 1 - use the `dims_internal` keyword.
+The `arrtype` key sets the type of the returned array.
 
 `@diag` stands for a diagonal part of the hamiltonian - after this you can use a matrix
 (representing the operator affecting the internal state),
@@ -113,7 +91,9 @@ x, y = coord_values(l)
 H = @hamiltonian begin
     lattice := l
     field := LandauField(0.5)   # Landau-calibrated uniform magnetic field, 0.5 flux quanta per 1×1
+    dims_internal := 2
     @diag (@. abs(x) < 2) ⊗ [1 0; 0 -1]
+    @diag randn(l) .* 0.1       # Add Gaussian noise
     @hop [1 im; im -1] / 2 axis = 1
     @hop [1 1; -1 -1] / 2 axis = 2
 end

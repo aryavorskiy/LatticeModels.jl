@@ -117,6 +117,10 @@ function _zero_on_basis(l::Lattice, lf::Function)
 end
 _zero_on_basis(l::Lattice, N::Int) = LatticeArray(Basis(l, N),
     zeros(ComplexF64, N * length(l), N * length(l)))
+function _zero_on_basis(l::Lattice, N::Int, MT::Type)
+    LatticeArray(Basis(l, N),
+        zero(similar(MT, (N * length(l), N * length(l)))))
+end
 _zero_on_basis(bas::Basis) = _zero_on_basis(lattice(bas), dims_internal(bas))
 function _zero_on_basis(l::Lattice, tp::TensorProduct)
     l != lattice(tp) &&
@@ -124,15 +128,19 @@ function _zero_on_basis(l::Lattice, tp::TensorProduct)
     zero(tp)
 end
 
-@inline _get_matrix_value(f::Function, l::Lattice, site::LatticeSite, ::Int) = f(site, site_coords(l, site))
-@inline _get_matrix_value(m::AbstractMatrix, ::Lattice, ::LatticeSite, ::Int) = m
-@inline _get_matrix_value(tp::TensorProduct, ::Lattice, ::LatticeSite, i::Int) = tp.lattice_value.values[i] * tp.matrix
+@inline _get_matrix_value(f::Function, l::Lattice, site::LatticeSite, ::Int, ::Matrix) = f(site, site_coords(l, site))
+@inline _get_matrix_value(m::AbstractMatrix, ::Lattice, ::LatticeSite, ::Int, ::Matrix) = m
+@inline _get_matrix_value(tp::TensorProduct, ::Lattice, ::LatticeSite, i::Int, ::Matrix) = tp.lattice_value.values[i] * tp.matrix
+@inline _get_matrix_value(lv::LatticeValue, ::Lattice, ::LatticeSite, i::Int, eye::Matrix) = lv.values[i] * eye
+@inline _get_matrix_value(n::Number, ::Lattice, ::LatticeSite, i::Int, eye::Matrix) = n * eye
 function _diag_operator!(lop::LatticeOperator, op_object)
+    N = dims_internal(lop)
+    eye = Matrix(I, N, N)
     l = lattice(lop)
     i = 1
     try
         for site in l
-            lop[i, i] += _get_matrix_value(op_object, l, site, i)
+            lop[i, i] += _get_matrix_value(op_object, l, site, i, eye)
             i += 1
         end
     catch e

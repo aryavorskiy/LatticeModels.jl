@@ -82,7 +82,7 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12)
     hamiltonian_functions = []
     hamiltonian_aliases = Dict{Symbol,Int}()
     for statement in rules.args
-        if Meta.isexpr(statement, :(:=))
+        if Meta.isexpr(statement, :(:=), 2)
             ham_sym, ham_expr = statement.args
             !(ham_sym isa Symbol) && error("assignment lvalue must be a Symbol")
             if ham_sym in keys(hamiltonian_aliases)
@@ -136,7 +136,7 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12)
     for statement in rules.args
         if statement isa LineNumberNode
             continue
-        elseif Meta.isexpr(statement, :(:=))
+        elseif Meta.isexpr(statement, :(:=), 2)
             local ham_var, ham_expr = statement.args
             ham_i = findfirst(==(ham_expr), hamiltonian_functions)
             h_eval = Symbol("ham_eval_$ham_i")

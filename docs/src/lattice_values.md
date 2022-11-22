@@ -13,7 +13,7 @@ lv = LatticeValue(l) do site, (x, y); x + y + 1; end
 ```
 
 To generate `LatticeValue`s for site coordinates, you can use the [`coord_values`](@ref) function.
-Note that `LatticeValue`s support broadcasting, which means you can create coordinate-dependent lattice values in-place:
+Note that `LatticeValue`s support [broadcasting](https://docs.julialang.org/en/v1/manual/functions/#man-vectorized), which means you can create coordinate-dependent lattice values in-place:
 
 ```@repl env
 x, y = coord_values(l)

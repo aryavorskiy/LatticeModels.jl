@@ -55,7 +55,7 @@ end
 
 # The following 2 lines are kinda hacky; they draw one colorbar for all heatmaps
 plot!(p[n^2+1], framestyle=:none)
-scatter!([NaN], zcolor=[NaN], clims=clims, leg=:none, cbar=:right, background=:transparent, 
+scatter!([NaN], zcolor=[NaN], clims=clims, leg=:none, cbar=:right, background_subplot=:transparent, 
     framestyle=:none, inset=bbox(0.0, 0.05, 0.95, 0.9), subplot=n^2+2)
 ```
 
@@ -73,7 +73,7 @@ using LinearAlgebra, Plots
 l = SquareLattice(10, 10) do site, (x, y)
     abs(x) > 1 || abs(y) > 1
 end
-h(B) = @hamiltonian begin   
+h(B) = @hamiltonian begin
     lattice := l
     @hop axis = 1
     @hop axis = 2
@@ -130,6 +130,7 @@ x, y = coord_values(l)
 # Initial hamiltonian: m=1 everywhere
 H1 = @hamiltonian begin   
     lattice := l
+    dims_internal := 2
     @diag σ[3]
     @hop (σ[3] - im * σ[1]) / 2 axis = 1
     @hop (σ[3] - im * σ[2]) / 2 axis = 2
@@ -139,6 +140,7 @@ end
 M = @. (abs(x) < 1.5 && abs(y) < 1.5) * -2 + 1
 H2 = @hamiltonian begin
     lattice := l
+    dims_internal := 2
     @diag M ⊗ σ[3]
     @hop (σ[3] - im * σ[1]) / 2 axis = 1
     @hop (σ[3] - im * σ[2]) / 2 axis = 2
@@ -188,6 +190,7 @@ l = SquareLattice(40, 40)
 σ = [[0 1; 1 0], [0 -im; im 0], [1 0; 0 -1]]
 H = @hamiltonian begin   
     lattice := l
+    dims_internal := 2
     @diag σ[3]
     @hop (σ[3] - im * σ[1]) / 2 axis = 1
     @hop (σ[3] - im * σ[2]) / 2 axis = 2

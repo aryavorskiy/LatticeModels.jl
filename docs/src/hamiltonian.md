@@ -53,6 +53,7 @@ const σ = [[0 1; 1 0], [0 -im; im 0], [1 0; 0 -1]]
 ChernInsulator(m::LatticeValue{<:Number, :square}, field=NoField()) = @hamiltonian begin   
     lattice := lattice(m)
     field := field
+    dims_internal := 2
     @diag m ⊗ σ[3]
     @hop (σ[3] - im * σ[1]) / 2 axis = 1
     @hop (σ[3] - im * σ[2]) / 2 axis = 2
@@ -60,13 +61,19 @@ end
 nothing # hide
 ```
 
+Here we must explicitly set the internal phase space dimension count via `dims_internal := 2`.
+
+!!! tip
+    It is possible to set the matrix type of the hamiltonian operator at the generation time - use `arrtype := <Preferred type>` notation, this can be used e. g to reduce memory usage by switching to sparse arrays.
+    Note however that some array types may not support this feature, in which case use the [`@on_lattice`](@ref) macro.
+
 Note that the `field` parameter is defaulted to `NoField()` (this is a magnetic field object representing zero field). Other available magnetic field objects are:
 
 - `LandauField(B::Real)` - Landau-calibrated uniform magnetic field
 - `SymmetricField(B::Real)` - symmetrically calibrated uniform magnetic field
 - `FluxField(Φ::Real, point::NTuple{2, Number})` - point magnetic field flux through `point`.
 
-Most of these fields are designed for 2D lattices, but may also be applied to lattices with other dimensionality.
+Most of these fields are designed for 2D lattices, but may also be applied to lattices with other dimensionality. You can define your own field types, see [Custom magnetic fields](@ref Custom-magnetic-fields).
 
 ## Operator spectrum utilities
 
