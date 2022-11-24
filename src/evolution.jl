@@ -1,5 +1,5 @@
 import Base: exp
-using LinearAlgebra
+using LinearAlgebra, ProgressMeter
 
 function taylor_exp(A::AbstractMatrix, k::Int)
     B = one(A) + A
@@ -29,7 +29,7 @@ $ \mathcal{U}(t) = e^{-\frac{1}{i\hbar} \hat{H} t} $
 - `t`: the evolution time
 - `k`: if provided, the exponent will be calculated using a Taylor series expansion with order k
 """
-evolution_operator(H, t::Real) = exp((-im * t) * H)
+evolution_operator(H, t::Real, ::Nothing=nothing) = exp((-im * t) * H)
 evolution_operator(H, t::Real, k::Int) = taylor_exp((-im * t) * H, k)
 
 evolved(P::AbstractMatrix, ev::AbstractMatrix) = ev * P * ev'
@@ -51,15 +51,7 @@ function _expr_depends_on(expr::Expr, dep_var::Symbol)
     any(_expr_depends_on(e, dep_var) for e in expr.args[_begin:end])
 end
 
-function _evolution_operator_call(H_sym, dt_sym, k)
-    if k === nothing
-        :(evolution_operator($H_sym, $dt_sym))
-    else
-        :(evolution_operator($H_sym, $dt_sym, $k))
-    end
-end
-
-function _evolution_block(rules, loop; k=nothing, rtol=1e-12)
+function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true)
     if !Meta.isexpr(loop, :for)
         error("for loop expected")
     end
@@ -115,7 +107,7 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12)
             push!(evolutor_updates,
                 :(
                     if dt_changed || $h_eval != $h_eval_new
-                        $p_target_ev = $(_evolution_operator_call(h_eval_new, :dt, k))
+                        $p_target_ev = evolution_operator($h_eval_new, dt, $k)
                     end
                 ),
                 :($h_eval = $h_eval_new))
@@ -126,7 +118,7 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12)
             push!(evolutor_updates,
                 :(
                     if dt_changed
-                        $p_target_ev = $(_evolution_operator_call(h_eval, :dt, k))
+                        $p_target_ev = evolution_operator($h_eval, dt, $k)
                     end
                 ))
         end
@@ -166,9 +158,13 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12)
         local t_inner = zero(eltype($(esc(loop_range))))
         local dt_old = zero(eltype($(esc(loop_range))))
         local dt_changed::Bool = false
+        p = Progress(length($(esc(loop_range))), desc="Evolution... ",
+            barglyphs=BarGlyphs("[=> ]"), showspeed=true, enabled=$show_progress)
+        tstart = time()
+        dt_evol = 0.
         for $(esc(loop_var)) in $(esc(loop_range))
+            tstartevol = time()
             local dt = $(esc(loop_var)) - t_inner
-            dt == 0 && continue
             dt_changed = abs(dt - dt_old) / dt > $rtol
             if dt_changed
                 dt_old = dt
@@ -176,7 +172,10 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12)
             $(ham_evals...)
             $(evolutor_updates...)
             $(p_evolutions...)
+            dt_evol += time() - tstartevol
             $(esc(loop_body))
+            ProgressMeter.next!(p; showvalues = [("% of time performing evolution",
+                round(100 * dt_evol / (time() - tstart), digits=1))])
             t_inner = $(esc(loop_var))
         end
     end
@@ -187,6 +186,11 @@ end
 
 Generates an environment with defined hamiltonian and density matrices that evolve by certain laws.
 See [Unitary evolution](evolution.md) for more details.
+
+**Keyword arguments:**
+- `k`: order of the Taylor expansion for matrix exponent. If omitted, the default `exp` function will be used.
+- `rtol`: the tolerance to decide whether the `Δt` changed between iterations or not. `1e-12` by default.
+- `show_progress`: defines whether the progress informer must be displayed or not. `true` by default.
 """
 macro evolution(args...)
     rules, loop = args[end-1:end]

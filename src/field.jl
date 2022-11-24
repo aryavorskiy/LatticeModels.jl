@@ -147,7 +147,6 @@ macro field_def(struct_block)
                 insert!(fn_args, _begin, :(field::$struct_name))
                 push!(struct_definition.args, :(
                     function LatticeModels.path_integral($(fn_args...))
-                        local vector_potential(p) = LatticeValues.SVector(vector_potential(field, p))
                         $fn_body
                     end
                 ))

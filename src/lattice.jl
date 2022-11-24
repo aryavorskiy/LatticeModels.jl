@@ -120,8 +120,9 @@ Returns the integer index for given `site` in `lattice`.
 Returns `nothing` if the site is not present in the lattice.
 """
 function site_index(site::LatticeSite, l::Lattice)
-    i = findfirst(==(_cind(site)), vec(_cinds(l)))
-    !l.mask[i] && return nothing
+    NB = basis_length(l)
+    i = LinearIndices((1:NB, (1:s for s in size(l))...))[_cind(site)]
+    (i == nothing || !l.mask[i]) && return nothing
     count(@view l.mask[1:i])
 end
 

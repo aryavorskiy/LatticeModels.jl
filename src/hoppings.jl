@@ -47,7 +47,7 @@ _get_site_indices(t::NTuple{2, Int}) = t
 A convenient constructor for a `Hopping` object. `hop_operator` can be either a matrix or a number
 (in that case a 1×1 matrix will be created automatically)
 
-Keyword arguments:
+**Keyword arguments:**
 - `site_indices`: a `NTuple{2, Int}` (or `Int` if they are equal) with indices of sites connected by the bond. `(1, 1)` by default.
 - `translate_uc`: the unit cell offset. Zeros by default.
 - `axis`: overrides `translate_uc` and sets its components to zero on all axes except given.
@@ -122,17 +122,13 @@ function promote_dims!(h::Hopping, ndims::Int)
     h
 end
 
-Base.@propagate_inbounds function _match(h::Hopping, l::Lattice, site1::LatticeSite, site2::LatticeSite)
-    (site1.basis_index, site2.basis_index) != h.site_indices && return false
-    for i in 1:dims(h)
-        vi = site2.unit_cell[i] - site1.unit_cell[i] - h.translate_uc[i]
-        if h.pbc[i] && (vi % size(l)[i] != 0)
-            return false
-        elseif !h.pbc[i] && (vi != 0)
-            return false
-        end
+function _hopping_dest(l::Lattice, hop::Hopping, i_site::LatticeSite)
+    i_site.basis_index != hop.site_indices[1] && return nothing
+    new_uc = i_site.unit_cell + hop.translate_uc
+    for i in 1:dims(l)
+        !hop.pbc[i] && !(1 ≤ new_uc[i] ≤ size(l)[i]) && return nothing
     end
-    true
+    LatticeSite(mod.(new_uc .- 1, l.lattice_size) .+ 1, hop.site_indices[2])
 end
 
 @inline _get_bool_value(::Nothing, ::Lattice, ::Int, ::Int) = true
@@ -143,21 +139,21 @@ function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field:
     d = dims(l)
     promote_dims!(hop, d)
     trv = SVector{d}(hop.translate_uc)
-    i = 1
+    i = 0
     for site1 in l
-        j = 1
-        for site2 in l
-            if @inbounds(_match(hop, l, site1, site2)) && _get_bool_value(selector, l, i, j)
-                p1 = site_coords(l, site1)
-                p2 = p1 + trv
-                pmod = exp(2π * im * path_integral(field, p1, p2))
-                !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
-                lop[i, j] += hop.hop_operator * pmod
-                lop[j, i] += hop.hop_operator' * pmod'
-            end
-            j += 1
-        end
         i += 1
+        site2 = _hopping_dest(l, hop, site1)
+        site2 === nothing && continue
+        j = site_index(site2, l)
+        j === nothing && continue
+        !_get_bool_value(selector, l, i, j) && continue
+
+        p1 = site_coords(l, site1)
+        p2 = p1 + trv
+        pmod = exp(2π * im * path_integral(field, p1, p2))
+        !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
+        lop[i, j] = hop.hop_operator * pmod + @view lop[i, j]
+        lop[j, i] = (@view lop[i, j])'
     end
     lop
 end
@@ -317,12 +313,13 @@ function bonds(l::Lattice, hops::Hopping...)
         promote_dims!(h, dims(l))
     end
     for i in 1:length(l)
-        for j in 1:length(l)
-            site1 = bs.lattice[i]
-            site2 = bs.lattice[j]
-            isconnect = any(@inbounds(_match(h, l, site1, site2)) for h in hops)
-            bs.bmat[i, j] |= isconnect
-            bs.bmat[j, i] |= isconnect
+        site1 = bs.lattice[i]
+        for hop in hops
+            site2 = _hopping_dest(l, hop, site1)
+            site2 === nothing && continue
+            j = site_index(site2, l)
+            j === nothing && continue
+            bs.bmat[i, j] = bs.bmat[j, i] = true
         end
     end
     bs

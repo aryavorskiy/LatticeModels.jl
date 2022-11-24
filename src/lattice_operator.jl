@@ -1,5 +1,5 @@
 using LinearAlgebra, Statistics, Logging
-import Base: length, getindex, show, copy, ==, zero
+import Base: length, getindex, view, show, copy, ==, zero
 
 """
     Basis{LT} where {LT<:Lattice}
@@ -69,8 +69,9 @@ lattice(x) = lattice(basis(x))
     _ranges((rngs..., N*(i-1)+1:N*i), is, N)
 @inline _ranges(rngs::Tuple, ::Colon, is::Tuple, N::Int) =
     _ranges((rngs..., :), is, N)
-getindex(lo::LatticeArray, is::Int...) = lo.operator[_ranges(is, dims_internal(lo))...]
-setindex!(lo::LatticeArray, val, is::Int...) =
+getindex(lo::LatticeArray, is...) = lo.operator[_ranges(is, dims_internal(lo))...]
+Base.view(lo::LatticeArray, is...) = view(lo.operator, _ranges(is, dims_internal(lo))...)
+setindex!(lo::LatticeArray, val, is...) =
     (lo.operator[_ranges(is, dims_internal(lo))...] = val)
 
 ==(lvm1::LatticeArray, lvm2::LatticeArray) = (lvm1.basis == lvm2.basis) && (lvm1.operator == lvm2.operator)
@@ -121,6 +122,7 @@ function _zero_on_basis(l::Lattice, N::Int, MT::Type)
     LatticeArray(Basis(l, N),
         zero(similar(MT, (N * length(l), N * length(l)))))
 end
+_zero_on_basis(l::Lattice, N::Int, ::Type{Matrix{ComplexF64}}) = _zero_on_basis(l, N)
 _zero_on_basis(bas::Basis) = _zero_on_basis(lattice(bas), dims_internal(bas))
 function _zero_on_basis(l::Lattice, tp::TensorProduct)
     l != lattice(tp) &&
@@ -140,7 +142,7 @@ function _diag_operator!(lop::LatticeOperator, op_object)
     i = 1
     try
         for site in l
-            lop[i, i] += _get_matrix_value(op_object, l, site, i, eye)
+            lop[i, i] = _get_matrix_value(op_object, l, site, i, eye) + @view lop[i, i]
             i += 1
         end
     catch e

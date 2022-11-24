@@ -65,8 +65,9 @@ Here are the functions that must be defined for the desired array type:
 
 - Equality operator: `==`
 - Basic arithmetic functions: `+`, `-`, `*`, `adjoint`
+- The identity matrix: `one(A)`
 - The matrix exponent `exp(A)`
-    - If it is not possible to implement this function you can define the `one(A)` function which returns the identity matrix with the size same as `A`. This will allow to calculate the matrix exponent as a partial sum of Taylor series.
+    - If it is not possible to implement this function you can set the `k` keyword argument (see below) to calculate the matrix exponent as a partial sum of Taylor series.
 
 !!! warning
     If you use `LatticeArray`s, you still have to make sure these functions and operators are defined for the underlying array type.
@@ -75,15 +76,18 @@ Here are the functions that must be defined for the desired array type:
 
 The evolution macro avoids calculations where possible to improve performance. It is important to know how it achieves this result:
 
-- If the hamiltonian has not changed between two iterations and the time step remained approximately the same, $\mathcal{U}(t, dt)$ will not be re-evaluated, because the matrix exponent is the most time-consuming operation compared to others like matrix multiplication or addition.
+- If the hamiltonian matrix has not changed between two iterations and the time step remained approximately the same, $\mathcal{U}(t, dt)$ will not be re-evaluated, because the matrix exponent is the most time-consuming operation compared to others like matrix multiplication or addition.
   - The relative tolerance used to check if the time step has changed can be set via `rtol` keyword.
 - If the hamiltonian expression does not explicitly depend on the loop variable (`t` in the example), it will be considered constant and evaluated only once at the beginning. Otherwise it will be evaluated on every iteration in the loop scope.
 - If several states evolve according to the same hamiltonian, both the hamiltonian and the $\mathcal{U}(t, dt)$ evolution operator will be evaluated only once per iteration.
 
 To improve performance with small time intervals you can calculate the matrix exponent as a Taylor polynomial. Its order can be set via `k` keyword.
 
+By default the macro shows a progress informer that shows the task progress, the estimated time remaining and the fraction of time that
+was spent to perform evolution. To disable it add `show_progress=false` to the keyword arguments.
+
 Keyword assignments should be placed before the rules list:
 
 ```julia
-@evolution k=2 rtol=1e-6 {...} for t in ...
+@evolution k=2 rtol=1e-6 show_progress=false {...} for t in ...
 ```

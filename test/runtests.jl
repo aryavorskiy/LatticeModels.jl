@@ -228,8 +228,6 @@ in one function call"
 end
 
 @testset "Hopping tests" begin
-    l = SquareLattice(2, 2)
-    ls1, _, ls3, ls4 = l
     @testset "Constructor" begin
         @test hopping(axis=1) == hopping(translate_uc=[1])
         @test hopping(axis=1) != hopping(translate_uc=[1, 0])
@@ -242,12 +240,27 @@ end
         @test_throws "cannot shrink" LatticeModels.promote_dims!(hopping(translate_uc=[0, 1]), 1)
     end
     @testset "Hopping matching" begin
-        @test !LatticeModels._match(hopping(axis=1), l, ls1, ls3)
-        @test LatticeModels._match(hopping(axis=2), l, ls1, ls3)
-        @test LatticeModels._match(hopping(axis=1), l, ls3, ls4)
-        @test !LatticeModels._match(hopping(axis=2), l, ls3, ls4)
+        l = SquareLattice(6, 5)
+        hx = hopping(axis = 1)
+        LatticeModels.promote_dims!(hx, dims(l))
+        hxmy = hopping(translate_uc = [1, -1], pbc = [true, false])
+        hx_flag = true
+        hxmy_flag = true
+        for site in l
+            ucx, ucy = site.unit_cell
+            site_dx = LatticeModels._hopping_dest(l, hx, site)
+            site_dxmy = LatticeModels._hopping_dest(l, hxmy, site)
+            hx_flag &= ((site_dx === nothing) == (ucx == 6))
+            hxmy_flag &= ((site_dxmy === nothing) == (ucy == 1))
+            !hx_flag && println("Error at site $site (hx)")
+            !hxmy_flag && println("Error at site $site (hxmy)")
+        end
+        @test hx_flag
+        @test hxmy_flag
     end
     @testset "Bonds" begin
+        l = SquareLattice(2, 2)
+        ls1, _, ls3, ls4 = l
         bs = bonds(l, hopping(axis=1), hopping(axis=2))
         bs1 = bonds(l, hopping(axis=1)) | bonds(l, hopping(axis=2))
         bs2 = bs^2
@@ -266,10 +279,13 @@ end
         @test f2(l, site_index(ls1, l), site_index(ls3, l))
         @test f2(l, site_index(ls1, l), site_index(ls4, l))
     end
+    l = SquareLattice(5, 5) do xite, (x, y)
+        abs(x + y) < 2.5
+    end
     x, y = coord_values(l)
     op1 = hopping_operator(pairs_by_lhs(x .< y), l, hopping(axis=1))
     op2 = hopping_operator(l, hopping(axis=1)) do l, i, j
-        x, y = site_coords(l, l[i])
+        local (x, y) = site_coords(l, l[i])
         x < y
     end
     @test op1 == op2
