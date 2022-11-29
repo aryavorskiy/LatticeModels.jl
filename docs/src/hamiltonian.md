@@ -95,9 +95,18 @@ if you need an operator that projects onto some states, use [`projector`](@ref) 
 
 ```@repl env
 P = projector(E -> E < 0, sp)
-P = projector(sp_filled)    # The same thing
-P = filled_projector(sp, 0) # The same thing
-P = filled_projector(sp)    # The same thing
+P = projector(sp_filled)                # The same thing
+P = filled_projector(sp, 0)             # The same thing
+P = filled_projector(sp)                # The same thing
+```
+
+Pass a lambda as a first argument to `filled_projector` to induce arbitrary state density. 
+The lambda must take the energy and return the density as a real number.
+The [`fermi_dirac`](@ref) and [`bose_einstein`](@ref) helper functions will generate such lambdas for the respective statistics.
+
+```@repl env
+PT = projector(E -> 1 / (exp(E) + 1), sp)
+PT = projector(fermi_dirac(0, 1), sp)   # The same thing
 ```
 
 !!! warning

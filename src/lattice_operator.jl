@@ -17,6 +17,12 @@ lattice(b::Basis) = b.lattice
 dims_internal(b::Basis) = b.internal_dim
 length(b::Basis) = length(lattice(b)) * dims_internal(b)
 
+basis(b::Basis) = b
+function check_basis_match(b1, b2)
+    basis(b1) != basis(b2) &&
+        throw(ArgumentError("basis mismatch:\n$(_s(basis(b1)))\n$(_s(basis(b2)))"))
+end
+
 function show(io::IO, m::MIME"text/plain", b::Basis)
     println(io, "Basis with $(b.internal_dim)-dimensional internal phase space")
     print(io, "on ")
@@ -125,8 +131,7 @@ end
 _zero_on_basis(l::Lattice, N::Int, ::Type{Matrix{ComplexF64}}) = _zero_on_basis(l, N)
 _zero_on_basis(bas::Basis) = _zero_on_basis(lattice(bas), dims_internal(bas))
 function _zero_on_basis(l::Lattice, tp::TensorProduct)
-    l != lattice(tp) &&
-        error("lattice mismatch:\n$l\n$(lattice(tp))")
+    check_lattice_match(l, tp)
     zero(tp)
 end
 
@@ -243,9 +248,12 @@ diag_aggregate(f::Function, lo::LatticeArray) =
 """
     ptrace(lattice_operator)
 
-Same as `diag_aggregate(tr, lattice_operator)`
+Does the same as `diag_aggregate(tr, lattice_operator)`, but faster.
 """
-ptrace(lo::LatticeArray) = diag_aggregate(tr, lo)
+function ptrace(lo::LatticeArray)
+    N = dims_internal(lo)
+    LatticeValue(lattice(lo), vec(sum(reshape(diag(lo.operator), (N, :)), dims=1)))
+end
 
 """
     site_density(lattice_vector)
@@ -279,7 +287,7 @@ end
 @inline _unwrap(f::Function, checked_args::Tuple, ::Tuple{}; kw...) = f(checked_args...; kw...)
 
 @inline _unwrap(f::Function, checked_args::Tuple, el::LatticeArray, args::Tuple; kw...) =
-    _unwrap_wlattice(f, el.basis, (checked_args..., el.operator), args; kw...)
+    _unwrap_wlattice(f, basis(el), (checked_args..., el.operator), args; kw...)
 @inline _unwrap(f::Function, checked_args::Tuple, el::AbstractVecOrMat, args::Tuple; kw...) =
     _unwrap_nolattice(f, (checked_args..., el), args; kw...)
 
@@ -287,25 +295,25 @@ end
     _unwrap_nolattice(f, (checked_args..., el), args; kw...)
 @inline function _unwrap_nolattice(f::Function, checked_args::Tuple, el::LatticeArray, args::Tuple; kw...)
     @warn "avoid using lattice operators and matrices in one function call"
-    _unwrap_wlattice(f, el.basis, (checked_args..., el.operator), args; kw...)
+    _unwrap_wlattice(f, basis(el), (checked_args..., el.operator), args; kw...)
 end
 @inline _unwrap_nolattice(f::Function, checked_args::Tuple, args::Tuple; kw...) =
     _unwrap_nolattice(f, checked_args, args[1], Base.tail(args); kw...)
 @inline _unwrap_nolattice(f::Function, checked_args::Tuple, ::Tuple{}; kw...) = f(checked_args...; kw...)
 
-@inline _unwrap_wlattice(f::Function, basis::Any, checked_args::Tuple, el::Any, args::Tuple; kw...) =
+@inline _unwrap_wlattice(f::Function, basis::Basis, checked_args::Tuple, el::Any, args::Tuple; kw...) =
     _unwrap_wlattice(f, basis, (checked_args..., el), args; kw...)
-@inline function _unwrap_wlattice(f::Function, basis::Any, checked_args::Tuple, el::AbstractVecOrMat, args::Tuple; kw...)
+@inline function _unwrap_wlattice(f::Function, basis::Basis, checked_args::Tuple, el::AbstractVecOrMat, args::Tuple; kw...)
     @warn "avoid using lattice operators and matrices in one function call"
     _unwrap_wlattice(f, basis, (checked_args..., el), args; kw...)
 end
-@inline function _unwrap_wlattice(f::Function, basis::Any, checked_args::Tuple, el::LatticeArray, args::Tuple; kw...)
-    el.basis != basis && throw(ArgumentError("basis mismatch:\n$(el.basis)\n$basis"))
+@inline function _unwrap_wlattice(f::Function, basis::Basis, checked_args::Tuple, el::LatticeArray, args::Tuple; kw...)
+    check_basis_match(el, basis)
     _unwrap_wlattice(f, basis, (checked_args..., el.operator), args; kw...)
 end
-@inline _unwrap_wlattice(f::Function, basis::Any, checked_args::Tuple, args::Tuple; kw...) =
+@inline _unwrap_wlattice(f::Function, basis::Basis, checked_args::Tuple, args::Tuple; kw...) =
     _unwrap_wlattice(f, basis, checked_args, args[begin], Base.tail(args); kw...)
-@inline _unwrap_wlattice(f::Function, basis::Any, checked_args::Tuple, ::Tuple{}; kw...) =
+@inline _unwrap_wlattice(f::Function, basis::Basis, checked_args::Tuple, ::Tuple{}; kw...) =
     _make_wrapper(f(checked_args...; kw...), basis)
 
 LatticeSummable = Union{LatticeArray,UniformScaling}

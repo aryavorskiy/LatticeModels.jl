@@ -28,6 +28,7 @@ end
 LatticeValue(lf, l::Lattice) = LatticeValue(l, [lf(site, site_coords(l, site)) for site in l])
 
 lattice(l::LatticeValue) = l.lattice
+lattice(l::Lattice) = l
 
 """
     coord_values(lattice::Lattice)
@@ -76,7 +77,7 @@ _extract_lattice_s(l::Lattice, ::Tuple{}) = l
 _extract_lattice_s(l::Lattice, ::Any, rem_args::Tuple) =
     _extract_lattice_s(l, rem_args)
 function _extract_lattice_s(l::Lattice, l2::Lattice, rem_args::Tuple)
-    l2 != l && throw(ArgumentError("lattice mismatch:\n$l\n$l2"))
+    check_lattice_match(l, l2)
     _extract_lattice_s(l, rem_args)
 end
 
@@ -87,15 +88,18 @@ function show(io::IO, m::MIME"text/plain", lv::LatticeValue{T}) where {T}
 end
 
 function getindex(l::Lattice{LatticeSym,N,NB}, lvm::LatticeValue{Bool,LatticeSym}) where {LatticeSym,N,NB}
-    l != lattice(lvm) && error("lattice mismatch")
+    check_is_sublattice(l, lattice(lvm))
     new_mask = zero(l.mask)
-    new_mask[l.mask] = lvm.values
-    Lattice(LatticeSym, size(l), bravais(l), new_mask)
+    new_mask[lvm.lattice.mask] = lvm.values
+    Lattice(LatticeSym, size(l), bravais(l), vec(new_mask .& l.mask))
 end
 
-function getindex(lv::LatticeValue, lvm::LatticeValue{Bool})
-    lattice(lv) != lattice(lvm) && error("lattice mismatch")
-    LatticeValue(lv.lattice[lvm], lv.values[lvm.values])
+function getindex(lv::LatticeValue, lvm::LatticeValue{Bool, LatticeSym}) where LatticeSym
+    check_is_sublattice(lattice(lv), lattice(lvm))
+    new_mask = zero(lvm.lattice.mask)
+    new_mask[lvm.lattice.mask] = lvm.values
+    LatticeValue(Lattice(LatticeSym, size(lv.lattice), bravais(lv.lattice), new_mask .& lv.lattice.mask),
+        lv.values[new_mask[lv.lattice.mask]])
 end
 
 Base.@propagate_inbounds function getindex(lv::LatticeValue, site::LatticeSite)

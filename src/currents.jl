@@ -38,7 +38,7 @@ struct DensityCurrents <: AbstractCurrents
     Constructs a `DensityCurrents` object for given `hamiltonian` and `density_mat`.
     """
     function DensityCurrents(ham::LatticeOperator, dens::LatticeOperator)
-        ham.basis != dens.basis && error("basis mismatch")
+        check_basis_match(ham, dens)
         new(ham, dens)
     end
 end
@@ -94,15 +94,30 @@ lattice(mcurr::MaterializedCurrents) = mcurr.lattice
 current_lambda(mcurr::MaterializedCurrents) = (i::Int, j::Int) -> mcurr.currents[i, j]
 
 function getindex(curr::AbstractCurrents, lvm::LatticeValue{Bool})
-    lattice(curr) != lattice(lvm) && error("lattice mismatch")
+    check_lattice_match(curr, lvm)
     indices = findall(lvm.values)
     SubCurrents(curr, indices)
 end
 
 function getindex(curr::MaterializedCurrents, lvm::LatticeValue{Bool})
-    lattice(curr) != lattice(lvm) && error("lattice mismatch")
+    check_lattice_match(curr, lvm)
     indices = findall(lvm.values)
     MaterializedCurrents(curr.lattice[lvm], curr.currents[indices, indices])
+end
+
+function _get_currvars(curr::AbstractCurrents, l::Lattice, i::Int)
+    curr_fn = current_lambda(curr)
+    Float64[curr_fn(i, j) for j in 1:length(l)]
+end
+_get_currvars(curr::MaterializedCurrents, ::Lattice, i::Int) =
+    vec(curr.currents[i, :])
+function getindex(curr::AbstractCurrents, site::LatticeSite)
+    l = lattice(curr)
+    i = site_index(site, l)
+    i === nothing && throw(BoundsError(curr, site))
+    curr_vars = _get_currvars(curr, l, i)
+    curr_vars[i] = NaN
+    LatticeValue(l, curr_vars)
 end
 
 """
@@ -130,9 +145,7 @@ function materialize(f::Function, curr::AbstractCurrents)
     m = MaterializedCurrents(l)
     curr_fn = current_lambda(curr)
     for i in 1:length(l), j in 1:i-1
-        if !f(l, i, j)
-            continue
-        end
+        !f(l, l[i], l[j]) && continue
         ij_curr = curr_fn(i, j)
         m.currents[i, j] = ij_curr
         m.currents[j, i] = -ij_curr
@@ -141,26 +154,16 @@ function materialize(f::Function, curr::AbstractCurrents)
 end
 
 """
-    pairs_by_adjacent(bonds)
-
-A selector function used for hopping operator definition or currents materialization.
-
-Takes a `BondSet` and generates a lambda which accepts a lattice and two integer site indices,
-returning whether the two sites are connected by the `bonds`.
-"""
-pairs_by_adjacent(bs::BondSet) =
-    (l::Lattice, i::Int, j::Int) -> is_adjacent(bs, l[i], l[j])
-
-"""
     pairs_by_distance(function)
 
 A selector function used for hopping operator definition or currents materialization.
 
-Takes a function and generates a lambda which accepts a lattice and two integer site indices,
-returning whether `function` applied to distence between the two sites returned `true`.
+Takes a function and generates a lambda which accepts a lattice and two `LatticeSite`s,
+returning whether `function` applied to distance between the two sites returned `true`.
 """
 pairs_by_distance(f) =
-    (l::Lattice, i::Int, j::Int) -> f(norm(radius_vector(l, l[i], l[j])))::Bool
+    (l::Lattice, site1::LatticeSite, site2::LatticeSite) ->
+        f(norm(radius_vector(l, site1, site2)))::Bool
 
 """
     map_currents(map_fn, currents[; aggr_fn, sort])
@@ -199,9 +202,14 @@ function map_currents(f::Function, curr::AbstractCurrents; aggr_fn::Union{Nothin
     end
     if sorted
         perm = sortperm(ms)
-        return ms[perm], cs[perm]
+        ms = ms[perm]
+        cs = cs[perm]
     end
-    ms, cs
+    if eltype(cs) <: Vector
+        ms, transpose(hcat(cs...))
+    else
+        ms, cs
+    end
 end
 
 @recipe function f(curr::AbstractCurrents)

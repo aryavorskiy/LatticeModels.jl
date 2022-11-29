@@ -76,10 +76,10 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true
     for statement in rules.args
         if Meta.isexpr(statement, :(:=), 2)
             ham_sym, ham_expr = statement.args
-            !(ham_sym isa Symbol) && error("assignment lvalue must be a Symbol")
+            !(ham_sym isa Symbol) && error("hamiltonian alias must be a Symbol")
             if ham_sym in keys(hamiltonian_aliases)
-                error("redefinition of alias $statement not allowed
-                (previous $ham_sym := $(hamiltonian_functions[hamiltonian_aliases[ham_sym]]))")
+                error("""cannot overwrite alias '$ham_sym' with value '$ham_expr'
+                ('$(hamiltonian_functions[hamiltonian_aliases[ham_sym]])' assigned before)""")
             end
             !(ham_expr in hamiltonian_functions) && push!(hamiltonian_functions, ham_expr)
             hamiltonian_aliases[ham_sym] = findfirst(==(ham_expr), hamiltonian_functions)
@@ -158,10 +158,10 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true
         local t_inner = zero(eltype($(esc(loop_range))))
         local dt_old = zero(eltype($(esc(loop_range))))
         local dt_changed::Bool = false
-        p = Progress(length($(esc(loop_range))), desc="Evolution... ",
+        local p = Progress(length($(esc(loop_range))), desc="Evolution... ",
             barglyphs=BarGlyphs("[=> ]"), showspeed=true, enabled=$show_progress)
-        tstart = time()
-        dt_evol = 0.
+        local tstart = time()
+        local dt_evol = 0.
         for $(esc(loop_var)) in $(esc(loop_range))
             tstartevol = time()
             local dt = $(esc(loop_var)) - t_inner

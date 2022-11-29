@@ -131,11 +131,13 @@ function _hopping_dest(l::Lattice, hop::Hopping, i_site::LatticeSite)
     LatticeSite(mod.(new_uc .- 1, l.lattice_size) .+ 1, hop.site_indices[2])
 end
 
-@inline _get_bool_value(::Nothing, ::Lattice, ::Int, ::Int) = true
-@inline _get_bool_value(f::Function, l::Lattice, i::Int, j::Int) =
-    f(l, i, j)
+check_lattice_fits(::Any, ::Lattice) = nothing
+@inline _get_bool_value(::Nothing, ::Lattice, ::LatticeSite, ::LatticeSite) = true
+@inline _get_bool_value(f::Function, l::Lattice, site1::LatticeSite, site2::LatticeSite) =
+    f(l, site1, site2)
 function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field::AbstractField)
     l = lattice(lop)
+    check_lattice_fits(selector, l)
     d = dims(l)
     promote_dims!(hop, d)
     trv = SVector{d}(hop.translate_uc)
@@ -146,7 +148,7 @@ function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field:
         site2 === nothing && continue
         j = site_index(site2, l)
         j === nothing && continue
-        !_get_bool_value(selector, l, i, j) && continue
+        !_get_bool_value(selector, l, site1, site2) && continue
 
         p1 = site_coords(l, site1)
         p2 = p1 + trv
@@ -169,7 +171,7 @@ $$\hat{A} = \sum_{pairs} \hat{t} \hat{c}^\dagger_j \hat{c}_i + h. c.$$
     hopping_operator(excl_function, lattice, hopping[, field])
 
 Arguments:
-- `excl_function`: takes a `Lattice`, two `LatticeSite`s and their two integer indices also, returns whether this pair should be included.
+- `excl_function`: takes a `Lattice`, two `LatticeSite`s and two `LatticeSite`s, returns whether this pair should be included.
 - `lattice`: the lattice to create the operator on.
 - `hopping`: the `Hopping` object describing the site pairs and the $\hat{t}$ operator.
 - `field`: the `AbstractField` object that defines the magnetic field to generate phase factors using Peierls substitution.
@@ -184,37 +186,66 @@ function hopping_operator(l::Lattice, hop::Hopping, field::AbstractField=NoField
 end
 
 """
-    pairs_by_domains(lattice_value)
+    AbstractPairSelector <: Function
 
-A selector function used for hopping operator definition or currents materialization.
+A function-like object that accepts a `Lattice` and two `LatticeSite`s and returns whether the site pair is *selected* or not.
+Implements a built-in sanity check algorithm to make sure the pair set was defined on a correct lattice.
 
-Takes a `LatticeValue` and generates a lambda which accepts a lattice and two integer site indices,
-returning whether the value of `lattice_value` is the same on two sites.
+Define these functions for all subclasses:
+- `LatticeModels.lattice(::YourSelector)` must return the lattice your selector was defined on.
+- `LatticeModels.match(::YourSelector, site1::LatticeSite, site2::LatticeSite)` must return whether the `(site1, site2)` pair is *selected*.
 """
-pairs_by_domains(lv::LatticeValue) =
-    (::Lattice, i::Int, j::Int) -> lv[CartesianIndex(i)] == lv[CartesianIndex(j)]
-
-"""
-    pairs_by_lhs(lattice_value)
-
-A selector function used for hopping operator definition or currents materialization.
-
-Takes a `LatticeValue` and generates a lambda which accepts a lattice and two integer site indices,
-returning whether the value of `lattice_value` is true on the first site.
-"""
-pairs_by_lhs(lv::LatticeValue{Bool}) =
-    (::Lattice, i::Int, ::Int) -> lv[CartesianIndex(i)]
+abstract type AbstractPairSelector <: Function end
+match(::T, ::LatticeSite, ::LatticeSite) where {T<:AbstractPairSelector} =
+    error("match(::$T, ::LatticeSite, ::LatticeSite) must be explicitly implemented")
+lattice(::T) where {T<:AbstractPairSelector} = error("lattice(::$T) must be explicitly implemented")
+check_lattice_fits(ps::AbstractPairSelector, l::Lattice) = check_is_sublattice(l, lattice(ps))
+(ps::AbstractPairSelector)(::Lattice, site1::LatticeSite, site2::LatticeSite) = match(ps, site1, site2)
 
 """
-    pairs_by_rhs(lattice_value)
+    DomainsSelector(lattice_value)
 
-A selector function used for hopping operator definition or currents materialization.
+A selector used for hopping operator definition or currents materialization.
 
-Takes a `LatticeValue` and generates a lambda which accepts a lattice and two integer site indices,
-returning whether the value of `lattice_value` is true on the second site.
+Takes a `LatticeValue`.
+A pair matches the selector if the value of `lattice_value` is the same on two sites.
 """
-pairs_by_rhs(lv::LatticeValue{Bool}) =
-    (::Lattice, ::Int, j::Int) -> lv[CartesianIndex(j)]
+struct DomainsSelector <: AbstractPairSelector
+    domains::LatticeValue
+end
+lattice(ps::DomainsSelector) = lattice(ps.domains)
+match(ps::DomainsSelector, site1::LatticeSite, site2::LatticeSite) =
+    ps.domains[site1] == ps.domains[site2]
+
+"""
+    PairLhsSelector(lattice_value)
+
+A selector used for hopping operator definition or currents materialization.
+
+Takes a `LatticeValue`.
+A pair matches the selector if the value of `lattice_value` is true on the first site.
+"""
+struct PairLhsSelector <: AbstractPairSelector
+    lhs::LatticeValue
+end
+lattice(ps::PairLhsSelector) = lattice(ps.lhs)
+match(ps::PairLhsSelector, site1::LatticeSite, ::LatticeSite) =
+    ps.lhs[site1]
+
+"""
+    PairRhsSelector(lattice_value)
+
+A selector used for hopping operator definition or currents materialization.
+
+Takes a `LatticeValue`.
+A pair matches the selector if the value of `lattice_value` is true on the first site.
+"""
+struct PairRhsSelector <: AbstractPairSelector
+    rhs::LatticeValue
+end
+lattice(ps::PairRhsSelector) = lattice(ps.rhs)
+match(ps::PairRhsSelector, ::LatticeSite, site2::LatticeSite) =
+    ps.rhs[site2]
 
 macro hopping_operator(for_loop::Expr)
     if for_loop.head !== :for
@@ -268,47 +299,48 @@ macro hopping_operator(for_loop::Expr)
 end
 
 """
-    BondSet{LT} where {LT<:Lattice}
+    PairSet{LT} where {LT<:Lattice}
 
 Represents the bonds on some lattice.
 
-`BondSet`s can be combined with the `|` operator and negated with the `!` operator.
-Also you can create a `BondSet` which connects sites that were connected by `≤n` bonds of the previous `BondSet`
+`PairSet`s can be combined with the `|` operator and negated with the `!` operator.
+Also you can create a `PairSet` which connects sites that were connected by `≤n` bonds of the previous `PairSet`
 by taking its power: `bs2 = bs1 ^ n`.
 """
-struct BondSet{LT<:Lattice}
+struct PairSet{LT<:Lattice} <: AbstractPairSelector
     lattice::LT
     bmat::Matrix{Bool}
-    function BondSet(l::LT, bmat::AbstractMatrix{Bool}) where {LT<:Lattice}
+    function PairSet(l::LT, bmat) where {LT<:Lattice}
         !all(size(bmat) .== length(l)) && error("inconsistent connectivity matrix size")
         new{LT}(l, bmat .| bmat' .| Matrix(I, length(l), length(l)))
     end
-    function BondSet(l::Lattice, bmat::BitMatrix)
-        BondSet(l, convert(Matrix{Bool}, bmat))
-    end
-    function BondSet(l::Lattice)
-        BondSet(l, Matrix(I, length(l), length(l)))
+    function PairSet(l::Lattice)
+        PairSet(l, Matrix(I, length(l), length(l)))
     end
 end
+
+lattice(bs::PairSet) = bs.lattice
+match(bs::PairSet, site1::LatticeSite, site2::LatticeSite) =
+    bs.bmat[site_index(site1, lattice(bs)), site_index(site2, lattice(bs))]
 
 """
     bonds(operator)
 
-Generates a `BondSet` for the provided operator.
+Generates a `PairSet` for the provided operator.
 """
 function bonds(op::LatticeOperator)
     matrix = Bool[!iszero(op[i, j])
                   for i in 1:length(lattice(op)), j in 1:length(lattice(op))]
-    return BondSet(lattice(op), matrix)
+    return PairSet(lattice(op), matrix)
 end
 
 """
     bonds(lattice, hoppings...)
 
-Generates a `BondSet` for a given set of `Hopping`s on a given `Lattice`.
+Generates a `PairSet` for a given set of `Hopping`s on a given `Lattice`.
 """
 function bonds(l::Lattice, hops::Hopping...)
-    bs = BondSet(l)
+    bs = PairSet(l)
     for h in hops
         promote_dims!(h, dims(l))
     end
@@ -327,30 +359,24 @@ end
 
 import Base: !, ^, |
 
-function |(bss::BondSet...)
-    !allequal(getproperty.(bss, :lattice)) && error("inconsistent BondSet size")
-    BondSet(bss[1].lattice, .|(getproperty.(bss, :bmat)...))
+function |(bss::PairSet...)
+    !allequal(getproperty.(bss, :lattice)) && error("lattice mismatch")
+    PairSet(bss[1].lattice, .|(getproperty.(bss, :bmat)...))
 end
 
-^(bs1::BondSet, n::Int) =
-    BondSet(bs1.lattice, bs1.bmat^n .!= 0)
+^(bs1::PairSet, n::Int) =
+    PairSet(bs1.lattice, bs1.bmat^n .!= 0)
 
-!(bs::BondSet) =
-    BondSet(bs.lattice, Matrix(I, length(bs.lattice), length(bs.lattice)) .| .!(bs.bmat))
+!(bs::PairSet) =
+    PairSet(bs.lattice, Matrix(I, length(bs.lattice), length(bs.lattice)) .| .!(bs.bmat))
 
-is_adjacent(bs::BondSet, site1_i::Int, site2_i::Int) =
-    bs.bmat[site1_i, site2_i]
-
-is_adjacent(bs::BondSet, site1::LatticeSite, site2::LatticeSite) =
-    bs.bmat[site_index(site1, bs.lattice), site_index(site2, bs.lattice)]
-
-function show(io::IO, m::MIME"text/plain", bs::BondSet)
-    println(io, "BondSet with $(count(bs.bmat)) bonds")
+function show(io::IO, m::MIME"text/plain", bs::PairSet)
+    println(io, "PairSet with $(count(bs.bmat)) bonds")
     print(io, "on ")
     show(io, m, bs.lattice)
 end
 
-@recipe function f(bs::BondSet)
+@recipe function f(bs::PairSet)
     aspect_ratio := :equal
     l = bs.lattice
     pts = Tuple{Float64,Float64}[]

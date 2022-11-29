@@ -15,20 +15,22 @@ export @field_def, AbstractField, apply_field!
 export LandauField, SymmetricField, FluxField, NoField
 
 include("hoppings.jl")
-export hopping, hopping_operator, pairs_by_domains, pairs_by_lhs, pairs_by_rhs,
+export hopping, hopping_operator,
+    DomainsSelector, PairLhsSelector, PairRhsSelector,
     bonds, is_adjacent, @hopping_operator
 
 include("hamiltonian.jl")
-export @hamiltonian, Spectrum, spectrum, eigvals, eigvecs, projector, filled_projector, dos, ldos
+export @hamiltonian, Spectrum, spectrum, eigvals, eigvecs, projector, filled_projector,
+    fermi_dirac, bose_einstein, dos, ldos
 
 include("evolution.jl")
 export @evolution
 
 include("currents.jl")
 export AbstractCurrents, DensityCurrents,
-    materialize, current_lambda, lattice, pairs_by_adjacent, pairs_by_distance, map_currents
+    materialize, current_lambda, lattice, pairs_by_distance, map_currents
 
-include("precompile.jl")
-_precompile_()
+# include("precompile.jl")
+# _precompile_()
 
 end # module LatticeModels

@@ -48,12 +48,12 @@ It is quite likely that you might want to define your own type of currents. All 
 
 An `AbstractCurrents` is a lazy object. This allows to avoid excessive computation, but the computations that are needed will be repeated every time when we use that object. That's where the `MaterializedCurrents` come in, having all their values stored explicitly in an array.
 
-To convert any type of currents to `MaterializedCurrents`, simply use the [`materialize`](@ref) function. You can avoid evaluating some currents (for example, if you know beforehand that they must be zero) by passing a lambda as a first argument (or with `do`-syntax): it must take the `Lattice` and two integer indices and return whether the current between these sites must be evaluated.
+To convert any type of currents to `MaterializedCurrents`, simply use the [`materialize`](@ref) function. You can avoid evaluating some currents (for example, if you know beforehand that they must be zero) by passing a lambda as a first argument (or with `do`-syntax): it must take the `Lattice` and two `LatticeSite`s and return whether the current between these sites must be evaluated.
 
 You can find it similar to the selector function we used back in [Hopping operators](@ref Hopping-operators), which indeed is.
 You may find the following selector functions useful:
 
-- [`pairs_by_adjacent`](@ref) will keep only the currents between adjacent sites.
+- Passing a `PairSet` produced by the [`bonds`](@ref) function will keep only the currents between adjacent sites.
 - [`pairs_by_distance`](@ref) will allow you to select pairs of sites depending on the distance between them. 
 
 ## Mapping currents
@@ -74,11 +74,11 @@ dist, adcurr = map_currents(
     norm(site_coords(l, site1) - site_coords(l, site2))
 end
 
-acurr, dcurr = eachrow(hcat(adcurr...))
+acurr, dcurr = eachcol(adcurr)
 scatter(dist, acurr, err=dcurr, xlims=(0, 14))
 ```
 
-What happened here? The `map_currents` function found the distance and the current between each pair of sites. Then for each distance between sites it found the mean and standard deviation for currents in such pairs, and stored it as a vector of vectors.
+What happened here? The `map_currents` function found the distance and the current between each pair of sites. Then for each distance between sites it found the mean and standard deviation for the absolute value of the currents in such pairs, and stored it column-wise in a matrix automatically.
 In the next line we extracted the mean and standard deviation into separate lists, and plotted the obtained data.
 
 From this picture we can see that there are no density currents between non-adjacent sites, as one must have expected.

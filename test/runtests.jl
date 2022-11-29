@@ -132,7 +132,7 @@ end
     @test s_4 == s_5
     @test_throws MethodError hl[x.<y]
     xb, yb = coord_values(SquareLattice(5, 40))
-    @test_throws "lattice mismatch" sql[xb.<yb]
+    @test_throws "macrocell mismatch" sql[xb.<yb]
 end
 
 @testset "LatticeValue tests" begin
@@ -252,8 +252,8 @@ end
             site_dxmy = LatticeModels._hopping_dest(l, hxmy, site)
             hx_flag &= ((site_dx === nothing) == (ucx == 6))
             hxmy_flag &= ((site_dxmy === nothing) == (ucy == 1))
-            !hx_flag && println("Error at site $site (hx)")
-            !hxmy_flag && println("Error at site $site (hxmy)")
+            !hx_flag && (println("Error at site $site (hx)"); break)
+            !hxmy_flag && (println("Error at site $site (hxmy)"); break)
         end
         @test hx_flag
         @test hxmy_flag
@@ -264,28 +264,20 @@ end
         bs = bonds(l, hopping(axis=1), hopping(axis=2))
         bs1 = bonds(l, hopping(axis=1)) | bonds(l, hopping(axis=2))
         bs2 = bs^2
-        f = pairs_by_adjacent(bs)
-        f2 = pairs_by_adjacent(bs2)
         @test bs.bmat == (!!bs).bmat
         @test bs.bmat == bs1.bmat
-        @test is_adjacent(bs, ls1, ls3)
-        @test is_adjacent(bs, 1, 3)
-        @test !is_adjacent(bs, ls1, ls4)
-        @test !is_adjacent(bs, 1, 4)
-        @test is_adjacent(bs2, ls1, ls3)
-        @test is_adjacent(bs2, ls1, ls4)
-        @test f(l, site_index(ls1, l), site_index(ls3, l))
-        @test !f(l, site_index(ls1, l), site_index(ls4, l))
-        @test f2(l, site_index(ls1, l), site_index(ls3, l))
-        @test f2(l, site_index(ls1, l), site_index(ls4, l))
+        @test bs(l, ls1, ls3)
+        @test !bs(l, ls1, ls4)
+        @test bs2(l, ls1, ls3)
+        @test bs2(l, ls1, ls4)
     end
     l = SquareLattice(5, 5) do xite, (x, y)
         abs(x + y) < 2.5
     end
     x, y = coord_values(l)
-    op1 = hopping_operator(pairs_by_lhs(x .< y), l, hopping(axis=1))
-    op2 = hopping_operator(l, hopping(axis=1)) do l, i, j
-        local (x, y) = site_coords(l, l[i])
+    op1 = hopping_operator(PairLhsSelector(x .< y), l, hopping(axis=1))
+    op2 = hopping_operator(l, hopping(axis=1)) do l, site1, site2
+        local (x, y) = site_coords(l, site1)
         x < y
     end
     @test op1 == op2
@@ -356,8 +348,8 @@ end
         x < y
     end
     x, y = coord_values(l)
-    H0 = [1 0; 0 -1] ⊗ (@. x + y) + hopping_operator(l, hopping([1 0; 0 -1], axis=2), LandauField(0.5)) do l, i, j
-        local (x, y) = site_coords(l, l[i])
+    H0 = [1 0; 0 -1] ⊗ (@. x + y) + hopping_operator(l, hopping([1 0; 0 -1], axis=2), LandauField(0.5)) do l, site1, site2
+        local (x, y) = site_coords(l, site1)
         x + 1 < y
     end
     H1 = @hamiltonian begin
@@ -365,13 +357,13 @@ end
         field := LandauField(0.5)
         dims_internal := 2
         @diag [1 0; 0 -1] ⊗ (@. x + y)
-        @hop [1 0; 0 -1] axis = 2 pairs_by_lhs(@. x + 1 < y)
+        @hop [1 0; 0 -1] axis = 2 PairLhsSelector(@. x + 1 < y)
     end
     H2 = @hamiltonian begin
         lattice := l
         dims_internal := 2
-        @hop translate_uc = [0, 1] pbc = [true, false] [1 0; 0 -1] (l, i, j) ->
-                                                ((x, y) = site_coords(l, l[i]); x + 1 < y)
+        @hop translate_uc = [0, 1] pbc = [true, false] [1 0; 0 -1] (l, s1, s2) ->
+                                                ((x, y) = site_coords(l, s1); x + 1 < y)
         @diag (site, (x, y)) -> [x+y 0; 0 -x-y]
         field := LandauField(0.5)
     end
@@ -419,8 +411,8 @@ end
     bs = bonds(H(0.1))
     m1 = materialize(dc)[x.<y]
     m2 = materialize(dc[x.<y])
-    m3 = materialize(pairs_by_adjacent(bs), dc)[x.<y]
-    m4 = materialize(pairs_by_adjacent(bs), dc[x.<y])
+    m3 = materialize(bs, dc)[x.<y]
+    m4 = materialize(bs, dc[x.<y])
     md = materialize(pairs_by_distance(≤(2)), dc[x.<y])
     @test m1.currents == m2.currents
     @test m1.currents == m3.currents

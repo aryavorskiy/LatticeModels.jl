@@ -128,22 +128,26 @@ plot(bs)
 plot!(l, show_excluded_sites=false, show_indices=false)
 ```
 
-## Selector functions
+## Pair selectors
 
-Note that you can remove some of the hoppings by using *selector functions*:
-a *selector* a lambda which accepts a `Lattice` and two integer indices and return whether the sites should be connected by a hopping or not. Therefore, a *selector function* is a function that generates a selector depending on some parameters.
+You can remove some of the hoppings by using a *pair selector*:
+a *pair selector* is a lambda-like object which accepts a `Lattice` and two `LatticeSite`s to return whether the site pair is *selected* or not.
+Passing such an object to the [`hopping_operator`](@ref) function as the first argument will remove the hoppings connecting *non-selected* pairs.
+
+You can always write any lambda that accepts a `Lattice` and two `LatticeSite`s with similar aim to achieve similar results - but it's safer to use the [`PairSelector`](@ref LatticeModels.AbstractPairSelector) API, because this allows to define a selector for a greater lattice and use it for all sublattices safely.
 
 For example, let's consider we want to split the lattice into two domains which are not connected to each other.
 In such case we must firstly generate a `LatticeValue` defining which site corresponds to which domain:
 
 ```@example env
 domains = @. abs(x) < 1 && abs(y) < 1 # A 2x2 square in the center of the lattice
-hop_op2 = hopping_operator(pairs_by_domains(domains), l, hop1) + 
-          hopping_operator(pairs_by_domains(domains), l, hop2) + 
-          hopping_operator(pairs_by_domains(domains), l, hop3)
+selector = DomainsSelector(domains)
+hop_op2 = hopping_operator(selector, l, hop1) + 
+          hopping_operator(selector, l, hop2) + 
+          hopping_operator(selector, l, hop3)
 
 plot(bonds(hop_op2))
 plot!(domains, cbar=false)
 ```
 
-See also [`pairs_by_domains`](@ref), [`pairs_by_lhs`](@ref), [`pairs_by_rhs`](@ref).
+See also [`DomainsSelector`](@ref), [`PairLhsSelector`](@ref), [`PairLhsSelector`](@ref).

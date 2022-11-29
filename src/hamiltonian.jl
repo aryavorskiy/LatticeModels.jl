@@ -11,7 +11,8 @@ function _hamiltonian_block(block::Expr)
         if Meta.isexpr(line, :(:=), 2)
             k, v = line.args
             if k in keys(assignments)
-                error("cannot overwrite key :$k with value '$v' ('$(assignments[k])' assigned before)")
+                error("""cannot overwrite key '$k' with value '$v'
+                ('$(assignments[k])' assigned before)""")
             end
             assignments[k] = esc(v)
         end
@@ -177,6 +178,20 @@ projector(f::Function, sp::Spectrum) =
 Creates a `LatticeOperator` that projects onto the eigenvectors which have eigenvalues less than `fermi_level` (0 by default).
 """
 filled_projector(sp::Spectrum, fermi_level=0) = projector(E -> E < fermi_level, sp)
+
+"""
+    fermi_dirac(μ, T)
+
+Creates a lambda that takes the energy and returns the state density acccording to Fermi-Dirac statistics.
+"""
+fermi_dirac(μ, T) = E -> 1 / (exp((E - μ) / T) + 1)
+
+"""
+    bose_einstein(μ, T)
+
+Creates a lambda that takes the energy and returns the state density acccording to Bose-Einstein statistics.
+"""
+bose_einstein(μ, T) = E -> 1 / (exp((E - μ) / T) - 1)
 
 @doc raw"""
     dos(spectrum, δ)

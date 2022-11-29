@@ -56,7 +56,7 @@ struct Lattice{LatticeSym,N,NB}
     lattice_size::NTuple{N,Int}
     bravais::Bravais{N,NB}
     mask::Vector{Bool}
-    function Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N,NB}, mask::Vector{Bool}) where {N,NB}
+    function Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N,NB}, mask) where {N,NB}
         length(mask) != prod(sz) * length(bvs) &&
             error("inconsistent mask length")
         new{sym,N,NB}(sz, bvs, mask)
@@ -71,11 +71,11 @@ Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}) where {N} =
 copy(l::Lattice{LatticeSym}) where {LatticeSym} =
     Lattice(LatticeSym, size(l), bravais(l), copy(l.mask))
 size(l::Lattice) = l.lattice_size
+length(l::Lattice) = count(l.mask)
 lattice_type(::Lattice{LatticeSym}) where {LatticeSym} = LatticeSym
 dims(::Lattice{LatticeSym,N} where {LatticeSym}) where {N} = N
 basis_length(::Lattice{LatticeSym,N,NB} where {LatticeSym,N}) where {NB} = NB
 bravais(l::Lattice) = l.bravais
-length(l::Lattice) = count(l.mask)
 
 """
     LatticeSite{N}
@@ -122,7 +122,7 @@ Returns `nothing` if the site is not present in the lattice.
 function site_index(site::LatticeSite, l::Lattice)
     NB = basis_length(l)
     i = LinearIndices((1:NB, (1:s for s in size(l))...))[_cind(site)]
-    (i == nothing || !l.mask[i]) && return nothing
+    (i === nothing || !l.mask[i]) && return nothing
     count(@view l.mask[1:i])
 end
 
@@ -336,4 +336,29 @@ const HoneycombLattice = Lattice{:honeycomb,2,2}
 function HoneycombLattice(sz::Vararg{Int, 2})
     bvs = Bravais([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])
     Lattice(:honeycomb, sz, bvs)
+end
+
+function _s(a)
+    b = IOBuffer()
+    show(b, MIME"text/plain"(), a)
+    String(take!(b))
+end
+function check_lattice_match(l1, l2)
+    lattice(l1) != lattice(l2) &&
+        throw(ArgumentError("lattice mismatch:\n$(_s(lattice(l1)))\n$(_s(lattice(l2)))"))
+end
+
+function check_macrocell_match(l1, l2)
+    la1 = lattice(l1)
+    la2 = lattice(l2)
+    (size(la1) != size(la2) || bravais(la1) != bravais(la2)) &&
+        throw(ArgumentError("""macrocell mismatch:
+        $(size(la1))-size with $(bravais(la1))
+        $(size(la2))-size with $(bravais(la2))"""))
+end
+
+function check_is_sublattice(l1::Lattice, l2::Lattice)
+    check_macrocell_match(l1, l2)
+    any(.!l1.mask .& l2.mask) &&
+        error("sublattice check failed")
 end
