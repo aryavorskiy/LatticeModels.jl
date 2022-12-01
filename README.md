@@ -21,7 +21,7 @@ import Pkg; Pkg.install(url="https://github.com/aryavorskiy/LatticeModels.jl")
 
 ```julia
 using LatticeModels
-using Plots, LinearAlgebra
+using Plots
 
 # First create a lattice
 l = SquareLattice(10, 10)

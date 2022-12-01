@@ -9,10 +9,13 @@ using LatticeModels, Plots
 
 ```@repl env
 l = SquareLattice(5, 5)
-lv = LatticeValue(l) do site, (x, y); x + y + 1; end
+lv = LatticeValue(l) do site, (x, y); x + y + 1; end    # arbitrary site-dependent
+lv2 = rand(l)                                           # uniformly distributed random numbers
+lv3 = randn(l)                                          # normally distributed random numbers
+lv4 = one(l)                                            # 1 on all sites. Also zeros(l) is possible
 ```
 
-To generate `LatticeValue`s for site coordinates, you can use the [`coord_values`](@ref) function.
+To generate a tuple of `LatticeValue`s for site coordinates, you can use the [`coord_values`](@ref) function.
 Note that `LatticeValue`s support [broadcasting](https://docs.julialang.org/en/v1/manual/functions/#man-vectorized), which means you can create coordinate-dependent lattice values in-place:
 
 ```@repl env
@@ -28,13 +31,13 @@ lv == x .+ y .+ 1
 
 Lattice values implement a scatter plot recipe, which colors the plot markers according to the value:
 ```@example env
-plot(lv, markersize=20)
+scatter(layout=2, [lv, lv2, lv3, lv4], title=["x+y+1" "rand-uniform" "rand-normal" "1"] markersize=10)
 ```
 
-Depending on the lattice type, additional plot recipes can be available. For example, a lattice value on a square lattice can be plotted as a heatmap:
+Depending on the lattice type, additional plot recipes can be available. For example, a lattice value on a square lattice can be plotted as a heatmap (which will be enabled by default if you do not specify the series type):
 
 ```@example env
-heatmap(lv)
+heatmap(layout=2, [lv, lv2, lv3, lv4], title=["x+y+1" "rand-uniform" "rand-normal" "1"] markersize=10)
 ```
 
 ## Indexing
@@ -59,3 +62,11 @@ plot!(p[2], project(lv_on_line, :y))
 
 Note that we can show the sites we selected by plotting the lattice of the selected values with `high_contrast=true`.
 This options hides the indices and translucent marks, and also makes the plot markers black-and-white, which prevents them from blending in with the heatmap in the background.
+
+You also can change the values stored in a `LatticeValue`:
+
+```julia
+lv2 = ones(l)
+lv2[x .< y] = lv        # like this
+lv2[x .> y + 1] .= 2    # or like this
+```

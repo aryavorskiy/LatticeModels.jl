@@ -29,7 +29,7 @@ using LatticeModels
         end
         P = filled_projector(spectrum(H))
         X, Y = coord_operators(Basis(l, 2))
-        d = ptrace(4π * im * P * X * (I - P) * Y * P)
+        d = site_density(4π * im * P * X * (I - P) * Y * P)
         rd = d .|> real
         true
     end
@@ -148,7 +148,7 @@ end
     X, Y = coord_operators(bas)
     x, y = coord_values(l)
     xtr = diag_aggregate(tr, X)
-    xtr2 = ptrace(X)
+    xtr2 = site_density(X)
     xm2 = LatticeValue(l) do site, (x, y)
         2x
     end
@@ -221,6 +221,8 @@ end
         @test X * Y == xy
         @test X * 2 + 2Y - I == x2p2ym1
         @test vc' * X * vc == xf
+        @test ptrace(X, :internal) == diagm(x.values) * 2
+        @test ptrace(X, :lattice) == sum(x.values) * [1 0; 0 1]
         @test_throws "basis mismatch" X * X2
         @test_throws MethodError X * ones(200, 200)
     end
@@ -355,9 +357,9 @@ end
         H4 = copy(H3)
         apply_field!(H3, la)
         apply_field!(H4, lla)
-        @test H1.operator ≈ H2.operator
-        @test H2.operator ≈ H3.operator
-        @test H3.operator ≈ H4.operator
+        @test H1.array ≈ H2.array
+        @test H2.array ≈ H3.array
+        @test H3.array ≈ H4.array
     end
 end
 
@@ -400,14 +402,14 @@ end
     states = eigvecs(sp)
     @test length(sp) == size(states)[2]
     @test sp[1] == sp[E=-100]
-    @test filled_projector(sp).operator ≈ projector(sp[Es.<0]).operator
+    @test filled_projector(sp).array ≈ projector(sp[Es.<0]).array
 
     # LDOS tests
     E = 2
     δ = 0.2
     Es = eigvals(sp)
     Vs = eigvecs(sp)
-    ld1 = imag.(ptrace(LatticeModels.LatticeArray(basis(sp), Vs * (@.(1 / (Es - E - im * δ)) .* Vs'))))
+    ld1 = imag.(diag_aggregate(tr, LatticeModels.LatticeArray(basis(sp), Vs * (@.(1 / (Es - E - im * δ)) .* Vs'))))
     ldosf = ldos(sp, δ)
     @test ldos(sp, E, δ).values ≈ ld1.values
     @test ldosf(E).values ≈ ld1.values

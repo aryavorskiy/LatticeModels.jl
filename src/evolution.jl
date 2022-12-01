@@ -14,8 +14,8 @@ function taylor_exp(A::AbstractMatrix, k::Int)
     return B
 end
 
-exp(A::LatticeOperator) = LatticeArray(A.basis, exp(A.operator))
-taylor_exp(A::LatticeOperator, k::Int) = LatticeArray(A.basis, taylor_exp(A.operator, k))
+exp(A::LatticeOperator) = LatticeArray(A.basis, exp(A.array))
+taylor_exp(A::LatticeOperator, k::Int) = LatticeArray(A.basis, taylor_exp(A.array, k))
 
 @doc raw"""
     evolution_operator(H, t[, k])

@@ -30,7 +30,7 @@ include("currents.jl")
 export AbstractCurrents, DensityCurrents,
     materialize, current_lambda, lattice, pairs_by_distance, map_currents
 
-# include("precompile.jl")
-# _precompile_()
+include("precompile.jl")
+_precompile_()
 
 end # module LatticeModels

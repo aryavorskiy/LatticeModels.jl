@@ -31,7 +31,7 @@ Here we will find its eigenstates and plot their local density on heatmaps.
 
 ```@example
 using LatticeModels
-using LinearAlgebra, Plots
+using Plots
 # Generate a 40x40 square lattice
 l = SquareLattice(40, 40)
 # Define the tight-binding model hamiltonian
@@ -68,7 +68,7 @@ The tight-binding hamiltonian is the same as in the example above.
 
 ```@example
 using LatticeModels
-using LinearAlgebra, Plots
+using Plots
 
 l = SquareLattice(10, 10) do site, (x, y)
     abs(x) > 1 || abs(y) > 1
@@ -119,7 +119,7 @@ After that we change the $m_i$ in the center of the lattice to $-1$ and start th
 
 ```@example
 using LatticeModels
-using LinearAlgebra, Plots
+using Plots
 
 l = SquareLattice(11, 11)
 x, y = coord_values(l)
@@ -137,7 +137,8 @@ H1 = @hamiltonian begin
 end
 
 # Quenched hamiltonian: m=-1 in the central 3x3 square
-M = @. (abs(x) < 1.5 && abs(y) < 1.5) * -2 + 1
+M = ones(l)
+M = [@. abs(x) < 1.5 && abs(y) < 1.5] .= -1
 H2 = @hamiltonian begin
     lattice := l
     dims_internal := 2
@@ -160,7 +161,7 @@ a = Animation()
 
     # Local Chern marker heatmap
     lcm_operator = 4pi * im * P * X * P * Y * P
-    chern_marker = ptrace(lcm_operator) .|> real
+    chern_marker = site_density(lcm_operator)
     plot!(p[1], chern_marker, clims=(-2, 2))
 
     # Select sites on y=0 line (use ≈ to avoid rounding errors)
@@ -185,7 +186,7 @@ Let's take the same hamiltonian from the previous example and create a LDOS anim
 
 ```@example
 using LatticeModels
-using LinearAlgebra, Plots
+using Plots
 l = SquareLattice(40, 40)
 σ = [[0 1; 1 0], [0 -im; im 0], [1 0; 0 -1]]
 H = @hamiltonian begin   

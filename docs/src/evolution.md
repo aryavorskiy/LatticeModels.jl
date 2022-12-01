@@ -41,7 +41,7 @@ P0 = filled_projector(spectrum(Chern(l, 0)))
     P0 --> H --> P
 } for t in 0:0.1:2τ
     cur = DensityCurrents(H, P)
-    heatmap(ptrace(P) .|> real, title="Local density, t = $t", clims=(0.9, 1.1))
+    heatmap(site_density(P), title="Local density, t = $t", clims=(0.9, 1.1))
     plot!(cur, arrows_scale=20, color=:blue)
     frame(a)
 end

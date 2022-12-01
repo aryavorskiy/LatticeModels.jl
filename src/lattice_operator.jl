@@ -30,27 +30,27 @@ function show(io::IO, m::MIME"text/plain", b::Basis)
 end
 
 @doc """
-    LatticeArray{LT, MT} where {LT<:Lattice, MT<:AbstractArray}
+    LatticeArray{AT, LT, N} where {LT<:Lattice, MT<:AbstractArray}
 
 A wrapper object for array representing a wave function or linear operator.
 Stores information about its basis to perform lattice checks.
 """
-struct LatticeArray{LT<:Lattice,MT<:AbstractArray}
+struct LatticeArray{MT<:AbstractArray,LT<:Lattice,N}
     basis::Basis{LT}
-    operator::MT
-    function LatticeArray(basis::Basis{LT}, operator::MT) where {LT<:Lattice,MT<:AbstractArray}
-        !all((ax in (1, length(basis))) for ax in size(operator)) && error("inconsistent vector/matrix size")
-        new{LT,MT}(basis, operator)
+    array::MT
+    function LatticeArray(basis::Basis{LT}, array::AT) where {LT<:Lattice,AT<:AbstractArray}
+        !all((ax in (1, length(basis))) for ax in size(array)) && error("inconsistent vector/matrix size")
+        new{AT,LT,ndims(array)}(basis, array)
     end
 end
 
-const LatticeVector{LT,T} = LatticeArray{LT,T} where {LT<:Lattice,T<:AbstractVector}
-const LatticeOperator{LT,T} = LatticeArray{LT,T} where {LT<:Lattice,T<:AbstractMatrix}
+const LatticeVector{VT,LT} = LatticeArray{VT,LT,1}
+const LatticeOperator{MT,LT} = LatticeArray{MT,LT,2}
 
 """
-    LatticeOperator{LT, MT}
+    LatticeOperator{MT, LT}
 
-The same as `LatticeArray{LT, MT}` where `MT<:AbstractMatrix`.
+The same as `LatticeArray{MT, LT, 2}` where `MT<:AbstractMatrix`.
 
 ---
     LatticeOperator(uniform_scaling, basis)
@@ -63,30 +63,32 @@ function LatticeOperator(op::UniformScaling, bas::Basis)
     diag_operator(lattice(bas), m)
 end
 
-size(la::LatticeArray) = size(la.operator)
+size(la::LatticeArray) = size(la.array)
 basis(la::LatticeArray) = la.basis
 dims_internal(x) = dims_internal(basis(x))
 lattice(x) = lattice(basis(x))
 
-@inline _ranges(is::Tuple, N::Int) = _ranges((), is, N)
-@inline _ranges(rngs::Tuple, ::Tuple{}, N::Int) = rngs
-@inline _ranges(rngs::Tuple, is::Tuple, N::Int) = _ranges(rngs, is[1], Base.tail(is), N)
-@inline _ranges(rngs::Tuple, i::Int, is::Tuple, N::Int) =
-    _ranges((rngs..., N*(i-1)+1:N*i), is, N)
-@inline _ranges(rngs::Tuple, ::Colon, is::Tuple, N::Int) =
-    _ranges((rngs..., :), is, N)
-getindex(lo::LatticeArray, is...) = lo.operator[_ranges(is, dims_internal(lo))...]
-Base.view(lo::LatticeArray, is...) = view(lo.operator, _ranges(is, dims_internal(lo))...)
-setindex!(lo::LatticeArray, val, is...) =
-    (lo.operator[_ranges(is, dims_internal(lo))...] = val)
+@inline _ranges(is::Tuple, l::Lattice, N::Int) = _ranges((), is, l, N)
+@inline _ranges(rngs::Tuple, ::Tuple{}, ::Lattice, N::Int) = rngs
+@inline _ranges(rngs::Tuple, is::Tuple, l::Lattice, N::Int) = _ranges(rngs, is[1], Base.tail(is), l, N)
+@inline _ranges(rngs::Tuple, i::Int, is::Tuple, l::Lattice, N::Int) =
+    _ranges((rngs..., N*(i-1)+1:N*i), is, l, N)
+@inline _ranges(rngs::Tuple, site::LatticeSite, is::Tuple, l::Lattice, N::Int) =
+    _ranges((rngs..., site_index(site, l)), is, l, N)
+@inline _ranges(rngs::Tuple, ::Colon, is::Tuple, l::Lattice, N::Int) =
+    _ranges((rngs..., :), is, l, N)
+getindex(la::LatticeArray, is::Vararg{Any}) = la.array[_ranges(is, lattice(la), dims_internal(la))...]
+Base.view(la::LatticeArray, is::Vararg{Any}) = view(la.array, _ranges(is, lattice(la), dims_internal(la))...)
+setindex!(la::LatticeArray, val, is::Vararg{Any}) =
+    (la.array[_ranges(is, lattice(la), dims_internal(la))...] = val)
 
-==(lvm1::LatticeArray, lvm2::LatticeArray) = (lvm1.basis == lvm2.basis) && (lvm1.operator == lvm2.operator)
+==(lvm1::LatticeArray, lvm2::LatticeArray) = (lvm1.basis == lvm2.basis) && (lvm1.array == lvm2.array)
 
 _typename(::LatticeVector) = "LatticeVector"
 _typename(::LatticeOperator) = "LatticeOperator"
 _typename(::LatticeArray) = "LatticeArray"
-function show(io::IO, m::MIME"text/plain", la::LatticeArray{LT,MT} where {LT}) where {MT}
-    println(io, join(size(la), "×"), " ", _typename(la), " with inner type $MT")
+function show(io::IO, m::MIME"text/plain", la::LatticeArray{AT}) where {AT}
+    println(io, join(size(la), "×"), " ", _typename(la), " with inner type $AT")
     print(io, "on ")
     show(io, m, la.basis)
 end
@@ -242,17 +244,27 @@ coord_operators(l::Lattice, N::Int) = coord_operators(Basis(l, N))
 Creates a `LatticeValue` where a site maps to the result of `function` on the matrix
 of the operator narrowed to that site.
 """
-diag_aggregate(f::Function, lo::LatticeArray) =
+diag_aggregate(f::Function, lo::LatticeOperator) =
     LatticeValue(lattice(lo), [f(lo[i, i]) for i in 1:length(lattice(lo))])
 
 """
-    ptrace(lattice_operator)
+    ptrace(lattice_operator, space)
 
-Does the same as `diag_aggregate(tr, lattice_operator)`, but faster.
+Calculates a matrix for the partial trace of given operator.
+`space` must take one of two values:
+- `:lattice` for taking the partial trace over the lattice space.
+- `:internal` for the same over the internal space.
 """
-function ptrace(lo::LatticeArray)
+function ptrace(lo::LatticeOperator, space::Symbol)
     N = dims_internal(lo)
-    LatticeValue(lattice(lo), vec(sum(reshape(diag(lo.operator), (N, :)), dims=1)))
+    if space === :lattice
+        sum(@views lo[i, i] for i in 1:length(lattice(lo)))
+    elseif space === :internal
+        blen = length(basis(lo))
+        sum(@views lo.array[i:N:blen, i:N:blen] for i in 1:N)
+    else
+        throw(ArgumentError("unsupported value '$space' of 'space' argument"))
+    end
 end
 
 """
@@ -263,10 +275,11 @@ A convenience function to find local density for wave functions (represented by 
 and density matrices(represented by `lattice_operator`).
 
 For wave functions it yields the total probability of the particle of being on every site.
-For density matrices the partial trace is returned.
+For density matrices the partial traces for all sites is returned.
 The return type is `LatticeValue` for both types of arguments.
 """
-site_density(lo::LatticeOperator) = real.(ptrace(lo))
+site_density(lo::LatticeOperator) =
+    LatticeValue(lattice(lo), vec(real.(sum(reshape(diag(lo.array), (dims_internal(lo), :)), dims=1))))
 function site_density(lv::LatticeVector)
     l = lattice(lv)
     LatticeValue(l, [norm(lv[i])^2 for i in 1:length(l)])
@@ -287,7 +300,7 @@ end
 @inline _unwrap(f::Function, checked_args::Tuple, ::Tuple{}; kw...) = f(checked_args...; kw...)
 
 @inline _unwrap(f::Function, checked_args::Tuple, el::LatticeArray, args::Tuple; kw...) =
-    _unwrap_wlattice(f, basis(el), (checked_args..., el.operator), args; kw...)
+    _unwrap_wlattice(f, basis(el), (checked_args..., el.array), args; kw...)
 @inline _unwrap(f::Function, checked_args::Tuple, el::AbstractVecOrMat, args::Tuple; kw...) =
     _unwrap_nolattice(f, (checked_args..., el), args; kw...)
 
@@ -295,7 +308,7 @@ end
     _unwrap_nolattice(f, (checked_args..., el), args; kw...)
 @inline function _unwrap_nolattice(f::Function, checked_args::Tuple, el::LatticeArray, args::Tuple; kw...)
     @warn "avoid using lattice operators and matrices in one function call"
-    _unwrap_wlattice(f, basis(el), (checked_args..., el.operator), args; kw...)
+    _unwrap_wlattice(f, basis(el), (checked_args..., el.array), args; kw...)
 end
 @inline _unwrap_nolattice(f::Function, checked_args::Tuple, args::Tuple; kw...) =
     _unwrap_nolattice(f, checked_args, args[1], Base.tail(args); kw...)
@@ -309,7 +322,7 @@ end
 end
 @inline function _unwrap_wlattice(f::Function, basis::Basis, checked_args::Tuple, el::LatticeArray, args::Tuple; kw...)
     check_basis_match(el, basis)
-    _unwrap_wlattice(f, basis, (checked_args..., el.operator), args; kw...)
+    _unwrap_wlattice(f, basis, (checked_args..., el.array), args; kw...)
 end
 @inline _unwrap_wlattice(f::Function, basis::Basis, checked_args::Tuple, args::Tuple; kw...) =
     _unwrap_wlattice(f, basis, checked_args, args[begin], Base.tail(args); kw...)

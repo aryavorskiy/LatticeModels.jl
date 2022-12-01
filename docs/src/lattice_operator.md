@@ -73,13 +73,11 @@ For example, you can find a partial trace like this:
 
 ```@repl env
 using LinearAlgebra
-lv = diag_aggregate(tr, op) # same as ptrace(op)
+lv = diag_aggregate(tr, op) # same as site_density(op)
 lv == 2 .* x
 ```
 
-!!! tip
-    `ptrace` returns a complex-valued `LatticeValue` for most linear operators, which means that the imaginary part must be taken before plotting.
-    Consider [`site_density`](@ref) instead. This function is also applicable to wave functions represented as `LatticeVector`.
+[`site_density`](@ref) function is also applicable to wave functions represented as `LatticeVector`s.
 
 ## Hopping operators
 

@@ -18,7 +18,7 @@ end
 P = filled_projector(spectrum(H), -0.5)
 
 curr = DensityCurrents(H, P)                    # Create Currents object
-heatmap(ptrace(P) .|> real)
+heatmap(site_density(P))
 plot!(curr, arrows_scale=25, arrows_rtol=0.1, color=:blue)    # Quiver-plot the currents
 ```
 
