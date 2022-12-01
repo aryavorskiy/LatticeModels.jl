@@ -138,7 +138,7 @@ end
 
 # Quenched hamiltonian: m=-1 in the central 3x3 square
 M = ones(l)
-M = [@. abs(x) < 1.5 && abs(y) < 1.5] .= -1
+M[@. abs(x) < 1.5 && abs(y) < 1.5] .= -1
 H2 = @hamiltonian begin
     lattice := l
     dims_internal := 2
