@@ -14,21 +14,27 @@ unless you want to use built-in trapezoidal rule integrating.
 vector_potential(::FT, point) where {FT<:AbstractField} =
     error("no vector potential function defined for field type $(FT)")
 
-dot_assuming_zeros(m::SVector{M}, n::SVector{N}) where {M,N} = m[1:min(M, N)]' * n[1:min(M, N)]
+const LenType{N} = Union{SVector{N}, NTuple{N, Any}}
+@inline @generated function dot_assuming_zeros(p1::LenType{M}, p2::LenType{N}) where {M,N}
+    n = min(M, N)
+    Expr(:call, :+, [:(p1[$i] * p2[$i]) for i in 1:n]...)
+end
 
 @doc raw"""
-    path_integral(field, p1, p2; n_steps=1)
+    path_integral(field, p1, p2[, n_steps=1])
 
 Calculates the $\int_{p1}^{p2} \overrightarrow{A} \cdot \overrightarrow{dl}$ integral using the trapezoidal rule.
 Increase `n_steps` to improve accuracy (for linear fields like Landau or symmetrical calibrations the formula is accurate).
 If needed, redefine this function for specific field types - this is likely to boost accuracy and performance.
 """
-function path_integral(field::AbstractField, p1, p2; n_steps=1)
+path_integral(field::AbstractField, p1, p2) =
+    dot_assuming_zeros(p2 - p1, vector_potential(field, (p2 + p1) / 2))
+function path_integral(field::AbstractField, p1, p2, n_steps)
     integral = 0.0
     dp = (p2 - p1) / n_steps
     p = p1 + 0.5dp
     for _ in 1:n_steps
-        integral += dot_assuming_zeros(dp, SVector(vector_potential(field, p)))
+        integral += dot_assuming_zeros(dp, vector_potential(field, p))
         p += dp
     end
     integral
@@ -164,7 +170,7 @@ macro field_def(struct_block)
             if key === :n_steps
                 push!(struct_definition.args, :(
                     LatticeModels.path_integral(field::$struct_name, p1, p2) =
-                        LatticeModels.path_integral(field, p1, p2; n_steps=$arg)
+                        LatticeModels.path_integral(field, p1, p2, $arg)
                 ))
             else
                 @warn "unsupported key $key ignored"
@@ -188,7 +194,7 @@ Use it as a default magnetic field argument in functions - this will not cause a
 NoField
 
 @field_def struct LandauField(B::Number)
-    vector_potential(x) = SA[0, x*B]
+    vector_potential(x) = (0, x*B)
     path_integral(p1, p2) = ((p1[1] + p2[1]) / 2) * (p2[2] - p1[2]) * B
     show(io::IO, ::MIME"text/plain") = print(io, "Landau calibration field; B = $B flux quanta per 1×1 plaquette")
 end

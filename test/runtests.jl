@@ -133,6 +133,13 @@ end
     @test_throws MethodError hl[x.<y]
     xb, yb = coord_values(SquareLattice(5, 40))
     @test_throws "macrocell mismatch" sql[xb.<yb]
+    sql2 = sublattice(sql) do site, crd
+        site ∉ (sql[1], sql[end])
+    end
+    pop!(sql)
+    popfirst!(sql)
+    @test sql == sql2
+
 end
 
 @testset "LatticeValue tests" begin
@@ -157,18 +164,29 @@ end
     @test [idxs[s] for s in l] == 1:length(l)
     @test x == xtr
     @test x == xtr2
-    @test x .* y == xy
-    @test x .* 2 == xm2
-    @test 2 .* x == xm2
-    @test x .|> (x -> 2x) == xm2
-    y .= x .* y
-    @test y == xy
-    @test_throws "cannot broadcast" x .* ones(100)
-    l2 = SquareLattice(5, 20)
-    x2 = LatticeValue(l2) do site, (x, y)
-        x
+    @testset "Broadcast" begin
+        @test x .* y == xy
+        @test x .* 2 == xm2
+        @test 2 .* x == xm2
+        @test x .|> (x -> 2x) == xm2
+        y .= x .* y
+        @test y == xy
+        @test_throws "cannot broadcast" x .* ones(100)
+        l2 = SquareLattice(5, 20)
+        x2 = LatticeValue(l2) do site, (x, y)
+            x
+        end
+        @test_throws "lattice mismatch" x .* x2
     end
-    @test_throws "lattice mismatch" x .* x2
+    @testset "Indexing" begin
+        z = zeros(l)
+        z2 = zero(z)
+        z .= 1
+        z2[x .≥ y] .+= 1
+        z2[x .< y] = ones(l)
+        @test z == ones(l)
+        @test z2 == ones(l)
+    end
 end
 
 @testset "LatticeOperator tests" begin
@@ -304,24 +322,24 @@ end
         p1 = SA[1, 2]
         p2 = SA[3, 4]
         @test LatticeModels.path_integral(la, p1, p2) ≈
-              LatticeModels.path_integral(la, p1, p2; n_steps=100)
-        @test LatticeModels.path_integral(lla, p1, p2; n_steps=100) ==
+              LatticeModels.path_integral(la, p1, p2, 100)
+        @test LatticeModels.path_integral(lla, p1, p2, 100) ==
               LatticeModels.path_integral(lla, p1, p2)
         @test LatticeModels.path_integral(la, p1, p2) ≈
               LatticeModels.path_integral(lla, p1, p2)
 
-        @test LatticeModels.path_integral(sla, p1, p2; n_steps=100) ≈
+        @test LatticeModels.path_integral(sla, p1, p2, 100) ≈
               LatticeModels.path_integral(la, p1, p2)
         @test LatticeModels.path_integral(sla, p1, p2) == 123
 
-        @test LatticeModels.path_integral(sym, p1, p2; n_steps=1) ≈
+        @test LatticeModels.path_integral(sym, p1, p2, 1) ≈
               LatticeModels.path_integral(sym, p1, p2)
-        @test LatticeModels.path_integral(sym, p1, p2; n_steps=100) ≈
+        @test LatticeModels.path_integral(sym, p1, p2, 100) ≈
               LatticeModels.path_integral(sym, p1, p2)
 
-        @test LatticeModels.path_integral(flx, p1, p2; n_steps=1000) ≈
+        @test LatticeModels.path_integral(flx, p1, p2, 1000) ≈
               LatticeModels.path_integral(flx, p1, p2) atol = 1e-8
-        @test LatticeModels.path_integral(flx + sym, p1, p2; n_steps=1000) ≈
+        @test LatticeModels.path_integral(flx + sym, p1, p2, 1000) ≈
               LatticeModels.path_integral(flx + sym, p1, p2) atol = 1e-8
 
         @test_throws "no vector potential function" LatticeModels.vector_potential(emf, SA[1, 2, 3])

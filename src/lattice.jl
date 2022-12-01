@@ -1,5 +1,6 @@
 using RecipesBase, LinearAlgebra, Logging, StaticArrays
-import Base: length, size, copy, iterate, getindex, eltype, show, ==, isless
+import Base: length, size, copy, iterate, getindex, eltype, show, ==, isless,
+    pop!, popat!, popfirst!, splice!, lastindex
 
 """
     Bravais{N, NB}
@@ -120,11 +121,19 @@ Returns the integer index for given `site` in `lattice`.
 Returns `nothing` if the site is not present in the lattice.
 """
 function site_index(site::LatticeSite, l::Lattice)
-    NB = basis_length(l)
-    i = LinearIndices((1:NB, (1:s for s in size(l))...))[_cind(site)]
+    i = LinearIndices((1:basis_length(l), (1:s for s in size(l))...))[_cind(site)]
     (i === nothing || !l.mask[i]) && return nothing
     count(@view l.mask[1:i])
 end
+
+function splice!(l::Lattice, is)
+    view(l.mask, l.mask)[collect(is)] .= false
+    l
+end
+popat!(l::Lattice, i::Int) = splice!(l, i)
+pop!(l::Lattice) = popat!(l, length(l))
+popfirst!(l::Lattice) = popat!(l, 1)
+lastindex(l::Lattice) = length(l)
 
 Base.eltype(::Lattice{LatticeSym,N}) where {LatticeSym,N} = LatticeSite{N}
 
@@ -252,7 +261,7 @@ end
         end
         seriestype --> :scatter
         if v !== nothing && RecipesBase.is_key_supported(:hover)
-            Xr, Yr = round.((X, Y), digits=3)
+            Xr, Yr = eachrow(round.(pts, digits=3))
             hover := string.(round.(v, digits=3), " @ (", Xr, ", ", Yr, ")")
         end
         if plotattributes[:seriestype] == :scatter
