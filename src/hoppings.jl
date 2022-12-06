@@ -84,7 +84,7 @@ function show(io::IO, m::MIME"text/plain", hop::Hopping)
         if all(hop.pbc .| (hop.translate_uc .== 0))
             println(io, "periodic")
         else
-            p_axes = [i for i in eachindex(hop.translate_uc) if hop.pbc[i] || hop.translate_uc[i] == 0]
+            p_axes = [i for i in eachindex(hop.translate_uc) if hop.pbc[i] && hop.translate_uc[i] != 0]
             if length(p_axes) == 0
                 println(io, "open")
             elseif length(p_axes) == 1
@@ -126,7 +126,7 @@ function _hopping_dest(l::Lattice, hop::Hopping, i_site::LatticeSite)
     i_site.basis_index != hop.site_indices[1] && return nothing
     new_uc = i_site.unit_cell + hop.translate_uc
     for i in 1:dims(l)
-        !hop.pbc[i] && !(1 ≤ new_uc[i] ≤ size(l)[i]) && return nothing
+        hop.pbc[i] || 1 ≤ new_uc[i] ≤ size(l)[i] || return nothing
     end
     LatticeSite(mod.(new_uc .- 1, l.lattice_size) .+ 1, hop.site_indices[2])
 end

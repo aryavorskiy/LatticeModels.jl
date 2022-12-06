@@ -57,7 +57,7 @@ Let us make it clear what an evolution specifier is. In fact, there are two poss
   Note that you can use a hamiltonian alias instead of an expression if it was previously defined.
 - It is an *alias declaration*, which means that a certain expression will be evaluated on every iteration and assigned to a variable with a given name. For example, `H := Chern(l, B * min(t, τ) / τ)` evaluates the Chern insulator hamiltonian and writes the result to the `H` variable.
 
-## Compatibility
+### Compatibility
 
 This macro is designed to be compatible with arbitrary array types. This means that hamiltonian expressions or initial states needn't to be `LatticeArray`s, but they can be of any array type instead, as long as it supports linear algebra operations such as matrix multiplication.
 
@@ -72,7 +72,7 @@ Here are the functions that must be defined for the desired array type:
 !!! warning
     If you use `LatticeArray`s, you still have to make sure these functions and operators are defined for the underlying array type.
 
-## Performance
+### Performance
 
 The evolution macro avoids calculations where possible to improve performance. It is important to know how it achieves this result:
 
@@ -90,4 +90,33 @@ Keyword assignments should be placed before the rules list:
 
 ```julia
 @evolution k=2 rtol=1e-6 show_progress=false {...} for t in ...
+```
+
+## Lattice records
+
+A `LatticeRecord` is a struct that stores information about how some value (of type `LatticeValue`, `LatticeArray` or `MaterializedCurrents`) changed during time. It simplifies working with time-dependent values by allowing you to run the computation pass only once and re-evaluate all visualization code as much as you want.
+
+Here is an example:
+
+```@example env
+P0 = filled_projector(spectrum(Chern(l, 0)))
+density_rec = LatticeValueRecord(l)
+ddensity_rec = LatticeValueRecord(l)
+
+@evolution {
+    H := Chern(l, B * min(t, τ) / τ),
+    P0 --> H --> P
+} for t in 0:0.1:2τ
+    insert!(density_rec, t, site_density(P))
+    insert!(ddensity_rec, t, site_density(-im * (H * P - P * H)))
+end
+
+site = l[50]
+p = plot(layout=(2,1))
+plot!(p[1], time_domain(density_rec), density_rec[site], lab="p")
+
+# Compare computed time derivative with Heisenberg equation
+d_density_rec = diff(density_rec)
+plot!(p[2], time_domain(d_density_rec), d_density_rec[site], lab="dp/dt")
+plot!(p[2], time_domain(ddensity_rec), ddensity_rec[site], lab="Heisenberg") 
 ```

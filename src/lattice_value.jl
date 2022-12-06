@@ -1,7 +1,7 @@
 using LinearAlgebra, Statistics, Logging
 import Base: length, size, getindex, setindex!, eltype, copyto!, show, ==
 
-struct LatticeValueWrapper{VT<:AbstractVecOrMat,LatticeSym}
+struct LatticeValueWrapper{VT<:AbstractVector,LatticeSym}
     lattice::Lattice{LatticeSym}
     values::VT
     function LatticeValueWrapper(lattice::Lattice{LatticeSym}, values::VT) where {VT,LatticeSym}
@@ -20,7 +20,7 @@ Fields:
 - lattice: the `Lattice` object the value is defined on
 - values: the values on different sites
 """
-const LatticeValue{T} = LatticeValueWrapper{Vector{T}}
+const LatticeValue{T, LT} = LatticeValueWrapper{Vector{T}, LT}
 
 """
         LatticeValue(lattice::Lattice, vector::AbstractVector)
@@ -45,7 +45,7 @@ rand(T::Type, l::Lattice) = LatticeValue(l, rand(T, length(l)))
 randn(l::Lattice) = LatticeValue(l, randn(length(l)))
 randn(T::Type, l::Lattice) = LatticeValue(l, randn(T, length(l)))
 fill(value, l::Lattice) = LatticeValue(l, fill(value, length(l)))
-fill!(value, lv::LatticeValue) = (fill!(value, lv.values); lv)
+fill!(lv::LatticeValue, value) = (fill!(lv.values, value); lv)
 zero(lvw::LatticeValueWrapper) = LatticeValueWrapper(lattice(lvw), zero(lvw.values))
 zeros(l::Lattice) = fill(0., l)
 zeros(T::Type, l::Lattice) = fill(zero(T), l)

@@ -30,6 +30,10 @@ include("currents.jl")
 export AbstractCurrents, DensityCurrents,
     materialize, current_lambda, lattice, pairs_by_distance, map_currents
 
+include("record.jl")
+export init_record, integrate, time_domain,
+    LatticeRecord, LatticeValueRecord, LatticeArrayRecord, CurrentsRecord
+
 include("precompile.jl")
 _precompile_()
 

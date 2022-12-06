@@ -59,3 +59,10 @@ Pages   = ["currents.jl"]
 Modules = [LatticeModels]
 Pages   = ["evolution.jl"]
 ```
+
+## Value records
+
+```@autodocs
+Modules = [LatticeModels]
+Pages   = ["record.jl"]
+```

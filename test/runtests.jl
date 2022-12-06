@@ -247,6 +247,26 @@ in one function call"
     end
 end
 
+@testset "LatticeRecord tests" begin
+    l = SquareLattice(3, 3)
+    site = l[5]
+    x, y = coord_values(l)
+    xy = x .* y
+    xly = x .< y
+    rec = LatticeValueRecord(l)
+    insert!(rec, 0, xy)
+    insert!(rec, 1, xy)
+    insert!(rec, 2, xy)
+    @test rec[site] == fill(xy[site], 3)
+    @test rec[xly] == LatticeRecord(fill(xy[xly], 3), [0:2;])
+    @test diff(rec) == LatticeRecord([zeros(l), zeros(l)], [0.5, 1.5])
+    rec2 = init_record(xy .* 0)
+    insert!(rec2, 1, xy .* 1)
+    insert!(rec2, 2, xy .* 2)
+    @test rec2(0.9) == xy
+    @test integrate(rec) == rec2
+end
+
 @testset "Hopping tests" begin
     @testset "Constructor" begin
         @test hopping(axis=1) == hopping(translate_uc=[1])

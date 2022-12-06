@@ -17,8 +17,7 @@ function _hamiltonian_block(block::Expr)
             assignments[k] = esc(v)
         end
     end
-    !(:lattice in keys(assignments)) &&
-        error("lattice not defined")
+    :lattice in keys(assignments) || error("lattice not defined")
     lattice_sym = assignments[:lattice]
     field_sym = get(assignments, :field, :(NoField()))
     arrtype_sym = get(assignments, :arrtype, :(Matrix{ComplexF64}))

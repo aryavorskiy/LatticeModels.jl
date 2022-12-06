@@ -10,9 +10,9 @@ using LatticeModels, Plots
 ```@repl env
 l = SquareLattice(5, 5)
 lv = LatticeValue(l) do site, (x, y); x + y + 1; end    # arbitrary site-dependent
-lv2 = rand(l)                                           # uniformly distributed random numbers
-lv3 = randn(l)                                          # normally distributed random numbers
-lv4 = one(l)                                            # 1 on all sites. Also zeros(l) is possible
+lv2 = rand(l)                               # uniformly distributed random numbers
+lv3 = randn(l)                              # normally distributed random numbers
+lv4 = ones(l)                               # 1 on all sites. Also zeros(l) is possible
 ```
 
 To generate a tuple of `LatticeValue`s for site coordinates, you can use the [`coord_values`](@ref) function.
@@ -31,13 +31,13 @@ lv == x .+ y .+ 1
 
 Lattice values implement a scatter plot recipe, which colors the plot markers according to the value:
 ```@example env
-scatter(layout=2, [lv, lv2, lv3, lv4], title=["x+y+1" "rand-uniform" "rand-normal" "1"] markersize=10)
+scatter(lv, markersize=10)
 ```
 
 Depending on the lattice type, additional plot recipes can be available. For example, a lattice value on a square lattice can be plotted as a heatmap (which will be enabled by default if you do not specify the series type):
 
 ```@example env
-heatmap(layout=2, [lv, lv2, lv3, lv4], title=["x+y+1" "rand-uniform" "rand-normal" "1"] markersize=10)
+plot(lv, markersize=10)
 ```
 
 ## Indexing

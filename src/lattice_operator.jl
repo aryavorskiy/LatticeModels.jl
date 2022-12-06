@@ -35,12 +35,12 @@ end
 A wrapper object for array representing a wave function or linear operator.
 Stores information about its basis to perform lattice checks.
 """
-struct LatticeArray{MT<:AbstractArray,LT<:Lattice,N}
+struct LatticeArray{AT,LT,N}
     basis::Basis{LT}
-    array::MT
-    function LatticeArray(basis::Basis{LT}, array::AT) where {LT<:Lattice,AT<:AbstractArray}
-        !all((ax in (1, length(basis))) for ax in size(array)) && error("inconsistent vector/matrix size")
-        new{AT,LT,ndims(array)}(basis, array)
+    array::AT
+    function LatticeArray(basis::Basis{LT}, array::AT) where {LT<:Lattice,AT<:AbstractArray{_T,N} where _T} where {N}
+        !all((ax in (1, length(basis))) for ax in size(array)) && error("inconsistent array size")
+        new{AT,LT,N}(basis, array)
     end
 end
 

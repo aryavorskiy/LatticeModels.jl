@@ -76,12 +76,12 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true
     for statement in rules.args
         if Meta.isexpr(statement, :(:=), 2)
             ham_sym, ham_expr = statement.args
-            !(ham_sym isa Symbol) && error("hamiltonian alias must be a Symbol")
+            ham_sym isa Symbol || error("hamiltonian alias must be a Symbol")
             if ham_sym in keys(hamiltonian_aliases)
                 error("""cannot overwrite alias '$ham_sym' with value '$ham_expr'
                 ('$(hamiltonian_functions[hamiltonian_aliases[ham_sym]])' assigned before)""")
             end
-            !(ham_expr in hamiltonian_functions) && push!(hamiltonian_functions, ham_expr)
+            ham_expr in hamiltonian_functions || push!(hamiltonian_functions, ham_expr)
             hamiltonian_aliases[ham_sym] = findfirst(==(ham_expr), hamiltonian_functions)
         elseif statement isa Expr
             chain = _expand_chain(statement)
