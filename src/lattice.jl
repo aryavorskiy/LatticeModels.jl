@@ -200,34 +200,6 @@ function radius_vector(lattice::Lattice, site1::LatticeSite, site2::LatticeSite)
     return ret_vec
 end
 
-@recipe function f(l::Lattice; show_excluded_sites=true, show_indices=true, high_contrast=false)
-    if high_contrast
-        show_excluded_sites = false
-        show_indices = false
-        markersize := 4
-        markercolor := :black
-        markerstrokealpha := 1
-        markerstrokestyle := :solid
-        markerstrokewidth := 2
-        markerstrokecolor := :white
-    end
-    annot_markers = [(i, :left, :top, :grey, 8) for i in 1:length(l)]
-    if show_excluded_sites
-        l_outp = copy(l)
-        fill!(l_outp.mask, true)
-        annotations = repeat(Any[""], length(l_outp))
-        annotations[l.mask] = annot_markers
-        opacity := l.mask .* 0.9 .+ 0.1
-    else
-        l_outp = l
-        annotations = annot_markers
-    end
-    if show_indices
-        series_annotations := annotations
-    end
-    l_outp, nothing
-end
-
 function collect_coords(l::Lattice)
     d = dims(l)
     pts = zeros(d, length(l))
@@ -239,38 +211,39 @@ function collect_coords(l::Lattice)
     pts
 end
 
-@recipe function f(l::Lattice, v)
+@recipe function f(::Type{T}, l::T) where {T<:Lattice}
     label --> nothing
     aspect_ratio := :equal
-    marker_z := v
+
+    # if plotattributes[:high_contrast]
+    #     markersize := 4
+    #     markercolor := :black
+    #     markerstrokealpha := 1
+    #     markerstrokestyle := :solid
+    #     markerstrokewidth := 2
+    #     markerstrokecolor := :white
+    # else
+    #     annot_markers = [(i, :left, :top, :grey, 8) for i in 1:length(l)]
+    #     if plotattributes[:show_excluded_sites]
+    #         l_outp = copy(l)
+    #         fill!(l_outp.mask, true)
+    #         annotations = repeat(Any[""], length(l_outp))
+    #         annotations[l.mask] = annot_markers
+    #         opacity := l.mask .* 0.9 .+ 0.1
+    #     else
+    #         l_outp = l
+    #         annotations = annot_markers
+    #     end
+    #     if plotattributes[:show_indices]
+    #         series_annotations := annotations
+    #     end
+    # end
+
     pts = collect_coords(l)
-    if dims(l) == 3
-        X, Y, Z = eachrow(pts)
-        Xr, Yr, Zr = eachrow(round.(pts, digits=3))
-        seriestype := :scatter3d
-        if v !== nothing && RecipesBase.is_key_supported(:hover)
-            hover := string.(round.(v, digits=3), " @ (", Xr, ", ", Yr, ", ", Zr, ")")
-        end
-        X, Y, Z
-    else
-        if dims(l) == 1
-            X = vec(pts)
-            Y = zero(X)
-        else
-            X, Y = eachrow(pts[1:2, :])
-        end
-        seriestype --> :scatter
-        if v !== nothing && RecipesBase.is_key_supported(:hover)
-            Xr, Yr = eachrow(round.(pts, digits=3))
-            hover := string.(round.(v, digits=3), " @ (", Xr, ", ", Yr, ")")
-        end
-        if plotattributes[:seriestype] == :scatter
-            X, Y
-        elseif plotattributes[:seriestype] == :surface
-            X, Y, v
-        else
-            throw(ArgumentError("unsupported series type $(plotattributes[:seriestype])"))
-        end
+
+    @series begin
+        seriestype := dims(l) == 3 ? :scatter3d : :scatter
+        (Tuple(eachrow(pts)),)
     end
 end
 

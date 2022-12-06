@@ -1,7 +1,7 @@
 using LinearAlgebra, Statistics, Logging
-import Base: length, size, getindex, setindex!, eltype, copyto!, show, ==
+import Base: length, size, getindex, setindex!, eltype, copyto!, push!, show, ==
 
-struct LatticeValueWrapper{VT<:AbstractVecOrMat,LatticeSym}
+struct LatticeValueWrapper{VT<:AbstractVector,LatticeSym}
     lattice::Lattice{LatticeSym}
     values::VT
     function LatticeValueWrapper(lattice::Lattice{LatticeSym}, values::VT) where {VT,LatticeSym}
@@ -20,12 +20,12 @@ Fields:
 - lattice: the `Lattice` object the value is defined on
 - values: the values on different sites
 """
-const LatticeValue{T} = LatticeValueWrapper{Vector{T}}
+const LatticeValue{T,LT} = LatticeValueWrapper{Vector{T},LT}
 
 """
-        LatticeValue(lattice::Lattice, vector::AbstractVector)
+    LatticeValue(lattice::Lattice, vector::AbstractVector)
 
-    Constructs a LatticeValue object.
+Constructs a LatticeValue object.
 """
 LatticeValue(l::Lattice, v::AbstractVector) = LatticeValueWrapper(l, convert(Vector, v))
 LatticeValue(lf, l::Lattice) = LatticeValue(l, [lf(site, site_coords(l, site)) for site in l])
@@ -45,7 +45,7 @@ rand(T::Type, l::Lattice) = LatticeValue(l, rand(T, length(l)))
 randn(l::Lattice) = LatticeValue(l, randn(length(l)))
 randn(T::Type, l::Lattice) = LatticeValue(l, randn(T, length(l)))
 fill(value, l::Lattice) = LatticeValue(l, fill(value, length(l)))
-fill!(value, lv::LatticeValue) = (fill!(value, lv.values); lv)
+fill!(lv::LatticeValue, value) = (fill!(value, lv.values); lv)
 zero(lvw::LatticeValueWrapper) = LatticeValueWrapper(lattice(lvw), zero(lvw.values))
 zeros(l::Lattice) = fill(0., l)
 zeros(T::Type, l::Lattice) = fill(zero(T), l)
@@ -69,7 +69,7 @@ Base.BroadcastStyle(::Broadcast.DefaultArrayStyle{0}, ::LVWStyle) = LVWStyle()
 
 function Base.similar(bc::Broadcast.Broadcasted{LVWStyle}, ::Type{Eltype}) where {Eltype}
     l = _extract_lattice(bc)
-    LatticeValue(l, similar(Vector{Eltype}, axes(bc)))
+    LatticeValue(l, similar(Array{Eltype}, axes(bc)))
 end
 _extract_lattice(bc::Broadcast.Broadcasted) = _extract_lattice(bc.args)
 _extract_lattice(lv::LatticeValueWrapper) = lv.lattice
@@ -176,20 +176,28 @@ end
 
 const PlottableLatticeValue{LT} = LatticeValue{<:Number, LT}
 
-@recipe function f(lv::PlottableLatticeValue{:square})
+@recipe function f(::Type{T}, lv::T) where {T<:PlottableLatticeValue{:square}}
     seriestype --> :heatmap
     if plotattributes[:seriestype] === :heatmap
         aspect_ratio := :equal
         axes_lims = [-(ax - 1)/2:(ax-1)/2 for ax in size(lattice(lv))]
         heatmap_values = reshape(macro_cell_values(lv), reverse(size(lattice(lv))))'
-        axes_lims..., heatmap_values
+        ((axes_lims[1], axes_lims[2], heatmap_values),)
     else
         plot_fallback(lv)
     end
 end
 
-@recipe function f(lv::PlottableLatticeValue)
-    lv.lattice, lv.values
+@recipe function f(::Type{T}, lv::T) where {T<:PlottableLatticeValue}
+    @series begin
+        seriestype --> :scatter
+        marker_z := lv.values
+        z := lv.values
+        high_contrast := false
+        show_excluded_sites := false
+        show_indices := false
+        lv.lattice
+    end
 end
 
 """
