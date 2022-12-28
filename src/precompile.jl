@@ -135,15 +135,15 @@ function _precompile_()
     Base.precompile(Tuple{Type{Base.Broadcast.BroadcastStyle},Base.Broadcast.DefaultArrayStyle{1},LVWStyle})   # time: 0.023998
     Base.precompile(Tuple{typeof(collect_coords),Lattice{:plot_fallback, 2, 1}})   # time: 0.0214524
     Base.precompile(Tuple{typeof(hopping_operator),SquareLattice{2},Hopping{Matrix{Int64}},LandauField})   # time: 0.0212855
-    Base.precompile(Tuple{typeof(diag_aggregate),typeof(tr),LatticeOperator{SubArray{Float64, 2, Array{Float64, 3}, Tuple{Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}, Int64}, true}, SquareLattice{2}}})   # time: 0.0194381
+    Base.precompile(Tuple{typeof(diag_reduce),typeof(tr),LatticeOperator{SubArray{Float64, 2, Array{Float64, 3}, Tuple{Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}, Int64}, true}, SquareLattice{2}}})   # time: 0.0194381
     Base.precompile(Tuple{Core.kwftype(typeof(hopping)),NamedTuple{(:axis,), Tuple{Int64}},typeof(hopping),Float64})   # time: 0.0188963
     Base.precompile(Tuple{typeof(materialize),DensityCurrents})   # time: 0.0184997
     Base.precompile(Tuple{typeof(==),LatticeSite{2},LatticeSite{2}})   # time: 0.018461
-    Base.precompile(Tuple{typeof(diag_aggregate),typeof(tr),LatticeOperator{Matrix{ComplexF64}, SquareLattice{2}}})   # time: 0.0168866
+    Base.precompile(Tuple{typeof(diag_reduce),typeof(tr),LatticeOperator{Matrix{ComplexF64}, SquareLattice{2}}})   # time: 0.0168866
     Base.precompile(Tuple{typeof(getindex),SquareLattice{2},Int64})   # time: 0.0166774
     Base.precompile(Tuple{typeof(⊗),LatticeValue{Float64, :square},Matrix{Int64}})   # time: 0.0161927
     Base.precompile(Tuple{Type{HoneycombLattice},Int64,Int64})   # time: 0.0158987
-    Base.precompile(Tuple{typeof(diag_aggregate),typeof(tr),LatticeOperator{Matrix{ComplexF64}, HoneycombLattice}})   # time: 0.0157756
+    Base.precompile(Tuple{typeof(diag_reduce),typeof(tr),LatticeOperator{Matrix{ComplexF64}, HoneycombLattice}})   # time: 0.0157756
     isdefined(LatticeModels, Symbol("#92#93")) && Base.precompile(Tuple{getfield(LatticeModels, Symbol("#92#93")),Float64})   # time: 0.0152589
     Base.precompile(Tuple{LatticeValueRecord,Float64})   # time: 0.0150906
     Base.precompile(Tuple{typeof(_diag_operator!),LatticeOperator{Matrix{ComplexF64}, SquareLattice{2}},TensorProduct{_A, Matrix{Int64}} where _A<:(LatticeValue{<:Number})})   # time: 0.0150636

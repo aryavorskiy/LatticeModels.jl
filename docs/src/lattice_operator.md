@@ -53,27 +53,25 @@ X + Y == op
 
 **As a function call**
 
-The `diag_operator` function is a low-level way to create a `LatticeOperator`. 
-It accepts two arguments: one is a `Lattice` or a `Basis`, and the other is a function that can be written in the do-syntax same way as before. 
-There are more possible ways to use this function, refer to [`diag_operator`](@ref) docstring to find out more.
+The `diag_operator` function is a low-level way to create a site-diagonal `LatticeOperator`. 
+It accepts two arguments: one is a `Lattice` or a `Basis`, and the other is a function that can be written in the do-syntax same way as before - it must return a matrix which will affect the internal degrees of freedom on the site.
+
+There are more possible ways to use this function, refer to [`diag_operator`](@ref) docstrings to find out more.
 
 ```@repl env
 op1 = diag_operator(l) do site, (x, y)
     (x + y) * [1 0; 0 1]
 end
-op2 = diag_operator(Basis(l, 2)) do site, (x, y)
-    x + y
-end
-op3 = diag_operator(Basis(l, 2), x .+ y)
-X + Y == op1 == op2 == op3
+op2 = diag_operator(Basis(l, 2), x .+ y)
+X + Y == op1 == op2
 ```
 
-Note that you can appply a function to every lattice-diagonal block of the operator matrix to create a `LatticeValue` with the `diag_aggregate` function. 
+Note that you can appply a function to every lattice-diagonal block of the operator matrix to create a `LatticeValue` with the `diag_reduce` function. 
 For example, you can find a partial trace like this:
 
 ```@repl env
 using LinearAlgebra
-lv = diag_aggregate(tr, op) # same as site_density(op)
+lv = diag_reduce(tr, op) # same as site_density(op)
 lv == 2 .* x
 ```
 

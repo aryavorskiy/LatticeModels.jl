@@ -182,23 +182,46 @@ site_coords(lattice::Lattice{LatticeSym,N,1} where {LatticeSym,N}, site::Lattice
     bravais(lattice).translation_vectors * (site.unit_cell - SVector(size(lattice)) / 2 .- 0.5)
 
 """
-    radius_vector(lattice::Lattice, site1::LatticeSite, site2::LatticeSite) -> vector
+    radius_vector(l::Lattice, site1::LatticeSite, site2::LatticeSite) -> vector
 Finds the vector between two sites on a lattice according to possibly periodic boundary conditions
 (`site2` will be translated along the macro cell to minimize the distance between them).
 """
-function radius_vector(lattice::Lattice, site1::LatticeSite, site2::LatticeSite)
-    ret_vec = site_coords(lattice, site1) - site_coords(lattice, site2)
-    tr_diff = (site1.unit_cell - site2.unit_cell) ./ size(lattice)
-    bravais_tr_vecs = bravais(lattice).translation_vectors
+function radius_vector(l::Lattice, site1::LatticeSite, site2::LatticeSite)
+    ret_vec = site_coords(l, site1) - site_coords(l, site2)
+    tr_diff = (site1.unit_cell - site2.unit_cell) ./ size(l)
+    bravais_tr_vecs = bravais(l).translation_vectors
     for i in eachindex(tr_diff)
         if tr_diff[i] > 0.5
-            ret_vec -= bravais_tr_vecs[:, i] * size(lattice)[i]
+            ret_vec -= bravais_tr_vecs[:, i] * size(l)[i]
         elseif tr_diff[i] < -0.5
-            ret_vec += bravais_tr_vecs[:, i] * size(lattice)[i]
+            ret_vec += bravais_tr_vecs[:, i] * size(l)[i]
         end
     end
     return ret_vec
 end
+
+"""
+    site_distance(l::Lattice, site1::LatticeSite, site2::LatticeSite[; pbc=false])
+Returns the distance between two sites on the `l` lattice.
+
+**Keyword arguments:**
+- `pbc`: if `true`, the boundary conditions will be considered periodic and
+the distance will be measured on the shortest path.
+"""
+function site_distance(l::Lattice, site1::LatticeSite, site2::LatticeSite; pbc=false)
+    if pbc
+        norm(radius_vector(l, site1, site2))
+    else
+        norm(site_coords(l, site1) - site_coords(l, site2))
+    end
+end
+
+"""
+    site_distance(; pbc)
+Generates a function that finds the distance between sites (see `site_distance(::Lattice, ::LatticeSite, ::LatticeSite)`).
+This notation can be handy when passing this function as an argument.
+"""
+site_distance(;pbc) = (l, site1, site2) -> site_distance(l, site1, site2, pbc=pbc)
 
 @recipe function f(l::Lattice; show_excluded_sites=true, show_indices=true, high_contrast=false)
     if high_contrast
@@ -369,5 +392,5 @@ end
 function check_is_sublattice(l1::Lattice, l2::Lattice)
     check_macrocell_match(l1, l2)
     any(.!l1.mask .& l2.mask) &&
-        error("sublattice check failed")
+        error("macrocells match but sublattice check failed")
 end

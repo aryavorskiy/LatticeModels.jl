@@ -1,14 +1,14 @@
 module LatticeModels
 
 include("lattice.jl")
-export Bravais, LatticeSite, Lattice, dims, sublattice, site_coords, site_index,
+export Bravais, LatticeSite, Lattice, dims, sublattice, site_coords, site_index, site_distance,
     SquareLattice, HoneycombLattice
 
 include("lattice_value.jl")
 export LatticeValue, coord_values, project
 include("lattice_operator.jl")
 export LatticeOperator, Basis, ⊗, lattice, basis, dims_internal,
-    diag_operator, coord_operators, diag_aggregate, ptrace, site_density, @on_lattice
+    diag_operator, coord_operators, diag_reduce, ptrace, site_density, @on_lattice
 
 include("field.jl")
 export @field_def, AbstractField, apply_field!

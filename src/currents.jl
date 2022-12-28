@@ -154,29 +154,30 @@ function materialize(f::Function, curr::AbstractCurrents)
 end
 
 """
-    pairs_by_distance(function)
+    pairs_by_distance(f)
 
 A selector function used for hopping operator definition or currents materialization.
 
 Takes a function and generates a lambda which accepts a lattice and two `LatticeSite`s,
-returning whether `function` applied to distance between the two sites returned `true`.
+returning whether `f` applied to distance between the two sites returned `true`.
 """
 pairs_by_distance(f) =
     (l::Lattice, site1::LatticeSite, site2::LatticeSite) ->
         f(norm(radius_vector(l, site1, site2)))::Bool
 
 """
-    map_currents(map_fn, currents[; aggr_fn, sort])
+    map_currents(map_fn, currs::AnstractCurrents[; reduce_fn, sort=false])
 
 Accepts a function that takes a `Lattice` and two `LatticeSite`s and returns any value.
 Applies `map_fn` to every site pair and returns two `Vector`s: one with currents, one with results of `map_fn`.
 
 **Keyword arguments:**
-- `aggr_fn`: if a function is provided, all currents with the same mapped value will be aggregated into one value.
+- `reduce_fn`: if a function is provided, all currents with the same mapped value will be reduced into one value.
 For example, if `aggr_fn=(x -> mean(abs.(x)))`, and `map_fn` finds the distance between the sites,
 the returned lists will store the distance between sites and the average absolute current between sites with such distance.
+- `sort`: if true, the output arrays will be sorted by mapped value.
 """
-function map_currents(f::Function, curr::AbstractCurrents; aggr_fn::Union{Nothing, Function}=nothing, sorted::Bool=false)
+function map_currents(f::Function, curr::AbstractCurrents; reduce_fn::Union{Nothing, Function}=nothing, sort::Bool=false)
     l = lattice(curr)
     curr_fn = current_lambda(curr)
     cs = Float64[]
@@ -195,12 +196,12 @@ function map_currents(f::Function, curr::AbstractCurrents; aggr_fn::Union{Nothin
         end
         i += 1
     end
-    if aggr_fn !== nothing
+    if reduce_fn !== nothing
         ms_set = collect(Set(ms))
-        cs = [aggr_fn(cs[ms .== m]) for m in ms_set]
+        cs = [reduce_fn(cs[ms .== m]) for m in ms_set]
         ms = ms_set
     end
-    if sorted
+    if sort
         perm = sortperm(ms)
         ms = ms[perm]
         cs = cs[perm]

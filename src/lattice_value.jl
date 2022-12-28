@@ -1,5 +1,5 @@
 using LinearAlgebra, Statistics, Logging
-import Base: length, size, getindex, setindex!, eltype, copyto!, show, ==
+import Base: length, size, getindex, setindex!, eachindex, eltype, copyto!, show, ==
 
 struct LatticeValueWrapper{VT<:AbstractVector,LatticeSym}
     lattice::Lattice{LatticeSym}
@@ -23,9 +23,9 @@ Fields:
 const LatticeValue{T, LT} = LatticeValueWrapper{Vector{T}, LT}
 
 """
-        LatticeValue(lattice::Lattice, vector::AbstractVector)
+    LatticeValue(l::Lattice, v::AbstractVector)
 
-    Constructs a LatticeValue object.
+Constructs a LatticeValue object.
 """
 LatticeValue(l::Lattice, v::AbstractVector) = LatticeValueWrapper(l, convert(Vector, v))
 LatticeValue(lf, l::Lattice) = LatticeValue(l, [lf(site, site_coords(l, site)) for site in l])
@@ -33,9 +33,9 @@ lattice(lvw::LatticeValueWrapper) = lvw.lattice
 lattice(l::Lattice) = l
 
 """
-    coord_values(lattice::Lattice)
+    coord_values(l::Lattice)
 
-Generates a tuple of `LatticeValue`s representing coordinate functions.
+Generates a tuple of `LatticeValue`s representing spatial coordinates.
 """
 coord_values(l::Lattice) = [LatticeValue(l, vec) for vec in eachrow(collect_coords(l))]
 
@@ -56,6 +56,7 @@ ones(T::Type, l::Lattice) = fill(one(T), l)
 ==(lvw1::LatticeValueWrapper, lvw2::LatticeValueWrapper) = (lvw1.lattice == lvw2.lattice) && (lvw1.values == lvw2.values)
 eltype(lv::LatticeValueWrapper) = eltype(lv.values)
 size(lvw::LatticeValueWrapper) = size(lvw.values)
+length(lvw::LatticeValueWrapper) = length(lvw.values)
 getindex(lvw::LatticeValueWrapper, cartesian_i::CartesianIndex) = lvw.values[cartesian_i]
 
 struct LVWStyle <: Broadcast.BroadcastStyle end
@@ -99,6 +100,10 @@ function show(io::IO, m::MIME"text/plain", lv::LatticeValueWrapper{VT}) where {V
     println(io, "LatticeValueWrapper with inner type $VT\non ")
     show(io, m, lattice(lv))
 end
+
+iterate(lvw::LatticeValueWrapper) = iterate(lvw.values)
+iterate(lvw::LatticeValueWrapper, state) = iterate(lvw.values, state)
+eachindex(lvw::LatticeValueWrapper) = lattice(lvw)
 
 Base.@propagate_inbounds function getindex(l::Lattice{LatticeSym,N,NB},
         lv_mask::LatticeValue{Bool,LatticeSym}) where {LatticeSym,N,NB}
@@ -193,9 +198,9 @@ end
 end
 
 """
-    project(lattice_value, axis)
+    project(lv::LatticeValue, axis)
 
-Creates a mapping from site coordinates to values of `lattice_value`.
+Creates a mapping from site coordinates to values of `lv`.
 The coordinate axis to project the sites onto can be set with the `axis` argument -
 it can be either an integer from 1 to 3 or a `Symbol` (`:x`, `:y` or `:z`).
 """

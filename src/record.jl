@@ -34,6 +34,15 @@ first(lvr::LatticeRecord{ET}) where ET = ET(lattice(lvr), first(lvr.records))
 last(lvr::LatticeRecord{ET}) where ET = ET(lattice(lvr), last(lvr.records))
 length(lvr::LatticeRecord) = length(lvr.records)
 
+function show(io::IO, ::MIME"text/plain", lr::LatticeRecord)
+    print(io, "LatticeRecord with $(length(lr)) records")
+    if length(lr.times) ≥ 2
+        print(io, "\nTimestamps in range $(lr.times[1]) .. $(lr.times[end])")
+    elseif length(lr.times) == 1
+        println(io, "\nTimestamp: $(only(lr.times))")
+    end
+end
+
 function ==(lr1::LatticeRecord{ET}, lr2::LatticeRecord{ET})  where {ET}
     (lr1.lattice == lr2.lattice) && (lr1.times == lr2.times) && (lr1.records == lr2.records)
 end
@@ -49,11 +58,11 @@ init_record(slt::ET) where {ET<:StorableLatticeType} = LatticeRecord{ET}(lattice
 lattice(lvr::LatticeRecord) = lvr.lattice
 
 """
-    time_domain(lattice_record)
+    time_domain(lr::LatticeRecord)
 
 Returns the timestamps of the records.
 """
-time_domain(lvr::LatticeRecord) = lvr.times
+time_domain(lr::LatticeRecord) = lr.times
 
 function Base.insert!(lvr::LatticeRecord{ET}, t::Number, value::ET) where ET
     check_lattice_match(lvr, value)
@@ -68,14 +77,20 @@ function Base.insert!(lvr::LatticeRecord{ET}, t::Number, value::ET) where ET
     lvr
 end
 
-(lvr::LatticeRecord{ET})(t::Real) where ET = ET(lvr.lattice, lvr.records[findmin(x -> abs(x - t), lvr.times)[2]])
-function Base.getindex(lvr::LatticeRecord{ET}, args...) where {ET}
-    sample = first(lvr)[args...]
-    l = lattice(lvr)
+(lr::LatticeRecord{ET})(t::Real) where ET = ET(lr.lattice, lr.records[findmin(x -> abs(x - t), lr.times)[2]])
+function (lr::LatticeRecord{ET})(tmin::Real, tmax::Real) where ET
+    inds = findall(time_domain(lr)) do x
+        tmin ≤ x ≤ tmax
+    end
+    LatticeRecord{ET}(lattice(lr), lr.records[inds], lr.times[inds])
+end
+function Base.getindex(lr::LatticeRecord{ET}, args...) where {ET}
+    sample = first(lr)[args...]
+    l = lattice(lr)
     if sample isa StorableLatticeType
-        LatticeRecord([ET(l, rec)[args...] for rec in lvr.records], lvr.times)
+        LatticeRecord([ET(l, rec)[args...] for rec in lr.records], lr.times)
     else
-        [ET(l, rec)[args...] for rec in lvr.records]
+        [ET(l, rec)[args...] for rec in lr.records]
     end
 end
 
@@ -88,13 +103,13 @@ end
 """
     diff(lattice_record)
 
-Differentiate the values stored in the record by time using the symmetric differece formula.
+Differentiate the values stored in the record by time using the symmetric difference formula.
 """
 function Base.diff(lvr::LatticeRecord{ET}) where ET
     length(lvr) < 2 && error("Cannot differentiate LatticeRecord of length $(length(lvr))")
     td = time_domain(lvr)
-    LatticeRecord{ET}(lattice(lvr), [
-        @. (lvr.records[i + 1] - lvr.records[i])/(td[i + 1] - td[i])
+    LatticeRecord{ET}(lattice(lvr),
+        [@. (lvr.records[i + 1] - lvr.records[i])/(td[i + 1] - td[i])
         for i in 1:length(lvr) - 1], (td[2:end] .+ td[1:end-1])./2)
 end
 

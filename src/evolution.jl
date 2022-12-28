@@ -1,5 +1,6 @@
 import Base: exp
 using LinearAlgebra, ProgressMeter
+ProgressMeter.ijulia_behavior(:clear)
 
 function taylor_exp(A::AbstractMatrix, k::Int)
     B = one(A) + A

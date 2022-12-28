@@ -101,7 +101,7 @@ dims(h::Hopping) = length(h.translate_uc)
 dims_internal(h::Hopping) = size(h.hop_operator)[1]
 
 """
-    promote_dims!(hopping, ndims)
+    promote_dims!(h::Hopping, ndims::Int)
 
 Changes dimension count of `hopping` to `ndims` if possible.
 """
@@ -141,9 +141,7 @@ function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field:
     d = dims(l)
     promote_dims!(hop, d)
     trv = SVector{d}(hop.translate_uc)
-    i = 0
-    for site1 in l
-        i += 1
+    for (i, site1) in enumerate(l)
         site2 = _hopping_dest(l, hop, site1)
         site2 === nothing && continue
         j = site_index(site2, l)
@@ -161,17 +159,13 @@ function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field:
 end
 
 @doc raw"""
-    hopping_operator(args...)
+    hopping_operator([f, ]lattice::Lattice, hopping::Hopping[, field::AbstractField])
 
 Creates a hopping operator:
 $$\hat{A} = \sum_{pairs} \hat{t} \hat{c}^\dagger_j \hat{c}_i + h. c.$$
 
----
-    hopping_operator(lattice, hopping[, field])
-    hopping_operator(excl_function, lattice, hopping[, field])
-
 Arguments:
-- `excl_function`: takes a `Lattice`, two `LatticeSite`s and two `LatticeSite`s, returns whether this pair should be included.
+- `f`: takes a `Lattice` and two `LatticeSite`s, returns whether this pair should be included.
 - `lattice`: the lattice to create the operator on.
 - `hopping`: the `Hopping` object describing the site pairs and the $\hat{t}$ operator.
 - `field`: the `AbstractField` object that defines the magnetic field to generate phase factors using Peierls substitution.
@@ -203,12 +197,12 @@ check_lattice_fits(ps::AbstractPairSelector, l::Lattice) = check_is_sublattice(l
 (ps::AbstractPairSelector)(::Lattice, site1::LatticeSite, site2::LatticeSite) = match(ps, site1, site2)
 
 """
-    DomainsSelector(lattice_value)
+    DomainsSelector(domains::LatticeValue)
 
 A selector used for hopping operator definition or currents materialization.
 
 Takes a `LatticeValue`.
-A pair matches the selector if the value of `lattice_value` is the same on two sites.
+A pair matches the selector if the value of `domains` is the same on two sites.
 """
 struct DomainsSelector <: AbstractPairSelector
     domains::LatticeValue
@@ -218,12 +212,12 @@ match(ps::DomainsSelector, site1::LatticeSite, site2::LatticeSite) =
     ps.domains[site1] == ps.domains[site2]
 
 """
-    PairLhsSelector(lattice_value)
+    PairLhsSelector(lhs::LatticeValue)
 
 A selector used for hopping operator definition or currents materialization.
 
 Takes a `LatticeValue`.
-A pair matches the selector if the value of `lattice_value` is true on the first site.
+A pair matches the selector if the value of `lhs` is true on the first site of the pair.
 """
 struct PairLhsSelector <: AbstractPairSelector
     lhs::LatticeValue
@@ -233,12 +227,12 @@ match(ps::PairLhsSelector, site1::LatticeSite, ::LatticeSite) =
     ps.lhs[site1]
 
 """
-    PairRhsSelector(lattice_value)
+    PairRhsSelector(rhs::LatticeValue)
 
 A selector used for hopping operator definition or currents materialization.
 
 Takes a `LatticeValue`.
-A pair matches the selector if the value of `lattice_value` is true on the first site.
+A pair matches the selector if the value of `rhs` is true on the first site of the pair.
 """
 struct PairRhsSelector <: AbstractPairSelector
     rhs::LatticeValue
@@ -324,7 +318,7 @@ match(bs::PairSet, site1::LatticeSite, site2::LatticeSite) =
     bs.bmat[site_index(site1, lattice(bs)), site_index(site2, lattice(bs))]
 
 """
-    bonds(operator)
+    bonds(op::LatticeOperator)
 
 Generates a `PairSet` for the provided operator.
 """
@@ -335,7 +329,7 @@ function bonds(op::LatticeOperator)
 end
 
 """
-    bonds(lattice, hoppings...)
+    bonds(l::Lattice, hoppings::Hopping...)
 
 Generates a `PairSet` for a given set of `Hopping`s on a given `Lattice`.
 """

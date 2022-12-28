@@ -68,8 +68,8 @@ using LinearAlgebra, Statistics
 
 dist, adcurr = map_currents(
     curr, 
-    aggr_fn=(x -> [mean(abs.(x)), std(abs.(x))]),
-    sorted=true
+    reduce_fn=(x -> [mean(abs.(x)), std(abs.(x))]),
+    sort=true
 ) do l, site1, site2
     norm(site_coords(l, site1) - site_coords(l, site2))
 end

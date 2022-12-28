@@ -30,7 +30,7 @@ function show(io::IO, m::MIME"text/plain", b::Basis)
 end
 
 @doc """
-    LatticeArray{AT, LT, N} where {LT<:Lattice, MT<:AbstractArray}
+    LatticeArray{AT, LT, N}
 
 A wrapper object for array representing a wave function or linear operator.
 Stores information about its basis to perform lattice checks.
@@ -53,9 +53,10 @@ const LatticeOperator{MT,LT} = LatticeArray{MT,LT,2}
 The same as `LatticeArray{MT, LT, 2}` where `MT<:AbstractMatrix`.
 
 ---
-    LatticeOperator(uniform_scaling, basis)
+    LatticeOperator(uniform_scaling::UniformScaling, basis::Basis)
 
 Creates a `LatticeOperator` representation of a `UniformScaling` operator on given basis.
+For example, `LatticeOperator(LinearAlgebra.I, basis)` yields an identity operator on `basis` basis.
 """
 function LatticeOperator(op::UniformScaling, bas::Basis)
     N = dims_internal(bas)
@@ -146,11 +147,9 @@ function _diag_operator!(lop::LatticeOperator, op_object)
     N = dims_internal(lop)
     eye = Matrix(I, N, N)
     l = lattice(lop)
-    i = 1
     try
-        for site in l
+        for (i, site) in enumerate(l)
             lop[i, i] = _get_matrix_value(op_object, l, site, i, eye) + @view lop[i, i]
-            i += 1
         end
     catch e
         if e isa DimensionMismatch
@@ -165,16 +164,25 @@ end
 materialize(tp::TensorProduct) = _diag_operator!(_zero_on_basis(basis(tp)), tp)
 
 """
-    diag_operator(site_fun, lattice)
+    diag_operator(f, l::Lattice)
 
-Creates a diagonal operator by applying the `site_fun` function to each site of `lattice`.
-The `site_fun` function must accept a `LatticeSite` and its coordinates and return a matrix
+Creates a diagonal operator by applying the `f` function to each site of `l`.
+`f` must accept a `LatticeSite` and its coordinate vector and return a matrix
 which will be an operator affecting the internal state of the site.
 """
 diag_operator(f::Function, l::Lattice) = _diag_operator!(_zero_on_basis(l, f), f)
 
 """
-    diag_operator(lattice, matrix)
+    diag_operator(f, bas::Basis)
+
+Creates a diagonal operator by applying the `f` function to each site of the lattice of `bas`.
+`f` must accept a `LatticeSite` and its coordinate vector and return a matrix
+which will be an operator affecting the internal state of the site.
+"""
+diag_operator(f::Function, bas::Basis) = _diag_operator!(_zero_on_basis(bas), f)
+
+"""
+    diag_operator(lattice::Lattice, matrix::AbstractMatrix)
 
 Creates a diagonal operator which affects only the internal state the same way on every site.
 `matrix` is an `AbstractMatrix` representing the linear operator on the internal space.
@@ -185,32 +193,20 @@ for instance, if `matrix` is sparse, so will be the output.
 diag_operator(l::Lattice, m::AbstractMatrix) = _diag_operator!(_zero_on_basis(l, m), m)
 
 """
-    diag_operator(site_fun, basis)
-
-Creates a diagonal operator which affects only the lattice space.
-The `site_fun` function must accept a `LatticeSite` and its coordinates and return a number
-which will be the diagonal element of the operator in lattice space.
-"""
-function diag_operator(lf::Function, bas::Basis)
-    N = dims_internal(bas)
-    eye = Matrix(I, N, N)
-    _diag_operator!(_zero_on_basis(bas), (site, crd) -> lf(site, crd)::Number * eye)
-end
-
-"""
-    diag_operator(basis, lattice_value)
+    diag_operator(basis::Basis, lattice_value::LatticeValue)
 
 Creates a diagonal operator which affects only the lattice space.
 The `lattice_value` argument must be a `LatticeValue` storing diagonal elements of the operator in lattice space.
 """
 function diag_operator(bas::Basis, lv::LatticeValue{<:Number})
+    check_lattice_match(bas, lv)
     N = dims_internal(bas)
     eye = Matrix(I, N, N)
     _diag_operator!(_zero_on_basis(bas), TensorProduct(lv, eye))
 end
 
 """
-    coord_operators(basis)
+    coord_operators(basis::Basis)
 
 Returns a `Tuple` of coordinate `LatticeOperator`s for given basis.
 """
@@ -228,30 +224,30 @@ function coord_operators(bas::Basis)
         end
         i += 1
     end
-    return xyz_operators
+    xyz_operators
 end
 
 """
-    coord_operators(lattice, ndims)
+    coord_operators(lattice::Lattice, ndims::Tnt)
 
 The same as `coord_operators(Basis(lattice, ndims))`.
 """
 coord_operators(l::Lattice, N::Int) = coord_operators(Basis(l, N))
 
 """
-    diag_aggregate(function, lattice_operator)
+    diag_reduce(f, lattice_operator::LatticeOperator)
 
-Creates a `LatticeValue` where a site maps to the result of `function` on the matrix
+Creates a `LatticeValue` where a site maps to the result of `f` on the matrix
 of the operator narrowed to that site.
 """
-diag_aggregate(f::Function, lo::LatticeOperator) =
+diag_reduce(f::Function, lo::LatticeOperator) =
     LatticeValue(lattice(lo), [f(lo[i, i]) for i in 1:length(lattice(lo))])
 
 """
-    ptrace(lattice_operator, space)
+    ptrace(lattice_operator::LatticeOperator, space)
 
 Calculates a matrix for the partial trace of given operator.
-`space` must take one of two values:
+`space` argument must take one of two values:
 - `:lattice` for taking the partial trace over the lattice space.
 - `:internal` for the same over the internal space.
 """
@@ -268,21 +264,19 @@ function ptrace(lo::LatticeOperator, space::Symbol)
 end
 
 """
-    site_density(lattice_vector)
-    site_density(lattice_operator)
+    site_density(lattice_vector::LatticeVector)
+    site_density(lattice_operator::LatticeOperator)
 
 A convenience function to find local density for wave functions (represented by `lattice_vector`)
-and density matrices(represented by `lattice_operator`).
+and density matrices (represented by `lattice_operator`).
 
-For wave functions it yields the total probability of the particle of being on every site.
-For density matrices the partial traces for all sites is returned.
-The return type is `LatticeValue` for both types of arguments.
+Returns a LatticeValue representing the total probability of the particle of being on every site.
 """
 site_density(lo::LatticeOperator) =
     LatticeValue(lattice(lo), vec(real.(sum(reshape(diag(lo.array), (dims_internal(lo), :)), dims=1))))
 function site_density(lv::LatticeVector)
     l = lattice(lv)
-    LatticeValue(l, [norm(lv[i])^2 for i in 1:length(l)])
+    LatticeValue(l, [sum(abs2, lv[i]) for i in 1:length(l)])
 end
 
 @inline _make_wrapper(op, ::Nothing) = op
@@ -363,7 +357,7 @@ function _wrap_smart!(expr::Expr)
 end
 
 """
-    @on_lattice
+    @on_lattice expression
 
 Replaces all `LatticeArray`s in subsequent function calls with actual arrays stored inside them.
 Throws an error if lattice operators in one function call are defined on different lattices,
@@ -381,6 +375,5 @@ xexpypy == @on_lattice X * exp(Y) + Y     # true
 ```
 """
 macro on_lattice(expr)
-    we = _wrap_smart!(expr)
-    return we
+    _wrap_smart!(expr)
 end

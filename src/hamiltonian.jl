@@ -122,7 +122,7 @@ end
 const LatticeOperatorMT{MT} = LatticeOperator{LT,<:MT} where {LT}
 
 """
-    spectrum(operator)
+    spectrum(op::LatticeOperator)
 
 Finds eigenvalues and eigenvectors for a `LatticeOperator` and stores in in a Spectrum.
 
@@ -142,11 +142,8 @@ basis(sp::Spectrum) = sp.basis
 
 length(sp::Spectrum) = length(sp.energies)
 getindex(sp::Spectrum, i::Int) = LatticeArray(sp.basis, sp.states[:, i])
-function getindex(sp::Spectrum; E::Number)
-    min_e_dst = abs(E - sp.energies[1])
-    i = argmin(@. abs(E - sp.energies))
-    LatticeArray(sp.basis, sp.states[:, i])
-end
+getindex(sp::Spectrum; E::Number) =
+    LatticeArray(sp.basis, sp.states[:, argmin(@. abs(E - sp.energies))])
 getindex(sp::Spectrum, mask) =
     Spectrum(sp.basis, sp.states[:, mask], sp.energies[mask])
 
@@ -156,23 +153,23 @@ function show(io::IO, ::MIME"text/plain", sp::Spectrum)
 end
 
 """
-    projector(spectrum)
+    projector(sp::Spectrum)
 
 Creates a `LatticeOperator` that projects onto the eigenvectors of the spectrum
 """
 projector(sp::Spectrum) = LatticeArray(sp.basis, sp.states * sp.states')
 
 """
-    projector(fun, spectrum)
+    projector(f, sp::Spectrum)
 
 Creates a `LatticeOperator` that projects onto the eigenvectors of the spectrum
-with amplitude defined by the `fun` functions, which takes the eigenvalue and returns a number (or a boolean).
+with amplitude defined by the `f` functions, which takes the eigenvalue and returns a number (or a boolean).
 """
 projector(f::Function, sp::Spectrum) =
     LatticeArray(sp.basis, sp.states * (f.(sp.energies) .* sp.states'))
 
 """
-    filled_projector(spectrum[, fermi_level])
+    filled_projector(sp::Spectrum[, fermi_level=0])
 
 Creates a `LatticeOperator` that projects onto the eigenvectors which have eigenvalues less than `fermi_level` (0 by default).
 """
@@ -193,7 +190,7 @@ Creates a lambda that takes the energy and returns the state density acccording 
 bose_einstein(μ, T) = E -> 1 / (exp((E - μ) / T) - 1)
 
 @doc raw"""
-    dos(spectrum, δ)
+    dos(sp::Spectrum, δ)
 
 Generates a function to calculate density of states, which is defined as
 $\text{tr}\left(\frac{1}{\hat{H} - E - i\delta}\right)$ and can be understood as a sum
@@ -202,7 +199,7 @@ of Lorenz distributions with width equal to $\delta$.
 dos(sp::Spectrum, δ::Real) = (E -> imag(sum(1 ./ (eigvals(sp) .- (E + im * δ)))))
 
 @doc raw"""
-    ldos(spectrum, E, δ)
+    ldos(sp::Spectrum, E, δ)
 
 Calculates local density of states, which is defined as the imaginary part of partial trace of
 $\frac{1}{\hat{H} - E - i\delta}$ operator.
@@ -217,7 +214,7 @@ function ldos(sp::Spectrum, E::Real, δ::Real)
 end
 
 """
-    ldos(spectrum, δ)
+    ldos(sp::Spectrum, δ)
 
 Generates a function that accepts the energy `E` and returns `ldos(spectrum, E, δ)`.
 Use this if you want to find the LDOS for many different values of `E` -

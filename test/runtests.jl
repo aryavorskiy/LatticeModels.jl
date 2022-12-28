@@ -13,7 +13,7 @@ using LatticeModels
         H = d + hx + hy
         sp = spectrum(H)
         P = filled_projector(sp)
-        d = diag_aggregate(tr, P)
+        d = diag_reduce(tr, P)
         true
     end
 
@@ -61,7 +61,7 @@ using LatticeModels
         P0 = filled_projector(spectrum(H0))
         X, Y = coord_operators(Basis(l, 2))
         @evolution {H := h(t), P0 --> H --> P} for t in 0:0.1:10
-            d = diag_aggregate(tr, 4π * im * P * X * (I - P) * Y * P)
+            d = diag_reduce(tr, 4π * im * P * X * (I - P) * Y * P)
             ch = materialize(DensityCurrents(H, P))
             rd = d .|> real
         end
@@ -97,9 +97,7 @@ using LatticeModels
         surface!(p[2], xy)
         scatter!(p[3], SquareLattice(3, 4, 5))
         plot!(p[4], project(xy, :x))
-        mpcs = map_currents(dc, aggr_fn=sum, sorted=true) do l, s1, s2
-            norm(site_coords(l, s1) - site_coords(l, s2))
-        end
+        mpcs = map_currents(site_distance, dc, reduce_fn=sum, sort=true)
         plot!(p[4], mpcs)
         true
     end
@@ -147,7 +145,7 @@ end
     bas = Basis(l, 1)
     X, Y = coord_operators(bas)
     x, y = coord_values(l)
-    xtr = diag_aggregate(tr, X)
+    xtr = diag_reduce(tr, X)
     xtr2 = site_density(X)
     xm2 = LatticeValue(l) do site, (x, y)
         2x
@@ -194,17 +192,17 @@ end
     bas = Basis(l, 2)
     X, Y = coord_operators(bas)
     x, y = coord_values(l)
-    xsq = diag_operator(bas) do site, (x, y)
-        x^2
+    xsq = diag_operator(l) do site, (x, y)
+        x^2 * [1 0; 0 1]
     end
-    xy = diag_operator(bas) do site, (x, y)
-        x * y
+    xy = diag_operator(l) do site, (x, y)
+        x * y * [1 0; 0 1]
     end
     x2p2ym1 = diag_operator(bas) do site, (x, y)
-        x * 2 + 2y - 1
+        (x * 2 + 2y - 1) * [1 0; 0 1]
     end
     xd2pxypexpy = diag_operator(bas) do site, (x, y)
-        x / 2 + x * y + exp(y)
+        (x / 2 + x * y + exp(y)) * [1 0; 0 1]
     end
 
     l2 = SquareLattice(5, 20)
@@ -233,7 +231,7 @@ end
     end
     @testset "Wrapper macro" begin
         @test @on_lattice(X / 2 + X * Y + exp(Y)) == xd2pxypexpy
-        @test X / 2 + X * Y + @on_lattice(exp(Y)) == xd2pxypexpy
+        @test X * 0.5 + X * Y + @on_lattice(exp(Y)) == xd2pxypexpy
         @test_logs (
             :warn,
             "avoid using lattice operators and matrices \
@@ -429,7 +427,7 @@ end
     δ = 0.2
     Es = eigvals(sp)
     Vs = eigvecs(sp)
-    ld1 = imag.(diag_aggregate(tr, LatticeModels.LatticeArray(basis(sp), Vs * (@.(1 / (Es - E - im * δ)) .* Vs'))))
+    ld1 = imag.(diag_reduce(tr, LatticeModels.LatticeArray(basis(sp), Vs * (@.(1 / (Es - E - im * δ)) .* Vs'))))
     ldosf = ldos(sp, δ)
     @test ldos(sp, E, δ).values ≈ ld1.values
     @test ldosf(E).values ≈ ld1.values
