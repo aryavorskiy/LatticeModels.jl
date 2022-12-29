@@ -8,7 +8,7 @@ using LatticeModels, Plots
 ```
 
 ```@repl env
-l = SquareLattice(5, 5)
+l = SquareLattice(10, 10)
 lv = LatticeValue(l) do site, (x, y); x + y + 1; end    # arbitrary site-dependent
 lv2 = rand(l)                               # uniformly distributed random numbers
 lv3 = randn(l)                              # normally distributed random numbers
@@ -45,8 +45,20 @@ plot(lv, markersize=10)
 It is often required to select some sites by certain condition. 
 This can be done using a `LatticeValue{Bool}` and broadcasting (like with [Sublattices](@ref)).
 
+In the example below we will delete all sites from the circle of radius 3 in the center of the lattice 
+(which will make the according heatmap regions blank).
+
 ```@example env
-heatmap(lv[@. √(x^2 + y^2) > 1.2])
+heatmap(lv[@. √(x^2 + y^2) > 3])
+```
+
+The approach from above provides a flexible way to edit `LatticeValue`s:
+
+```julia
+lv2 = ones(l)
+lv2[@. x < y] = x .* y          # Assign another LatticeValue
+lv2[@. x > y && x > -y] .= 2    # or a number
+heatmap(lv2)
 ```
 
 Note that a `LatticeValue` can be projected to some coordinate axis to create line plots.
@@ -62,11 +74,3 @@ plot!(p[2], project(lv_on_line, :y))
 
 Note that we can show the sites we selected by plotting the lattice of the selected values with `high_contrast=true`.
 This options hides the indices and translucent marks, and also makes the plot markers black-and-white, which prevents them from blending in with the heatmap in the background.
-
-You also can change the values stored in a `LatticeValue`:
-
-```julia
-lv2 = ones(l)
-lv2[x .< y] = lv        # like this
-lv2[x .> y + 1] .= 2    # or like this
-```

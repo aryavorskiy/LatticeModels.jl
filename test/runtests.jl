@@ -185,6 +185,12 @@ end
         @test z == ones(l)
         @test z2 == ones(l)
     end
+    @testset "Advanced" begin
+        mn, mx = extrema(xy)
+        @test all(mn .≤ xy.values .≤ mx)
+        imx = findall(==(mx), xy)
+        @test all((site in imx || xy[site] < mx) for site in l)
+    end
 end
 
 @testset "LatticeOperator tests" begin
