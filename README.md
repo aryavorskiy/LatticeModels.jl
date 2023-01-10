@@ -14,7 +14,7 @@ pkg> add https://github.com/aryavorskiy/LatticeModels.jl
 ```
 or
 ```julia
-import Pkg; Pkg.install(url="https://github.com/aryavorskiy/LatticeModels.jl")
+import Pkg; Pkg.add(url="https://github.com/aryavorskiy/LatticeModels.jl")
 ```
 
 ## Sample workflow

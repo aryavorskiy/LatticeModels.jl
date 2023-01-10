@@ -65,9 +65,10 @@ Here are the functions that must be defined for the desired array type:
 
 - Equality operator: `==`
 - Basic arithmetic functions: `+`, `-`, `*`, `adjoint`
-- The identity matrix: `one(A)`
+- The identity matrix `one(A)`
 - The matrix exponent `exp(A)`
     - If it is not possible to implement this function you can set the `k` keyword argument (see below) to calculate the matrix exponent as a partial sum of Taylor series.
+- If the inverse matrix `inv(A)` function is defined, you can use the Padé approximant for the matrix exponent, which is generally more accurate.
 
 !!! warning
     If you use `LatticeArray`s, you still have to make sure these functions and operators are defined for the underlying array type.
@@ -131,7 +132,7 @@ Note that `LatticeRecord`s support two kinds of indexing:
 Let's see how it works:
 
 ```@example env
-p = plot(layout=(1,3), size=(1100, 350))
+p = plot(layout=(1,3), size=(800, 250))
 plot!(p[1], density_rec(10))                        # The snapshot with time nearest to 10
 typeof(density_rec(10))                             # LatticeValue{Float64}
 plot!(p[2], density_rec[l[25]])                     # The value on the 25-th site depending on time 

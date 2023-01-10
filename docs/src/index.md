@@ -4,12 +4,12 @@ This package provides a set of tools to simulate different quantum lattice syste
 
 ## Installation
 
-```jldoctest
+```
 pkg> add https://github.com/aryavorskiy/LatticeModels.jl
 ```
 or
 ```julia
-import Pkg; Pkg.install(url="https://github.com/aryavorskiy/LatticeModels.jl")
+import Pkg; Pkg.add(url="https://github.com/aryavorskiy/LatticeModels.jl")
 ```
 
 ## Package features
