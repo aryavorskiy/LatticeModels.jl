@@ -1,4 +1,4 @@
-import Base: ==, length, first, last, insert!, diff
+import Base: ==, length, first, last, insert!, pairs, diff
 
 const STORABLE_TYPES = (LatticeArray, LatticeValue, MaterializedCurrents)
 const StorableLatticeType = Union{STORABLE_TYPES...}
@@ -20,7 +20,7 @@ and site-based indexing (via bracket syntax, returns a vector or a new LatticeRe
 """
 struct LatticeRecord{ET<:StorableLatticeType} <: Function
     lattice::Lattice
-    records::Vector{Array}
+    snapshots::Vector{Array}
     times::Vector{Float64}
     function LatticeRecord(vcs::Vector{ET}, ts) where {ET}
         !allequal(lattice.(vcs)) && throw(ArgumentError("all lattices must be equal"))
@@ -30,9 +30,9 @@ struct LatticeRecord{ET<:StorableLatticeType} <: Function
     LatticeRecord{ET}(l::Lattice) where ET = new{_storable(ET)}(l, [], [])
 end
 
-first(lvr::LatticeRecord{ET}) where ET = ET(lattice(lvr), first(lvr.records))
-last(lvr::LatticeRecord{ET}) where ET = ET(lattice(lvr), last(lvr.records))
-length(lvr::LatticeRecord) = length(lvr.records)
+first(lr::LatticeRecord{ET}) where ET = ET(lattice(lr), first(lr.snapshots))
+last(lr::LatticeRecord{ET}) where ET = ET(lattice(lr), last(lr.snapshots))
+length(lr::LatticeRecord) = length(lr.snapshots)
 
 function show(io::IO, ::MIME"text/plain", lr::LatticeRecord)
     print(io, "LatticeRecord with $(length(lr)) records")
@@ -44,7 +44,7 @@ function show(io::IO, ::MIME"text/plain", lr::LatticeRecord)
 end
 
 function ==(lr1::LatticeRecord{ET}, lr2::LatticeRecord{ET})  where {ET}
-    (lr1.lattice == lr2.lattice) && (lr1.times == lr2.times) && (lr1.records == lr2.records)
+    (lr1.lattice == lr2.lattice) && (lr1.times == lr2.times) && (lr1.snapshots == lr2.snapshots)
 end
 
 const LatticeValueRecord = LatticeRecord{LatticeValue}
@@ -53,78 +53,82 @@ const CurrentsRecord = LatticeRecord{MaterializedCurrents}
 _internal(la::LatticeArray) = la.array
 _internal(lv::LatticeValue) = lv.values
 _internal(curr::MaterializedCurrents) = curr.currents
-init_record(slt::ET) where {ET<:StorableLatticeType} = LatticeRecord{ET}(lattice(slt), [_internal(slt)], [0.])
+init_record(slt::ET, t=0) where {ET<:StorableLatticeType} = LatticeRecord{ET}(lattice(slt), [_internal(slt)], Float64[t])
 
-lattice(lvr::LatticeRecord) = lvr.lattice
+lattice(lr::LatticeRecord) = lr.lattice
 
 """
     time_domain(lr::LatticeRecord)
 
-Returns the timestamps of the records.
+Returns the timestamps of the snapshots.
 """
 time_domain(lr::LatticeRecord) = lr.times
 
-function Base.insert!(lvr::LatticeRecord{ET}, t::Number, value::ET) where ET
-    check_lattice_match(lvr, value)
-    imx = findlast(≤(t), time_domain(lvr))
+function Base.insert!(lr::LatticeRecord{ET}, t::Number, value::ET) where ET
+    check_lattice_match(lr, value)
+    imx = findlast(≤(t), time_domain(lr))
     imx === nothing && (imx = 0)
-    if checkbounds(Bool, lvr.times, imx) && lvr.times[imx] == t
-        lvr.records[imx] = _internal(value)
+    if checkbounds(Bool, lr.times, imx) && lr.times[imx] == t
+        lr.snapshots[imx] = _internal(value)
     else
-        insert!(lvr.times, imx + 1, t)
-        insert!(lvr.records, imx + 1, _internal(value))
+        insert!(lr.times, imx + 1, t)
+        insert!(lr.snapshots, imx + 1, _internal(value))
     end
-    lvr
+    lr
 end
 
-(lr::LatticeRecord{ET})(t::Real) where ET = ET(lr.lattice, lr.records[findmin(x -> abs(x - t), lr.times)[2]])
+(lr::LatticeRecord{ET})(t::Real) where ET = ET(lr.lattice, lr.snapshots[findmin(x -> abs(x - t), lr.times)[2]])
 function (lr::LatticeRecord{ET})(tmin::Real, tmax::Real) where ET
     inds = findall(time_domain(lr)) do x
         tmin ≤ x ≤ tmax
     end
-    LatticeRecord{ET}(lattice(lr), lr.records[inds], lr.times[inds])
+    LatticeRecord{ET}(lattice(lr), lr.snapshots[inds], lr.times[inds])
 end
 function Base.getindex(lr::LatticeRecord{ET}, args...) where {ET}
     sample = first(lr)[args...]
     l = lattice(lr)
     if sample isa StorableLatticeType
-        LatticeRecord([ET(l, rec)[args...] for rec in lr.records], lr.times)
+        LatticeRecord([ET(l, rec)[args...] for rec in lr.snapshots], lr.times)
     else
-        [ET(l, rec)[args...] for rec in lr.records]
+        Dict(t => ET(lr.lattice, rec)[args...] for (t, rec) in zip(lr.times, lr.snapshots))
     end
 end
 
-function iterate(lvr::LatticeRecord{ET}, state=(1, length(lattice(lvr)))) where ET
+function iterate(lr::LatticeRecord{ET}, state=(1, length(lattice(lr)))) where ET
     ind, len = state
     1 ≤ ind ≤ len || return nothing
-    (lvr.times[ind], ET(lvr.lattice, lvr.records[ind])), (ind + 1, len)
+    ET(lr.lattice, lr.snapshots[ind]), (ind + 1, len)
+end
+
+pairs(lr::LatticeRecord{ET}) where ET = Iterators.map(lr.times, lr.snapshots) do t, rec
+    t => ET(lr.lattice, rec)
 end
 
 """
-    diff(lattice_record)
+    diff(lr::LatticeRecord)
 
 Differentiate the values stored in the record by time using the symmetric difference formula.
 """
-function Base.diff(lvr::LatticeRecord{ET}) where ET
-    length(lvr) < 2 && error("Cannot differentiate LatticeRecord of length $(length(lvr))")
-    td = time_domain(lvr)
-    LatticeRecord{ET}(lattice(lvr),
-        [@. (lvr.records[i + 1] - lvr.records[i])/(td[i + 1] - td[i])
-        for i in 1:length(lvr) - 1], (td[2:end] .+ td[1:end-1])./2)
+function Base.diff(lr::LatticeRecord{ET}) where ET
+    length(lr) < 2 && error("Cannot differentiate LatticeRecord of length $(length(lr))")
+    td = time_domain(lr)
+    LatticeRecord{ET}(lattice(lr),
+        [@. (lr.snapshots[i + 1] - lr.snapshots[i])/(td[i + 1] - td[i])
+        for i in 1:length(lr) - 1], (td[2:end] .+ td[1:end-1])./2)
 end
 
 """
-    integrate(lattice_record)
+    integrate(lr::LatticeRecord)
 
 Integrates the values stored in the record over time using the trapezoidal rule.
 """
-function integrate(lvr::LatticeRecord{ET}) where ET
-    td = time_domain(lvr)
-    a = copy(first(lvr.records)) * ((td[2] - td[1]) / 2)
-    out_records = [zero(first(lvr.records))]
-    for i in 2:length(lvr)
-        a .+= lvr.records[i] .* (td[i] - td[i-1])
-        push!(out_records, @. (a - lvr.records[i] / 2) * (td[i] - td[i-1]))
+function integrate(lr::LatticeRecord{ET}) where ET
+    td = time_domain(lr)
+    a = copy(first(lr.snapshots)) * ((td[2] - td[1]) / 2)
+    out_snapshots = [zero(first(lr.snapshots))]
+    for i in 2:length(lr)
+        a .+= lr.snapshots[i] .* (td[i] - td[i-1])
+        push!(out_snapshots, @. (a - lr.snapshots[i] / 2) * (td[i] - td[i-1]))
     end
-    LatticeRecord{ET}(lattice(lvr), out_records, td)
+    LatticeRecord{ET}(lattice(lr), out_snapshots, td)
 end

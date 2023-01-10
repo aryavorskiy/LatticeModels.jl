@@ -115,16 +115,19 @@ function getindex(l::Lattice{LatticeSym, N, NB} where LatticeSym, i::Int) where 
 end
 
 """
-    site_index(site, lattice)
+    site_index(l::Lattice, site::LatticeSite)
 
 Returns the integer index for given `site` in `lattice`.
 Returns `nothing` if the site is not present in the lattice.
 """
-function site_index(site::LatticeSite, l::Lattice)
+function site_index(l::Lattice, site::LatticeSite)
     i = LinearIndices((1:basis_length(l), (1:s for s in size(l))...))[_cind(site)]
     (i === nothing || !l.mask[i]) && return nothing
     count(@view l.mask[1:i])
 end
+site_index(::LatticeSite, ::Lattice) = error("site_index(::LatticeSite, ::Lattice) discontinued. \
+This error message will be removed in future versions.
+Use site_index(::Lattice, ::LatticeSite) instead.")
 
 function splice!(l::Lattice, is)
     view(l.mask, l.mask)[collect(is)] .= false

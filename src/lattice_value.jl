@@ -17,7 +17,7 @@ lattice(l::Lattice) = l
 size(lvw::LatticeValueWrapper) = size(lvw.values)
 length(lvw::LatticeValueWrapper) = length(lvw.values)
 function _to_index(lvw::LatticeValueWrapper, site::LatticeSite)
-    i = CartesianIndex(site_index(site, lattice(lvw)))
+    i = CartesianIndex(site_index(lattice(lvw), site))
     i === nothing ? error("index conversion failed") : return i
 end
 _to_index(::LatticeValueWrapper, i::CartesianIndex{1}) = i
@@ -137,7 +137,7 @@ Base.@propagate_inbounds function setindex!(lv::LatticeValueWrapper, lv_rhs::Lat
         check_is_sublattice(lattice(lv), lattice(lv_rhs))
     end
     new_mask = zero(lv.lattice.mask)
-    new_mask[lv_rhs.lattice.mask] = lv_rhs.values
+    new_mask[lv_rhs.lattice.mask] = lv_mask.values
     lv.values[new_mask[lv.lattice.mask]] = lv_rhs.values[new_mask[lv_rhs.lattice.mask]]
 end
 

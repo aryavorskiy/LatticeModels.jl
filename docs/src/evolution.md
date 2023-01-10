@@ -83,6 +83,8 @@ The evolution macro avoids calculations where possible to improve performance. I
 
 To improve performance with small time intervals you can calculate the matrix exponent as a Taylor polynomial. Its order can be set via `k` keyword.
 
+For more precise calculation add `pade=true` - this will enable matrix exponent calculation via Padé approximant. Note that this formula requires finding an inverse matrix, so this option is not compatible with sparse matrices.
+
 By default the macro shows a progress informer that shows the task progress, the estimated time remaining and the fraction of time that
 was spent to perform evolution. To disable it add `show_progress=false` to the keyword arguments.
 
@@ -94,29 +96,45 @@ Keyword assignments should be placed before the rules list:
 
 ## Lattice records
 
-A `LatticeRecord` is a struct that stores information about how some value (of type `LatticeValue`, `LatticeArray` or `MaterializedCurrents`) changed during time. It simplifies working with time-dependent values by allowing you to run the computation pass only once and re-evaluate all visualization code as much as you want.
+A `LatticeRecord` is a struct that stores information about how some value of storable type (only `LatticeValue`, `LatticeArray` or `MaterializedCurrents` are **storable**) changed during time. It simplifies working with time-dependent values by allowing you to run the computation pass only once and re-evaluate all visualization code as much as you want.
 
 Here is an example:
 
 ```@example env
 P0 = filled_projector(spectrum(Chern(l, 0)))
 density_rec = LatticeValueRecord(l)
-ddensity_rec = LatticeValueRecord(l)
+deriv_rec = LatticeValueRecord(l)
 
 @evolution {
     H := Chern(l, B * min(t, τ) / τ),
     P0 --> H --> P
 } for t in 0:0.1:2τ
     insert!(density_rec, t, site_density(P))
-    insert!(ddensity_rec, t, site_density(-im * (H * P - P * H)))
+    insert!(deriv_rec, t, site_density(-im * (H * P - P * H)))
 end
 
 site = l[50]
 p = plot(layout=(2,1))
-plot!(p[1], time_domain(density_rec), density_rec[site], lab="p")
+plot!(p[1], density_rec[site], lab="p")
 
 # Compare computed time derivative with Heisenberg equation
-d_density_rec = diff(density_rec)
-plot!(p[2], time_domain(d_density_rec), d_density_rec[site], lab="dp/dt")
-plot!(p[2], time_domain(ddensity_rec), ddensity_rec[site], lab="Heisenberg") 
+plot!(p[2], diff(density_rec)[site], lw=5, alpha=0.3, lab="dp/dt")
+plot!(p[2], deriv_rec[site], lab="Heisenberg") 
+```
+
+Note that `LatticeRecord`s support two kinds of indexing:
+
+- Calling the record with a numeric value selects the time and returns the object in nearest snapshot. 
+  Calling it with two numeric values yields a new `LatticeRecord` with all timestamps between given values.
+- Indexing it with square brackets will apply this index to all snapshots. The output will be a `LatticeRecord` if the results of the indexing will be storable; otherwise a `time => value` dictionary will be returned.
+
+Let's see how it works:
+
+```@example env
+p = plot(layout=(1,3), size=(1100, 350))
+plot!(p[1], density_rec(10))                        # The snapshot with time nearest to 10
+typeof(density_rec(10))                             # LatticeValue{Float64}
+plot!(p[2], density_rec[l[25]])                     # The value on the 25-th site depending on time 
+typeof(density_rec[l[25]])                          # Dict{Float64, Float64}
+plot!(p[3], (density_rec(15, 25) |> diff)[l[25]])   # Derivative of the value by time where 15 ≤ t ≤ 25
 ```

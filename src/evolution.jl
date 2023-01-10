@@ -1,6 +1,5 @@
 import Base: exp
 using LinearAlgebra, ProgressMeter
-ProgressMeter.ijulia_behavior(:clear)
 
 function taylor_exp(A::AbstractMatrix, k::Int)
     B = one(A) + A
@@ -15,11 +14,23 @@ function taylor_exp(A::AbstractMatrix, k::Int)
     return B
 end
 
-exp(A::LatticeOperator) = LatticeArray(A.basis, exp(A.array))
-taylor_exp(A::LatticeOperator, k::Int) = LatticeArray(A.basis, taylor_exp(A.array, k))
+function pade_exp(A::AbstractMatrix, k::Int)
+    even_ms = one(A) * (factorial(2k) / factorial(k))
+    M = copy(A) * (factorial(2k - 1) / factorial(k - 1))
+    odd_ms = copy(M)
+    for j in 2:k
+        M *= A * ((k - j + 1) / (2k - j + 1) / j)
+        if j % 2 == 0
+            even_ms += M
+        else
+            odd_ms += M
+        end
+    end
+    (even_ms + odd_ms) * inv(even_ms - odd_ms)
+end
 
 @doc raw"""
-    evolution_operator(H, t[, k])
+    evolution_operator(H, t[, k, p])
 
 Calculates the unitary evolution operator using the formula
 
@@ -28,10 +39,16 @@ $ \mathcal{U}(t) = e^{-\frac{1}{i\hbar} \hat{H} t} $
 # Arguments
 - `H`: the hamiltonian matrix
 - `t`: the evolution time
-- `k`: if provided, the exponent will be calculated using a Taylor series expansion with order k
+- `k`: if provided, the matrix exponent will be calculated using a Taylor series expansion with order k
+- `p`: if set to `true`, the matrix exponent will be calculated using a Padé approximant, which is
+more precise than Taylor expansion but can also be slower and uses matrix inversion.
 """
-evolution_operator(H, t::Real, ::Nothing=nothing) = exp((-im * t) * H)
-evolution_operator(H, t::Real, k::Int) = taylor_exp((-im * t) * H, k)
+evolution_operator(H, t::Real, ::Nothing=nothing, ::Bool=false) = @on_lattice exp((-im * t) * H)
+evolution_operator(H, t::Real, k::Int, p::Bool=false) = if p
+    @on_lattice pade_exp((-im * t) * H, k)
+else
+    @on_lattice taylor_exp((-im * t) * H, k)
+end
 
 evolved(P::AbstractMatrix, ev::AbstractMatrix) = ev * P * ev'
 evolved(V::AbstractVector, ev::AbstractMatrix) = ev * V
@@ -46,13 +63,15 @@ function _expand_chain(chain)
 end
 
 _expr_depends_on(::Any, ::Symbol) = true
+_expr_depends_on(::Number, ::Symbol) = false
+_expr_depends_on(::String, ::Symbol) = false
 _expr_depends_on(expr::Symbol, dep_var::Symbol) = (expr === dep_var)
 function _expr_depends_on(expr::Expr, dep_var::Symbol)
     _begin = 1 + Meta.isexpr(expr, (:call, :->))
     any(_expr_depends_on(e, dep_var) for e in expr.args[_begin:end])
 end
 
-function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true)
+function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true, pade=false)
     if !Meta.isexpr(loop, :for)
         error("for loop expected")
     end
@@ -108,7 +127,7 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true
             push!(evolutor_updates,
                 :(
                     if dt_changed || $h_eval != $h_eval_new
-                        $p_target_ev = evolution_operator($h_eval_new, dt, $k)
+                        $p_target_ev = evolution_operator($h_eval_new, dt, $k, $pade)
                     end
                 ),
                 :($h_eval = $h_eval_new))
@@ -119,7 +138,7 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true
             push!(evolutor_updates,
                 :(
                     if dt_changed
-                        $p_target_ev = evolution_operator($h_eval, dt, $k)
+                        $p_target_ev = evolution_operator($h_eval, dt, $k, $pade)
                     end
                 ))
         end
@@ -154,6 +173,7 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true
         end
     end
     quote
+        ProgressMeter.ijulia_behavior(:clear)
         local $(esc(loop_var)) = first($(esc(loop_range)))
         $(inits...)
         local t_inner = zero(eltype($(esc(loop_range))))
@@ -190,7 +210,8 @@ See [Unitary evolution](evolution.md) for more details.
 
 **Keyword arguments:**
 - `k`: order of the Taylor expansion for matrix exponent. If omitted, the default `exp` function will be used.
-- `rtol`: the tolerance to decide whether the `Δt` changed between iterations or not. `1e-12` by default.
+- `pade`: set this to true to use Padé approximant formula instead of Taylor expansion.
+- `rtol`: the relative tolerance to decide whether the `Δt` changed between iterations or not. `1e-12` by default.
 - `show_progress`: defines whether the progress informer must be displayed or not. `true` by default.
 """
 macro evolution(args...)

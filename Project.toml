@@ -1,7 +1,7 @@
 name = "LatticeModels"
 uuid = "3c3db7f8-440c-4375-905c-1a18b5307bed"
 authors = ["A. Yavorsky <iavorskii.ar@phystech.edu>"]
-version = "0.12.3"
+version = "0.13.0"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"

@@ -138,4 +138,4 @@ plot(gl, show_excluded_sites=false, show_indices=false)
     SquareLattice(sz::Vararg{Int, N}) where N = ...     # Wrong!
     SquareLattice{N}(sz::Vararg{Int, N}) where N = ...  # Correct
     ```
-    In the second example `SquareLattice(sz::Vararg{Int, N})` constructor will be generated automatically.
+    In the second example `SquareLattice(sz::Vararg{Int, N}) where N` constructor will be generated automatically.

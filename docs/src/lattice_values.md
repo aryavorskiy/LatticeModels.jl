@@ -54,17 +54,17 @@ heatmap(lv[@. √(x^2 + y^2) > 3])
 
 The approach from above provides a flexible way to edit `LatticeValue`s:
 
-```julia
+```@example env
 lv2 = ones(l)
 lv2[@. x < y] = x .* y          # Assign another LatticeValue
-lv2[@. x > y && x > -y] .= 2    # or a number
+lv2[@. x > y && x > -y] .= 20   # or a number
 heatmap(lv2)
 ```
 
 Note that a `LatticeValue` can be projected to some coordinate axis to create line plots.
 
 ```@example env
-lv_on_line = lv[@. x ≈ 0]   # Use approximate comparison to avoid rounding errors
+lv_on_line = lv[@. x ≈ 0.5]     # Use approximate comparison to avoid rounding errors
 p = plot(layout=(2, 1))
 
 heatmap!(p[1], lv)

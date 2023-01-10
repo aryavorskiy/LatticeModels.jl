@@ -75,7 +75,7 @@ lattice(x) = lattice(basis(x))
 @inline _ranges(rngs::Tuple, i::Int, is::Tuple, l::Lattice, N::Int) =
     _ranges((rngs..., N*(i-1)+1:N*i), is, l, N)
 @inline _ranges(rngs::Tuple, site::LatticeSite, is::Tuple, l::Lattice, N::Int) =
-    _ranges((rngs..., site_index(site, l)), is, l, N)
+    _ranges((rngs..., site_index(l, site)), is, l, N)
 @inline _ranges(rngs::Tuple, ::Colon, is::Tuple, l::Lattice, N::Int) =
     _ranges((rngs..., :), is, l, N)
 getindex(la::LatticeArray, is::Vararg{Any}) = la.array[_ranges(is, lattice(la), dims_internal(la))...]

@@ -144,7 +144,7 @@ function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field:
     for (i, site1) in enumerate(l)
         site2 = _hopping_dest(l, hop, site1)
         site2 === nothing && continue
-        j = site_index(site2, l)
+        j = site_index(l, site2)
         j === nothing && continue
         !_get_bool_value(selector, l, site1, site2) && continue
 
@@ -315,7 +315,7 @@ end
 
 lattice(bs::PairSet) = bs.lattice
 match(bs::PairSet, site1::LatticeSite, site2::LatticeSite) =
-    bs.bmat[site_index(site1, lattice(bs)), site_index(site2, lattice(bs))]
+    bs.bmat[site_index(lattice(bs), site1), site_index(lattice(bs), site2)]
 
 """
     bonds(op::LatticeOperator)
@@ -343,7 +343,7 @@ function bonds(l::Lattice, hops::Hopping...)
         for hop in hops
             site2 = _hopping_dest(l, hop, site1)
             site2 === nothing && continue
-            j = site_index(site2, l)
+            j = site_index(l, site2)
             j === nothing && continue
             bs.bmat[i, j] = bs.bmat[j, i] = true
         end

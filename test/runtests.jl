@@ -84,6 +84,8 @@ using LatticeModels
             @hop axis = 2 [1 1; -1 -1] / 2
         end
         P = filled_projector(spectrum(H), 0.1)
+        @evolution k = 2 pade = true {P --> H --> PP} for t in 0:0.1:1
+        end
         @evolution k = 2 {P --> H --> PP} for t in 0:0.1:1
         end
 
@@ -105,7 +107,7 @@ end
 
 @testset "Lattice tests" begin
     sql = SquareLattice(10, 20)
-    @test [site_index(s, sql) for s in sql] == 1:length(sql)
+    @test [site_index(sql, s) for s in sql] == 1:length(sql)
     x, y = coord_values(sql)
     s_0 = SquareLattice(10, 20) do site, (x, y)
         x < y
@@ -157,7 +159,7 @@ end
         x * y
     end
     idxs = LatticeValue(l) do site, crd
-        site_index(site, l)
+        site_index(l, site)
     end
     @test [idxs[s] for s in l] == 1:length(l)
     @test x == xtr
@@ -261,7 +263,7 @@ end
     insert!(rec, 0, xy)
     insert!(rec, 1, xy)
     insert!(rec, 2, xy)
-    @test rec[site] == fill(xy[site], 3)
+    @test rec[site] == Dict(t => xy[site]  for t in time_domain(rec))
     @test rec[xly] == LatticeRecord(fill(xy[xly], 3), [0:2;])
     @test diff(rec) == LatticeRecord([zeros(l), zeros(l)], [0.5, 1.5])
     rec2 = init_record(xy .* 0)

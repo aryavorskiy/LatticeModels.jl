@@ -113,7 +113,7 @@ _get_currvars(curr::MaterializedCurrents, ::Lattice, i::Int) =
     vec(curr.currents[i, :])
 function getindex(curr::AbstractCurrents, site::LatticeSite)
     l = lattice(curr)
-    i = site_index(site, l)
+    i = site_index(l, site)
     i === nothing && throw(BoundsError(curr, site))
     curr_vars = _get_currvars(curr, l, i)
     curr_vars[i] = NaN
