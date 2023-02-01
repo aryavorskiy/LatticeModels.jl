@@ -16,6 +16,7 @@ end
 lattice(b::Basis) = b.lattice
 dims_internal(b::Basis) = b.internal_dim
 length(b::Basis) = length(lattice(b)) * dims_internal(b)
+==(b1::Basis, b2::Basis) = b1.internal_dim == b2.internal_dim && b1.lattice == b2.lattice
 
 basis(b::Basis) = b
 function check_basis_match(b1, b2)
@@ -39,7 +40,8 @@ struct LatticeArray{AT,LT,N}
     basis::Basis{LT}
     array::AT
     function LatticeArray(basis::Basis{LT}, array::AT) where {LT<:Lattice,AT<:AbstractArray{_T,N} where _T} where {N}
-        !all((ax in (1, length(basis))) for ax in size(array)) && error("inconsistent array size")
+        !all((ax in (1, length(basis))) for ax in size(array)) &&
+            throw(DimensionMismatch("array has size $(size(array)), basis has length $(length(basis))"))
         new{AT,LT,N}(basis, array)
     end
 end
@@ -58,7 +60,7 @@ The same as `LatticeArray{MT, LT, 2}` where `MT<:AbstractMatrix`.
 Creates a `LatticeOperator` representation of a `UniformScaling` operator on given basis.
 For example, `LatticeOperator(LinearAlgebra.I, basis)` yields an identity operator on `basis` basis.
 """
-function LatticeOperator(op::UniformScaling, bas::Basis)
+function LatticeOperator(bas::Basis, op::UniformScaling)
     N = dims_internal(bas)
     m = Matrix(op, N, N)
     diag_operator(lattice(bas), m)
@@ -89,7 +91,9 @@ _typename(::LatticeVector) = "LatticeVector"
 _typename(::LatticeOperator) = "LatticeOperator"
 _typename(::LatticeArray) = "LatticeArray"
 function show(io::IO, m::MIME"text/plain", la::LatticeArray{AT}) where {AT}
-    println(io, join(size(la), "×"), " ", _typename(la), " with inner type $AT")
+    print(io, join(size(la), "×"))
+    AT<:LatticeVector && print(io, "-element")
+    println(io, " ", _typename(la), " with inner type $AT")
     print(io, "on ")
     show(io, m, la.basis)
 end
@@ -193,16 +197,14 @@ for instance, if `matrix` is sparse, so will be the output.
 diag_operator(l::Lattice, m::AbstractMatrix) = _diag_operator!(_zero_on_basis(l, m), m)
 
 """
-    diag_operator(basis::Basis, lattice_value::LatticeValue)
+    diag_operator(lv::LatticeValue, N::Int=1)
 
 Creates a diagonal operator which affects only the lattice space.
-The `lattice_value` argument must be a `LatticeValue` storing diagonal elements of the operator in lattice space.
+The `lv` argument must be a `LatticeValue` storing diagonal elements of the operator in lattice space.
+`N` is the number of internal degrees of freedom on each site.
 """
-function diag_operator(bas::Basis, lv::LatticeValue{<:Number})
-    check_lattice_match(bas, lv)
-    N = dims_internal(bas)
-    eye = Matrix(I, N, N)
-    _diag_operator!(_zero_on_basis(bas), TensorProduct(lv, eye))
+function diag_operator(lv::LatticeValue{T}, N::Int=1) where T<:Number
+    _diag_operator!(_zero_on_basis(lattice(lv), N, Array{T}), lv)
 end
 
 """
@@ -324,17 +326,21 @@ end
     _make_wrapper(f(checked_args...; kw...), basis)
 
 LatticeSummable = Union{LatticeArray,UniformScaling}
-import Base: +, -, *, /, ^, adjoint, copy
+import Base: +, -, *, /, \, ^, adjoint, copy, exp, inv
 @inline +(los::LatticeSummable...) = _unwrap(+, los)
-@inline -(lo::LatticeArray) = _unwrap(-, (lo,))
 @inline -(lo1::LatticeSummable, lo2::LatticeSummable) = _unwrap(-, (lo1, lo2))
 @inline *(los::LatticeArray...) = _unwrap(*, los)
-@inline *(num::Number, lo::LatticeArray) = _unwrap(*, (num, lo))
-@inline *(lo::LatticeArray, num::Number) = _unwrap(*, (lo, num))
-@inline /(lo::LatticeArray, num::Number) = _unwrap(/, (lo, num))
-@inline ^(lo::LatticeArray, num::Number) = _unwrap(^, (lo, num))
-@inline adjoint(lo::LatticeArray) = _unwrap(adjoint, (lo,))
-@inline copy(lo::LatticeArray) = _unwrap(copy, (lo,))
+for f in (:*, :/, :\, :^)
+    @eval @inline ($f)(la::LatticeArray, num::Number) = _unwrap(($f), (la, num))
+    @eval @inline ($f)(num::Number, la::LatticeArray) = _unwrap(($f), (num, la))
+end
+for f in (:adjoint, :copy, :exp, :inv, :-)
+    @eval @inline ($f)(la::LatticeArray) = _unwrap(($f), (la,))
+end
+
+import LinearAlgebra: dot
+@inline dot(lv1::LatticeVector, lv2::LatticeVector) = _unwrap(dot, (lv1, lv2))
+@inline dot(lv1::LatticeVector, A::LatticeOperator, lv2::LatticeVector) = _unwrap(dot, (lv1, A, lv2))
 
 _wrap_smart!(expr::Any) = expr
 function _wrap_smart!(expr::Expr)

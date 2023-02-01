@@ -25,7 +25,7 @@ import Pkg; Pkg.add(url="https://github.com/aryavorskiy/LatticeModels.jl")
 
 The tight-binding model hamiltonian is defined by this formula:
 
-$$\hat{H} = \sum_\text{x-bonds} c^\dagger_i c_j + \sum_\text{y-bonds} c^\dagger_i c_j + h. c.$$
+$$\hat{H} = \sum_i^\text{sites} \left( c^\dagger_{i + \hat{x}} c_i + c^\dagger_{i + \hat{y}} c_i + h. c. \right)$$
 
 Here we will find its eigenstates and plot their local density on heatmaps.
 
@@ -109,9 +109,10 @@ gif(a, "animation.gif")
 The Chern insulator hamiltonian is described by this formula:
 
 $$\hat{H} = 
-\sum_i m_i c^\dagger_i \sigma_z c_i + \left(
-\sum_\text{x-bonds} c^\dagger_i \frac{\sigma_z - i \sigma_x}{2} c_j + 
-\sum_\text{y-bonds} c^\dagger_i \frac{\sigma_z - i \sigma_y}{2} c_j + 
+\sum_i^\text{sites} m_i c^\dagger_i \sigma_z c_i + 
+\sum_i^\text{sites} \left( 
+c^\dagger_{i + \hat{x}} \frac{\sigma_z - i \sigma_x}{2} c_i + 
+c^\dagger_{i + \hat{y}} \frac{\sigma_z - i \sigma_y}{2} c_i + 
 h. c. \right)$$
 
 In this experiment we create a filled state density matrix for a system with $m_i = 1$. 

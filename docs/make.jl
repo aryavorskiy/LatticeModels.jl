@@ -17,7 +17,7 @@ makedocs(
         "Tutorial" => [
             "Defining a lattice" => "lattice.md",
             "Lattice values" => "lattice_values.md",
-            "Lattice operators" => "lattice_operator.md",
+            "Lattice operators" => "lattice_arrays.md",
             "Hamiltonian generation" => "hamiltonian.md",
             "Currents" => "currents.md",
             "Unitary evolution" => "evolution.md"

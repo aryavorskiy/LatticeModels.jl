@@ -189,18 +189,10 @@ site_coords(lattice::Lattice{LatticeSym,N,1} where {LatticeSym,N}, site::Lattice
 Finds the vector between two sites on a lattice according to possibly periodic boundary conditions
 (`site2` will be translated along the macro cell to minimize the distance between them).
 """
-function radius_vector(l::Lattice, site1::LatticeSite, site2::LatticeSite)
-    ret_vec = site_coords(l, site1) - site_coords(l, site2)
-    tr_diff = (site1.unit_cell - site2.unit_cell) ./ size(l)
-    bravais_tr_vecs = bravais(l).translation_vectors
-    for i in eachindex(tr_diff)
-        if tr_diff[i] > 0.5
-            ret_vec -= bravais_tr_vecs[:, i] * size(l)[i]
-        elseif tr_diff[i] < -0.5
-            ret_vec += bravais_tr_vecs[:, i] * size(l)[i]
-        end
-    end
-    return ret_vec
+function radius_vector(l::Lattice, site1::LatticeSite{N}, site2::LatticeSite{N}) where N
+    hsz = SVector{N, Int}(size(l) .÷ 2)
+    tr_unitcell = (site1.unit_cell - site2.unit_cell + hsz) .% size(l) - hsz
+    bravais(l).basis[:, site1.basis_index] - bravais(l).basis[:, site2.basis_index] + bravais(l).translation_vectors * tr_unitcell
 end
 
 """

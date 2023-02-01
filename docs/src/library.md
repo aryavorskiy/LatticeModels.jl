@@ -22,7 +22,7 @@ Pages   = ["lattice_value.jl"]
 
 ```@autodocs
 Modules = [LatticeModels]
-Pages   = ["lattice_operator.jl"]
+Pages   = ["lattice_array.jl"]
 ```
 
 ## Hoppings

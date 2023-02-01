@@ -6,13 +6,13 @@ struct LatticeValueWrapper{VT<:AbstractVector,LatticeSym}
     values::VT
     function LatticeValueWrapper(lattice::Lattice{LatticeSym}, values::VT) where {VT,LatticeSym}
         length(lattice) != length(values) &&
-            error("inconsistent vector length:\nlattice: $(length(lattice)), vector: $(length(values))")
+            throw(DimensionMismatch("vector has length $(length(values)), lattice has length $(length(lattice))"))
         new{VT,LatticeSym}(lattice, values)
     end
 end
 
-lattice(lvw::LatticeValueWrapper) = lvw.lattice
 lattice(l::Lattice) = l
+lattice(lvw::LatticeValueWrapper) = lvw.lattice
 
 size(lvw::LatticeValueWrapper) = size(lvw.values)
 length(lvw::LatticeValueWrapper) = length(lvw.values)

@@ -26,20 +26,13 @@ using Plots
 # First create a lattice
 l = SquareLattice(10, 10)
 
-# Define a tight-binding model hamiltonian
-h(B) = @hamiltonian begin   
-    lattice := l
-    # Add hoppings along axis x and y
-    @hop axis = 1
-    @hop axis = 2
-    # Add magnetic field through (0, 0) point
-    field := FluxField(B, (0, 0))
-end
+# Define a tight-binding model hamiltonian with a flux field through point (0, 0)
+h(B) = TightBinding(l, field=FluxField(B, (0, 0)))
 
 # Calculate eigenvalues and eigenvectors
 sp = spectrum(h(0))
 
-# Find density matrix for filled bands (e. g. energy < 0)
+# Find density matrix for filled bands (e. g. with energy < 0)
 P_0 = filled_projector(sp)
 
 # Perform unitary evolution
@@ -49,14 +42,13 @@ a = Animation()
     H := h(0.1 * min(t, τ) / τ)
     P_0 --> H --> P
 } for t in 0:0.1:2τ
-    # Find the partial trace and plot it
+    # Find the local density and plot it
     plot(site_density(P), clims=(0,1))
 
     # Show currents on the plot
     plot!(DensityCurrents(H, P), arrows_scale=7)
 
     # Some more tweaks to the plot...
-    print("\rt = $t")
     title!("t = $t")
     frame(a)
 end

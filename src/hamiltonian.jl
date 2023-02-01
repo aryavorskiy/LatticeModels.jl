@@ -103,6 +103,95 @@ macro hamiltonian(expr)
     _hamiltonian_block(expr)
 end
 
+@doc raw"""
+    TightBinding(l::Lattice[, field::AbstractField; pbc=false])
+
+$$\hat{H} = \sum_i^\text{sites} \sum_{\hat{r}}^{\text{bonds}} c_i^\dagger c_{i+\hat{r}} + h.c.{}$$
+
+Generates a tight-binding hamiltonian operator on given lattice `l` with set magnetic field and boundary conditions.
+`l` must be a `SquareLattice` or a `HoneycombLattice`.
+"""
+@generated function TightBinding(l::SquareLattice{N}; field=NoField(), pbc=false) where N
+    quote
+        @hamiltonian begin
+            lattice := l
+            dims_internal := 1
+            field := field
+            $([:(@hop axis=$i pbc=pbc) for i in 1:N]...)
+        end
+    end
+end
+
+
+TightBinding(l::HoneycombLattice; field=NoField(), pbc=false) =
+@hamiltonian begin
+    lattice := l
+    dims_internal := 1
+    field := field
+    @hop site_indices=(2,1) pbc=pbc
+    @hop site_indices=(2,1) axis=1 pbc=pbc
+    @hop site_indices=(2,1) axis=2 pbc=pbc
+end
+
+@doc raw"""
+    TightBinding(lv::LatticeValue[; field::AbstractField, pbc=false])
+
+Same as `TightBinding(lattice(lv))`, but adds a diagonal part
+$\sum_i^{sites} V_i c_i^\dagger c_i$ with $V_i$ set by `lv`.
+"""
+TightBinding(lv::LatticeValue{<:Number}; field=NoField(), pbc=false) =
+    _diag_operator!(TightBinding(lattice(lv), field; pbc), lv)
+
+@doc raw"""
+    SpinTightBinding(m::LatticeValue[; field::AbstractField, pbc=false])
+
+$$\hat{H} =
+\sum_i^\text{sites} m_i c^\dagger_i \sigma_z c_i +
+\sum_i^\text{sites} \left(
+c^\dagger_{i + \hat{x}} \frac{\sigma_z - i \sigma_x}{2} c_i +
+c^\dagger_{i + \hat{y}} \frac{\sigma_z - i \sigma_y}{2} c_i +
+h. c. \right)$$
+
+Generates a spin-orbital tight-binding hamiltonian operator with set magnetic field and boundary conditions.
+Here the ``m_i`` values are set by the `m`, which must be defined on a `SquareLattice`.
+"""
+SpinTightBinding(m::LatticeValue{<:Number, :square}; field=NoField(), pbc=false) =
+@hamiltonian begin
+    lattice := lattice(m)
+    dims_internal := 2
+    field := field
+    @diag m ⊗ [1 0; 0 -1]
+    @hop axis=1 [1 -im; -im -1] / 2 pbc=pbc
+    @hop axis=2 [1 -1; 1 -1] / 2 pbc=pbc
+end
+
+@doc raw"""
+    Haldane(l::HoneycombLattice, t1::Real, t2::Real[, m::Real=0; field::AbstractField])
+
+$$\hat{H} =
+\sum_i^\text{sublattice A} m c^\dagger_i c_i +
+\sum_j^\text{sublattice B} m c^\dagger_j c_j +
+\sum_{i, j}^\text{adjacent} \left( t_1 c^\dagger_i c_j + h. c. \right) +
+\sum_{i, j}^\text{2-connected,\\counter-clockwise} \left( i \cdot t_2 c^\dagger_i c_j + h. c. \right)$$
+
+Generates a Haldane topological insulator hamiltonian operator.
+"""
+Haldane(l::HoneycombLattice, t1::Real, t2::Real, m::Real=0; field=NoField()) = @hamiltonian begin
+    lattice := l
+    dims_internal := 1
+    field := field
+    @diag (site, _) -> (site.basis_index == 1 ? [m;;] : [-m;;])
+    @hop t1 site_indices=(2,1) pbc=pbc
+    @hop t1 site_indices=(2,1) axis=1 pbc=pbc
+    @hop t1 site_indices=(2,1) axis=2 pbc=pbc
+    @hop im * t2 axis=1 pbc=pbc
+    @hop -im * t2 site_indices=2 axis = 1 pbc=pbc
+    @hop -im * t2 axis=2 pbc=pbc
+    @hop im * t2 site_indices=2 axis = 2 pbc=pbc
+    @hop im * t2 translate_uc=[-1, 1] pbc=pbc
+    @hop -im * t2 site_indices=2 translate_uc=[-1, 1] pbc=pbc
+end
+
 """
     Spectrum{LT, MT} where {LT<:Lattice, MT<:AbstractMatrix}
 
@@ -152,18 +241,22 @@ function show(io::IO, ::MIME"text/plain", sp::Spectrum)
     println(io, "Eigenvalues in range $(minimum(sp.energies)) .. $(maximum(sp.energies))")
 end
 
-"""
+@doc raw"""
     projector(sp::Spectrum)
 
-Creates a `LatticeOperator` that projects onto the eigenvectors of the spectrum
+$$\hat{\mathcal{P}} = \sum_i |\psi_i⟩⟨\psi_i|$$
+
+Creates a `LatticeOperator` that projects onto the eigenvectors of the spectrum, described by the formula above.
 """
 projector(sp::Spectrum) = LatticeArray(sp.basis, sp.states * sp.states')
 
-"""
+@doc raw"""
     projector(f, sp::Spectrum)
 
-Creates a `LatticeOperator` that projects onto the eigenvectors of the spectrum
-with amplitude defined by the `f` functions, which takes the eigenvalue and returns a number (or a boolean).
+$$\hat{\mathcal{P}} = \sum_i p_i |\psi_i⟩⟨\psi_i|$$
+
+Creates a `LatticeOperator` that projects onto the eigenvectors of the spectrum, described by the formula above.
+The ``p_i`` amplitudes are defined by the `f` function, which takes the eigenvalue ``E_i`` and returns a number (or a boolean).
 """
 projector(f::Function, sp::Spectrum) =
     LatticeArray(sp.basis, sp.states * (f.(sp.energies) .* sp.states'))
@@ -171,28 +264,30 @@ projector(f::Function, sp::Spectrum) =
 """
     filled_projector(sp::Spectrum[, fermi_level=0])
 
-Creates a `LatticeOperator` that projects onto the eigenvectors which have eigenvalues less than `fermi_level` (0 by default).
+Creates a `LatticeOperator` that projects onto the eigenvectors which have eigenvalues ``E_i`` less than `fermi_level` (0 by default).
+
+Same as `projector(<(fermi_level), sp)`, see
 """
-filled_projector(sp::Spectrum, fermi_level=0) = projector(E -> E < fermi_level, sp)
+filled_projector(sp::Spectrum, fermi_level=0) = projector(<(fermi_level), sp)
 
 """
     fermi_dirac(μ, T)
 
-Creates a lambda that takes the energy and returns the state density acccording to Fermi-Dirac statistics.
+Generates a function that takes the energy and returns the state density acccording to Fermi-Dirac statistics.
 """
 fermi_dirac(μ, T) = E -> 1 / (exp((E - μ) / T) + 1)
 
 """
     bose_einstein(μ, T)
 
-Creates a lambda that takes the energy and returns the state density acccording to Bose-Einstein statistics.
+Generates a function that takes the energy and returns the state density acccording to Bose-Einstein statistics.
 """
 bose_einstein(μ, T) = E -> 1 / (exp((E - μ) / T) - 1)
 
 @doc raw"""
     dos(sp::Spectrum, δ)
 
-Generates a function to calculate density of states, which is defined as
+Generates a function to calculate the DOS (Density of States), which is defined as
 $\text{tr}\left(\frac{1}{\hat{H} - E - i\delta}\right)$ and can be understood as a sum
 of Lorenz distributions with width equal to $\delta$.
 """
@@ -201,7 +296,7 @@ dos(sp::Spectrum, δ::Real) = (E -> imag(sum(1 ./ (eigvals(sp) .- (E + im * δ))
 @doc raw"""
     ldos(sp::Spectrum, E, δ)
 
-Calculates local density of states, which is defined as the imaginary part of partial trace of
+Calculates the LDOS (Local Density of States), which is defined as the imaginary part of partial trace of
 $\frac{1}{\hat{H} - E - i\delta}$ operator.
 """
 function ldos(sp::Spectrum, E::Real, δ::Real)
@@ -216,8 +311,8 @@ end
 """
     ldos(sp::Spectrum, δ)
 
-Generates a function that accepts the energy `E` and returns `ldos(spectrum, E, δ)`.
-Use this if you want to find the LDOS for many different values of `E` -
+Generates a function that accepts the energy `E` and returns `ldos(sp, E, δ)`.
+Use this if you want to find the LDOS for the same `Spectrum`, but for many different values of `E` -
 the produced function is optimized and reduces overall computation time dramatically.
 """
 function ldos(sp::Spectrum, δ::Real)

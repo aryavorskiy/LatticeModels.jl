@@ -1,12 +1,21 @@
-## Lattice operators
+## Lattice arrays
 
 ```@setup env
 using LatticeModels
 ```
 
-A [`LatticeArray`](@ref LatticeModels.LatticeArray) is a wrapper type that maps an operator matrix or a wave function vector to a basis it is defined on.
+A [`LatticeArray`](@ref LatticeModels.LatticeArray) is a wrapper type that maps an array representing an operator matrix or a wave function vector to a basis it is defined on.
 
-A `Basis`, in turn, is generally a pair of a `Lattice` and an `Int` which is the number of internal states on every lattice site.
+A `Basis`, in turn, is generally a pair of a `Lattice` and an `Int` which is the number of internal states on every lattice site. In future releases, however, this definition may be extended to a more complex combination of states of several particles.
+
+Constructing a `LatticeArray` is simple. Note that an array size check will be performed automatically:
+
+```@repl env
+l = SquareLattice(3, 2)
+larr = LatticeArray(Basis(l, 1), [1, 2, 3, 4, 5])       # Error
+larr = LatticeArray(Basis(l, 1), [1, 2, 3, 4, 5, 6])    # LatticeVector constructed
+larr.array                  # Access the array object wrapped by the LatticeArray
+```
 
 You can create `LatticeArray` representations of coordinate operators by using the `coord_operators` function. 
 

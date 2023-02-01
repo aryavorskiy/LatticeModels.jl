@@ -101,6 +101,16 @@ dims(h::Hopping) = length(h.translate_uc)
 dims_internal(h::Hopping) = size(h.hop_operator)[1]
 
 """
+    radius_vector(l::Lattice, hop::Hopping)
+Finds the vector between two sites on a lattice according to possibly periodic boundary conditions
+(`site2` will be translated along the macro cell to minimize the distance between them).
+"""
+function radius_vector(l::Lattice, hop::Hopping)
+    i, j = hop.site_indices
+    bravais(l).basis[:, j] - bravais(l).basis[:, i] + bravais(l).translation_vectors * hop.translate_uc
+end
+
+"""
     promote_dims!(h::Hopping, ndims::Int)
 
 Changes dimension count of `hopping` to `ndims` if possible.
@@ -140,7 +150,7 @@ function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field:
     check_lattice_fits(selector, l)
     d = dims(l)
     promote_dims!(hop, d)
-    trv = SVector{d}(hop.translate_uc)
+    trv = radius_vector(l, hop)
     for (i, site1) in enumerate(l)
         site2 = _hopping_dest(l, hop, site1)
         site2 === nothing && continue
@@ -149,8 +159,7 @@ function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field:
         !_get_bool_value(selector, l, site1, site2) && continue
 
         p1 = site_coords(l, site1)
-        p2 = p1 + trv
-        pmod = exp(2π * im * path_integral(field, p1, p2))
+        pmod = exp(2π * im * path_integral(field, p1, p1 + trv))
         !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
         lop[i, j] = hop.hop_operator * pmod + @view lop[i, j]
         lop[j, i] = (@view lop[i, j])'
@@ -165,7 +174,8 @@ Creates a hopping operator:
 $$\hat{A} = \sum_{pairs} \hat{t} \hat{c}^\dagger_j \hat{c}_i + h. c.$$
 
 Arguments:
-- `f`: takes a `Lattice` and two `LatticeSite`s, returns whether this pair should be included.
+- `f`: a function that takes a `Lattice` and two `LatticeSite`s, returns whether this pair should be included.
+Can also be a `PairSelector`,
 - `lattice`: the lattice to create the operator on.
 - `hopping`: the `Hopping` object describing the site pairs and the $\hat{t}$ operator.
 - `field`: the `AbstractField` object that defines the magnetic field to generate phase factors using Peierls substitution.
@@ -249,11 +259,11 @@ macro hopping_operator(for_loop::Expr)
     end
     itr::Expr, body::Expr = for_loop.args
     if !Meta.isexpr(itr, :(=), 2)
-        throw(ArgumentError("invalid for loop iteration specification; must be a simple assignment"))
+        throw(ArgumentError("invalid loop iteration specification"))
     end
     itr_vars, lattice_var = itr.args
     if !Meta.isexpr(itr_vars, :tuple, 2)
-        throw(ArgumentError("invalid for loop iterator variable; must be a 2-tuple"))
+        throw(ArgumentError("invalid loop iteration variable; must be a LatticeSite 2-tuple"))
     end
     site1_var, site2_var = itr_vars.args
     while body.args[end] isa LineNumberNode
@@ -261,34 +271,24 @@ macro hopping_operator(for_loop::Expr)
     end
     dump(body)
     quote
-        i = 0
         l = $(esc(lattice_var))
         local matrix = nothing
-        local N = 0
-        for $(esc(site1_var)) in l
-            i += 1
-            j = 0
-            for $(esc(site2_var)) in l
-                j += 1
+        for (i, $(esc(site1_var))) in enumerate(l)
+            for (j, $(esc(site2_var))) in enumerate(l)
                 if i ≥ j
                     continue
                 end
                 block_res = $(esc(body))
                 if block_res !== nothing
                     if matrix === nothing
-                        if size(block_res) == ()
-                            N = 1
-                        else
-                            N = size(block_res)[1]
-                        end
-                        matrix = zeros(ComplexF64, N * length(l), N * length(l))
+                        matrix = _zero_on_basis(l, block_res)
                     end
-                    matrix[N*(i-1)+1:N*i, N*(j-1)+1:N*j] .= block_res
-                    matrix[N*(j-1)+1:N*j, N*(i-1)+1:N*i] .= block_res'
+                    matrix[i, j] .= block_res
+                    matrix[j, i] .= block_res'
                 end
             end
         end
-        LatticeArray(Basis(l, N), matrix)
+        matrix
     end
 end
 

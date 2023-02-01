@@ -7,7 +7,7 @@ using LatticeModels
             √(x^2 + y^2) < 5
         end
         b = Basis(l, 1)
-        d = LatticeOperator(I, b)
+        d = LatticeOperator(b, I)
         hx = hopping_operator(l, hopping(axis=1))
         hy = hopping_operator(l, hopping(axis=2))
         H = d + hx + hy
@@ -195,7 +195,7 @@ end
     end
 end
 
-@testset "LatticeOperator tests" begin
+@testset "LatticeArray tests" begin
     l = SquareLattice(10, 10)
     bas = Basis(l, 2)
     X, Y = coord_operators(bas)
@@ -233,7 +233,7 @@ end
         @test_throws MethodError X * ones(200, 200)
     end
     @testset "Lattice-value constructor" begin
-        @test diag_operator(bas, x .* y) == xy
+        @test diag_operator(x .* y, 2) == xy
         @test (x .* y) ⊗ [1 0; 0 1] == xy
         @test [1 0; 0 1] ⊗ (x .* y) == xy
     end
@@ -390,55 +390,82 @@ end
 end
 
 @testset "Hamiltonian tests" begin
-    l = HoneycombLattice(10, 10) do site, (x, y)
-        x < y
-    end
-    x, y = coord_values(l)
-    H0 = [1 0; 0 -1] ⊗ (@. x + y) + hopping_operator(l, hopping([1 0; 0 -1], axis=2), LandauField(0.5)) do l, site1, site2
-        local (x, y) = site_coords(l, site1)
-        x + 1 < y
-    end
-    H1 = @hamiltonian begin
-        lattice := l
-        field := LandauField(0.5)
-        dims_internal := 2
-        @diag [1 0; 0 -1] ⊗ (@. x + y)
-        @hop [1 0; 0 -1] axis = 2 PairLhsSelector(@. x + 1 < y)
-    end
-    H2 = @hamiltonian begin
-        lattice := l
-        dims_internal := 2
-        @hop translate_uc = [0, 1] pbc = [true, false] [1 0; 0 -1] (l, s1, s2) ->
-                                                ((x, y) = site_coords(l, s1); x + 1 < y)
-        @diag (site, (x, y)) -> [x+y 0; 0 -x-y]
-        field := LandauField(0.5)
-    end
-    @test H1 == H0
-    @test H2 == H0
+    @testset "Hamiltonian macro" begin
+        l = HoneycombLattice(10, 10) do site, (x, y)
+            x < y
+        end
+        x, y = coord_values(l)
+        H0 = [1 0; 0 -1] ⊗ (@. x + y) + hopping_operator(l, hopping([1 0; 0 -1], axis=2), LandauField(0.5)) do l, site1, site2
+            local (x, y) = site_coords(l, site1)
+            x + 1 < y
+        end
+        H1 = @hamiltonian begin
+            lattice := l
+            field := LandauField(0.5)
+            dims_internal := 2
+            @diag [1 0; 0 -1] ⊗ (@. x + y)
+            @hop [1 0; 0 -1] axis = 2 PairLhsSelector(@. x + 1 < y)
+        end
+        H2 = @hamiltonian begin
+            lattice := l
+            dims_internal := 2
+            @hop translate_uc = [0, 1] pbc = [true, false] [1 0; 0 -1] (l, s1, s2) ->
+                                                    ((x, y) = site_coords(l, s1); x + 1 < y)
+            @diag (site, (x, y)) -> [x+y 0; 0 -x-y]
+            field := LandauField(0.5)
+        end
+        @test H1 == H0
+        @test H2 == H0
 
-    H3 = hopping_operator(l, hopping(-0.25, axis=1)) + hopping_operator(l, hopping(0.25, axis=2))
-    H4 = @hamiltonian begin
-        lattice := l
-        @hop -0.25 axis = 1
-        @hop [0.25;;] axis = 2
+        H3 = hopping_operator(l, hopping(-0.25, axis=1)) + hopping_operator(l, hopping(0.25, axis=2))
+        H4 = @hamiltonian begin
+            lattice := l
+            @hop -0.25 axis = 1
+            @hop [0.25;;] axis = 2
+        end
+        @test H3 == H4
+        sp = spectrum(H1)
+        Es = eigvals(sp)
+        states = eigvecs(sp)
+        @test length(sp) == size(states)[2]
+        @test sp[1] == sp[E=-100]
+        @test filled_projector(sp).array ≈ projector(sp[Es.<0]).array
     end
-    @test H3 == H4
-    sp = spectrum(H1)
-    Es = eigvals(sp)
-    states = eigvecs(sp)
-    @test length(sp) == size(states)[2]
-    @test sp[1] == sp[E=-100]
-    @test filled_projector(sp).array ≈ projector(sp[Es.<0]).array
 
-    # LDOS tests
-    E = 2
-    δ = 0.2
-    Es = eigvals(sp)
-    Vs = eigvecs(sp)
-    ld1 = imag.(diag_reduce(tr, LatticeModels.LatticeArray(basis(sp), Vs * (@.(1 / (Es - E - im * δ)) .* Vs'))))
-    ldosf = ldos(sp, δ)
-    @test ldos(sp, E, δ).values ≈ ld1.values
-    @test ldosf(E).values ≈ ld1.values
+    @testset "Hamiltonian builtins" begin
+        l = SquareLattice(15)
+        fld = LandauField(0.2)
+        PBC=false
+        H1 = @hamiltonian begin
+            lattice := l
+            @hop axis=1 pbc=PBC
+        end
+        @test H1 == TightBinding(l, pbc=PBC)
+
+        l = SquareLattice(10, 10)
+        H2 = @hamiltonian begin
+            lattice := l
+            field := fld
+            dims_internal := 2
+            @diag [1 0; 0 -1]
+            @hop axis = 1 [1 -im; -im -1] / 2
+            @hop axis = 2 [1 -1; 1 -1] / 2
+        end
+        @test H2 == SpinTightBinding(ones(l), field=fld)
+    end
+
+    @testset "DOS & LDOS" begin
+        sp = spectrum(SpinTightBinding(ones(SquareLattice(10, 10))))
+        E = 2
+        δ = 0.2
+        Es = eigvals(sp)
+        Vs = eigvecs(sp)
+        ld1 = imag.(diag_reduce(tr, LatticeModels.LatticeArray(basis(sp), Vs * (@.(1 / (Es - E - im * δ)) .* Vs'))))
+        ldosf = ldos(sp, δ)
+        @test ldos(sp, E, δ).values ≈ ld1.values
+        @test ldosf(E).values ≈ ld1.values
+        @test dos(sp, δ)(E) ≈ sum(ld1)
+    end
 end
 
 @testset "Currents tests" begin

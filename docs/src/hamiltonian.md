@@ -6,7 +6,7 @@ Sometimes a magnetic field is applied, in which case additional phase factors em
 Taking all this into account, the operator will now look something like this:
 
 $$\hat{H} = 
-\sum_i \hat{s}_i \hat{c}^\dagger_i \hat{c}_i + \left( \sum_{\text{adjacent }i, j} \hat{t}_{ij} \hat{c}^\dagger_j \hat{c}_i
+\sum_i^\text{sites} \hat{s}_i \hat{c}^\dagger_i \hat{c}_i + \left( \sum_{i, j}^\text{adjacent} \hat{t}_{ij} \hat{c}^\dagger_j \hat{c}_i
 \cdot e^{\frac{2\pi i}{\phi_0} \int_{r_i}^{r_j} \overrightarrow{A} \cdot \overrightarrow{dl}} + h. c. \right)$$
 
 Such an operator can be easily constructed using the [`@hamiltonian`](@ref) macro. 
@@ -15,7 +15,7 @@ All you have to do is assign `lattice` and also `field` if needed, and then defi
 Let's take a look at the example on the [Usage examples](@ref) page:
 
 A simple tight-binding model hamiltonian for a square lattice is defined by the formula 
-$$\hat{H} = \sum_\text{x-bonds} c^\dagger_i c_j + \sum_\text{y-bonds} c^\dagger_i c_j + h. c.$$
+$$\hat{H} = \sum_i^\text{sites} \left( c^\dagger_{i + \hat{x}} c_i + c^\dagger_{i + \hat{y}} c_i + h. c. \right)$$
 
 We can create a matrix for this operator on a `xsize`×`ysize` square lattice with the following code:
 
@@ -38,9 +38,10 @@ Note that the keyword arguments for hopping operators are written as if they wer
 For a Chern insulator the hamiltonian looks like this:
 
 $$\hat{H} = 
-\sum_i m_i c^\dagger_i \sigma_z c_i + \left(
-\sum_\text{x-bonds} c^\dagger_i \frac{\sigma_z - i \sigma_x}{2} c_j + 
-\sum_\text{y-bonds} c^\dagger_i \frac{\sigma_z - i \sigma_y}{2} c_j + 
+\sum_i^\text{sites} m_i c^\dagger_i \sigma_z c_i + 
+\sum_i^\text{sites} \left( 
+c^\dagger_{i + \hat{x}} \frac{\sigma_z - i \sigma_x}{2} c_i + 
+c^\dagger_{i + \hat{y}} \frac{\sigma_z - i \sigma_y}{2} c_i + 
 h. c. \right)$$
 
 Here we want the $m_i$ values to be represented by any number-typed `LatticeValue`, so the most convenient way to do it is to use tensor product notation:
@@ -62,6 +63,8 @@ nothing # hide
 ```
 
 Here we must explicitly set the internal phase space dimension count via `dims_internal := 2`.
+
+Some default hamiltonian formulas are already implemented - see [`TightBinding`](@ref), [`SpinTightBinding`](@ref), [`Haldane`](@ref) docstrings for more info.
 
 !!! tip
     It is possible to set the matrix type of the hamiltonian operator at the generation time - use `arrtype := <Preferred type>` notation, this can be used e. g to reduce memory usage by switching to sparse arrays.
