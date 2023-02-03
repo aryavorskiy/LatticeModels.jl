@@ -41,10 +41,12 @@ on Basis with 2-dimensional internal phase space
 on 25-site square lattice on 5×5 macro cell
 ```
 
+In the next few paragraphs we will review two main ways to define linear operators that form most tight-binding hamiltonians.
+
 ## Diagonal operators
 
 A *lattice-diagonal* operator can be represented as 
-$\hat{A} = \sum_i \hat{s}_i \hat{c}^\dagger_i \hat{c}_i$ , where $\hat{s}_i$ is an operator defined on the internal space and $\hat{c}^\dagger_i, \hat{c}_i$ are standard quantization operators.
+$\hat{A} = \sum_i^\text{sites} \hat{s}_i \hat{c}^\dagger_i \hat{c}_i$ , where $\hat{s}_i$ is an operator defined on the internal space and $\hat{c}^\dagger_i, \hat{c}_i$ are standard quantization operators.
 
 Such an operator can be defined generally in two ways: 
 

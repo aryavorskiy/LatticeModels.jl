@@ -125,9 +125,8 @@ function site_index(l::Lattice, site::LatticeSite)
     (i === nothing || !l.mask[i]) && return nothing
     count(@view l.mask[1:i])
 end
-site_index(::LatticeSite, ::Lattice) = error("site_index(::LatticeSite, ::Lattice) discontinued. \
-This error message will be removed in future versions.
-Use site_index(::Lattice, ::LatticeSite) instead.")
+site_index(::LatticeSite, ::Lattice) = error("site_index(::LatticeSite, ::Lattice) discontinued." *
+"This error message will be removed in future versions. Use site_index(::Lattice, ::LatticeSite) instead.")
 
 function splice!(l::Lattice, is)
     view(l.mask, l.mask)[collect(is)] .= false

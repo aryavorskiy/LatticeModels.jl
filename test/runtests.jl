@@ -18,17 +18,10 @@ using LatticeModels
     end
 
     @test begin
-        l = SquareLattice(10, 10)
-        H = @hamiltonian begin
-            lattice := l
-            field := LandauField(3)
-            dims_internal := 2
-            @diag [1 0; 0 -1]
-            @hop axis = 1 [1 1; 1 -1] / √2
-            @hop axis = 2 [1 -im; im -1] / √2
-        end
+        l = HoneycombLattice(10, 10)
+        H = Haldane(l, 1, 1, 1)
         P = filled_projector(spectrum(H))
-        X, Y = coord_operators(Basis(l, 2))
+        X, Y = coord_operators(basis(H))
         d = site_density(4π * im * P * X * (I - P) * Y * P)
         rd = d .|> real
         true
@@ -105,7 +98,7 @@ using LatticeModels
     end
 end
 
-@testset "Lattice tests" begin
+@testset "Lattice" begin
     sql = SquareLattice(10, 20)
     @test [site_index(sql, s) for s in sql] == 1:length(sql)
     x, y = coord_values(sql)
@@ -142,7 +135,7 @@ end
 
 end
 
-@testset "LatticeValue tests" begin
+@testset "LatticeValue" begin
     l = SquareLattice(10, 10)
     bas = Basis(l, 1)
     X, Y = coord_operators(bas)
@@ -187,7 +180,7 @@ end
         @test z == ones(l)
         @test z2 == ones(l)
     end
-    @testset "Advanced" begin
+    @testset "Interface" begin
         mn, mx = extrema(xy)
         @test all(mn .≤ xy.values .≤ mx)
         imx = findall(==(mx), xy)
@@ -195,15 +188,15 @@ end
     end
 end
 
-@testset "LatticeArray tests" begin
+@testset "LatticeArray" begin
     l = SquareLattice(10, 10)
     bas = Basis(l, 2)
     X, Y = coord_operators(bas)
     x, y = coord_values(l)
-    xsq = diag_operator(l) do site, (x, y)
-        x^2 * [1 0; 0 1]
+    xsq = diag_operator(l, 2) do site, (x, y)
+        x^2
     end
-    xy = diag_operator(l) do site, (x, y)
+    xy = diag_operator(l, 2) do site, (x, y)
         x * y * [1 0; 0 1]
     end
     x2p2ym1 = diag_operator(bas) do site, (x, y)
@@ -236,24 +229,25 @@ end
         @test diag_operator(x .* y, 2) == xy
         @test (x .* y) ⊗ [1 0; 0 1] == xy
         @test [1 0; 0 1] ⊗ (x .* y) == xy
+        @test_throws "Lambda returned a String" diag_operator(l, 2) do _, _; "kek"; end
     end
     @testset "Wrapper macro" begin
         @test @on_lattice(X / 2 + X * Y + exp(Y)) == xd2pxypexpy
         @test X * 0.5 + X * Y + @on_lattice(exp(Y)) == xd2pxypexpy
         @test_logs (
             :warn,
-            "avoid using lattice operators and matrices \
+            "avoid using lattice arrays and unwrapped arrays \
 in one function call"
         ) @on_lattice X * ones(200, 200)
         @test_logs (
             :warn,
-            "avoid using lattice operators and matrices \
+            "avoid using lattice arrays and unwrapped arrays \
 in one function call"
         ) @on_lattice ones(200, 200) * Y
     end
 end
 
-@testset "LatticeRecord tests" begin
+@testset "LatticeRecord" begin
     l = SquareLattice(3, 3)
     site = l[5]
     x, y = coord_values(l)
@@ -265,15 +259,18 @@ end
     insert!(rec, 2, xy)
     @test rec[site] == Dict(t => xy[site]  for t in time_domain(rec))
     @test rec[xly] == LatticeRecord(fill(xy[xly], 3), [0:2;])
+    @test collect(rec) == [xy, xy, xy]
+    @test collect(pairs(rec)) == [0 => xy, 1 => xy, 2 => xy]
     @test diff(rec) == LatticeRecord([zeros(l), zeros(l)], [0.5, 1.5])
     rec2 = init_record(xy .* 0)
     insert!(rec2, 1, xy .* 1)
     insert!(rec2, 2, xy .* 2)
     @test rec2(0.9) == xy
+    @test rec2(0.9, 2.1) == LatticeRecord([xy, xy .* 2], [1, 2])
     @test integrate(rec) == rec2
 end
 
-@testset "Hopping tests" begin
+@testset "Hopping" begin
     @testset "Constructor" begin
         @test hopping(axis=1) == hopping(translate_uc=[1])
         @test hopping(axis=1) != hopping(translate_uc=[1, 0])
@@ -329,7 +326,7 @@ end
     @test op1 == op2
 end
 
-@testset "Field tests" begin
+@testset "Field" begin
     @field_def struct LazyLandauField(B::Number)
         vector_potential(x) = (0, x * B)
         n_steps := 100
@@ -389,7 +386,7 @@ end
     end
 end
 
-@testset "Hamiltonian tests" begin
+@testset "Hamiltonian" begin
     @testset "Hamiltonian macro" begin
         l = HoneycombLattice(10, 10) do site, (x, y)
             x < y
@@ -442,8 +439,21 @@ end
         end
         @test H1 == TightBinding(l, pbc=PBC)
 
-        l = SquareLattice(10, 10)
+        l = HoneycombLattice(5, 5)
+        x, y = coord_values(l)
         H2 = @hamiltonian begin
+            lattice := l
+            field := fld
+            @diag (_, (x, y)) -> x + exp(y)
+            @hop site_indices=(2,1)
+            @hop site_indices=(2,1) axis=1
+            @hop site_indices=(2,1) axis=2
+        end
+        lv = @. x + exp(y)
+        @test H2 == TightBinding(lv, field=fld)
+
+        l = SquareLattice(10, 10)
+        H3 = @hamiltonian begin
             lattice := l
             field := fld
             dims_internal := 2
@@ -451,7 +461,7 @@ end
             @hop axis = 1 [1 -im; -im -1] / 2
             @hop axis = 2 [1 -1; 1 -1] / 2
         end
-        @test H2 == SpinTightBinding(ones(l), field=fld)
+        @test H3 == SpinTightBinding(ones(l), field=fld)
     end
 
     @testset "DOS & LDOS" begin
@@ -468,7 +478,7 @@ end
     end
 end
 
-@testset "Currents tests" begin
+@testset "Currents" begin
     l = SquareLattice(10, 10)
     x, y = coord_values(l)
     H(B) = @hamiltonian begin
@@ -491,4 +501,5 @@ end
     @test m1.currents == m3.currents
     @test m1.currents == m4.currents
     @test m1.currents == md.currents
+    @test (m1 + m2 - m3).currents ≈ (2 * m4 * 1 - md / 1).currents
 end

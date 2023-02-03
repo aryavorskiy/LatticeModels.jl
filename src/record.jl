@@ -84,6 +84,7 @@ function (lr::LatticeRecord{ET})(tmin::Real, tmax::Real) where ET
     end
     LatticeRecord{ET}(lattice(lr), lr.snapshots[inds], lr.times[inds])
 end
+
 function Base.getindex(lr::LatticeRecord{ET}, args...) where {ET}
     sample = first(lr)[args...]
     l = lattice(lr)
@@ -94,7 +95,7 @@ function Base.getindex(lr::LatticeRecord{ET}, args...) where {ET}
     end
 end
 
-function iterate(lr::LatticeRecord{ET}, state=(1, length(lattice(lr)))) where ET
+function iterate(lr::LatticeRecord{ET}, state=(1, length(lr))) where ET
     ind, len = state
     1 ≤ ind ≤ len || return nothing
     ET(lr.lattice, lr.snapshots[ind]), (ind + 1, len)

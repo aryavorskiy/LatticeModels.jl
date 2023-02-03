@@ -139,8 +139,8 @@ end
 Same as `TightBinding(lattice(lv))`, but adds a diagonal part
 $\sum_i^{sites} V_i c_i^\dagger c_i$ with $V_i$ set by `lv`.
 """
-TightBinding(lv::LatticeValue{<:Number}; field=NoField(), pbc=false) =
-    _diag_operator!(TightBinding(lattice(lv), field; pbc), lv)
+TightBinding(lv::LatticeValue{<:Number}; kw...) =
+    _diag_operator!(TightBinding(lattice(lv); kw...), lv)
 
 @doc raw"""
     SpinTightBinding(m::LatticeValue[; field::AbstractField, pbc=false])
@@ -176,11 +176,11 @@ $$\hat{H} =
 
 Generates a Haldane topological insulator hamiltonian operator.
 """
-Haldane(l::HoneycombLattice, t1::Real, t2::Real, m::Real=0; field=NoField()) = @hamiltonian begin
+Haldane(l::HoneycombLattice, t1::Real, t2::Real, m::Real=0; field=NoField(), pbc=false) = @hamiltonian begin
     lattice := l
     dims_internal := 1
     field := field
-    @diag (site, _) -> (site.basis_index == 1 ? [m;;] : [-m;;])
+    @diag (site, _) -> (site.basis_index == 1 ? m : -m)
     @hop t1 site_indices=(2,1) pbc=pbc
     @hop t1 site_indices=(2,1) axis=1 pbc=pbc
     @hop t1 site_indices=(2,1) axis=2 pbc=pbc

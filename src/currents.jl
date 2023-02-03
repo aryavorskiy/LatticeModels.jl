@@ -1,4 +1,4 @@
-import Base: getindex
+import Base: getindex, +, -, *, /
 using LinearAlgebra
 
 """
@@ -119,6 +119,17 @@ function getindex(curr::AbstractCurrents, site::LatticeSite)
     curr_vars[i] = NaN
     LatticeValue(l, curr_vars)
 end
+
+for f in (:+, :-)
+    @eval function ($f)(curr::MaterializedCurrents, curr2::MaterializedCurrents)
+        check_lattice_match(curr, curr2)
+        MaterializedCurrents(lattice(curr), ($f)(curr.currents, curr2.currents))
+    end
+end
+for f in (:*, :/)
+    @eval ($f)(curr::MaterializedCurrents, num::Number) = MaterializedCurrents(lattice(curr), ($f)(curr.currents, num))
+end
+*(num::Number, curr::MaterializedCurrents) = curr * num
 
 """
     materialize([function, ]currents)

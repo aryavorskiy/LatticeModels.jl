@@ -123,18 +123,12 @@ copy(tp::TensorProduct) = materialize(tp)
 
 function _zero_on_basis(l::Lattice, m::AbstractMatrix)
     N = size(m)[1]
-    LatticeArray(Basis(l, N),
-        zero(similar(m, ComplexF64, (N * length(l), N * length(l)))))
-end
-function _zero_on_basis(l::Lattice, lf::Function)
-    _zero_on_basis(l, lf(first(l), site_coords(l, first(l))))
+    LatticeArray(Basis(l, N), zero(similar(m, ComplexF64, (N * length(l), N * length(l)))))
 end
 _zero_on_basis(l::Lattice, N::Int) = LatticeArray(Basis(l, N),
     zeros(ComplexF64, N * length(l), N * length(l)))
-function _zero_on_basis(l::Lattice, N::Int, MT::Type)
-    LatticeArray(Basis(l, N),
-        zero(similar(MT, (N * length(l), N * length(l)))))
-end
+_zero_on_basis(l::Lattice, N::Int, MT::Type{<:AbstractMatrix}) =
+    LatticeArray(Basis(l, N), zero(similar(MT, (N * length(l), N * length(l)))))
 _zero_on_basis(l::Lattice, N::Int, ::Type{Matrix{ComplexF64}}) = _zero_on_basis(l, N)
 _zero_on_basis(bas::Basis) = _zero_on_basis(lattice(bas), dims_internal(bas))
 function _zero_on_basis(l::Lattice, tp::TensorProduct)
@@ -142,7 +136,10 @@ function _zero_on_basis(l::Lattice, tp::TensorProduct)
     zero(tp)
 end
 
-@inline _get_matrix_value(f::Function, l::Lattice, site::LatticeSite, ::Int, ::Matrix) = f(site, site_coords(l, site))
+_wrap_eye(n::Number, eye::Matrix) = n * eye
+_wrap_eye(m::AbstractMatrix, ::Matrix) = m
+_wrap_eye(::T, ::Matrix) where T = error("Lambda returned a $T, expected Number or AbstractMatrix")
+@inline _get_matrix_value(f::Function, l::Lattice, site::LatticeSite, ::Int, eye::Matrix) = _wrap_eye(f(site, site_coords(l, site)), eye)
 @inline _get_matrix_value(m::AbstractMatrix, ::Lattice, ::LatticeSite, ::Int, ::Matrix) = m
 @inline _get_matrix_value(tp::TensorProduct, ::Lattice, ::LatticeSite, i::Int, ::Matrix) = tp.lattice_value.values[i] * tp.matrix
 @inline _get_matrix_value(lv::LatticeValue, ::Lattice, ::LatticeSite, i::Int, eye::Matrix) = lv.values[i] * eye
@@ -168,22 +165,15 @@ end
 materialize(tp::TensorProduct) = _diag_operator!(_zero_on_basis(basis(tp)), tp)
 
 """
-    diag_operator(f, l::Lattice)
-
-Creates a diagonal operator by applying the `f` function to each site of `l`.
-`f` must accept a `LatticeSite` and its coordinate vector and return a matrix
-which will be an operator affecting the internal state of the site.
-"""
-diag_operator(f::Function, l::Lattice) = _diag_operator!(_zero_on_basis(l, f), f)
-
-"""
     diag_operator(f, bas::Basis)
+    diag_operator(f, l::Lattice, N::Int)
 
-Creates a diagonal operator by applying the `f` function to each site of the lattice of `bas`.
-`f` must accept a `LatticeSite` and its coordinate vector and return a matrix
-which will be an operator affecting the internal state of the site.
+Creates a diagonal operator by applying the `f` function to each site of the lattice of given basis.
+`f` must accept a `LatticeSite` and its coordinate vector and return a number or a matrix
+which represents operator affecting the internal state of the site.
 """
 diag_operator(f::Function, bas::Basis) = _diag_operator!(_zero_on_basis(bas), f)
+diag_operator(f::Function, l::Lattice, N::Int) = diag_operator(f, Basis(l, N))
 
 """
     diag_operator(lattice::Lattice, matrix::AbstractMatrix)
@@ -203,8 +193,8 @@ Creates a diagonal operator which affects only the lattice space.
 The `lv` argument must be a `LatticeValue` storing diagonal elements of the operator in lattice space.
 `N` is the number of internal degrees of freedom on each site.
 """
-function diag_operator(lv::LatticeValue{T}, N::Int=1) where T<:Number
-    _diag_operator!(_zero_on_basis(lattice(lv), N, Array{T}), lv)
+function diag_operator(lv::LatticeValue{<:Number}, N::Int=1)
+    _diag_operator!(_zero_on_basis(lattice(lv), N), lv)
 end
 
 """
@@ -303,7 +293,7 @@ end
 @inline _unwrap_nolattice(f::Function, checked_args::Tuple, el::Any, args::Tuple; kw...) =
     _unwrap_nolattice(f, (checked_args..., el), args; kw...)
 @inline function _unwrap_nolattice(f::Function, checked_args::Tuple, el::LatticeArray, args::Tuple; kw...)
-    @warn "avoid using lattice operators and matrices in one function call"
+    @warn "avoid using lattice arrays and unwrapped arrays in one function call"
     _unwrap_wlattice(f, basis(el), (checked_args..., el.array), args; kw...)
 end
 @inline _unwrap_nolattice(f::Function, checked_args::Tuple, args::Tuple; kw...) =
@@ -313,7 +303,7 @@ end
 @inline _unwrap_wlattice(f::Function, basis::Basis, checked_args::Tuple, el::Any, args::Tuple; kw...) =
     _unwrap_wlattice(f, basis, (checked_args..., el), args; kw...)
 @inline function _unwrap_wlattice(f::Function, basis::Basis, checked_args::Tuple, el::AbstractVecOrMat, args::Tuple; kw...)
-    @warn "avoid using lattice operators and matrices in one function call"
+    @warn "avoid using lattice arrays and unwrapped arrays in one function call"
     _unwrap_wlattice(f, basis, (checked_args..., el), args; kw...)
 end
 @inline function _unwrap_wlattice(f::Function, basis::Basis, checked_args::Tuple, el::LatticeArray, args::Tuple; kw...)
@@ -366,7 +356,7 @@ end
     @on_lattice expression
 
 Replaces all `LatticeArray`s in subsequent function calls with actual arrays stored inside them.
-Throws an error if lattice operators in one function call are defined on different lattices,
+Throws an error if lattice arrays in one function call are defined on different lattices,
 shows a warning if a lattice array is used in one call with a normal array.
 
 ## Example

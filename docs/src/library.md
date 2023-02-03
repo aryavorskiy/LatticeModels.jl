@@ -18,7 +18,7 @@ Modules = [LatticeModels]
 Pages   = ["lattice_value.jl"]
 ```
 
-## Lattice operators
+## Lattice arrays
 
 ```@autodocs
 Modules = [LatticeModels]
