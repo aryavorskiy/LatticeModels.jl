@@ -22,9 +22,9 @@ struct LatticeRecord{ET<:StorableLatticeType} <: Function
     lattice::Lattice
     snapshots::Vector{Array}
     times::Vector{Float64}
-    function LatticeRecord(vcs::Vector{ET}, ts) where {ET}
+    function LatticeRecord(vcs::AbstractVector, ts)
         !allequal(lattice.(vcs)) && throw(ArgumentError("all lattices must be equal"))
-        new{_storable(ET)}(lattice(first(vcs)), _internal.(vcs), ts)
+        new{_storable(eltype(vcs))}(lattice(first(vcs)), _internal.(vcs), ts)
     end
     LatticeRecord{ET}(l::Lattice, rcs, ts) where ET = new{_storable(ET)}(l, rcs, ts)
     LatticeRecord{ET}(l::Lattice) where ET = new{_storable(ET)}(l, [], [])

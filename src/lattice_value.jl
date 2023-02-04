@@ -104,12 +104,12 @@ function _extract_lattice_s(l::Lattice, l2::Lattice, rem_args::Tuple)
     _extract_lattice_s(l, rem_args)
 end
 
-function show(io::IO, m::MIME"text/plain", lv::LatticeValue{T}) where {T}
-    println(io, "LatticeValue with eltype $T\non ")
+function show(io::IO, m::MIME"text/plain", lv::LatticeValue)
+    println(io, "LatticeValue with eltype $(eltype(lv))\non ")
     show(io, m, lattice(lv))
 end
-function show(io::IO, m::MIME"text/plain", lv::LatticeValueWrapper{VT}) where {VT}
-    println(io, "LatticeValueWrapper with inner type $VT\non ")
+function show(io::IO, m::MIME"text/plain", lv::LatticeValueWrapper)
+    println(io, "LatticeValueWrapper with inner type $(typeof(lv))\non ")
     show(io, m, lattice(lv))
 end
 

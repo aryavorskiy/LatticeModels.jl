@@ -200,9 +200,9 @@ Define these functions for all subclasses:
 - `LatticeModels.match(::YourSelector, site1::LatticeSite, site2::LatticeSite)` must return whether the `(site1, site2)` pair is *selected*.
 """
 abstract type AbstractPairSelector <: Function end
-match(::T, ::LatticeSite, ::LatticeSite) where {T<:AbstractPairSelector} =
-    error("match(::$T, ::LatticeSite, ::LatticeSite) must be explicitly implemented")
-lattice(::T) where {T<:AbstractPairSelector} = error("lattice(::$T) must be explicitly implemented")
+match(ps::AbstractPairSelector, ::LatticeSite, ::LatticeSite) =
+    error("match(::$(typeof(ps)), ::LatticeSite, ::LatticeSite) must be explicitly implemented")
+lattice(ps::AbstractPairSelector) = error("lattice(::$(typeof(ps))) must be explicitly implemented")
 check_lattice_fits(ps::AbstractPairSelector, l::Lattice) = check_is_sublattice(l, lattice(ps))
 (ps::AbstractPairSelector)(::Lattice, site1::LatticeSite, site2::LatticeSite) = match(ps, site1, site2)
 

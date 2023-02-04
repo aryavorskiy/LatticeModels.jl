@@ -14,14 +14,14 @@ abstract type AbstractCurrents end
 
 Returns a function that takes two integer indices of sites in a lattice and returns the current between these two sites.
 """
-current_lambda(::T) where {T<:AbstractCurrents} = error("current_lambda(::$T) must be explicitly implemented")
+current_lambda(curr::AbstractCurrents) = error("current_lambda(::$(typeof(curr))) must be explicitly implemented")
 
 """
     lattice(::AbstractCurrents)
 
 Gets the lattice where the given `AbstractCurrents` object is defined.
 """
-lattice(::T) where {T<:AbstractCurrents} = error("lattice(::$T) must be explicitly implemented")
+lattice(curr::AbstractCurrents) = error("lattice(::$(typeof(curr))) must be explicitly implemented")
 
 """
     DensityCurrents <: AbstractCurrents
@@ -52,11 +52,11 @@ lattice(curr::DensityCurrents) = curr.hamiltonian.basis.lattice
 
 A lazy wrapper for a `SubCurrents` object that representing the same currents but on a smaller lattice.
 """
-struct SubCurrents{CT<:AbstractCurrents} <: AbstractCurrents
+struct SubCurrents{CT} <: AbstractCurrents
     parent_currents::CT
     lattice::Lattice
     indices::Vector{Int}
-    function SubCurrents(parent_currents::CT, indices::Vector{Int}) where {CT}
+    function SubCurrents(parent_currents::CT, indices::Vector{Int}) where {CT<:AbstractCurrents}
         l = lattice(parent_currents)
         m = zeros(Bool, length(l))
         m[indices] .= true
@@ -193,19 +193,15 @@ function map_currents(f::Function, curr::AbstractCurrents; reduce_fn::Union{Noth
     curr_fn = current_lambda(curr)
     cs = Float64[]
     ms = only(Base.return_types(f, (Lattice, LatticeSite, LatticeSite)))[]
-    i = 1
-    for site1 in l
-        j = 1
-        for site2 in l
+    for (i, site1) in enumerate(l)
+        for (j, site2) in enumerate(l)
             if site1 > site2
                 push!(cs, curr_fn(i, j))
                 push!(ms, f(l, site1, site2))
             else
                 break
             end
-            j += 1
         end
-        i += 1
     end
     if reduce_fn !== nothing
         ms_set = collect(Set(ms))
@@ -234,10 +230,8 @@ end
     arrows_scale --> 1
     arrows_rtol --> 1e-2
     seriestype := :quiver
-    i = 1
-    for site1 in l
-        j = 1
-        for site2 in l
+    for (i, site1) in enumerate(l)
+        for (j, site2) in enumerate(l)
             j ≥ i && continue
             ij_curr = curr_fn(i, j)::Real
             crd = site_coords(l, (ij_curr > 0 ? site1 : site2))
@@ -248,9 +242,7 @@ end
                 push!(Ys, crd[2])
                 push!(Qs, Tuple(vc * (ij_curr * plotattributes[:arrows_scale] / vc_n)))
             end
-            j += 1
         end
-        i += 1
     end
     quiver := Qs
     Xs, Ys

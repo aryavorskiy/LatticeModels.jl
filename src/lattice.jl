@@ -101,7 +101,7 @@ _cind(site::LatticeSite) = CartesianIndex(site.basis_index, site.unit_cell...)
 _cinds(l::Lattice{LatticeSym,N,NB} where {LatticeSym}) where {N,NB} =
     CartesianIndex{N + 1}(1):CartesianIndex(NB, size(l)...)
 
-function getindex(l::Lattice{LatticeSym, N, NB} where LatticeSym, i::Int) where {N, NB}
+function getindex(l::Lattice{LatticeSym, N, NB} where LatticeSym, i::Int) where {N,NB}
     counter = 0
     cinds = _cinds(l)
     i ≤ 0 && throw(BoundsError(l, i))
@@ -248,10 +248,8 @@ end
 function collect_coords(l::Lattice)
     d = dims(l)
     pts = zeros(d, length(l))
-    i = 1
-    for site in l
+    for (i, site) in enumerate(l)
         pts[:, i] = site_coords(l, site)
-        i += 1
     end
     pts
 end

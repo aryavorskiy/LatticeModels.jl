@@ -2,7 +2,6 @@ import Base: show, +, *
 using LinearAlgebra, StaticArrays, Logging
 abstract type AbstractField end
 
-show(io::IO, ::MIME"text/plain", ::T) where {T<:AbstractField} = print(io, "$T field")
 @doc raw"""
     vector_potential(field, point)
 
@@ -11,8 +10,8 @@ Returns vector potential $\overrightarrow{A}$ for `field` in location `point`.
 This function should be defined for new field types, but it is not necessary
 unless you want to use built-in trapezoidal rule integrating.
 """
-vector_potential(::FT, point) where {FT<:AbstractField} =
-    error("no vector potential function defined for field type $(FT)")
+vector_potential(fld::AbstractField, _) =
+    error("no vector potential function defined for field type $(typeof(fld))")
 
 const LenType{N} = Union{SVector{N}, NTuple{N, Any}}
 @inline @generated function dot_assuming_zeros(p1::LenType{M}, p2::LenType{N}) where {M,N}
@@ -47,10 +46,8 @@ Applies magnetic field to given hamiltonian matrix by adjusting the phase factor
 """
 function apply_field!(ham::LatticeOperator, field::AbstractField)
     l = lattice(ham)
-    i = 1
-    for site1 in l
-        j = 1
-        for site2 in l
+    for (i, site1) in enumerate(l)
+        for (j, site2) in enumerate(l)
             if i > j && !iszero(ham[i, j])
                 p1 = site_coords(l, site1)
                 p2 = site_coords(l, site2)
@@ -59,9 +56,7 @@ function apply_field!(ham::LatticeOperator, field::AbstractField)
                 ham[i, j] *= pmod
                 ham[j, i] *= pmod'
             end
-            j += 1
         end
-        i += 1
     end
 end
 
@@ -73,16 +68,6 @@ function _wrap_block!(f::Function, block::Expr, fields::Vector)
         elseif block.args[i] isa Expr
             _wrap_block!(f, block.args[i], fields)
         end
-    end
-end
-
-function _extract_varname(var)
-    if var isa Symbol
-        return var
-    elseif Meta.isexpr(var, :(::)) && var.args[1] isa Symbol
-        return var.args[1]
-    else
-        error("cannot extract variable name; invalid definition")
     end
 end
 
@@ -98,19 +83,28 @@ macro field_def(struct_block)
     struct_head = struct_block.args[2]
     if Meta.isexpr(struct_head, :call)
         struct_name, struct_args... = struct_head.args
+        struct_name = esc(struct_name)
     elseif struct_head isa Symbol
-        struct_name = struct_head
+        struct_name = esc(struct_head)
         struct_args = []
     else
         error("Invalid struct name")
     end
-    struct_params = _extract_varname.(struct_args)
+    struct_fields = map(struct_args) do expr
+        Meta.isexpr(expr, (:(=), :kw), 2) ? expr.args[1] : expr
+    end
+    struct_params = map(struct_fields) do var
+        var isa Symbol && return var
+        Meta.isexpr(var, :(::)) && var.args[1] isa Symbol && return var.args[1]
+        error("cannot extract variable name; invalid definition '$var'")
+    end
     body = struct_block.args[3]
     struct_definition = quote
         import LatticeModels: path_integral, vector_potential
         import Base: show
         struct $struct_name <: AbstractField
-            $(struct_args...)
+            $(esc.(struct_fields)...)
+            $struct_name($(esc.(struct_args)...)) = new($(esc.(struct_fields)...))
         end
     end
     for statement in body.args
@@ -119,6 +113,7 @@ macro field_def(struct_block)
             _wrap_block!(fn_body, struct_params) do field
                 :(field.$field)
             end
+            fn_body = esc(fn_body)
             if !Meta.isexpr(fn_def, :call)
                 error("not a function definition")
             end
@@ -126,18 +121,19 @@ macro field_def(struct_block)
                 error("function definition with no arguments")
             end
             fn_name, fn_args... = fn_def.args
+            escf = :($(esc(:field))::$struct_name)
             if fn_name === :vector_potential
                 if all(isa.(fn_args, Symbol))
                     push!(struct_definition.args, :(
-                        function LatticeModels.vector_potential(field::$struct_name, point)
-                            $(fn_args...), = point
+                        function LatticeModels.vector_potential($escf, point)
+                            $(esc.(fn_args)...), = point
                             $fn_body
                         end
                     ))
                 elseif length(fn_args) == 1 && Meta.isexpr(fn_args[1], :...)
-                    fn_arg = fn_args[1].args[1]
+                    fn_arg = esc(fn_args[1].args[1])
                     push!(struct_definition.args, :(
-                        function LatticeModels.vector_potential(field::$struct_name, $fn_arg)
+                        function LatticeModels.vector_potential($escf, $fn_arg)
                             $fn_body
                         end
                     ))
@@ -145,20 +141,18 @@ macro field_def(struct_block)
                     error("invalid argument types")
                 end
             elseif fn_name === :path_integral
-                local _begin = 1
-                Meta.isexpr(fn_args[1], :parameters) && (_begin = 2)
-                le = length(fn_args) - _begin + 1
-                le != 2 &&
+                Meta.isexpr(fn_args[1], :parameters) &&
+                    error("path_integral must not accept kwargs")
+                length(fn_args) != 2 &&
                     error("path_integral must have 2 positional arguments")
-                insert!(fn_args, _begin, :(field::$struct_name))
                 push!(struct_definition.args, :(
-                    function LatticeModels.path_integral($(fn_args...))
+                    function LatticeModels.path_integral($escf, $(esc.(fn_args)...))
                         $fn_body
                     end
                 ))
             elseif fn_name === :show
                 push!(struct_definition.args, :(import Base: show),
-                    :(function Base.show($(fn_args...), field::$struct_name)
+                    :(function Base.show($(esc.(fn_args)...), $escf)
                         $fn_body
                     end
                     ))
@@ -179,7 +173,7 @@ macro field_def(struct_block)
             error("not a function definition or key assignment:\n$statement")
         end
     end
-    esc(struct_definition)
+    struct_definition
 end
 
 @field_def struct NoField
@@ -222,7 +216,7 @@ Fields:
 SymmetricField
 
 _angle(p1, p2) = asin((1.0 - 1e-11) * det(hcat(p1, p2)) / norm(p1) / norm(p2))
-@field_def struct FluxField(B::Number, P::NTuple{2,Number})
+@field_def struct FluxField(B::Number, P::NTuple{2,Number} = (0, 0))
     function vector_potential(x, y)
         norm = (x^2 + y^2)
         (-y / norm * B, x / norm * B)
@@ -248,13 +242,13 @@ Fields:
 """
 FluxField
 
-struct FieldSum{N} <: AbstractField
-    fields::NTuple{N,AbstractField}
+struct FieldSum{FT<:Tuple} <: AbstractField
+    fields::FT
 end
 vector_potential(f::FieldSum, p1) = sum(SVector(vector_potential(field, p1)) for field in f.fields)
 path_integral(f::FieldSum, p1, p2) = sum(path_integral(field, p1, p2) for field in f.fields)
-function show(io::IO, m::MIME"text/plain", f::FieldSum{N}) where {N}
-    print(io, "Sum of $N fields:\n")
+function show(io::IO, m::MIME"text/plain", f::FieldSum)
+    print(io, "Sum of $(length(f.fields)) fields:\n")
     i = 1
     for field in f.fields
         print("#$i: ")
@@ -264,4 +258,4 @@ function show(io::IO, m::MIME"text/plain", f::FieldSum{N}) where {N}
     end
 end
 
-+(f::Vararg{AbstractField,N}) where {N} = FieldSum{N}(f)
++(f::Vararg{<:AbstractField}) = FieldSum{typeof(f)}(f)

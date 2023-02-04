@@ -38,7 +38,7 @@ The number of steps can be adjusted, but it is recommended to redefine this meth
 You can use a convenience macro to simplify definition of new field types:
 
 ```julia
-@field_def struct LandauField(B::Number)
+@field_def struct LandauField(B::Number=1)
     # Define the vector potential function
     vector_potential(x) = (0, x*B)
 
@@ -48,7 +48,7 @@ end
 ```
 
 Let's see what happened here. 
-This macro created a new struct `LandauField <: AbstractField` with a constructor `LandauField(B::Number)`.
+This macro created a new struct `LandauField <: AbstractField` with only one field `B::Number` and a constructor `LandauField(B::Number=1)`.
 
 It also defined a suitable `LatticeModels.vector_potential` function. The only parameter in this function definition is `x`, which will be the X coordinate of the point (all other coordinate values will not be passed). 
 The return type must be `Tuple` or `SVector` to ensure that it can be converted to `SVector` by the default `LatticeModels.path_integral` implementation.
@@ -62,7 +62,7 @@ This field object is compatible with lattices of any dimension count. Undefined 
 You may notice that here the `LatticeModels.path_integral` function was also redefined. It simply takes two `SVector`s describing the coordinates of $p_1$ and $p_2$ and returns the value of the $\int_{p_1}^{p_2} \overrightarrow{A} \cdot \overrightarrow{dl}$ path integral between them.
 
 !!! tip
-    To improve the accuracy of the integration without redefining `LatticeModels.path_integral`, 
+    To control the accuracy and performance of the integration without redefining `LatticeModels.path_integral`, 
     set the default number of integration steps by adding `n_steps := <desired number>` to the struct definition.
 
 ## Custom array backends
@@ -77,3 +77,8 @@ XY = X * Y
 using SparseArrays
 sp_XY = @on_lattice sparse(XY)
 ```
+
+In this example the `@on_lattice` macro transformed the call to `sparse` so that the internal array was passed to it, 
+and its output was wrapped into a `LatticeArray`. Thus, `sp_XY` here is an operator on a sparse matrix, but equal to `XY`. 
+
+Same way, you can send `LatticeArray`s to your GPU by calling `@on_lattice cu(XY)` from [CUDA.jl](https://github.com/JuliaGPU/CUDA.jl).

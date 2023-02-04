@@ -220,6 +220,8 @@ end
         @test X * Y == xy
         @test X * 2 + 2Y - I == x2p2ym1
         @test vc' * X * vc == xf
+        @test dot(vc, vc) == 1
+        @test dot(vc, X, vc) == xf
         @test ptrace(X, :internal) == diagm(x.values) * 2
         @test ptrace(X, :lattice) == sum(x.values) * [1 0; 0 1]
         @test_throws "basis mismatch" X * X2
@@ -277,6 +279,7 @@ end
         @test hopping(axis=1) == LatticeModels.promote_dims!(hopping(translate_uc=[1, 0], pbc=[false, true]), 1)
         @test hopping(site_indices=(1,2)) == LatticeModels.promote_dims!(hopping(site_indices=(1,2), pbc=[false, true]), 1)
         @test hopping(axis=2, pbc=true) == hopping(translate_uc=[0, 1], pbc=[true, true])
+        @test hopping(axis=2, pbc=[true, true]) == hopping(translate_uc=[0, 1], pbc=[true, true])
         @test hopping([-1;;], axis=1) == hopping(-1, axis=1)
         @test_throws "to hopping indices" hopping(site_indices=(1, 2, 3))
         @test_throws "connects site to itself" hopping(translate_uc=[0, 0], site_indices=2)
@@ -330,6 +333,7 @@ end
     @field_def struct LazyLandauField(B::Number)
         vector_potential(x) = (0, x * B)
         n_steps := 100
+        show(io::IO, ::MIME"text/plain") = print(io, "Lazy Landau calibration field; B = $B flux quanta per 1×1 plaquette")
     end
     @field_def struct StrangeLandauField
         vector_potential(point...) = (0, point[1] * 0.1)
@@ -341,7 +345,9 @@ end
     lla = LazyLandauField(0.1)
     sla = StrangeLandauField()
     sym = SymmetricField(0.1)
-    flx = FluxField(0.1, (0, 0))
+    flx = FluxField(0.1)
+    flx2 = FluxField(0.1, (0, 0))
+    @test flx.P == flx2.P
     emf = EmptyField()
     @testset "Path integral" begin
         p1 = SA[1, 2]
@@ -426,6 +432,7 @@ end
         states = eigvecs(sp)
         @test length(sp) == size(states)[2]
         @test sp[1] == sp[E=-100]
+        @test site_density(sp[1]).values ≈ site_density(projector(sp[1:1])).values
         @test filled_projector(sp).array ≈ projector(sp[Es.<0]).array
     end
 

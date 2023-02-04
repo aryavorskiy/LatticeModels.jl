@@ -131,10 +131,6 @@ _zero_on_basis(l::Lattice, N::Int, MT::Type{<:AbstractMatrix}) =
     LatticeArray(Basis(l, N), zero(similar(MT, (N * length(l), N * length(l)))))
 _zero_on_basis(l::Lattice, N::Int, ::Type{Matrix{ComplexF64}}) = _zero_on_basis(l, N)
 _zero_on_basis(bas::Basis) = _zero_on_basis(lattice(bas), dims_internal(bas))
-function _zero_on_basis(l::Lattice, tp::TensorProduct)
-    check_lattice_match(l, tp)
-    zero(tp)
-end
 
 _wrap_eye(n::Number, eye::Matrix) = n * eye
 _wrap_eye(m::AbstractMatrix, ::Matrix) = m
@@ -205,16 +201,14 @@ Returns a `Tuple` of coordinate `LatticeOperator`s for given basis.
 function coord_operators(bas::Basis)
     N = dims_internal(bas)
     d = dims(bas.lattice)
-    i = 1
     eye = Matrix(I, N, N)
     xyz_operators = [LatticeArray(bas, op_mat) for op_mat in
                      eachslice(zeros(length(bas), length(bas), d), dims=3)]
-    for site in bas.lattice
+    for (i, site) in enumerate(bas.lattice)
         crd = site_coords(bas.lattice, site)
         for j in 1:d
             xyz_operators[j][i, i] = crd[j] * eye
         end
-        i += 1
     end
     xyz_operators
 end
