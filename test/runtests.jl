@@ -458,17 +458,23 @@ end
         end
         lv = @. x + exp(y)
         @test H2 == TightBinding(lv, field=fld)
+        @test H2 == TightBinding(nothing, lv, field=fld)
 
         l = SquareLattice(10, 10)
+        x, y = coord_values(l)
+        sel = DomainsSelector(x .< 0)
+        σ = [[0 1; 1 0], [0 -im; im 0], [1 0; 0 -1]]
         H3 = @hamiltonian begin
             lattice := l
             field := fld
             dims_internal := 2
-            @diag [1 0; 0 -1]
-            @hop axis = 1 [1 -im; -im -1] / 2
-            @hop axis = 2 [1 -1; 1 -1] / 2
+            @diag σ[3]
+            @hop (σ[3] - im * σ[1]) / 2 axis=1 sel
+            @hop (σ[3] - im * σ[2]) / 2 axis=2 sel
         end
-        @test H3 == SpinTightBinding(ones(l), field=fld)
+        @test H3 == SpinTightBinding(sel, l, field=fld)
+        @test H3 == SpinTightBinding(sel, ones(l), field=fld)
+        @test_throws "no method" SpinTightBinding(ones(l), 2)
     end
 
     @testset "DOS & LDOS" begin

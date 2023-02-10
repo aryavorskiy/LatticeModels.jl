@@ -27,7 +27,7 @@ using Plots
 l = SquareLattice(10, 10)
 
 # Define a tight-binding model hamiltonian with a flux field through point (0, 0)
-h(B) = TightBinding(l, field=FluxField(B, (0, 0)))
+h(B) = TightBinding(l, field=FluxField(B))
 
 # Calculate eigenvalues and eigenvectors
 sp = spectrum(h(0))

@@ -104,46 +104,48 @@ macro hamiltonian(expr)
 end
 
 @doc raw"""
-    TightBinding(l::Lattice[, field::AbstractField; pbc=false])
+    TightBinding([f, ]l::Lattice[, field::AbstractField; pbc=false])
 
 $$\hat{H} = \sum_i^\text{sites} \sum_{\hat{r}}^{\text{bonds}} c_i^\dagger c_{i+\hat{r}} + h.c.{}$$
 
 Generates a tight-binding hamiltonian operator on given lattice `l` with set magnetic field and boundary conditions.
 `l` must be a `SquareLattice` or a `HoneycombLattice`.
+
+`f` here must be a function or a `PairSelector` describing which hoppings will be excluded.
 """
-@generated function TightBinding(l::SquareLattice{N}; field=NoField(), pbc=false) where N
+@generated function TightBinding(f, l::SquareLattice{N}; field=NoField(), pbc=false) where N
     quote
         @hamiltonian begin
             lattice := l
             dims_internal := 1
             field := field
-            $([:(@hop axis=$i pbc=pbc) for i in 1:N]...)
+            $([:(@hop axis=$i pbc=pbc 1 f) for i in 1:N]...)
         end
     end
 end
-
-
-TightBinding(l::HoneycombLattice; field=NoField(), pbc=false) =
+TightBinding(f, l::HoneycombLattice; field=NoField(), pbc=false) =
 @hamiltonian begin
     lattice := l
     dims_internal := 1
     field := field
-    @hop site_indices=(2,1) pbc=pbc
-    @hop site_indices=(2,1) axis=1 pbc=pbc
-    @hop site_indices=(2,1) axis=2 pbc=pbc
+    @hop site_indices=(2,1) pbc=pbc 1 f
+    @hop site_indices=(2,1) axis=1 pbc=pbc 1 f
+    @hop site_indices=(2,1) axis=2 pbc=pbc 1 f
 end
 
 @doc raw"""
-    TightBinding(lv::LatticeValue[; field::AbstractField, pbc=false])
+    TightBinding([f, ]lv::LatticeValue[; field::AbstractField, pbc=false])
 
-Same as `TightBinding(lattice(lv))`, but adds a diagonal part
+Same as `TightBinding(f, lattice(lv))`, but adds a diagonal part
 $\sum_i^{sites} V_i c_i^\dagger c_i$ with $V_i$ set by `lv`.
 """
-TightBinding(lv::LatticeValue{<:Number}; kw...) =
-    _diag_operator!(TightBinding(lattice(lv); kw...), lv)
+TightBinding(f, lv::LatticeValue{<:Number}; kw...) =
+    _diag_operator!(TightBinding(f, lattice(lv); kw...), lv)
+TightBinding(arg; kw...) = TightBinding(nothing, arg; kw...)
 
 @doc raw"""
-    SpinTightBinding(m::LatticeValue[; field::AbstractField, pbc=false])
+    SpinTightBinding([f, ]mv::LatticeValue[; field::AbstractField, pbc=false])
+    SpinTightBinding([f, ]l::SquareLattice[, m::Number=1; field::AbstractField, pbc=false])
 
 $$\hat{H} =
 \sum_i^\text{sites} m_i c^\dagger_i \sigma_z c_i +
@@ -153,20 +155,34 @@ c^\dagger_{i + \hat{y}} \frac{\sigma_z - i \sigma_y}{2} c_i +
 h. c. \right)$$
 
 Generates a spin-orbital tight-binding hamiltonian operator with set magnetic field and boundary conditions.
-Here the ``m_i`` values are set by the `m`, which must be defined on a `SquareLattice`.
+If the ``m_i`` values are set by the `mv::LatticeValue`, which must be defined on a `SquareLattice`.
+Otherwise they will all be set to `m`.
+
+`f` here must be a function or a `PairSelector` describing which hoppings will be excluded.
 """
-SpinTightBinding(m::LatticeValue{<:Number, :square}; field=NoField(), pbc=false) =
+SpinTightBinding(f, m::LatticeValue{<:Number, :square}; field=NoField(), pbc=false) =
 @hamiltonian begin
     lattice := lattice(m)
     dims_internal := 2
     field := field
     @diag m ⊗ [1 0; 0 -1]
-    @hop axis=1 [1 -im; -im -1] / 2 pbc=pbc
-    @hop axis=2 [1 -1; 1 -1] / 2 pbc=pbc
+    @hop axis=1 [1 -im; -im -1] / 2 pbc=pbc f
+    @hop axis=2 [1 -1; 1 -1] / 2 pbc=pbc f
 end
+SpinTightBinding(f, l::SquareLattice, m::Number=1; field=NoField(), pbc=false) =
+@hamiltonian begin
+    lattice := l
+    dims_internal := 2
+    field := field
+    @diag [m 0; 0 -m]
+    @hop axis=1 [1 -im; -im -1] / 2 pbc=pbc f
+    @hop axis=2 [1 -1; 1 -1] / 2 pbc=pbc f
+end
+SpinTightBinding(args...; kw...) = SpinTightBinding(nothing, args...; kw...)
+SpinTightBinding(::Nothing, ::Nothing, args...; kw...) = throw(MethodError(SpinTightBinding, args))
 
 @doc raw"""
-    Haldane(l::HoneycombLattice, t1::Real, t2::Real[, m::Real=0; field::AbstractField])
+    Haldane([f, ]l::HoneycombLattice, t1::Real, t2::Real[, m::Real=0; field::AbstractField])
 
 $$\hat{H} =
 \sum_i^\text{sublattice A} m c^\dagger_i c_i +

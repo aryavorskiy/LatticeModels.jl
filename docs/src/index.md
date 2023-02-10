@@ -35,12 +35,7 @@ using Plots
 # Generate a 40x40 square lattice
 l = SquareLattice(40, 40)
 # Define the tight-binding model hamiltonian
-H = @hamiltonian begin 
-    lattice := l
-    # Add hoppings along axis x and y
-    @hop axis = 1
-    @hop axis = 2
-end
+H = TightBinding(l)
 
 # Calculate eigenvalues and eigenvectors
 sp = spectrum(H)
@@ -73,13 +68,7 @@ using Plots
 l = SquareLattice(10, 10) do site, (x, y)
     abs(x) > 1 || abs(y) > 1
 end
-h(B) = @hamiltonian begin
-    lattice := l
-    @hop axis = 1
-    @hop axis = 2
-    # Add magnetic field through (0, 0) point
-    field := FluxField(B, (0, 0))
-end
+h(B) = TightBinding(l, field=FluxField(B))
 sp = spectrum(h(0))
 
 # Find density matrix for filled bands (e. g. energy < 0)
@@ -125,28 +114,13 @@ using Plots
 l = SquareLattice(11, 11)
 x, y = coord_values(l)
 
-# The Pauli matrices
-σ = [[0 1; 1 0], [0 -im; im 0], [1 0; 0 -1]]
-
 # Initial hamiltonian: m=1 everywhere
-H1 = @hamiltonian begin   
-    lattice := l
-    dims_internal := 2
-    @diag σ[3]
-    @hop (σ[3] - im * σ[1]) / 2 axis = 1
-    @hop (σ[3] - im * σ[2]) / 2 axis = 2
-end
+H1 = SpinTightBinding(ones(l))
 
 # Quenched hamiltonian: m=-1 in the central 3x3 square
 M = ones(l)
 M[@. abs(x) < 1.5 && abs(y) < 1.5] .= -1
-H2 = @hamiltonian begin
-    lattice := l
-    dims_internal := 2
-    @diag M ⊗ σ[3]
-    @hop (σ[3] - im * σ[1]) / 2 axis = 1
-    @hop (σ[3] - im * σ[2]) / 2 axis = 2
-end
+H2 = SpinTightBinding(M)
 X, Y = coord_operators(l, 2)
 
 sp = spectrum(H1)
@@ -189,14 +163,7 @@ Let's take the same hamiltonian from the previous example and create a LDOS anim
 using LatticeModels
 using Plots
 l = SquareLattice(40, 40)
-σ = [[0 1; 1 0], [0 -im; im 0], [1 0; 0 -1]]
-H = @hamiltonian begin   
-    lattice := l
-    dims_internal := 2
-    @diag σ[3]
-    @hop (σ[3] - im * σ[1]) / 2 axis = 1
-    @hop (σ[3] - im * σ[2]) / 2 axis = 2
-end
+H = SpinTightBinding(ones(l))
 
 sp = spectrum(H)
 δ = 0.1
