@@ -311,9 +311,9 @@ end
 
 LatticeSummable = Union{LatticeArray,UniformScaling}
 import Base: +, -, *, /, \, ^, adjoint, copy, exp, inv
-@inline +(los::LatticeSummable...) = _unwrap(+, los)
+@inline +(ls::LatticeSummable, lss::LatticeSummable...) = _unwrap(+, (ls, lss...))
 @inline -(lo1::LatticeSummable, lo2::LatticeSummable) = _unwrap(-, (lo1, lo2))
-@inline *(los::LatticeArray...) = _unwrap(*, los)
+@inline *(la::LatticeArray, las::LatticeArray...) = _unwrap(*, (la, las...))
 for f in (:*, :/, :\, :^)
     @eval @inline ($f)(la::LatticeArray, num::Number) = _unwrap(($f), (la, num))
     @eval @inline ($f)(num::Number, la::LatticeArray) = _unwrap(($f), (num, la))

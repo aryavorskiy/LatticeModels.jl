@@ -19,16 +19,16 @@ while `basis` must also be an  abstract matrix of size `N×NB`.
 struct Bravais{N,NB}
     translation_vectors::SMatrix{N,N,Float64}
     basis::SMatrix{N,NB,Float64}
-    function Bravais(translation_vectors::AbstractMatrix{<:Real}, basis::AbstractMatrix{<:Real})
+    function Bravais(translation_vectors::AbstractMatrix{<:Real}, basis::AbstractMatrix{<:Real},
+        origin::AbstractVector{<:Real}=zeros(size(basis)[1]))
         (size(translation_vectors)[1] != size(basis)[1]) &&
             error("inconsistent dimension count (got $(size(translation_vectors)[1]), $(size(basis)[1]))")
         N, NB = size(basis)
-        new{N,NB}(translation_vectors, basis)
+        new{N,NB}(translation_vectors, basis .- origin)
     end
 end
-function Bravais(translation_vectors::AbstractMatrix{<:Real})
+Bravais(translation_vectors::AbstractMatrix{<:Real}) =
     Bravais(translation_vectors, zeros((size(translation_vectors)[1], 1)))
-end
 
 dims(@nospecialize _::Bravais{N}) where {N} = N
 length(::Bravais{N,NB}) where {N,NB} = NB
@@ -95,6 +95,7 @@ struct LatticeSite{N}
 end
 
 LatticeSite(tup::NTuple{N,Int}) where {N} = LatticeSite{N - 1}(SVector(tup[2:end]), tup[1])
+LatticeSite(uc, bi) = LatticeSite((bi, uc...))
 
 _cind(site::LatticeSite) = CartesianIndex(site.basis_index, site.unit_cell...)
 
@@ -178,10 +179,10 @@ end
 Finds the location in space of lattice site `site` on lattice `lattice`.
 """
 site_coords(lattice::Lattice, site::LatticeSite) =
-    bravais(lattice).basis[:, site.basis_index] + bravais(lattice).translation_vectors * (site.unit_cell - SVector(size(lattice)) / 2 .- 0.5)
+    bravais(lattice).basis[:, site.basis_index] + bravais(lattice).translation_vectors * site.unit_cell
 
 site_coords(lattice::Lattice{LatticeSym,N,1} where {LatticeSym,N}, site::LatticeSite) =
-    bravais(lattice).translation_vectors * (site.unit_cell - SVector(size(lattice)) / 2 .- 0.5)
+    bravais(lattice).translation_vectors * site.unit_cell
 
 """
     radius_vector(l::Lattice, site1::LatticeSite, site2::LatticeSite) -> vector
@@ -234,7 +235,7 @@ site_distance(;pbc) = (l, site1, site2) -> site_distance(l, site1, site2, pbc=pb
         fill!(l_outp.mask, true)
         annotations = repeat(Any[""], length(l_outp))
         annotations[l.mask] = annot_markers
-        opacity := l.mask .* 0.9 .+ 0.1
+        seriesalpha := l.mask .* 0.9 .+ 0.1
     else
         l_outp = l
         annotations = annot_markers
@@ -344,8 +345,8 @@ function SquareLattice{N}(sz::Vararg{Int,N}) where {N}
     eye = SMatrix{N,N}(I)
     Lattice(:square, sz, Bravais(eye))
 end
-site_coords(l::SquareLattice, site::LatticeSite) =
-    site.unit_cell - SVector(size(l)) / 2 .- 0.5
+site_coords(::SquareLattice, site::LatticeSite) =
+    site.unit_cell
 
 """
     HoneycombLattice

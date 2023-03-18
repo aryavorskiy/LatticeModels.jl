@@ -2,22 +2,23 @@ using StaticArrays
 import Base: copy, show, ==
 
 """
-    Hopping{MT} where {MT<:AbstractMatrix}
+    Hopping{N} where N
 
 A struct representing a bond in a lattice.
 - `site_indices`: a `NTuple{2, Int}` with indices of sites connected by the bond.
 - `translate_uc`: the unit cell offset.
 - `pbc`: a vector of boolean values indicating if the bonds should be applied periodically over each axis.
-- `hop_operator`: a matrix of type `MT` representing the operator affecting the internal state.
+- `hop_operator`: a matrix of `N`×`N` representing the operator affecting the internal state.
 """
-struct Hopping{MT<:AbstractMatrix}
+struct Hopping{N}
     site_indices::Tuple{Int,Int}
     translate_uc::Vector{Int}
     pbc::Vector{Bool}
-    hop_operator::MT
+    hop_operator::SMatrix{N,N,ComplexF64}
     function Hopping(site_indices, translate_uc, pbc, hop_operator)
         length(translate_uc) != length(pbc) && error("inconsistent dimensionality")
-        new{typeof(hop_operator)}(site_indices, translate_uc, pbc, hop_operator)
+        N = size(hop_operator)[1]
+        new{N}(site_indices, translate_uc, pbc, SMatrix{N, N}(hop_operator))
     end
 end
 
@@ -132,13 +133,20 @@ function promote_dims!(h::Hopping, ndims::Int)
     h
 end
 
-function _hopping_dest(l::Lattice, hop::Hopping, i_site::LatticeSite)
-    i_site.basis_index != hop.site_indices[1] && return nothing
-    new_uc = i_site.unit_cell + hop.translate_uc
-    for i in 1:dims(l)
-        hop.pbc[i] || 1 ≤ new_uc[i] ≤ size(l)[i] || return nothing
-    end
-    LatticeSite(mod.(new_uc .- 1, l.lattice_size) .+ 1, hop.site_indices[2])
+_or(a::Bool, b::Bool) = a || b
+"""
+    hopping_dest(l::Lattice, hop::Hopping, site::LatticeSite)
+
+Finds the destination site of the `hop` hopping, given the lattice and the source site `site`.
+
+Returns a tuple containing the destination site and a `SVector` with integer numbers describing the macrocell shift.
+"""
+function hopping_dest(l::Lattice, hop::Hopping, site::LatticeSite)
+    site.basis_index != hop.site_indices[1] && return nothing
+    new_uc = site.unit_cell + hop.translate_uc
+    resid = fld.(new_uc .- 1, size(l))
+    all(@. _or(hop.pbc, resid == 0)) || return nothing
+    LatticeSite(mod.(new_uc .- 1, l.lattice_size) .+ 1, hop.site_indices[2]), resid
 end
 
 check_lattice_fits(::Any, ::Lattice) = nothing
@@ -152,14 +160,15 @@ function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field:
     promote_dims!(hop, d)
     trv = radius_vector(l, hop)
     for (i, site1) in enumerate(l)
-        site2 = _hopping_dest(l, hop, site1)
-        site2 === nothing && continue
+        dst = hopping_dest(l, hop, site1)
+        dst === nothing && continue
+        site2, resid = dst
         j = site_index(l, site2)
         j === nothing && continue
         !_get_bool_value(selector, l, site1, site2) && continue
 
         p1 = site_coords(l, site1)
-        pmod = exp(2π * im * path_integral(field, p1, p1 + trv))
+        pmod = exp(-2π * im * path_integral(field, p1, p1 + trv))
         !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
         lop[i, j] = hop.hop_operator * pmod + @view lop[i, j]
         lop[j, i] = (@view lop[i, j])'
@@ -341,8 +350,9 @@ function bonds(l::Lattice, hops::Hopping...)
     for i in 1:length(l)
         site1 = bs.lattice[i]
         for hop in hops
-            site2 = _hopping_dest(l, hop, site1)
-            site2 === nothing && continue
+            dst = hopping_dest(l, hop, site1)
+            dst === nothing && continue
+            site2 = dst[1]
             j = site_index(l, site2)
             j === nothing && continue
             bs.bmat[i, j] = bs.bmat[j, i] = true

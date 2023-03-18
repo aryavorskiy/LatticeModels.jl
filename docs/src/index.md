@@ -12,6 +12,9 @@ or
 import Pkg; Pkg.add(url="https://github.com/aryavorskiy/LatticeModels.jl")
 ```
 
+!!! compat
+    This package has tested compatibility with Julia v1.6. Use with caution on lower versions.
+
 ## Package features
 - Bravais lattices with arbitrary geometry and any possible count of internal states on one sites.
 - Versatile hamiltonian generation tools.

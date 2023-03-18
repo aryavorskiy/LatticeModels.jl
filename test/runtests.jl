@@ -125,7 +125,9 @@ end
     @test s_4 == s_5
     @test_throws MethodError hl[x.<y]
     xb, yb = coord_values(SquareLattice(5, 40))
-    @test_throws "macrocell mismatch" sql[xb.<yb]
+    @static if VERSION ≥ v"1.8"
+        @test_throws "macrocell mismatch" sql[xb.<yb]
+    end
     sql2 = sublattice(sql) do site, crd
         site ∉ (sql[1], sql[end])
     end
@@ -136,6 +138,10 @@ end
 end
 
 @testset "LatticeValue" begin
+    l = SquareLattice(2, 2)
+    x, y = coord_values(l)
+    @test x.values == [1, 2, 1, 2]
+    @test y.values == [1, 1, 2, 2]
     l = SquareLattice(10, 10)
     bas = Basis(l, 1)
     X, Y = coord_operators(bas)
@@ -164,12 +170,16 @@ end
         @test x .|> (x -> 2x) == xm2
         y .= x .* y
         @test y == xy
-        @test_throws "cannot broadcast" x .* ones(100)
+        @static if VERSION ≥ v"1.8"
+            @test_throws "cannot broadcast" x .* ones(100)
+        end
         l2 = SquareLattice(5, 20)
         x2 = LatticeValue(l2) do site, (x, y)
             x
         end
-        @test_throws "lattice mismatch" x .* x2
+        @static if VERSION ≥ v"1.8"
+            @test_throws "lattice mismatch" x .* x2
+        end
     end
     @testset "Indexing" begin
         z = zeros(l)
@@ -224,27 +234,29 @@ end
         @test dot(vc, X, vc) == xf
         @test ptrace(X, :internal) == diagm(x.values) * 2
         @test ptrace(X, :lattice) == sum(x.values) * [1 0; 0 1]
-        @test_throws "basis mismatch" X * X2
+        @static if VERSION ≥ v"1.8"
+            @test_throws "basis mismatch" X * X2
+        end
         @test_throws MethodError X * ones(200, 200)
     end
     @testset "Lattice-value constructor" begin
         @test diag_operator(x .* y, 2) == xy
         @test (x .* y) ⊗ [1 0; 0 1] == xy
         @test [1 0; 0 1] ⊗ (x .* y) == xy
-        @test_throws "Lambda returned a String" diag_operator(l, 2) do _, _; "kek"; end
+        @static if VERSION ≥ v"1.8"
+            @test_throws "Lambda returned a String" diag_operator(l, 2) do _, _; "kek"; end
+        end
     end
     @testset "Wrapper macro" begin
         @test @on_lattice(X / 2 + X * Y + exp(Y)) == xd2pxypexpy
         @test X * 0.5 + X * Y + @on_lattice(exp(Y)) == xd2pxypexpy
         @test_logs (
             :warn,
-            "avoid using lattice arrays and unwrapped arrays \
-in one function call"
+            "avoid using lattice arrays and unwrapped arrays in one function call"
         ) @on_lattice X * ones(200, 200)
         @test_logs (
             :warn,
-            "avoid using lattice arrays and unwrapped arrays \
-in one function call"
+            "avoid using lattice arrays and unwrapped arrays in one function call"
         ) @on_lattice ones(200, 200) * Y
     end
 end
@@ -280,10 +292,12 @@ end
         @test hopping(site_indices=(1,2)) == LatticeModels.promote_dims!(hopping(site_indices=(1,2), pbc=[false, true]), 1)
         @test hopping(axis=2, pbc=true) == hopping(translate_uc=[0, 1], pbc=[true, true])
         @test hopping(axis=2, pbc=[true, true]) == hopping(translate_uc=[0, 1], pbc=[true, true])
-        @test hopping([-1;;], axis=1) == hopping(-1, axis=1)
-        @test_throws "to hopping indices" hopping(site_indices=(1, 2, 3))
-        @test_throws "connects site to itself" hopping(translate_uc=[0, 0], site_indices=2)
-        @test_throws "cannot shrink" LatticeModels.promote_dims!(hopping(translate_uc=[0, 1]), 1)
+        @test hopping(fill(-1, 1, 1), axis=1) == hopping(-1, axis=1)
+        @static if VERSION ≥ v"1.8"
+            @test_throws "to hopping indices" hopping(site_indices=(1, 2, 3))
+            @test_throws "connects site to itself" hopping(translate_uc=[0, 0], site_indices=2)
+            @test_throws "cannot shrink" LatticeModels.promote_dims!(hopping(translate_uc=[0, 1]), 1)
+        end
     end
     @testset "Hopping matching" begin
         l = SquareLattice(6, 5)
@@ -294,10 +308,10 @@ end
         hxmy_flag = true
         for site in l
             ucx, ucy = site.unit_cell
-            site_dx = LatticeModels._hopping_dest(l, hx, site)
-            site_dxmy = LatticeModels._hopping_dest(l, hxmy, site)
-            hx_flag &= ((site_dx === nothing) == (ucx == 6))
-            hxmy_flag &= ((site_dxmy === nothing) == (ucy == 1))
+            dst_dx = LatticeModels.hopping_dest(l, hx, site)
+            dst_dxmy = LatticeModels.hopping_dest(l, hxmy, site)
+            @test ((dst_dx === nothing) == (ucx == 6))
+            hxmy_flag &= ((dst_dxmy === nothing) == (ucy == 1))
             !hx_flag && (println("Error at site $site (hx)"); break)
             !hxmy_flag && (println("Error at site $site (hxmy)"); break)
         end
@@ -373,7 +387,9 @@ end
         @test LatticeModels.path_integral(flx + sym, p1, p2, 1000) ≈
               LatticeModels.path_integral(flx + sym, p1, p2) atol = 1e-8
 
-        @test_throws "no vector potential function" LatticeModels.vector_potential(emf, SA[1, 2, 3])
+        @static if VERSION ≥ v"1.8"
+            @test_throws "no vector potential function" LatticeModels.vector_potential(emf, SA[1, 2, 3])
+        end
     end
 
     @testset "Field application" begin
@@ -424,7 +440,7 @@ end
         H4 = @hamiltonian begin
             lattice := l
             @hop -0.25 axis = 1
-            @hop [0.25;;] axis = 2
+            @hop fill(0.25, 1, 1) axis = 2
         end
         @test H3 == H4
         sp = spectrum(H1)
@@ -474,7 +490,9 @@ end
         end
         @test H3 == SpinTightBinding(sel, l, field=fld)
         @test H3 == SpinTightBinding(sel, ones(l), field=fld)
-        @test_throws "no method" SpinTightBinding(ones(l), 2)
+        @static if VERSION ≥ v"1.8"
+            @test_throws "no method" SpinTightBinding(ones(l), 2)
+        end
     end
 
     @testset "DOS & LDOS" begin

@@ -41,6 +41,14 @@ on Basis with 2-dimensional internal phase space
 on 25-site square lattice on 5×5 macro cell
 ```
 
+!!! warn
+    Please be careful when defining new functions using the `@on_lattice` macro.
+    Type-pirating methods will lead to a stack overflow error once called.
+
+    `*(a::Union{LatticeArray, Number}...) = @on_lattice *(a...)`
+
+    This definition is likely to overwrite the `*(n::Number...)` builtin, which will lead to an endless recursion if `*(2, 3)` is called.
+
 In the next few paragraphs we will review two main ways to define linear operators that form most tight-binding hamiltonians.
 
 ## Diagonal operators

@@ -1,5 +1,9 @@
 module LatticeModels
 
+@static if VERSION < v"1.8"
+    allequal(seq) = all(s == first(seq) for s in seq)
+end
+
 include("lattice.jl")
 export Bravais, LatticeSite, Lattice, dims, sublattice, site_coords, site_index, site_distance,
     SquareLattice, HoneycombLattice

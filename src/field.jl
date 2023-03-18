@@ -51,7 +51,7 @@ function apply_field!(ham::LatticeOperator, field::AbstractField)
             if i > j && !iszero(ham[i, j])
                 p1 = site_coords(l, site1)
                 p2 = site_coords(l, site2)
-                pmod = exp(2π * im * path_integral(field, p1, p2))
+                pmod = exp(-2π * im * path_integral(field, p1, p2))
                 !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
                 ham[i, j] *= pmod
                 ham[j, i] *= pmod'
