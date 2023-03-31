@@ -104,13 +104,13 @@ function _extract_lattice_s(l::Lattice, l2::Lattice, rem_args::Tuple)
     _extract_lattice_s(l, rem_args)
 end
 
-function show(io::IO, m::MIME"text/plain", lv::LatticeValue)
-    println(io, "LatticeValue with eltype $(eltype(lv))\non ")
-    show(io, m, lattice(lv))
-end
 function show(io::IO, m::MIME"text/plain", lv::LatticeValueWrapper)
-    println(io, "LatticeValueWrapper with inner type $(typeof(lv))\non ")
+    print(io, "$(typeof(lv)) on a ")
     show(io, m, lattice(lv))
+    if !get(io, :compact, false)
+        print(io, "\nValues stored in a ")
+        show(io, m, lv.values)
+    end
 end
 
 Base.@propagate_inbounds function getindex(l::Lattice{LatticeSym,N,NB},
@@ -126,10 +126,11 @@ Base.@propagate_inbounds function getindex(lv::LatticeValueWrapper, lv_mask::Lat
     LatticeValueWrapper(new_l, lv.values[new_l.mask[lv.lattice.mask]])
 end
 
-Base.@propagate_inbounds function Base.maybeview(lv::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
+Base.@propagate_inbounds function Base.Broadcast.dotview(lv::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
     new_l  = lattice(lv)[lv_mask]
     LatticeValueWrapper(new_l, view(lv.values, new_l.mask[lv.lattice.mask]))
 end
+Base.Broadcast.dotview(lv::LatticeValueWrapper; kw...) = Base.Broadcast.dotview(lv, _kws_to_mask(lattice(lv), kw))
 
 Base.@propagate_inbounds function setindex!(lv::LatticeValueWrapper, lv_rhs::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
     @boundscheck begin
@@ -140,6 +141,44 @@ Base.@propagate_inbounds function setindex!(lv::LatticeValueWrapper, lv_rhs::Lat
     new_mask[lv_rhs.lattice.mask] = lv_mask.values
     lv.values[new_mask[lv.lattice.mask]] = lv_rhs.values[new_mask[lv_rhs.lattice.mask]]
 end
+
+function _parse_axis_descriptor(coord::Symbol)
+    coord === :x && return (:c, 1)
+    coord === :y && return (:c, 2)
+    coord === :z && return (:c, 3)
+    axis_s = string(coord)
+    axis = tryparse(Int, axis_s[2:end])
+    if axis isa Int && axis > 0
+        axis_s[1] == 'x' && return (:c, axis)
+        axis_s[1] == 'j' && return (:j, axis)
+    end
+    error("failed to parse axis descriptor '$coord'")
+end
+function _parse_axis_descriptor(i::Int)
+    i ≤ 0 && error("axis number must be a positive integer, not $i")
+    (:c, i)
+end
+function _kws_to_mask(l, @nospecialize(kw))
+    coords = collect_coords(l)
+    relmask = fill(true, length(l))
+    for (descr, val) in kw
+        if descr === :index
+            @. relmask &= (site.basis_index == val for site in l)
+            continue
+        end
+
+        type, axis_no = _parse_axis_descriptor(descr)
+        axis_no > dims(l) && error(
+            "axis number $axis_no (descriptor '$descr') exceeds lattice dimensionality $(dims(l))")
+        type === :j && @.(relmask &= (site.unit_cell[axis_no] == val for site in l))
+        type === :c && @.(relmask &= abs(coords[axis_no, :] - val) < eps())
+    end
+    cnt = count(relmask)
+    cnt == 1 ? CartesianIndex(findfirst(relmask)) : LatticeValue(l, relmask)
+end
+getindex(lvw::LatticeValueWrapper; kw...) = getindex(lvw, _kws_to_mask(lattice(lvw), kw))
+getindex(l::Lattice; kw...) = getindex(l, _kws_to_mask(l, kw))
+setindex!(lvw::LatticeValueWrapper, rhs; kw...) = setindex!x(lvw, rhs, _kws_to_mask(lattice(lvw), kw))
 
 raw"""
     macro_cell_values(lv::LatticeValue)
@@ -198,15 +237,16 @@ end
 
 Creates a mapping from site coordinates to values of `lv`.
 The coordinate axis to project the sites onto can be set with the `axis` argument -
-it can be either an integer from 1 to 3 or a `Symbol` (`:x`, `:y` or `:z`).
+it can be either an integer from 1 to 3 or an axis descriptor `Symbol`.
 """
 function project(lv::PlottableLatticeValue, axis)
-    axis_no = axis isa Int ? axis :
-        axis === :x ? 1 :
-        axis === :y ? 2 :
-        axis === :z ? 3 : 0
-    axis_no ∉ 1:3 && error("unsupported projection axis '$axis'")
-    crds = collect_coords(lattice(lv))[axis_no, :]
-    perm = sortperm(crds)
-    crds[perm], lv.values[perm]
+    type, axis_no = _parse_axis_descriptor(axis)
+    l = lattice(lv)
+    axis_no > dims(lattice(lv)) && error(
+        "axis number $axis_no (descriptor '$axis') exceeds lattice dimensionality $(dims(l))")
+    crds = collect_coords(l)
+    pr_crds = type === :c ? pr_crds = crds[axis_no, :] :
+        crds' * normalize(bravais(l).translation_vectors[:, axis_no])
+    perm = sortperm(pr_crds)
+    pr_crds[perm], lv.values[perm]
 end

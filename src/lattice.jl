@@ -31,6 +31,7 @@ Bravais(translation_vectors::AbstractMatrix{<:Real}) =
     Bravais(translation_vectors, zeros((size(translation_vectors)[1], 1)))
 
 dims(@nospecialize _::Bravais{N}) where {N} = N
+dims(l) = dims(bravais(l))
 length(::Bravais{N,NB}) where {N,NB} = NB
 
 """
@@ -114,6 +115,7 @@ function getindex(l::Lattice{LatticeSym, N, NB} where LatticeSym, i::Int) where 
     end
     throw(BoundsError(l, i))
 end
+getindex(l::Lattice, ci::CartesianIndex{1}) = getindex(l, only(Tuple(ci)))
 
 """
     site_index(l::Lattice, site::LatticeSite)
@@ -218,10 +220,9 @@ This notation can be handy when passing this function as an argument.
 """
 site_distance(;pbc) = (l, site1, site2) -> site_distance(l, site1, site2, pbc=pbc)
 
-@recipe function f(l::Lattice; show_excluded_sites=true, show_indices=true, high_contrast=false)
+@recipe function f(l::Lattice; pretty=true, high_contrast=false)
     if high_contrast
-        show_excluded_sites = false
-        show_indices = false
+        pretty = false
         markersize := 4
         markercolor := :black
         markerstrokealpha := 1
@@ -229,21 +230,18 @@ site_distance(;pbc) = (l, site1, site2) -> site_distance(l, site1, site2, pbc=pb
         markerstrokewidth := 2
         markerstrokecolor := :white
     end
-    annot_markers = [(i, :left, :top, :grey, 8) for i in 1:length(l)]
-    if show_excluded_sites
+    if pretty
         l_outp = copy(l)
         fill!(l_outp.mask, true)
         annotations = repeat(Any[""], length(l_outp))
-        annotations[l.mask] = annot_markers
-        seriesalpha := l.mask .* 0.9 .+ 0.1
-    else
-        l_outp = l
-        annotations = annot_markers
-    end
-    if show_indices
+        annotations[l.mask] .= ((i, :left, :top, :grey, 8) for i in 1:length(l))
         series_annotations := annotations
+        seriesalpha := l.mask .* 0.9 .+ 0.1
+        label --> ""
+        l_outp, nothing
+    else
+        l, nothing
     end
-    l_outp, nothing
 end
 
 function collect_coords(l::Lattice)
@@ -256,7 +254,6 @@ function collect_coords(l::Lattice)
 end
 
 @recipe function f(l::Lattice, v)
-    label --> nothing
     aspect_ratio := :equal
     marker_z := v
     pts = collect_coords(l)

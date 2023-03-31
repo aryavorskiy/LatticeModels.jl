@@ -140,7 +140,7 @@ bs = bonds(hop_op)
 
 using Plots
 plot(bs)
-plot!(l, show_excluded_sites=false, show_indices=false)
+plot!(l, pretty=false)
 ```
 
 ## Pair selectors

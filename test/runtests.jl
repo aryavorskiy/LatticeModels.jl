@@ -92,6 +92,7 @@ using LatticeModels
         surface!(p[2], xy)
         scatter!(p[3], SquareLattice(3, 4, 5))
         plot!(p[4], project(xy, :x))
+        plot!(p[4], project(xy, :j1))
         mpcs = map_currents(site_distance, dc, reduce_fn=sum, sort=true)
         plot!(p[4], mpcs)
         true
@@ -124,6 +125,7 @@ end
     @test s_3 == s_4
     @test s_4 == s_5
     @test_throws MethodError hl[x.<y]
+    @test hl[j1=3, j2=2, index=1] == LatticeSite([3, 2], 1)
     xb, yb = coord_values(SquareLattice(5, 40))
     @static if VERSION ≥ v"1.8"
         @test_throws "macrocell mismatch" sql[xb.<yb]
@@ -189,6 +191,12 @@ end
         z2[x .< y] = ones(l)
         @test z == ones(l)
         @test z2 == ones(l)
+        @test z[x=1, x2=1] == 1
+        z3 = ones(l)
+        for i in 2:10
+            z3[x1=i] .= i
+        end
+        @test z3 == x
     end
     @testset "Interface" begin
         mn, mx = extrema(xy)
@@ -304,19 +312,13 @@ end
         hx = hopping(axis = 1)
         LatticeModels.promote_dims!(hx, dims(l))
         hxmy = hopping(translate_uc = [1, -1], pbc = [true, false])
-        hx_flag = true
-        hxmy_flag = true
         for site in l
             ucx, ucy = site.unit_cell
             dst_dx = LatticeModels.hopping_dest(l, hx, site)
             dst_dxmy = LatticeModels.hopping_dest(l, hxmy, site)
-            @test ((dst_dx === nothing) == (ucx == 6))
-            hxmy_flag &= ((dst_dxmy === nothing) == (ucy == 1))
-            !hx_flag && (println("Error at site $site (hx)"); break)
-            !hxmy_flag && (println("Error at site $site (hxmy)"); break)
+            @test (dst_dx === nothing) == (ucx == 6)
+            @test (dst_dxmy === nothing) == (ucy == 1)
         end
-        @test hx_flag
-        @test hxmy_flag
     end
     @testset "Bonds" begin
         l = SquareLattice(2, 2)

@@ -61,10 +61,10 @@ lv2[@. x > y && x > -y] .= 20   # or a number
 heatmap(lv2)
 ```
 
-Note that a `LatticeValue` can be projected to some coordinate axis to create line plots.
+Note that a `LatticeValue` can be projected to some coordinate axis to create line plots. The projection axis is set by an axis descriptor (see [Axis descriptors](@ref axis_descriptors))
 
 ```@example env
-lv_on_line = lv[@. x ≈ 0.5]     # Use approximate comparison to avoid rounding errors
+lv_on_line = lv[x = 5]
 p = plot(layout=(2, 1))
 
 heatmap!(p[1], lv)

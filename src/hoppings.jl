@@ -22,23 +22,26 @@ struct Hopping{N}
     end
 end
 
-_wrap_operator(o::Number) = [o;;]
+_wrap_operator(o::Number) = fill(o, 1, 1)
 _wrap_operator(o::AbstractMatrix) = o
 _tr_and_pbc(tr_vc::Vector, pbc::Vector) = (tr_vc, pbc)
 _tr_and_pbc(tr_vc::Vector, pbc::Bool) = (tr_vc, fill(pbc, length(tr_vc)))
 _tr_and_pbc(pbc::Vector) = (zeros(Int, length(pbc)), pbc)
 _tr_and_pbc(pbc::Bool) = ([0], [pbc])
-function _tr_and_pbc(axis::Int, pbc::Vector)
-    tr_vc = zeros(Int, length(pbc))
-    tr_vc[axis] = 1
-    return (tr_vc, pbc)
+function _tr_and_pbc(axis_no::Int, pbc::Vector)
+    newdim = max(axis_no, length(pbc))
+    tr_vc = zeros(Int, newdim)
+    tr_vc[axis_no] = 1
+    newpbc = zeros(Bool, newdim)
+    newpbc[eachindex(pbc)] = pbc
+    return (tr_vc, newpbc)
 end
-function _tr_and_pbc(axis::Int, pbc::Bool)
-    tr_vc = zeros(Int, axis)
-    tr_vc[axis] = 1
-    return (tr_vc, fill(pbc, axis))
+function _tr_and_pbc(axis_no::Int, pbc::Bool)
+    tr_vc = zeros(Int, axis_no)
+    tr_vc[axis_no] = 1
+    return (tr_vc, fill(pbc, axis_no))
 end
-_get_site_indices(::T) where T = error("Cannot convert object of type $T to hopping indices")
+_get_site_indices(a) = error("Cannot convert object of type $(typeof(a)) to hopping indices")
 _get_site_indices(i::Int) = (i, i)
 _get_site_indices(t::NTuple{2, Int}) = t
 
@@ -78,8 +81,7 @@ end
     all(getproperty(h1, fn) == getproperty(h2, fn) for fn in fieldnames(Hopping))
 
 function show(io::IO, m::MIME"text/plain", hop::Hopping)
-    println(io, "Hopping")
-    println(io, "Connects site #$(hop.site_indices[1]) with site #$(hop.site_indices[1]) translated by $(hop.translate_uc)")
+    println(io, "Hopping connects site #$(hop.site_indices[1]) with site #$(hop.site_indices[1]) translated by $(hop.translate_uc)")
     if !iszero(hop.translate_uc)
         print(io, "Boundary conditions: ")
         if all(hop.pbc .| (hop.translate_uc .== 0))
@@ -95,7 +97,7 @@ function show(io::IO, m::MIME"text/plain", hop::Hopping)
             end
         end
     end
-    print(io, "Hopping operator matrix: ")
+    print(io, "Hopping operator matrix is a ")
     show(io, m, hop.hop_operator)
 end
 dims(h::Hopping) = length(h.translate_uc)
@@ -133,7 +135,6 @@ function promote_dims!(h::Hopping, ndims::Int)
     h
 end
 
-_or(a::Bool, b::Bool) = a || b
 """
     hopping_dest(l::Lattice, hop::Hopping, site::LatticeSite)
 
@@ -145,7 +146,7 @@ function hopping_dest(l::Lattice, hop::Hopping, site::LatticeSite)
     site.basis_index != hop.site_indices[1] && return nothing
     new_uc = site.unit_cell + hop.translate_uc
     resid = fld.(new_uc .- 1, size(l))
-    all(@. _or(hop.pbc, resid == 0)) || return nothing
+    all(@. hop.pbc | (resid == 0)) || return nothing
     LatticeSite(mod.(new_uc .- 1, l.lattice_size) .+ 1, hop.site_indices[2]), resid
 end
 
