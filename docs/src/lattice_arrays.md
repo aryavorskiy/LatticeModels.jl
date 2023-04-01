@@ -41,7 +41,7 @@ on Basis with 2-dimensional internal phase space
 on 25-site square lattice on 5×5 macro cell
 ```
 
-!!! warn
+!!! warning
     Please be careful when defining new functions using the `@on_lattice` macro.
     Type-pirating methods will lead to a stack overflow error once called.
 

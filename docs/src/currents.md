@@ -1,6 +1,6 @@
 ## Usage
 
-A [`AbstractCurrents`](@ref) object is a lazy object that can calculate any current-like value between any pair of sites. 
+An [`AbstractCurrents`](@ref) object is a lazy object that can calculate any current-like value between any pair of sites. 
 Usage is pretty simple:
 
 ```@setup env
@@ -13,7 +13,7 @@ H = @hamiltonian begin
     lattice := l
     @hop axis = 1
     @hop axis = 2
-    field := FluxField(1, (0, 0))
+    field := FluxField(1, (5.5, 5.5))
 end
 P = filled_projector(spectrum(H), -0.5)
 

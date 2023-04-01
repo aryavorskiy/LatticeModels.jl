@@ -69,7 +69,7 @@ using LatticeModels
 using Plots
 
 l = SquareLattice(10, 10) do site, (x, y)
-    abs(x) > 1 || abs(y) > 1
+    !(4 < x < 7 && 4 < y < 7)
 end
 h(B) = TightBinding(l, field=FluxField(B))
 sp = spectrum(h(0))
@@ -122,7 +122,7 @@ H1 = SpinTightBinding(ones(l))
 
 # Quenched hamiltonian: m=-1 in the central 3x3 square
 M = ones(l)
-M[@. abs(x) < 1.5 && abs(y) < 1.5] .= -1
+M[@. 4 < x < 8 && 4 < y < 8] .= -1
 H2 = SpinTightBinding(M)
 X, Y = coord_operators(l, 2)
 
@@ -142,8 +142,8 @@ a = Animation()
     chern_marker = site_density(lcm_operator)
     plot!(p[1], chern_marker, clims=(-2, 2))
 
-    # Select sites on y=0 line (use ≈ to avoid rounding errors)
-    chern_marker_on_sw = chern_marker[@. y ≈ 0]
+    # Select sites on y=6 line
+    chern_marker_on_sw = chern_marker[y = 6]
     # Mark selected sites on the heatmap
     plot!(p[1], lattice(chern_marker_on_sw), high_contrast=true)
     # Add a line plot

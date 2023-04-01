@@ -104,12 +104,12 @@ function _extract_lattice_s(l::Lattice, l2::Lattice, rem_args::Tuple)
     _extract_lattice_s(l, rem_args)
 end
 
-function show(io::IO, m::MIME"text/plain", lv::LatticeValueWrapper)
+function show(io::IO, mime::MIME"text/plain", lv::LatticeValueWrapper)
     print(io, "$(typeof(lv)) on a ")
-    show(io, m, lattice(lv))
+    show(io, mime, lattice(lv))
     if !get(io, :compact, false)
-        print(io, "\nValues stored in a ")
-        show(io, m, lv.values)
+        print(io, "\nValues stored in a $(typeof(lv.values)):\n")
+        Base.show_vector(IOContext(io, :compact => true), lv.values)
     end
 end
 

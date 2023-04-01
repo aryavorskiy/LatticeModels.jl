@@ -49,7 +49,7 @@ In the example below we will delete all sites from the circle of radius 3 in the
 (which will make the according heatmap regions blank).
 
 ```@example env
-heatmap(lv[@. √(x^2 + y^2) > 3])
+heatmap(lv[@. √(x^2 + y^2) ≥ 10])
 ```
 
 The approach from above provides a flexible way to edit `LatticeValue`s:
@@ -57,7 +57,7 @@ The approach from above provides a flexible way to edit `LatticeValue`s:
 ```@example env
 lv2 = ones(l)
 lv2[@. x < y] = x .* y          # Assign another LatticeValue
-lv2[@. x > y && x > -y] .= 20   # or a number
+lv2[@. x ≥ y && x ≥ -y] .= 20   # or a number
 heatmap(lv2)
 ```
 
