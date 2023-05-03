@@ -21,7 +21,7 @@ length(b::Basis) = length(lattice(b)) * dims_internal(b)
 basis(b::Basis) = b
 function check_basis_match(b1, b2)
     basis(b1) != basis(b2) &&
-        throw(ArgumentError("basis mismatch:\n$(_s(basis(b1)))\n$(_s(basis(b2)))"))
+        throw(ArgumentError("basis mismatch:\n$(repr("text/plain", basis(b1)))\n$(repr("text/plain", basis(b2)))"))
 end
 
 function show(io::IO, m::MIME"text/plain", b::Basis)
@@ -39,11 +39,15 @@ Stores information about its basis to perform lattice checks.
 struct LatticeArray{AT,LT,N}
     basis::Basis{LT}
     array::AT
-    function LatticeArray(basis::Basis{LT}, array::AT) where {LT<:Lattice,AT<:AbstractArray{_T,N} where _T} where {N}
+    function LatticeArray{N}(basis::Basis{LT}, array::AT) where {N, LT<:Lattice, AT}
         !all((ax in (1, length(basis))) for ax in size(array)) &&
             throw(DimensionMismatch("array has size $(size(array)), basis has length $(length(basis))"))
         new{AT,LT,N}(basis, array)
     end
+    LatticeArray(basis, arr::AbstractArray{_T, N} where _T) where N =
+        LatticeArray{N}(basis, arr)
+    LatticeArray(basis, smb::SparseMatrixBuilder) =
+        LatticeArray{2}(basis, smb)
 end
 
 const LatticeVector{VT,LT} = LatticeArray{VT,LT,1}
@@ -77,13 +81,15 @@ lattice(x) = lattice(basis(x))
 @inline _ranges(rngs::Tuple, i::Int, is::Tuple, l::Lattice, N::Int) =
     _ranges((rngs..., N*(i-1)+1:N*i), is, l, N)
 @inline _ranges(rngs::Tuple, site::LatticeSite, is::Tuple, l::Lattice, N::Int) =
-    _ranges((rngs..., site_index(l, site)), is, l, N)
-@inline _ranges(rngs::Tuple, ::Colon, is::Tuple, l::Lattice, N::Int) =
-    _ranges((rngs..., :), is, l, N)
+    _ranges(rngs, site_index(l, site), is, l, N)
+@inline _ranges(rngs::Tuple, c::Colon, is::Tuple, l::Lattice, N::Int) =
+    _ranges((rngs..., c), is, l, N)
 getindex(la::LatticeArray, is::Vararg{Any}) = la.array[_ranges(is, lattice(la), dims_internal(la))...]
 Base.view(la::LatticeArray, is::Vararg{Any}) = view(la.array, _ranges(is, lattice(la), dims_internal(la))...)
 setindex!(la::LatticeArray, val, is::Vararg{Any}) =
     (la.array[_ranges(is, lattice(la), dims_internal(la))...] = val)
+increment!(la::LatticeArray, rhs, is::Vararg{Any}) =
+    increment!(la.array, rhs, _ranges(is, lattice(la), dims_internal(la))...)
 
 ==(lvm1::LatticeArray, lvm2::LatticeArray) = (lvm1.basis == lvm2.basis) && (lvm1.array == lvm2.array)
 
@@ -125,12 +131,12 @@ function _zero_on_basis(l::Lattice, m::AbstractMatrix)
     N = size(m)[1]
     LatticeArray(Basis(l, N), zero(similar(m, ComplexF64, (N * length(l), N * length(l)))))
 end
-_zero_on_basis(l::Lattice, N::Int) = LatticeArray(Basis(l, N),
-    zeros(ComplexF64, N * length(l), N * length(l)))
-_zero_on_basis(l::Lattice, N::Int, MT::Type{<:AbstractMatrix}) =
-    LatticeArray(Basis(l, N), zero(similar(MT, (N * length(l), N * length(l)))))
-_zero_on_basis(l::Lattice, N::Int, ::Type{Matrix{ComplexF64}}) = _zero_on_basis(l, N)
-_zero_on_basis(bas::Basis) = _zero_on_basis(lattice(bas), dims_internal(bas))
+_zero_on_basis(bas::Basis) = LatticeArray(bas, zeros(ComplexF64, length(bas), length(bas)))
+_zero_on_basis(bas::Basis, MT::Type{<:AbstractMatrix}) =
+    LatticeArray(bas, zero(similar(MT, (length(bas), length(bas)))))
+_zero_on_basis(bas::Basis, ::Type{SparseMatrixBuilder{T}}) where T =
+    LatticeArray(bas, SparseMatrixBuilder{T}((length(bas), length(bas))))
+_zero_on_basis(l::Lattice, N::Int, args...) = _zero_on_basis(Basis(l, N), args...)
 
 _wrap_eye(n::Number, eye::Matrix) = n * eye
 _wrap_eye(m::AbstractMatrix, ::Matrix) = m
@@ -146,7 +152,7 @@ function _diag_operator!(lop::LatticeOperator, op_object)
     l = lattice(lop)
     try
         for (i, site) in enumerate(l)
-            lop[i, i] = _get_matrix_value(op_object, l, site, i, eye) + @view lop[i, i]
+            increment!(lop, _get_matrix_value(op_object, l, site, i, eye), i, i)
         end
     catch e
         if e isa DimensionMismatch

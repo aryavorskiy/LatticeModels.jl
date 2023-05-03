@@ -15,8 +15,7 @@ vector_potential(fld::AbstractField, _) =
 
 const LenType{N} = Union{SVector{N}, NTuple{N, Any}}
 @inline @generated function dot_assuming_zeros(p1::LenType{M}, p2::LenType{N}) where {M,N}
-    n = min(M, N)
-    Expr(:call, :+, [:(p1[$i] * p2[$i]) for i in 1:n]...)
+    Expr(:call, :+, [:(p1[$i] * p2[$i]) for i in 1:min(M, N)]...)
 end
 
 @doc raw"""
@@ -186,61 +185,6 @@ A stub object representing zero magnetic field.
 Use it as a default magnetic field argument in functions - this will not cause any performance overhead.
 """
 NoField
-
-@field_def struct LandauField(B::Number)
-    vector_potential(x) = (0, x*B)
-    path_integral(p1, p2) = ((p1[1] + p2[1]) / 2) * (p2[2] - p1[2]) * B
-    show(io::IO, ::MIME"text/plain") = print(io, "Landau calibration field; B = $B flux quanta per 1×1 plaquette")
-end
-"""
-    LandauField <: AbstractField
-
-An object representing Landau calibrated uniform magnetic field along z-axis.
-Fields:
-- `B`: The magnetic field value
-"""
-LandauField
-
-@field_def struct SymmetricField(B::Number)
-    vector_potential(x, y) = SA[-y, x] * B / 2
-    path_integral(p1, p2) = (p1[1] * p2[2] - p2[1] * p1[2]) / 2 * B
-    show(io::IO, ::MIME"text/plain") = print(io, "Symmetric calibration field; B = $B flux quanta per 1×1 plaquette")
-end
-"""
-    SymmetricField <: AbstractField
-
-An object representing symmetrically calibrated uniform magnetic field along z-axis.
-Fields:
-- `B`: The magnetic field value
-"""
-SymmetricField
-
-_angle(p1, p2) = asin((1.0 - 1e-11) * det(hcat(p1, p2)) / norm(p1) / norm(p2))
-@field_def struct FluxField(B::Number, P::NTuple{2,Number} = (0, 0))
-    function vector_potential(x, y)
-        norm = (x^2 + y^2)
-        (-y / norm * B, x / norm * B)
-    end
-    function path_integral(p1, p2)
-        Pv = SVector(P)
-        p1 = p1[1:2] - Pv
-        p2 = p2[1:2] - Pv
-        if iszero(p1) || iszero(p2)
-            return 0.0
-        end
-        _angle(p1, p2) * B
-    end
-    show(io::IO, ::MIME"text/plain") = print(io, "Delta flux field through point $P; B = $B flux quanta")
-end
-"""
-    FluxField <: AbstractField
-
-An object representing a small magnetic flux through given point. The field is directed along z-axis.
-Fields:
-- `B`: The magnetic field value
-- `point`: A `NTuple{2, Number}` representing the point where the magnetic flux is located.
-"""
-FluxField
 
 struct FieldSum{FT<:Tuple} <: AbstractField
     fields::FT

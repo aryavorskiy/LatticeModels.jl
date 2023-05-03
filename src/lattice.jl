@@ -103,7 +103,7 @@ _cind(site::LatticeSite) = CartesianIndex(site.basis_index, site.unit_cell...)
 _cinds(l::Lattice{LatticeSym,N,NB} where {LatticeSym}) where {N,NB} =
     CartesianIndex{N + 1}(1):CartesianIndex(NB, size(l)...)
 
-function getindex(l::Lattice{LatticeSym, N, NB} where LatticeSym, i::Int) where {N,NB}
+function getindex(l::Lattice, i::Int)
     counter = 0
     cinds = _cinds(l)
     i ≤ 0 && throw(BoundsError(l, i))
@@ -116,9 +116,18 @@ function getindex(l::Lattice{LatticeSym, N, NB} where LatticeSym, i::Int) where 
     throw(BoundsError(l, i))
 end
 getindex(l::Lattice, ci::CartesianIndex{1}) = getindex(l, only(Tuple(ci)))
+function getindex(l::Lattice{Sym}, is::AbstractVector{Int}) where Sym
+    new_mask = zero(l.mask)
+    try
+        (@view new_mask[l.mask])[is] .= true
+    catch BoundsError
+        throw(BoundsError(l, is))
+    end
+    Lattice(Sym, size(l), bravais(l), new_mask)
+end
 
 """
-    site_index(l::Lattice, site::LatticeSite)
+    site_index(l::Lattice, site::LatticeSite; macrocell=false)
 
 Returns the integer index for given `site` in `lattice`.
 Returns `nothing` if the site is not present in the lattice.
@@ -150,30 +159,16 @@ isless(@nospecialize(site1::LatticeSite), @nospecialize(site2::LatticeSite)) =
 
 function iterate(l::Lattice)
     cinds = _cinds(l)
-    cind, st = iterate(cinds)
-    index = 1
-    while !l.mask[index]
-        nx = iterate(cinds, cind)
-        nx === nothing && return nothing
-        cind, st = nx
-        index += 1
-    end
-    LatticeSite(Tuple(cind)), (l.mask, cinds, cind, index)
+    index = findfirst(l.mask)
+    index === nothing && return nothing
+    LatticeSite(Tuple(cinds[index])), (cinds, index)
 end
 
-function iterate(::Lattice, state)
-    mask, cinds, cind, index = state
-    nx = iterate(cinds, cind)
-    nx === nothing && return nothing
-    cind, st = nx
-    index += 1
-    while !mask[index]
-        nx = iterate(cinds, cind)
-        nx === nothing && return nothing
-        cind, st = nx
-        index += 1
-    end
-    LatticeSite(Tuple(cind)), (mask, cinds, cind, index)
+function iterate(l::Lattice, state)
+    cinds, index = state
+    index = findnext(l.mask, index + 1)
+    index === nothing && return nothing
+    LatticeSite(Tuple(cinds[index])), (cinds, index)
 end
 
 """
@@ -328,46 +323,11 @@ function AnyDimLattice{T,NB}(f::Function, sz::Vararg{Int,N}; kw...) where {T,N,N
     sublattice(f, l)
 end
 
-"""
-    SquareLattice{N}
-Type alias for `Lattice{:square,N,1}`.
-
----
-    SquareLattice(sz::Int...)
-
-Constructs a square lattice of size `sz`.
-"""
-const SquareLattice{N} = Lattice{:square,N,1}
-function SquareLattice{N}(sz::Vararg{Int,N}) where {N}
-    eye = SMatrix{N,N}(I)
-    Lattice(:square, sz, Bravais(eye))
-end
-site_coords(::SquareLattice, site::LatticeSite) =
-    site.unit_cell
-
-"""
-    HoneycombLattice
-Type alias for `Lattice{:honeycomb,2,2}`.
-
----
-    HoneycombLattice(sz::Vararg{Int, 2})
-
-Constructs a honeycomb lattice with a `sz`-size macro cell.
-"""
-const HoneycombLattice = Lattice{:honeycomb,2,2}
-function HoneycombLattice(sz::Vararg{Int, 2})
-    bvs = Bravais([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])
-    Lattice(:honeycomb, sz, bvs)
-end
-
-function _s(a)
-    b = IOBuffer()
-    show(b, MIME"text/plain"(), a)
-    String(take!(b))
-end
 function check_lattice_match(l1, l2)
     lattice(l1) != lattice(l2) &&
-        throw(ArgumentError("lattice mismatch:\n$(_s(lattice(l1)))\n$(_s(lattice(l2)))"))
+        throw(ArgumentError("""lattice mismatch:
+        $(repr("text/plain", lattice(l1)))
+        $(repr("text/plain", lattice(l2)))"""))
 end
 
 function check_macrocell_match(l1, l2)

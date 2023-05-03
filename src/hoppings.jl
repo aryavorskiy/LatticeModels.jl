@@ -171,8 +171,9 @@ function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field:
         p1 = site_coords(l, site1)
         pmod = exp(-2π * im * path_integral(field, p1, p1 + trv))
         !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
-        lop[i, j] = hop.hop_operator * pmod + @view lop[i, j]
-        lop[j, i] = (@view lop[i, j])'
+        ne = hop.hop_operator * pmod
+        @inbounds increment!(lop, ne, i, j)
+        @inbounds increment!(lop, ne', j, i)
     end
     lop
 end
