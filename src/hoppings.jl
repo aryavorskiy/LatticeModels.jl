@@ -101,7 +101,7 @@ function show(io::IO, m::MIME"text/plain", hop::Hopping)
     show(io, m, hop.hop_operator)
 end
 dims(h::Hopping) = length(h.translate_uc)
-dims_internal(h::Hopping) = size(h.hop_operator)[1]
+dims_internal(::Hopping{N}) where N = N
 
 """
     radius_vector(l::Lattice, hop::Hopping)
@@ -192,11 +192,11 @@ Can also be a `PairSelector`,
 - `field`: the `AbstractField` object that defines the magnetic field to generate phase factors using Peierls substitution.
 """
 function hopping_operator(lf::Function, l::Lattice, hop::Hopping, field::AbstractField=NoField())
-    lop = _zero_on_basis(l, hop.hop_operator)
+    lop = _zero_on_basis(l, dims_internal(hop))
     _hopping_operator!(lop, lf, hop, field)
 end
 function hopping_operator(l::Lattice, hop::Hopping, field::AbstractField=NoField())
-    lop = _zero_on_basis(l, hop.hop_operator)
+    lop = _zero_on_basis(l, dims_internal(hop))
     _hopping_operator!(lop, nothing, hop, field)
 end
 

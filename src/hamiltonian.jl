@@ -79,7 +79,8 @@ Each line in the block must be a `:=` assignment or a macro-like diagonal/hoppin
 
 The lattice on and the magnetic field for the hamiltonian can be set by assigning `lattice` and `field`.
 You may also need to set the internal dimension count if it is not equal to 1 - use the `dims_internal` keyword.
-The `arrtype` key sets the type of the returned array.
+The `basis` key overrides `lattice` and `dims_internal` settings and sets a `Basis` for the future hamiltonian.
+The `sparse` key sets the type of the returned array to a SparseArray (less performant, less memory consumption).
 
 `@diag` stands for a diagonal part of the hamiltonian - after this you can use a matrix
 (representing the operator affecting the internal state),
@@ -113,18 +114,18 @@ end
 
 Eigenvalues and eigenvectors for some operator.
 """
-struct Spectrum{LT<:Lattice,MT<:AbstractMatrix}
-    basis::Basis{LT}
+struct Spectrum{BT<:Basis,MT<:AbstractMatrix}
+    basis::BT
     states::MT
     energies::Vector{Float64}
-    function Spectrum(basis::Basis{LT}, states::MT, energies::AbstractVector) where {LT,MT}
+    function Spectrum(basis::BT, states::MT, energies::AbstractVector) where {BT,MT}
         length(basis) != size(states)[1] && error("inconsistent basis dimensionality")
         length(energies) != size(states)[2] && error("inconsistent energies list length")
-        new{LT,MT}(basis, states, energies)
+        new{BT,MT}(basis, states, energies)
     end
 end
 
-const LatticeOperatorMT{MT} = LatticeOperator{LT,<:MT} where {LT}
+const LatticeOperatorMT{MT} = LatticeOperator{BT,<:MT} where {BT}
 
 """
     spectrum(op::LatticeOperator)

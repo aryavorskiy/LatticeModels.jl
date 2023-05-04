@@ -31,18 +31,18 @@ function show(io::IO, m::MIME"text/plain", b::Basis)
 end
 
 @doc """
-    LatticeArray{AT, LT, N}
+    LatticeArray{AT, BT, N}
 
 A wrapper object for array representing a wave function or linear operator.
 Stores information about its basis to perform lattice checks.
 """
-struct LatticeArray{AT,LT,N}
-    basis::Basis{LT}
+struct LatticeArray{AT,BT,N}
+    basis::BT
     array::AT
-    function LatticeArray{N}(basis::Basis{LT}, array::AT) where {N, LT<:Lattice, AT}
+    function LatticeArray{N}(basis::BT, array::AT) where {N, BT<:Basis, AT}
         !all((ax in (1, length(basis))) for ax in size(array)) &&
             throw(DimensionMismatch("array has size $(size(array)), basis has length $(length(basis))"))
-        new{AT,LT,N}(basis, array)
+        new{AT,BT,N}(basis, array)
     end
     LatticeArray(basis, arr::AbstractArray{_T, N} where _T) where N =
         LatticeArray{N}(basis, arr)
@@ -50,13 +50,13 @@ struct LatticeArray{AT,LT,N}
         LatticeArray{2}(basis, smb)
 end
 
-const LatticeVector{VT,LT} = LatticeArray{VT,LT,1}
-const LatticeOperator{MT,LT} = LatticeArray{MT,LT,2}
+const LatticeVector{VT,BT} = LatticeArray{VT,BT,1}
+const LatticeOperator{MT,BT} = LatticeArray{MT,BT,2}
 
 """
-    LatticeOperator{MT, LT}
+    LatticeOperator{MT, BT}
 
-The same as `LatticeArray{MT, LT, 2}` where `MT<:AbstractMatrix`.
+The same as `LatticeArray{MT, BT, 2}` where `MT<:AbstractMatrix`.
 
 ---
     LatticeOperator(uniform_scaling::UniformScaling, basis::Basis)
@@ -114,9 +114,13 @@ The `lattice_value ⊗ matrix` notation computes the value of the `TensorProduct
 which means that the result will be a `LatticeOperator`.
 However, in the `@hamiltonian` macro lazy computation is forced.
 """
-struct TensorProduct{LVT<:LatticeValue{<:Number},MT<:AbstractMatrix}
+struct TensorProduct{LVT<:LatticeValue{<:Number},N,T}
     lattice_value::LVT
-    matrix::MT
+    matrix::SMatrix{N,N,T}
+    function TensorProduct(lv::LVT, m::AbstractMatrix{T}) where {LVT,T}
+        N = size(m)[1]
+        new{LVT,N,T}(lv, m)
+    end
 end
 
 dims_internal(tp::TensorProduct) = size(tp.matrix)[1]
@@ -127,13 +131,11 @@ copy(tp::TensorProduct) = materialize(tp)
 ⊗(lv::LatticeValue, m::Matrix) = copy(TensorProduct(lv, m))
 ⊗(m::Matrix, lv::LatticeValue) = copy(TensorProduct(lv, m))
 
-function _zero_on_basis(l::Lattice, m::AbstractMatrix)
-    N = size(m)[1]
-    LatticeArray(Basis(l, N), zero(similar(m, ComplexF64, (N * length(l), N * length(l)))))
-end
 _zero_on_basis(bas::Basis) = LatticeArray(bas, zeros(ComplexF64, length(bas), length(bas)))
-_zero_on_basis(bas::Basis, MT::Type{<:AbstractMatrix}) =
-    LatticeArray(bas, zero(similar(MT, (length(bas), length(bas)))))
+function _zero_on_basis(bas::Basis, MT::Type{<:AbstractMatrix})
+    arr = similar(MT, (length(bas), length(bas)))
+    LatticeArray(bas, fill!(arr, 0))
+end
 _zero_on_basis(bas::Basis, ::Type{SparseMatrixBuilder{T}}) where T =
     LatticeArray(bas, SparseMatrixBuilder{T}((length(bas), length(bas))))
 _zero_on_basis(l::Lattice, N::Int, args...) = _zero_on_basis(Basis(l, N), args...)
@@ -186,7 +188,8 @@ Creates a diagonal operator which affects only the internal state the same way o
 Note that the matrix of the output `LatticeOperator` will be similar to `matrix`:
 for instance, if `matrix` is sparse, so will be the output.
 """
-diag_operator(l::Lattice, m::AbstractMatrix) = _diag_operator!(_zero_on_basis(l, m), m)
+diag_operator(l::Lattice, m::MT) where MT<:AbstractMatrix =
+    _diag_operator!(_zero_on_basis(l, size(m)[1]), m)
 
 """
     diag_operator(lv::LatticeValue, N::Int=1)

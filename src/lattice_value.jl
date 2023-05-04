@@ -1,5 +1,5 @@
 using LinearAlgebra, Statistics, Logging
-import Base: length, size, pairs, getindex, setindex!, eachindex, eltype, copyto!, show, ==
+import Base: length, size, pairs, getindex, setindex!, eachindex, eltype, copyto!, mapreduce, show, ==
 
 struct LatticeValueWrapper{VT<:AbstractVector,LatticeSym}
     lattice::Lattice{LatticeSym}
@@ -18,12 +18,11 @@ size(lvw::LatticeValueWrapper) = size(lvw.values)
 length(lvw::LatticeValueWrapper) = length(lvw.values)
 function _to_index(lvw::LatticeValueWrapper, site::LatticeSite)
     i = CartesianIndex(site_index(lattice(lvw), site))
-    i === nothing ? error("index conversion failed") : return i
+    i === nothing ? throw(BoundsError(lvw, site)) : return i
 end
 _to_index(::LatticeValueWrapper, i::CartesianIndex{1}) = i
 getindex(lvw::LatticeValueWrapper, i) = getindex(lvw.values, _to_index(lvw, i))
-setindex!(lvw::LatticeValueWrapper, val, i) =
-    setindex!(lvw.values, val, _to_index(lvw, i))
+setindex!(lvw::LatticeValueWrapper, val, i) = setindex!(lvw.values, val, _to_index(lvw, i))
 eltype(lvw::LatticeValueWrapper) = eltype(lvw.values)
 eachindex(lvw::LatticeValueWrapper) = lattice(lvw)
 iterate(lvw::LatticeValueWrapper, s...) = iterate(lvw.values, s...)

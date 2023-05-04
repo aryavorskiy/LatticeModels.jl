@@ -199,7 +199,10 @@ end
         @test z3 == x
     end
     @testset "Interface" begin
-        mn, mx = extrema(xy)
+        (mn, i) = findmin(xy)
+        (mx, j) = findmax(xy)
+        @test xy[i] == mn
+        @test xy[j] == mx
         @test all(mn .≤ xy.values .≤ mx)
         imx = findall(==(mx), xy)
         @test all((site in imx || xy[site] < mx) for site in l)
@@ -281,8 +284,7 @@ end
     insert!(rec, 2, xy)
     @test rec[site] == Dict(t => xy[site]  for t in time_domain(rec))
     @test rec[xly] == LatticeRecord(fill(xy[xly], 3), [0:2;])
-    @test collect(rec) == [xy, xy, xy]
-    @test collect(pairs(rec)) == [0 => xy, 1 => xy, 2 => xy]
+    @test collect(rec) == [0 => xy, 1 => xy, 2 => xy]
     @test diff(rec) == LatticeRecord([zeros(l), zeros(l)], [0.5, 1.5])
     rec2 = init_record(xy .* 0)
     insert!(rec2, 1, xy .* 1)
@@ -486,6 +488,7 @@ end
             lattice := l
             field := fld
             dims_internal := 2
+            sparse := true
             @diag σ[3]
             @hop (σ[3] - im * σ[1]) / 2 axis=1 sel
             @hop (σ[3] - im * σ[2]) / 2 axis=2 sel
