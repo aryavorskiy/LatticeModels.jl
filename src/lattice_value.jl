@@ -45,14 +45,15 @@ const LatticeValue{T, LT} = LatticeValueWrapper{Vector{T}, LT}
 Constructs a LatticeValue object.
 """
 LatticeValue(l::Lattice, v::AbstractVector) = LatticeValueWrapper(l, convert(Vector, v))
-LatticeValue(lf, l::Lattice) = LatticeValue(l, [lf(site, site_coords(l, site)) for site in l])
+LatticeValue(lf, l::Lattice) = LatticeValue(l, [lf(site, site.coords) for site in l])
 
 """
     coord_values(l::Lattice)
 
 Generates a tuple of `LatticeValue`s representing spatial coordinates.
 """
-coord_values(l::Lattice) = [LatticeValue(l, vec) for vec in eachrow(collect_coords(l))]
+coord_values(l::Lattice) =
+    [LatticeValue(l, vec) for vec in eachrow(collect_coords(l))]
 
 import Base: rand, randn, fill, fill!, zero, zeros, one, ones
 rand(l::Lattice) = LatticeValue(l, rand(length(l)))

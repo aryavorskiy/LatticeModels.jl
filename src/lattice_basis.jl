@@ -111,9 +111,8 @@ function coord_operators(bas::Basis)
     xyz_operators = [LatticeArray(bas, op_mat) for op_mat in
                      eachslice(zeros(length(bas), length(bas), d), dims=3)]
     for (i, site) in enumerate(lattice(bas))
-        crd = site_coords(lattice(bas), site)
         for j in 1:d
-            xyz_operators[j][i, i] = crd[j] * eye
+            xyz_operators[j][i, i] = site.coords[j] * eye
         end
     end
     xyz_operators

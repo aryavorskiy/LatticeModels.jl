@@ -57,10 +57,18 @@ struct Lattice{LatticeSym,N,NB}
     lattice_size::NTuple{N,Int}
     bravais::Bravais{N,NB}
     mask::Vector{Bool}
-    function Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N,NB}, mask) where {N,NB}
+    coords::Array{Float64}
+    function Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N,NB}, mask; kw...) where {N,NB}
         length(mask) != prod(sz) * length(bvs) &&
             error("inconsistent mask length")
-        new{sym,N,NB}(sz, bvs, mask)
+        coords = zeros(N, NB, sz...)
+        i = 1
+        for basis_index in 1:NB, cind in CartesianIndex{N}():CartesianIndex(sz)
+            unit_cell = SVector(Tuple(cind))
+            coords[:, basis_index, cind] = bvs.basis[:, basis_index] + bvs.translation_vectors * unit_cell
+            i += 1
+        end
+        new{sym,N,NB}(sz, bvs, mask, coords)
     end
 end
 Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}) where {N} =
@@ -88,29 +96,44 @@ Fields:
 - `basis_index`: the number of site in the lattice basis.
 
 This type is used to iterate over all sites of a `Lattice{LatticeSym, N, NB}`.
-The exact location of a `LatticeSite` can be found using the `site_coords(lattice, site)` function.
+The exact location of a `LatticeSite` can be found using the `site.coords` function.
 """
 struct LatticeSite{N}
     unit_cell::SVector{N,Int}
     basis_index::Int
+    coords::SVector{N,Float64}
+end
+function getproperty(site::LatticeSite{N}, sym::Symbol) where N
+    if N ≥ 1 && sym === :x
+        site.coords[1]
+    elseif N ≥ 2 && sym === :y
+        site.coords[2]
+    elseif N ≥ 3 && sym === :z
+        site.coords[3]
+    else
+        getfield(site, sym)
+    end
 end
 
-LatticeSite(tup::NTuple{N,Int}) where {N} = LatticeSite{N - 1}(SVector(tup[2:end]), tup[1])
-LatticeSite(uc, bi) = LatticeSite((bi, uc...))
+function LatticeSite(unit_cell, basis_index, l::Lattice)
+    crd = SVector{dims(l)}(@inbounds l.coords[:, basis_index, unit_cell...])
+    LatticeSite(unit_cell, basis_index, crd)
+end
 
 _cind(site::LatticeSite) = CartesianIndex(site.basis_index, site.unit_cell...)
 
 _cinds(l::Lattice{LatticeSym,N,NB} where {LatticeSym}) where {N,NB} =
     CartesianIndex{N + 1}(1):CartesianIndex(NB, size(l)...)
 
-function getindex(l::Lattice, i::Int)
+function getindex(l::Lattice{Sym, N} where Sym, i::Int) where N
     counter = 0
     cinds = _cinds(l)
     i ≤ 0 && throw(BoundsError(l, i))
     for j in 1:length(l.mask)
         counter += l.mask[j]
         if counter == i
-            return LatticeSite(Tuple(cinds[j]))
+            basis_index, unit_cell... = Tuple(cinds[j])
+            return LatticeSite(SVector(unit_cell), basis_index, SVector{N}(view(l.coords, :, cinds[j])))
         end
     end
     throw(BoundsError(l, i))
@@ -157,29 +180,25 @@ Base.eltype(::Lattice{LatticeSym,N}) where {LatticeSym,N} = LatticeSite{N}
 isless(@nospecialize(site1::LatticeSite), @nospecialize(site2::LatticeSite)) =
     isless(_cind(site1), _cind(site2))
 
-function iterate(l::Lattice)
+function iterate(l::Lattice{Sym,N} where Sym) where N
     cinds = _cinds(l)
     index = findfirst(l.mask)
     index === nothing && return nothing
-    LatticeSite(Tuple(cinds[index])), (cinds, index)
+    cind = cinds[index]
+    basis_index, unit_cell... = Tuple(cind)
+    LatticeSite(SVector(unit_cell), basis_index, SVector{N}(@inbounds view(l.coords, :, cind))),
+        (cinds, index)
 end
 
-function iterate(l::Lattice, state)
+function iterate(l::Lattice{Sym,N} where Sym, state) where N
     cinds, index = state
     index = findnext(l.mask, index + 1)
     index === nothing && return nothing
-    LatticeSite(Tuple(cinds[index])), (cinds, index)
+    cind = cinds[index]
+    basis_index, unit_cell... = Tuple(cind)
+    LatticeSite(SVector(unit_cell), basis_index, SVector{N}(@inbounds view(l.coords, :, cind))),
+        (cinds, index)
 end
-
-"""
-    site_coords(lattice::Lattice, site::LatticeSite) -> vector
-Finds the location in space of lattice site `site` on lattice `lattice`.
-"""
-site_coords(lattice::Lattice, site::LatticeSite) =
-    bravais(lattice).basis[:, site.basis_index] + bravais(lattice).translation_vectors * site.unit_cell
-
-site_coords(lattice::Lattice{LatticeSym,N,1} where {LatticeSym,N}, site::LatticeSite) =
-    bravais(lattice).translation_vectors * site.unit_cell
 
 """
     radius_vector(l::Lattice, site1::LatticeSite, site2::LatticeSite) -> vector
@@ -204,7 +223,7 @@ function site_distance(l::Lattice, site1::LatticeSite, site2::LatticeSite; pbc=f
     if pbc
         norm(radius_vector(l, site1, site2))
     else
-        norm(site_coords(l, site1) - site_coords(l, site2))
+        norm(site1.coords - site2.coords)
     end
 end
 
@@ -239,14 +258,8 @@ site_distance(;pbc) = (l, site1, site2) -> site_distance(l, site1, site2, pbc=pb
     end
 end
 
-function collect_coords(l::Lattice)
-    d = dims(l)
-    pts = zeros(d, length(l))
-    for (i, site) in enumerate(l)
-        pts[:, i] = site_coords(l, site)
-    end
-    pts
-end
+collect_coords(l::Lattice{Sym, N}where Sym) where N =
+    view(reshape(l.coords, (N, :)), :, l.mask)
 
 @recipe function f(l::Lattice, v)
     aspect_ratio := :equal
@@ -304,7 +317,7 @@ and return a boolean value.
 """
 function sublattice(f::Function, l::Lattice{LatticeSym}) where {LatticeSym}
     new_mask = zero(l.mask)
-    new_mask[l.mask] = [f(site, site_coords(l, site)) for site in l]
+    new_mask[l.mask] = [f(site, site.coords) for site in l]
     Lattice(LatticeSym, size(l), bravais(l), new_mask)
 end
 

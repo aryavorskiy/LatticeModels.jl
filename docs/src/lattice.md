@@ -38,8 +38,7 @@ plot!(p[2], HoneycombLattice(8, 4))
 ## [Lattice sites and axis descriptors](@id axis_descriptors)
 
 A [`LatticeSite`](@ref) is a struct describing where a site of some Bravais lattice is located: 
-it stores the location of the unit cell and the site's number in the lattice basis.
-No information about its spatial coordinates is stored explicitly, but it can be obtained by passing the corresponding `Lattice` and the site to the [`site_coords`](@ref) function.
+it stores the location of the unit cell and the site's number in the lattice basis. Its spatial coordinates are also stored inside, which you can access via the `coords` field as a vector or using accesors like `x`, `y`, `z` for individual coordinates.
 
 Iterating over any `Lattice` will yield `LatticeSite`s. 
 You can also get them by indexing the `Lattice` object with integers or coordinate keywords:

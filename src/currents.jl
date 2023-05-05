@@ -210,7 +210,7 @@ end
         for (j, site2) in enumerate(l)
             j ≥ i && continue
             ij_curr = curr_fn(i, j)::Real
-            crd = site_coords(l, (ij_curr > 0 ? site1 : site2))
+            crd = ij_curr > 0 ? site1.coords : site2.coords
             vc = radius_vector(l, site2, site1)
             vc_n = norm(vc)
             if vc_n < abs(ij_curr * plotattributes[:arrows_scale] / plotattributes[:arrows_rtol])

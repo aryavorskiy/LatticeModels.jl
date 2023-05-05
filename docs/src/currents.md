@@ -71,7 +71,7 @@ dist, adcurr = map_currents(
     reduce_fn=(x -> [mean(abs.(x)), std(abs.(x))]),
     sort=true
 ) do l, site1, site2
-    norm(site_coords(l, site1) - site_coords(l, site2))
+    norm(site1.coords - site2.coords)
 end
 
 acurr, dcurr = eachcol(adcurr)

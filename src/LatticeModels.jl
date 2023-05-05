@@ -2,7 +2,7 @@ module LatticeModels
 
 include("utils.jl")
 include("lattice.jl")
-export Bravais, LatticeSite, Lattice, dims, sublattice, site_coords, site_index, site_distance
+export Bravais, LatticeSite, Lattice, dims, sublattice, site_index, site_distance
 
 include("lattice_value.jl")
 export LatticeValue, coord_values, project

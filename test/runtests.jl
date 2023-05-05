@@ -125,7 +125,7 @@ end
     @test s_3 == s_4
     @test s_4 == s_5
     @test_throws MethodError hl[x.<y]
-    @test hl[j1=3, j2=2, index=1] == LatticeSite([3, 2], 1)
+    @test hl[j1=3, j2=2, index=1] == LatticeSite(SA[3, 2], 1, SA[3., 2.])
     xb, yb = coord_values(SquareLattice(5, 40))
     @static if VERSION ≥ v"1.8"
         @test_throws "macrocell mismatch" sql[xb.<yb]
@@ -233,7 +233,7 @@ end
     vcv = zeros(length(bas))
     vcv[1] = 1
     vc = LatticeModels.LatticeArray(bas, vcv)
-    xf = site_coords(l, l[1])[1]
+    xf = l[1].x
 
     @testset "In-place arithmetics" begin
         @test X - Y == X + -Y
@@ -341,7 +341,7 @@ end
     x, y = coord_values(l)
     op1 = hopping_operator(PairLhsSelector(x .< y), l, hopping(axis=1))
     op2 = hopping_operator(l, hopping(axis=1)) do l, site1, site2
-        local (x, y) = site_coords(l, site1)
+        local (x, y) = site1.coords
         x < y
     end
     @test op1 == op2
@@ -419,7 +419,7 @@ end
         end
         x, y = coord_values(l)
         H0 = [1 0; 0 -1] ⊗ (@. x + y) + hopping_operator(l, hopping([1 0; 0 -1], axis=2), LandauField(0.5)) do l, site1, site2
-            local (x, y) = site_coords(l, site1)
+            local (x, y) = site1.coords
             x + 1 < y
         end
         H1 = @hamiltonian begin
@@ -433,7 +433,7 @@ end
             lattice := l
             dims_internal := 2
             @hop translate_uc = [0, 1] pbc = [true, false] [1 0; 0 -1] (l, s1, s2) ->
-                                                    ((x, y) = site_coords(l, s1); x + 1 < y)
+                                                    ((x, y) = s1.coords; x + 1 < y)
             @diag (site, (x, y)) -> [x+y 0; 0 -x-y]
             field := LandauField(0.5)
         end

@@ -17,8 +17,6 @@ function SquareLattice{N}(sz::Vararg{Int,N}) where {N}
     Lattice(:square, sz, Bravais(eye))
 end
 
-site_coords(::SquareLattice, site::LatticeSite) = site.unit_cell
-
 @recipe function f(lv::PlottableLatticeValue{:square})
     seriestype --> :heatmap
     if plotattributes[:seriestype] === :heatmap
@@ -204,7 +202,7 @@ Haldane(l::HoneycombLattice, t1::Real, t2::Real, m::Real=0; field=NoField(), pbc
     lattice := l
     dims_internal := 1
     field := field
-    @diag (site, _) -> (site.basis_index == 1 ? m : -m)
+    @diag (site) -> (site.basis_index == 1 ? m : -m)
     @hop t1 site_indices=(2,1) pbc=pbc
     @hop t1 site_indices=(2,1) axis=1 pbc=pbc
     @hop t1 site_indices=(2,1) axis=2 pbc=pbc
