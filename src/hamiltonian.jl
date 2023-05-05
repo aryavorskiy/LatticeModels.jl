@@ -27,7 +27,7 @@ function _hamiltonian_block(block::Expr)
     eltype_sym = get(assignments, :eltype, :ComplexF64)
     arrtype_sym = sparse_sym ? :(SparseMatrixBuilder{$eltype_sym}) : :(Matrix{$eltype_sym})
     ham_block = quote
-        H = _zero_on_basis($basis_sym, $arrtype_sym)
+        H = zero_on_basis($basis_sym, $arrtype_sym)
     end
     for line in block.args
         if Meta.isexpr(line, :macrocall)
@@ -75,12 +75,16 @@ end
 
 Creates a hamiltonian according to the rules defined in the `block`.
 
-Each line in the block must be a `:=` assignment or a macro-like diagonal/hopping operator description.
+Each line in the block must be a key assignment via `:=` operator
+or a macro-like diagonal/hopping operator description.
 
-The lattice on and the magnetic field for the hamiltonian can be set by assigning `lattice` and `field`.
-You may also need to set the internal dimension count if it is not equal to 1 - use the `dims_internal` keyword.
-The `basis` key overrides `lattice` and `dims_internal` settings and sets a `Basis` for the future hamiltonian.
-The `sparse` key sets the type of the returned array to a SparseArray (less performant, less memory consumption).
+List of supported keys:
+- `lattice`: sets the `Lattice` object on which the hamiltonian will be generated.
+- `dims_internal`: sets the number of degrees of freedom on each site. Default value: 1
+- `basis`: overrides `lattice` and `dims_internal`, sets a `Basis` for the future hamiltonian.
+- `field`: sets the magnetic field. Default value: `NoField()`.
+- `sparse`: if set to `true`, the output will be a sparse matrix.
+- `eltype`: changes the element type of the matrix. Default is `ComplexF64`.
 
 `@diag` stands for a diagonal part of the hamiltonian - after this you can use a matrix
 (representing the operator affecting the internal state),

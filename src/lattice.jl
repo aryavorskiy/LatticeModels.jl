@@ -31,7 +31,6 @@ Bravais(translation_vectors::AbstractMatrix{<:Real}) =
     Bravais(translation_vectors, zeros((size(translation_vectors)[1], 1)))
 
 dims(@nospecialize _::Bravais{N}) where {N} = N
-dims(l) = dims(bravais(l))
 length(::Bravais{N,NB}) where {N,NB} = NB
 
 """
@@ -76,6 +75,7 @@ size(l::Lattice) = l.lattice_size
 length(l::Lattice) = count(l.mask)
 lattice_type(::Lattice{LatticeSym}) where {LatticeSym} = LatticeSym
 dims(::Lattice{LatticeSym,N} where {LatticeSym}) where {N} = N
+dims(l) = dims(lattice(l))
 basis_length(::Lattice{LatticeSym,N,NB} where {LatticeSym,N}) where {NB} = NB
 bravais(l::Lattice) = l.bravais
 

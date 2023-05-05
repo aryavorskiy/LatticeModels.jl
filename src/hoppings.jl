@@ -192,11 +192,11 @@ Can also be a `PairSelector`,
 - `field`: the `AbstractField` object that defines the magnetic field to generate phase factors using Peierls substitution.
 """
 function hopping_operator(lf::Function, l::Lattice, hop::Hopping, field::AbstractField=NoField())
-    lop = _zero_on_basis(l, dims_internal(hop))
+    lop = zero_on_basis(Basis(l, dims_internal(hop)))
     _hopping_operator!(lop, lf, hop, field)
 end
 function hopping_operator(l::Lattice, hop::Hopping, field::AbstractField=NoField())
-    lop = _zero_on_basis(l, dims_internal(hop))
+    lop = zero_on_basis(Basis(l, dims_internal(hop)))
     _hopping_operator!(lop, nothing, hop, field)
 end
 
@@ -292,7 +292,7 @@ macro hopping_operator(for_loop::Expr)
                 block_res = $(esc(body))
                 if block_res !== nothing
                     if matrix === nothing
-                        matrix = _zero_on_basis(l, block_res)
+                        matrix = zero_on_basis(basis(l, block_res))
                     end
                     matrix[i, j] .= block_res
                     matrix[j, i] .= block_res'

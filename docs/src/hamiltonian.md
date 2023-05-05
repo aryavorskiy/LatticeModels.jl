@@ -35,7 +35,7 @@ nothing # hide
 
 Note that the keyword arguments for hopping operators are written as if they were passed to the [`hopping`](@ref) function.
 
-For a Chern insulator the hamiltonian looks like this:
+For a QWZ model Chern insulator the hamiltonian looks like this:
 
 $$\hat{H} = 
 \sum_i^\text{sites} m_i c^\dagger_i \sigma_z c_i + 

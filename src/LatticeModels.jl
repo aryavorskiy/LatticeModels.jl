@@ -6,7 +6,9 @@ export Bravais, LatticeSite, Lattice, dims, sublattice, site_coords, site_index,
 
 include("lattice_value.jl")
 export LatticeValue, coord_values, project
+
 include("lattice_array.jl")
+include("lattice_basis.jl")
 export LatticeArray, LatticeOperator, Basis, ⊗, lattice, basis, dims_internal,
     diag_operator, coord_operators, diag_reduce, ptrace, site_density, @on_lattice
 
