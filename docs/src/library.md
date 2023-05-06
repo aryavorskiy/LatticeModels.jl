@@ -22,7 +22,7 @@ Pages   = ["lattice_value.jl"]
 
 ```@autodocs
 Modules = [LatticeModels]
-Pages   = ["lattice_array.jl"]
+Pages   = ["lattice_array.jl", "lattice_basis.jl"]
 ```
 
 ## Hoppings
@@ -65,4 +65,11 @@ Pages   = ["evolution.jl"]
 ```@autodocs
 Modules = [LatticeModels]
 Pages   = ["record.jl"]
+```
+
+## Model zoo
+
+```@autodocs
+Modules = [LatticeModels]
+Pages   = ["zoo.jl"]
 ```

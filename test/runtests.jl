@@ -3,7 +3,7 @@ using LatticeModels
 
 @testset "Workflows" begin
     @test begin
-        l = SquareLattice(10, 10) do site, (x, y)
+        l = SquareLattice(10, 10) do (x, y)
             √(x^2 + y^2) < 5
         end
         b = Basis(l, 1)
@@ -103,10 +103,10 @@ end
     sql = SquareLattice(10, 20)
     @test [site_index(sql, s) for s in sql] == 1:length(sql)
     x, y = coord_values(sql)
-    s_0 = SquareLattice(10, 20) do site, (x, y)
+    s_0 = SquareLattice(10, 20) do (x, y)
         x < y
     end
-    s_1 = sublattice(sql) do site, (x, y)
+    s_1 = sublattice(sql) do (x, y)
         x < y
     end
     s_2 = sql[x.<y]
@@ -115,10 +115,10 @@ end
 
     hl = HoneycombLattice(10, 10)
     xh, yh = coord_values(hl)
-    s_3 = HoneycombLattice(10, 10) do site, (x, y)
+    s_3 = HoneycombLattice(10, 10) do (x, y)
         x < y
     end
-    s_4 = sublattice(hl) do site, (x, y)
+    s_4 = sublattice(hl) do (x, y)
         x < y
     end
     s_5 = hl[xh.<yh]
@@ -130,7 +130,7 @@ end
     @static if VERSION ≥ v"1.8"
         @test_throws "macrocell mismatch" sql[xb.<yb]
     end
-    sql2 = sublattice(sql) do site, crd
+    sql2 = sublattice(sql) do site
         site ∉ (sql[1], sql[end])
     end
     pop!(sql)
@@ -150,16 +150,16 @@ end
     x, y = coord_values(l)
     xtr = diag_reduce(tr, X)
     xtr2 = site_density(X)
-    xm2 = LatticeValue(l) do site, (x, y)
+    xm2 = LatticeValue(l) do (x, y)
         2x
     end
-    y = LatticeValue(l) do site, (x, y)
+    y = LatticeValue(l) do (x, y)
         y
     end
-    xy = LatticeValue(l) do site, (x, y)
-        x * y
+    xy = LatticeValue(l) do site
+        site.x * site.y
     end
-    idxs = LatticeValue(l) do site, crd
+    idxs = LatticeValue(l) do site
         site_index(l, site)
     end
     @test [idxs[s] for s in l] == 1:length(l)
@@ -176,7 +176,7 @@ end
             @test_throws "cannot broadcast" x .* ones(100)
         end
         l2 = SquareLattice(5, 20)
-        x2 = LatticeValue(l2) do site, (x, y)
+        x2 = LatticeValue(l2) do (x, y)
             x
         end
         @static if VERSION ≥ v"1.8"
@@ -214,16 +214,16 @@ end
     bas = Basis(l, 2)
     X, Y = coord_operators(bas)
     x, y = coord_values(l)
-    xsq = diag_operator(l, 2) do site, (x, y)
-        x^2
+    xsq = diag_operator(bas) do site
+        site.x^2
     end
-    xy = diag_operator(l, 2) do site, (x, y)
-        x * y * [1 0; 0 1]
+    xy = diag_operator(bas) do site
+        site.x * site.y * [1 0; 0 1]
     end
-    x2p2ym1 = diag_operator(bas) do site, (x, y)
+    x2p2ym1 = diag_operator(bas) do (x, y)
         (x * 2 + 2y - 1) * [1 0; 0 1]
     end
-    xd2pxypexpy = diag_operator(bas) do site, (x, y)
+    xd2pxypexpy = diag_operator(bas) do (x, y)
         (x / 2 + x * y + exp(y)) * [1 0; 0 1]
     end
 
@@ -255,7 +255,7 @@ end
         @test (x .* y) ⊗ [1 0; 0 1] == xy
         @test [1 0; 0 1] ⊗ (x .* y) == xy
         @static if VERSION ≥ v"1.8"
-            @test_throws "Lambda returned a String" diag_operator(l, 2) do _, _; "kek"; end
+            @test_throws "Lambda returned a String" diag_operator(bas2) do _; "kek"; end
         end
     end
     @testset "Wrapper macro" begin
@@ -335,7 +335,8 @@ end
         @test bs2(l, ls1, ls3)
         @test bs2(l, ls1, ls4)
     end
-    l = SquareLattice(5, 5) do xite, (x, y)
+    l = SquareLattice(5, 5) do site
+        local (x, y) = site.coords
         abs(x + y) < 2.5
     end
     x, y = coord_values(l)
@@ -414,7 +415,8 @@ end
 
 @testset "Hamiltonian" begin
     @testset "Hamiltonian macro" begin
-        l = HoneycombLattice(10, 10) do site, (x, y)
+        l = HoneycombLattice(10, 10) do site
+            local (x, y) = site.coords
             x < y
         end
         x, y = coord_values(l)
@@ -434,7 +436,7 @@ end
             dims_internal := 2
             @hop translate_uc = [0, 1] pbc = [true, false] [1 0; 0 -1] (l, s1, s2) ->
                                                     ((x, y) = s1.coords; x + 1 < y)
-            @diag (site, (x, y)) -> [x+y 0; 0 -x-y]
+            @diag site -> [site.x+site.y 0; 0 -site.x-site.y]
             field := LandauField(0.5)
         end
         @test H1 == H0
@@ -471,7 +473,7 @@ end
         H2 = @hamiltonian begin
             lattice := l
             field := fld
-            @diag (_, (x, y)) -> x + exp(y)
+            @diag site -> site.x + exp(site.y)
             @hop site_indices=(2,1)
             @hop site_indices=(2,1) axis=1
             @hop site_indices=(2,1) axis=2

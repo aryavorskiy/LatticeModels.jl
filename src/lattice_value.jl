@@ -45,7 +45,7 @@ const LatticeValue{T, LT} = LatticeValueWrapper{Vector{T}, LT}
 Constructs a LatticeValue object.
 """
 LatticeValue(l::Lattice, v::AbstractVector) = LatticeValueWrapper(l, convert(Vector, v))
-LatticeValue(lf, l::Lattice) = LatticeValue(l, [lf(site, site.coords) for site in l])
+LatticeValue(lf, l::Lattice) = LatticeValue(l, [lf(site) for site in l])
 
 """
     coord_values(l::Lattice)

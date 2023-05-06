@@ -1,6 +1,6 @@
 using RecipesBase, LinearAlgebra, Logging, StaticArrays
 import Base: length, size, copy, iterate, getindex, eltype, show, ==, isless,
-    pop!, popat!, popfirst!, splice!, lastindex
+    pop!, popat!, popfirst!, splice!, lastindex, getproperty
 
 """
     Bravais{N, NB}
@@ -57,18 +57,10 @@ struct Lattice{LatticeSym,N,NB}
     lattice_size::NTuple{N,Int}
     bravais::Bravais{N,NB}
     mask::Vector{Bool}
-    coords::Array{Float64}
     function Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N,NB}, mask; kw...) where {N,NB}
         length(mask) != prod(sz) * length(bvs) &&
             error("inconsistent mask length")
-        coords = zeros(N, NB, sz...)
-        i = 1
-        for basis_index in 1:NB, cind in CartesianIndex{N}():CartesianIndex(sz)
-            unit_cell = SVector(Tuple(cind))
-            coords[:, basis_index, cind] = bvs.basis[:, basis_index] + bvs.translation_vectors * unit_cell
-            i += 1
-        end
-        new{sym,N,NB}(sz, bvs, mask, coords)
+        new{sym,N,NB}(sz, bvs, mask)
     end
 end
 Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}) where {N} =
@@ -86,6 +78,12 @@ dims(::Lattice{LatticeSym,N} where {LatticeSym}) where {N} = N
 dims(l) = dims(lattice(l))
 basis_length(::Lattice{LatticeSym,N,NB} where {LatticeSym,N}) where {NB} = NB
 bravais(l::Lattice) = l.bravais
+
+site_coords(l::Lattice, basis_index::Int, unit_cell) =
+    bravais(l).basis[:, basis_index] + bravais(l).translation_vectors * unit_cell
+site_coords(l::Lattice{Sym,N,1} where {Sym,N}, ::Int, unit_cell) =
+    bravais(l).translation_vectors * unit_cell
+site_coords(::Lattice{:square,N,1} where {N}, ::Int, unit_cell) = Float64.(unit_cell)
 
 """
     LatticeSite{N}
@@ -116,14 +114,17 @@ function getproperty(site::LatticeSite{N}, sym::Symbol) where N
 end
 
 function LatticeSite(unit_cell, basis_index, l::Lattice)
-    crd = SVector{dims(l)}(@inbounds l.coords[:, basis_index, unit_cell...])
-    LatticeSite(unit_cell, basis_index, crd)
+    LatticeSite(unit_cell, basis_index, site_coords(l, basis_index, unit_cell))
 end
+
+iterate(site::LatticeSite{N}, i=1) where N = i > N ? nothing : (site.coords[i], i + 1)
 
 _cind(site::LatticeSite) = CartesianIndex(site.basis_index, site.unit_cell...)
 
 _cinds(l::Lattice{LatticeSym,N,NB} where {LatticeSym}) where {N,NB} =
     CartesianIndex{N + 1}(1):CartesianIndex(NB, size(l)...)
+
+site_coords(::Lattice, site::LatticeSite) =  error("`site_coords(l, site)` is no longer available. Use `site.coords` instead")
 
 function getindex(l::Lattice{Sym, N} where Sym, i::Int) where N
     counter = 0
@@ -133,7 +134,7 @@ function getindex(l::Lattice{Sym, N} where Sym, i::Int) where N
         counter += l.mask[j]
         if counter == i
             basis_index, unit_cell... = Tuple(cinds[j])
-            return LatticeSite(SVector(unit_cell), basis_index, SVector{N}(view(l.coords, :, cinds[j])))
+            return LatticeSite(SVector(unit_cell), basis_index, l)
         end
     end
     throw(BoundsError(l, i))
@@ -186,8 +187,7 @@ function iterate(l::Lattice{Sym,N} where Sym) where N
     index === nothing && return nothing
     cind = cinds[index]
     basis_index, unit_cell... = Tuple(cind)
-    LatticeSite(SVector(unit_cell), basis_index, SVector{N}(@inbounds view(l.coords, :, cind))),
-        (cinds, index)
+    LatticeSite(SVector(unit_cell), basis_index, l), (cinds, index)
 end
 
 function iterate(l::Lattice{Sym,N} where Sym, state) where N
@@ -196,8 +196,7 @@ function iterate(l::Lattice{Sym,N} where Sym, state) where N
     index === nothing && return nothing
     cind = cinds[index]
     basis_index, unit_cell... = Tuple(cind)
-    LatticeSite(SVector(unit_cell), basis_index, SVector{N}(@inbounds view(l.coords, :, cind))),
-        (cinds, index)
+    LatticeSite(SVector(unit_cell), basis_index, l), (cinds, index)
 end
 
 """
@@ -258,8 +257,14 @@ site_distance(;pbc) = (l, site1, site2) -> site_distance(l, site1, site2, pbc=pb
     end
 end
 
-collect_coords(l::Lattice{Sym, N}where Sym) where N =
-    view(reshape(l.coords, (N, :)), :, l.mask)
+function collect_coords(l::Lattice)
+    d = dims(l)
+    pts = zeros(d, length(l))
+    for (i, site) in enumerate(l)
+        pts[:, i] = site.coords
+    end
+    pts
+end
 
 @recipe function f(l::Lattice, v)
     aspect_ratio := :equal
@@ -312,12 +317,11 @@ end
 """
     sublattice(lf::Function, l::Lattice) -> Lattice
 Generates a a subset of lattice `l` by applying the `lf` function to its sites.
-The `lf` function must accept two positional arguments (a `LatticeSite` and a vector with its coordinates)
-and return a boolean value.
+The `lf` function must return a boolean value.
 """
 function sublattice(f::Function, l::Lattice{LatticeSym}) where {LatticeSym}
     new_mask = zero(l.mask)
-    new_mask[l.mask] = [f(site, site.coords) for site in l]
+    new_mask[l.mask] = [f(site) for site in l]
     Lattice(LatticeSym, size(l), bravais(l), new_mask)
 end
 
