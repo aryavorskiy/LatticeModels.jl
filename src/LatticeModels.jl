@@ -40,7 +40,7 @@ export SquareLattice, HoneycombLattice,
     TightBinding, SpinTightBinding, Haldane,
     DensityCurrents
 
-# include("precompile.jl")
-# _precompile_()
+include("precompile.jl")
+_precompile_()
 
 end # module LatticeModels

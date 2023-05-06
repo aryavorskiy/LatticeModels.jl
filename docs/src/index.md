@@ -68,7 +68,7 @@ The tight-binding hamiltonian is the same as in the example above.
 using LatticeModels
 using Plots
 
-l = SquareLattice(10, 10) do site, (x, y)
+l = SquareLattice(10, 10) do (x, y)
     !(4 < x < 7 && 4 < y < 7)
 end
 h(B) = TightBinding(l, field=FluxField(B))
