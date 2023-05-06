@@ -1,5 +1,5 @@
 using LinearAlgebra, Statistics, Logging
-import Base: length, size, pairs, getindex, setindex!, eachindex, eltype, copyto!, show, ==
+import Base: length, size, pairs, getindex, setindex!, eachindex, eltype, copyto!, mapreduce, show, ==
 
 struct LatticeValueWrapper{VT<:AbstractVector,LatticeSym}
     lattice::Lattice{LatticeSym}
@@ -18,12 +18,11 @@ size(lvw::LatticeValueWrapper) = size(lvw.values)
 length(lvw::LatticeValueWrapper) = length(lvw.values)
 function _to_index(lvw::LatticeValueWrapper, site::LatticeSite)
     i = CartesianIndex(site_index(lattice(lvw), site))
-    i === nothing ? error("index conversion failed") : return i
+    i === nothing ? throw(BoundsError(lvw, site)) : return i
 end
 _to_index(::LatticeValueWrapper, i::CartesianIndex{1}) = i
 getindex(lvw::LatticeValueWrapper, i) = getindex(lvw.values, _to_index(lvw, i))
-setindex!(lvw::LatticeValueWrapper, val, i) =
-    setindex!(lvw.values, val, _to_index(lvw, i))
+setindex!(lvw::LatticeValueWrapper, val, i) = setindex!(lvw.values, val, _to_index(lvw, i))
 eltype(lvw::LatticeValueWrapper) = eltype(lvw.values)
 eachindex(lvw::LatticeValueWrapper) = lattice(lvw)
 iterate(lvw::LatticeValueWrapper, s...) = iterate(lvw.values, s...)
@@ -46,14 +45,15 @@ const LatticeValue{T, LT} = LatticeValueWrapper{Vector{T}, LT}
 Constructs a LatticeValue object.
 """
 LatticeValue(l::Lattice, v::AbstractVector) = LatticeValueWrapper(l, convert(Vector, v))
-LatticeValue(lf, l::Lattice) = LatticeValue(l, [lf(site, site_coords(l, site)) for site in l])
+LatticeValue(lf, l::Lattice) = LatticeValue(l, [lf(site) for site in l])
 
 """
     coord_values(l::Lattice)
 
 Generates a tuple of `LatticeValue`s representing spatial coordinates.
 """
-coord_values(l::Lattice) = [LatticeValue(l, vec) for vec in eachrow(collect_coords(l))]
+coord_values(l::Lattice) =
+    [LatticeValue(l, vec) for vec in eachrow(collect_coords(l))]
 
 import Base: rand, randn, fill, fill!, zero, zeros, one, ones
 rand(l::Lattice) = LatticeValue(l, rand(length(l)))
@@ -215,18 +215,6 @@ function plot_fallback(lv::LatticeValue)
 end
 
 const PlottableLatticeValue{LT} = LatticeValue{<:Number, LT}
-
-@recipe function f(lv::PlottableLatticeValue{:square})
-    seriestype --> :heatmap
-    if plotattributes[:seriestype] === :heatmap
-        aspect_ratio := :equal
-        axes_lims = [1:ax for ax in size(lattice(lv))]
-        heatmap_values = reshape(macro_cell_values(lv), reverse(size(lattice(lv))))'
-        axes_lims..., heatmap_values
-    else
-        plot_fallback(lv)
-    end
-end
 
 @recipe function f(lv::PlottableLatticeValue)
     lv.lattice, lv.values

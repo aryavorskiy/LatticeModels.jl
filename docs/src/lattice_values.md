@@ -9,7 +9,7 @@ using LatticeModels, Plots
 
 ```@repl env
 l = SquareLattice(10, 10)
-lv = LatticeValue(l) do site, (x, y); x + y + 1; end    # arbitrary site-dependent
+lv = LatticeValue(l) do (x, y); x + y + 1; end    # arbitrary site-dependent
 lv2 = rand(l)                               # uniformly distributed random numbers
 lv3 = randn(l)                              # normally distributed random numbers
 lv4 = ones(l)                               # 1 on all sites. Also zeros(l) is possible

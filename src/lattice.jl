@@ -1,6 +1,6 @@
 using RecipesBase, LinearAlgebra, Logging, StaticArrays
 import Base: length, size, copy, iterate, getindex, eltype, show, ==, isless,
-    pop!, popat!, popfirst!, splice!, lastindex
+    pop!, popat!, popfirst!, splice!, lastindex, getproperty
 
 """
     Bravais{N, NB}
@@ -31,7 +31,6 @@ Bravais(translation_vectors::AbstractMatrix{<:Real}) =
     Bravais(translation_vectors, zeros((size(translation_vectors)[1], 1)))
 
 dims(@nospecialize _::Bravais{N}) where {N} = N
-dims(l) = dims(bravais(l))
 length(::Bravais{N,NB}) where {N,NB} = NB
 
 """
@@ -58,7 +57,7 @@ struct Lattice{LatticeSym,N,NB}
     lattice_size::NTuple{N,Int}
     bravais::Bravais{N,NB}
     mask::Vector{Bool}
-    function Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N,NB}, mask) where {N,NB}
+    function Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N,NB}, mask; kw...) where {N,NB}
         length(mask) != prod(sz) * length(bvs) &&
             error("inconsistent mask length")
         new{sym,N,NB}(sz, bvs, mask)
@@ -76,8 +75,15 @@ size(l::Lattice) = l.lattice_size
 length(l::Lattice) = count(l.mask)
 lattice_type(::Lattice{LatticeSym}) where {LatticeSym} = LatticeSym
 dims(::Lattice{LatticeSym,N} where {LatticeSym}) where {N} = N
+dims(l) = dims(lattice(l))
 basis_length(::Lattice{LatticeSym,N,NB} where {LatticeSym,N}) where {NB} = NB
 bravais(l::Lattice) = l.bravais
+
+site_coords(l::Lattice, basis_index::Int, unit_cell) =
+    bravais(l).basis[:, basis_index] + bravais(l).translation_vectors * unit_cell
+site_coords(l::Lattice{Sym,N,1} where {Sym,N}, ::Int, unit_cell) =
+    bravais(l).translation_vectors * unit_cell
+site_coords(::Lattice{:square,N,1} where {N}, ::Int, unit_cell) = Float64.(unit_cell)
 
 """
     LatticeSite{N}
@@ -88,37 +94,64 @@ Fields:
 - `basis_index`: the number of site in the lattice basis.
 
 This type is used to iterate over all sites of a `Lattice{LatticeSym, N, NB}`.
-The exact location of a `LatticeSite` can be found using the `site_coords(lattice, site)` function.
+The exact location of a `LatticeSite` can be found using the `site.coords` function.
 """
 struct LatticeSite{N}
     unit_cell::SVector{N,Int}
     basis_index::Int
+    coords::SVector{N,Float64}
+end
+function getproperty(site::LatticeSite{N}, sym::Symbol) where N
+    if N ≥ 1 && sym === :x
+        site.coords[1]
+    elseif N ≥ 2 && sym === :y
+        site.coords[2]
+    elseif N ≥ 3 && sym === :z
+        site.coords[3]
+    else
+        getfield(site, sym)
+    end
 end
 
-LatticeSite(tup::NTuple{N,Int}) where {N} = LatticeSite{N - 1}(SVector(tup[2:end]), tup[1])
-LatticeSite(uc, bi) = LatticeSite((bi, uc...))
+function LatticeSite(unit_cell, basis_index, l::Lattice)
+    LatticeSite(unit_cell, basis_index, site_coords(l, basis_index, unit_cell))
+end
+
+iterate(site::LatticeSite{N}, i=1) where N = i > N ? nothing : (site.coords[i], i + 1)
 
 _cind(site::LatticeSite) = CartesianIndex(site.basis_index, site.unit_cell...)
 
 _cinds(l::Lattice{LatticeSym,N,NB} where {LatticeSym}) where {N,NB} =
     CartesianIndex{N + 1}(1):CartesianIndex(NB, size(l)...)
 
-function getindex(l::Lattice{LatticeSym, N, NB} where LatticeSym, i::Int) where {N,NB}
+site_coords(::Lattice, site::LatticeSite) =  error("`site_coords(l, site)` is no longer available. Use `site.coords` instead")
+
+function getindex(l::Lattice{Sym, N} where Sym, i::Int) where N
     counter = 0
     cinds = _cinds(l)
     i ≤ 0 && throw(BoundsError(l, i))
     for j in 1:length(l.mask)
         counter += l.mask[j]
         if counter == i
-            return LatticeSite(Tuple(cinds[j]))
+            basis_index, unit_cell... = Tuple(cinds[j])
+            return LatticeSite(SVector(unit_cell), basis_index, l)
         end
     end
     throw(BoundsError(l, i))
 end
 getindex(l::Lattice, ci::CartesianIndex{1}) = getindex(l, only(Tuple(ci)))
+function getindex(l::Lattice{Sym}, is::AbstractVector{Int}) where Sym
+    new_mask = zero(l.mask)
+    try
+        (@view new_mask[l.mask])[is] .= true
+    catch BoundsError
+        throw(BoundsError(l, is))
+    end
+    Lattice(Sym, size(l), bravais(l), new_mask)
+end
 
 """
-    site_index(l::Lattice, site::LatticeSite)
+    site_index(l::Lattice, site::LatticeSite; macrocell=false)
 
 Returns the integer index for given `site` in `lattice`.
 Returns `nothing` if the site is not present in the lattice.
@@ -148,43 +181,23 @@ Base.eltype(::Lattice{LatticeSym,N}) where {LatticeSym,N} = LatticeSite{N}
 isless(@nospecialize(site1::LatticeSite), @nospecialize(site2::LatticeSite)) =
     isless(_cind(site1), _cind(site2))
 
-function iterate(l::Lattice)
+function iterate(l::Lattice{Sym,N} where Sym) where N
     cinds = _cinds(l)
-    cind, st = iterate(cinds)
-    index = 1
-    while !l.mask[index]
-        nx = iterate(cinds, cind)
-        nx === nothing && return nothing
-        cind, st = nx
-        index += 1
-    end
-    LatticeSite(Tuple(cind)), (l.mask, cinds, cind, index)
+    index = findfirst(l.mask)
+    index === nothing && return nothing
+    cind = cinds[index]
+    basis_index, unit_cell... = Tuple(cind)
+    LatticeSite(SVector(unit_cell), basis_index, l), (cinds, index)
 end
 
-function iterate(::Lattice, state)
-    mask, cinds, cind, index = state
-    nx = iterate(cinds, cind)
-    nx === nothing && return nothing
-    cind, st = nx
-    index += 1
-    while !mask[index]
-        nx = iterate(cinds, cind)
-        nx === nothing && return nothing
-        cind, st = nx
-        index += 1
-    end
-    LatticeSite(Tuple(cind)), (mask, cinds, cind, index)
+function iterate(l::Lattice{Sym,N} where Sym, state) where N
+    cinds, index = state
+    index = findnext(l.mask, index + 1)
+    index === nothing && return nothing
+    cind = cinds[index]
+    basis_index, unit_cell... = Tuple(cind)
+    LatticeSite(SVector(unit_cell), basis_index, l), (cinds, index)
 end
-
-"""
-    site_coords(lattice::Lattice, site::LatticeSite) -> vector
-Finds the location in space of lattice site `site` on lattice `lattice`.
-"""
-site_coords(lattice::Lattice, site::LatticeSite) =
-    bravais(lattice).basis[:, site.basis_index] + bravais(lattice).translation_vectors * site.unit_cell
-
-site_coords(lattice::Lattice{LatticeSym,N,1} where {LatticeSym,N}, site::LatticeSite) =
-    bravais(lattice).translation_vectors * site.unit_cell
 
 """
     radius_vector(l::Lattice, site1::LatticeSite, site2::LatticeSite) -> vector
@@ -209,7 +222,7 @@ function site_distance(l::Lattice, site1::LatticeSite, site2::LatticeSite; pbc=f
     if pbc
         norm(radius_vector(l, site1, site2))
     else
-        norm(site_coords(l, site1) - site_coords(l, site2))
+        norm(site1.coords - site2.coords)
     end
 end
 
@@ -248,7 +261,7 @@ function collect_coords(l::Lattice)
     d = dims(l)
     pts = zeros(d, length(l))
     for (i, site) in enumerate(l)
-        pts[:, i] = site_coords(l, site)
+        pts[:, i] = site.coords
     end
     pts
 end
@@ -304,12 +317,11 @@ end
 """
     sublattice(lf::Function, l::Lattice) -> Lattice
 Generates a a subset of lattice `l` by applying the `lf` function to its sites.
-The `lf` function must accept two positional arguments (a `LatticeSite` and a vector with its coordinates)
-and return a boolean value.
+The `lf` function must return a boolean value.
 """
 function sublattice(f::Function, l::Lattice{LatticeSym}) where {LatticeSym}
     new_mask = zero(l.mask)
-    new_mask[l.mask] = [f(site, site_coords(l, site)) for site in l]
+    new_mask[l.mask] = [f(site) for site in l]
     Lattice(LatticeSym, size(l), bravais(l), new_mask)
 end
 
@@ -328,46 +340,11 @@ function AnyDimLattice{T,NB}(f::Function, sz::Vararg{Int,N}; kw...) where {T,N,N
     sublattice(f, l)
 end
 
-"""
-    SquareLattice{N}
-Type alias for `Lattice{:square,N,1}`.
-
----
-    SquareLattice(sz::Int...)
-
-Constructs a square lattice of size `sz`.
-"""
-const SquareLattice{N} = Lattice{:square,N,1}
-function SquareLattice{N}(sz::Vararg{Int,N}) where {N}
-    eye = SMatrix{N,N}(I)
-    Lattice(:square, sz, Bravais(eye))
-end
-site_coords(::SquareLattice, site::LatticeSite) =
-    site.unit_cell
-
-"""
-    HoneycombLattice
-Type alias for `Lattice{:honeycomb,2,2}`.
-
----
-    HoneycombLattice(sz::Vararg{Int, 2})
-
-Constructs a honeycomb lattice with a `sz`-size macro cell.
-"""
-const HoneycombLattice = Lattice{:honeycomb,2,2}
-function HoneycombLattice(sz::Vararg{Int, 2})
-    bvs = Bravais([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])
-    Lattice(:honeycomb, sz, bvs)
-end
-
-function _s(a)
-    b = IOBuffer()
-    show(b, MIME"text/plain"(), a)
-    String(take!(b))
-end
 function check_lattice_match(l1, l2)
     lattice(l1) != lattice(l2) &&
-        throw(ArgumentError("lattice mismatch:\n$(_s(lattice(l1)))\n$(_s(lattice(l2)))"))
+        throw(ArgumentError("""lattice mismatch:
+        $(repr("text/plain", lattice(l1)))
+        $(repr("text/plain", lattice(l2)))"""))
 end
 
 function check_macrocell_match(l1, l2)

@@ -101,7 +101,7 @@ function show(io::IO, m::MIME"text/plain", hop::Hopping)
     show(io, m, hop.hop_operator)
 end
 dims(h::Hopping) = length(h.translate_uc)
-dims_internal(h::Hopping) = size(h.hop_operator)[1]
+dims_internal(::Hopping{N}) where N = N
 
 """
     radius_vector(l::Lattice, hop::Hopping)
@@ -147,7 +147,7 @@ function hopping_dest(l::Lattice, hop::Hopping, site::LatticeSite)
     new_uc = site.unit_cell + hop.translate_uc
     resid = fld.(new_uc .- 1, size(l))
     all(@. hop.pbc | (resid == 0)) || return nothing
-    LatticeSite(mod.(new_uc .- 1, l.lattice_size) .+ 1, hop.site_indices[2]), resid
+    LatticeSite(mod.(new_uc .- 1, l.lattice_size) .+ 1, hop.site_indices[2], l), resid
 end
 
 check_lattice_fits(::Any, ::Lattice) = nothing
@@ -168,11 +168,12 @@ function _hopping_operator!(lop::LatticeOperator, selector, hop::Hopping, field:
         j === nothing && continue
         !_get_bool_value(selector, l, site1, site2) && continue
 
-        p1 = site_coords(l, site1)
+        p1 = site1.coords
         pmod = exp(-2π * im * path_integral(field, p1, p1 + trv))
         !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
-        lop[i, j] = hop.hop_operator * pmod + @view lop[i, j]
-        lop[j, i] = (@view lop[i, j])'
+        ne = hop.hop_operator * pmod
+        @inbounds increment!(lop, ne, i, j)
+        @inbounds increment!(lop, ne', j, i)
     end
     lop
 end
@@ -191,11 +192,11 @@ Can also be a `PairSelector`,
 - `field`: the `AbstractField` object that defines the magnetic field to generate phase factors using Peierls substitution.
 """
 function hopping_operator(lf::Function, l::Lattice, hop::Hopping, field::AbstractField=NoField())
-    lop = _zero_on_basis(l, hop.hop_operator)
+    lop = zero_on_basis(Basis(l, dims_internal(hop)))
     _hopping_operator!(lop, lf, hop, field)
 end
 function hopping_operator(l::Lattice, hop::Hopping, field::AbstractField=NoField())
-    lop = _zero_on_basis(l, hop.hop_operator)
+    lop = zero_on_basis(Basis(l, dims_internal(hop)))
     _hopping_operator!(lop, nothing, hop, field)
 end
 
@@ -291,7 +292,7 @@ macro hopping_operator(for_loop::Expr)
                 block_res = $(esc(body))
                 if block_res !== nothing
                     if matrix === nothing
-                        matrix = _zero_on_basis(l, block_res)
+                        matrix = zero_on_basis(basis(l, block_res))
                     end
                     matrix[i, j] .= block_res
                     matrix[j, i] .= block_res'
@@ -388,11 +389,11 @@ end
     br_pt = fill(NaN, dims(l)) |> Tuple
     for i in 1:length(l)
         site1 = bs.lattice[i]
-        A = site_coords(l, site1)
+        A = site1.coords
         for j in 1:length(l)
             if i != j && bs.bmat[i, j]
                 site2 = bs.lattice[j]
-                B = site_coords(l, site2)
+                B = site2.coords
                 T = radius_vector(l, site2, site1)
                 push!(pts, Tuple(A))
                 push!(pts, Tuple(A + T / 2))

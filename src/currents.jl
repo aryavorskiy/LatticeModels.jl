@@ -24,33 +24,9 @@ Gets the lattice where the given `AbstractCurrents` object is defined.
 lattice(curr::AbstractCurrents) = error("lattice(::$(typeof(curr))) must be explicitly implemented")
 
 """
-    DensityCurrents <: AbstractCurrents
-
-Density currents for given density matrix and given hamiltonian.
-"""
-struct DensityCurrents <: AbstractCurrents
-    hamiltonian::LatticeOperator
-    density::LatticeOperator
-
-    """
-        DensityCurrents(hamiltonian, density_mat)
-
-    Constructs a `DensityCurrents` object for given `hamiltonian` and `density_mat`.
-    """
-    function DensityCurrents(ham::LatticeOperator, dens::LatticeOperator)
-        check_basis_match(ham, dens)
-        new(ham, dens)
-    end
-end
-
-current_lambda(curr::DensityCurrents) =
-    (i::Int, j::Int) -> 2imag(tr(curr.density[i, j] * curr.hamiltonian[j, i]))
-lattice(curr::DensityCurrents) = curr.hamiltonian.basis.lattice
-
-"""
     SubCurrents{CT<:AbstractCurrents} <: AbstractCurrents
 
-A lazy wrapper for a `SubCurrents` object that representing the same currents but on a smaller lattice.
+A lazy wrapper for a `SubCurrents` object representing the same currents but on a smaller lattice.
 """
 struct SubCurrents{CT} <: AbstractCurrents
     parent_currents::CT
@@ -234,7 +210,7 @@ end
         for (j, site2) in enumerate(l)
             j ≥ i && continue
             ij_curr = curr_fn(i, j)::Real
-            crd = site_coords(l, (ij_curr > 0 ? site1 : site2))
+            crd = ij_curr > 0 ? site1.coords : site2.coords
             vc = radius_vector(l, site2, site1)
             vc_n = norm(vc)
             if vc_n < abs(ij_curr * plotattributes[:arrows_scale] / plotattributes[:arrows_rtol])

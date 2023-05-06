@@ -18,7 +18,7 @@ how some `LatticeValue`, `LatticeArray` or `MaterializedCurrents` depended on ti
 Behaves like a vector of `(time, value)` tuples, supports time-based indexing (via call syntax, returns a stored record)
 and site-based indexing (via bracket syntax, returns a vector or a new LatticeRecord, depending on the return type).
 """
-struct LatticeRecord{ET<:StorableLatticeType} <: Function
+struct LatticeRecord{ET<:StorableLatticeType} <: AbstractDict{Float64, ET}
     lattice::Lattice
     snapshots::Vector{Array}
     times::Vector{Float64}
@@ -98,11 +98,7 @@ end
 function iterate(lr::LatticeRecord{ET}, state=(1, length(lr))) where ET
     ind, len = state
     1 ≤ ind ≤ len || return nothing
-    ET(lr.lattice, lr.snapshots[ind]), (ind + 1, len)
-end
-
-pairs(lr::LatticeRecord{ET}) where ET = Iterators.map(lr.times, lr.snapshots) do t, rec
-    t => ET(lr.lattice, rec)
+    lr.times[ind] => ET(lr.lattice, lr.snapshots[ind]), (ind + 1, len)
 end
 
 """
