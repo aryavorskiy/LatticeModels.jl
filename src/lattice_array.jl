@@ -14,7 +14,8 @@ function check_basis_match(b1, b2)
     basis(b1) != basis(b2) &&
         throw(ArgumentError("basis mismatch:\n$(repr("text/plain", basis(b1)))\n$(repr("text/plain", basis(b2)))"))
 end
-function to_slice end
+site_states(a) = site_states(basis(a))
+to_slice(::Any, c::Colon) = c
 
 @doc """
     LatticeArray{AT, BT, N}

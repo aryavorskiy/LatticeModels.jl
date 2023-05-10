@@ -10,22 +10,101 @@ struct SingleParticleBasis{LT<:Lattice} <: Basis
     lattice::LT
     internal_dim::Int
 end
+Basis(l::Lattice, N::Int) = SingleParticleBasis(l, N)
 lattice(b::SingleParticleBasis) = b.lattice
 dims_internal(b::SingleParticleBasis) = b.internal_dim
-length(b::SingleParticleBasis) = length(lattice(b)) * dims_internal(b)
 ==(b1::SingleParticleBasis, b2::SingleParticleBasis) =
     b1.internal_dim == b2.internal_dim && b1.lattice == b2.lattice
 site_states(b::SingleParticleBasis) = lattice(b)
-Basis(l::Lattice, N::Int) = SingleParticleBasis(l, N)
 
+length(b::SingleParticleBasis) = length(lattice(b)) * dims_internal(b)
 to_slice(b::SingleParticleBasis, i::Int) = b.internal_dim * (i - 1) + 1:b.internal_dim * i
 to_slice(b::SingleParticleBasis, site::LatticeSite) = to_slice(b, site_index(lattice(b), site))
-to_slice(::SingleParticleBasis, c::Colon) = c
 
-function show(io::IO, m::MIME"text/plain", b::Basis)
-    println(io, "Basis with $(b.internal_dim)-dimensional internal phase space")
+function show(io::IO, m::MIME"text/plain", b::SingleParticleBasis)
+    println(io, "Single-particle basis with $(b.internal_dim) internal degrees of freedom")
     print(io, "on ")
     show(io, m, b.lattice)
+end
+
+const STATS_VARIANTS = (:fermi, :bose)
+struct MultiParticleBasis{ST, LT<:Lattice} <: Basis
+    lattice::LT
+    n_particles::Int
+    function MultiParticleBasis(l::Lattice; N, st)
+        st ∉ STATS_VARIANTS && error("Insupported statistics :$st, expected one of $STATS_VARIANTS")
+        new{st, typeof(l)}(l, N)
+    end
+end
+Basis(l::Lattice; N::Int, st::Symbol=:bose) = MultiParticleBasis(l, N=N, st=st)
+lattice(b::MultiParticleBasis) = b.lattice
+dims_internal(b::MultiParticleBasis) = 1
+==(b1::T, b2::T) where T<:MultiParticleBasis =
+    b1.n_particles == b2.particle && b1.lattice == b2.lattice
+site_states(b::MultiParticleBasis) = b
+
+length(b::MultiParticleBasis{:bose}) = binomial(length(b.lattice) + b.n_particles - 1, b.n_particles)
+length(b::MultiParticleBasis{:fermi}) = binomial(length(b.lattice), b.n_particles)
+to_slice(::MultiParticleBasis, i::Int) = i:i
+
+function show(io::IO, m::MIME"text/plain", b::MultiParticleBasis{ST}) where ST
+    println(io, "$(b.n_particles)-particle basis with $ST statistics")
+    print(io, "on ")
+    show(io, m, b.lattice)
+end
+
+struct MultiParticleState{LT}
+    l::LT
+    fills::IdDict{Int,Int}
+end
+getindex(st::MultiParticleState, i) = get(st.fills, i, 0)
+function setindex!(st::MultiParticleState, rhs, i)
+    rhs == 0 ? pop!(st.fills, i) : setindex!(st.fills, rhs, i)
+    return rhs
+end
+pairs(st::MultiParticleState) = Iterators.map(st.fills) do (i, n)
+    st.l[i] => n
+end
+length(m::MultiParticleState) = sum(values(m.fills))
+function iterate(m::MultiParticleState)
+    ks = keys(m.fills)
+    istate = iterate(ks)
+    istate === nothing && return nothing
+    index, iter = istate
+    site = m.l[index]
+    site, (site, 2, m.fills[index], index, iter)
+end
+function iterate(m::MultiParticleState, (site, r, f, index, iter))
+    r ≤ f && return site, (site, r+1, f, index, iter)
+    istate = iterate(keys(m.fills), iter)
+    istate === nothing && return nothing
+    index, iter = istate
+    site = m.l[index]
+    site, (site, 2, m.fills[index], index, iter)
+end
+
+function iterate(b::MultiParticleBasis{:bose})
+    st = MultiParticleState(b.lattice, IdDict(1=>b.n_particles))
+    (st, (st, 1, length(b.lattice)))
+end
+function iterate(::MultiParticleBasis{:bose}, (st, bottom, len))
+    bottom == len && return nothing
+    va = st[bottom]
+    if bottom == 1
+        st[1] = va - 1
+        st[2] += 1
+        va == 1 && (bottom = 2)
+    elseif va == 1
+        st[bottom] = 0
+        st[bottom + 1] += 1
+        bottom += 1
+    else
+        st[bottom] = 0
+        st[bottom + 1] += 1
+        st[1] = va - 1
+        bottom = 1
+    end
+    st, (st, bottom, len)
 end
 
 """
@@ -49,7 +128,7 @@ end
 
 dims_internal(tp::TensorProduct) = size(tp.matrix)[1]
 lattice(tp::TensorProduct) = lattice(tp.lattice_value)
-basis(tp::TensorProduct) = SingleParticleBasis(lattice(tp), dims_internal(tp))
+basis(tp::TensorProduct) = Basis(lattice(tp), dims_internal(tp))
 zero(tp::TensorProduct) = zero_on_basis(lattice(tp), tp.matrix)
 materialize(tp::TensorProduct) = _diag_operator!(zero_on_basis(basis(tp)), tp)
 ⊗(lv::LatticeValue, m::Matrix) = materialize(TensorProduct(lv, m))
@@ -74,7 +153,7 @@ _wrap_eye(::T, ::Matrix) where T = error("Lambda returned a $T, expected Number 
 function _diag_operator!(lop::LatticeOperator, op_object)
     N = dims_internal(lop)
     eye = Matrix(I, N, N)
-    for (i, state) in enumerate(site_states(basis(lop)))
+    for (i, state) in enumerate(site_states(lop))
         increment!(lop, _get_matrix_value(op_object, state, i, eye), i, i)
     end
     lop
@@ -104,7 +183,7 @@ diag_operator(lv::LatticeValue{<:Number}, N::Int=1) = lv ⊗ Matrix(I, N, N)
 
 Returns a `Tuple` of coordinate `LatticeOperator`s for given basis.
 """
-function coord_operators(bas::Basis)
+function coord_operators(bas::SingleParticleBasis)
     N = dims_internal(bas)
     d = dims(bas)
     eye = Matrix(I, N, N)
