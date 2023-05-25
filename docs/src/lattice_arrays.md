@@ -78,7 +78,7 @@ It accepts two arguments: one is a `Lattice` or a `Basis`, and the other is a fu
 There are more possible ways to use this function, refer to [`diag_operator`](@ref) docstrings to find out more.
 
 ```@repl env
-op1 = diag_operator(l) do site, (x, y)
+op1 = diag_operator(l) do (x, y)
     (x + y) * [1 0; 0 1]
 end
 op2 = diag_operator(Basis(l, 2), x .+ y)

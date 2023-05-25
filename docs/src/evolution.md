@@ -119,7 +119,7 @@ p = plot(layout=(2,1))
 plot!(p[1], density_rec[site], lab="p")
 
 # Compare computed time derivative with Heisenberg equation
-plot!(p[2], diff(density_rec)[site], lw=5, alpha=0.3, lab="dp/dt")
+plot!(p[2], differentiate(density_rec)[site], lw=5, alpha=0.3, lab="dp/dt")
 plot!(p[2], deriv_rec[site], lab="Heisenberg") 
 ```
 

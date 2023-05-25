@@ -1,4 +1,4 @@
-import Base: show, +, *
+import Base: +, *
 using LinearAlgebra, StaticArrays, Logging
 abstract type AbstractField end
 
@@ -191,15 +191,14 @@ struct FieldSum{FT<:Tuple} <: AbstractField
 end
 vector_potential(f::FieldSum, p1) = sum(SVector(vector_potential(field, p1)) for field in f.fields)
 path_integral(f::FieldSum, p1, p2) = sum(path_integral(field, p1, p2) for field in f.fields)
-function show(io::IO, m::MIME"text/plain", f::FieldSum)
-    print(io, "Sum of $(length(f.fields)) fields:\n")
+function Base.show(io::IO, m::MIME"text/plain", f::FieldSum)
+    print(io, "Sum of $(length(f.fields)) fields:")
     i = 1
     for field in f.fields
-        print("#$i: ")
+        print("\n#$i: ")
         show(io, m, field)
-        println()
         i += 1
     end
 end
 
-+(f::Vararg{<:AbstractField}) = FieldSum{typeof(f)}(f)
++(f::Vararg{AbstractField}) = FieldSum{typeof(f)}(f)

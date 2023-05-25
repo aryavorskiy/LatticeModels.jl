@@ -1,5 +1,5 @@
 using LinearAlgebra, Statistics, Logging
-import Base: length, getindex, view, show, copy, ==, zero
+import Base: ==
 
 abstract type Basis end
 basis(b::Basis) = b
@@ -53,7 +53,7 @@ For example, `LatticeOperator(LinearAlgebra.I, basis)` yields an identity operat
 LatticeOperator(bas::Basis, op::UniformScaling) =
     LatticeArray(bas, Matrix(op, length(bas), length(bas)))
 
-size(la::LatticeArray) = size(la.array)
+Base.size(la::LatticeArray) = size(la.array)
 basis(la::LatticeArray) = la.basis
 dims_internal(x) = dims_internal(basis(x))
 lattice(x) = lattice(basis(x))
@@ -63,9 +63,9 @@ lattice(x) = lattice(basis(x))
 @inline _to_indices(rngs::Tuple, is::Tuple, b::Basis) = _to_indices(rngs, is[1], Base.tail(is), b)
 @inline _to_indices(rngs::Tuple, i, is::Tuple, b::Basis) =
     _to_indices((rngs..., to_slice(b, i)), is, b)
-getindex(la::LatticeArray, is::Vararg{Any}) = la.array[_to_indices(is, basis(la))...]
+Base.getindex(la::LatticeArray, is::Vararg{Any}) = la.array[_to_indices(is, basis(la))...]
 Base.view(la::LatticeArray, is::Vararg{Any}) = view(la.array, _to_indices(is, basis(la))...)
-setindex!(la::LatticeArray, val, is::Vararg{Any}) =
+Base.setindex!(la::LatticeArray, val, is::Vararg{Any}) =
     (la.array[_to_indices(is, basis(la))...] = val)
 increment!(la::LatticeArray, rhs, is::Vararg{Any}) =
     increment!(la.array, rhs, _to_indices(is, basis(la))...)
@@ -75,7 +75,7 @@ increment!(la::LatticeArray, rhs, is::Vararg{Any}) =
 _typename(::LatticeVector) = "LatticeVector"
 _typename(::LatticeOperator) = "LatticeOperator"
 _typename(::LatticeArray) = "LatticeArray"
-function show(io::IO, m::MIME"text/plain", la::LatticeArray{AT}) where {AT}
+function Base.show(io::IO, m::MIME"text/plain", la::LatticeArray{AT}) where {AT}
     print(io, join(size(la), "×"))
     AT<:LatticeVector && print(io, "-element")
     println(io, " ", _typename(la), " with inner type $AT")
@@ -221,7 +221,7 @@ shows a warning if a lattice array is used in one call with a normal array.
 l = SquareLattice(10, 10)
 bas = Basis(l, 2)
 X, Y = coord_operators(bas)
-xexpypy = diag_operator(bas) do site, (x, y)
+xexpypy = diag_operator(bas) do (x, y)
     x * exp(y) + y
 end
 xexpypy == @on_lattice X * exp(Y) + Y     # true

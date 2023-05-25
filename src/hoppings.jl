@@ -1,5 +1,5 @@
 using StaticArrays
-import Base: copy, show, ==
+import Base: ==
 
 """
     Hopping{N} where N
@@ -80,7 +80,7 @@ end
 ==(h1::Hopping, h2::Hopping) =
     all(getproperty(h1, fn) == getproperty(h2, fn) for fn in fieldnames(Hopping))
 
-function show(io::IO, m::MIME"text/plain", hop::Hopping)
+function Base.show(io::IO, m::MIME"text/plain", hop::Hopping)
     println(io, "Hopping connects site #$(hop.site_indices[1]) with site #$(hop.site_indices[1]) translated by $(hop.translate_uc)")
     if !iszero(hop.translate_uc)
         print(io, "Boundary conditions: ")
@@ -376,7 +376,7 @@ end
 !(bs::PairSet) =
     PairSet(bs.lattice, Matrix(I, length(bs.lattice), length(bs.lattice)) .| .!(bs.bmat))
 
-function show(io::IO, m::MIME"text/plain", bs::PairSet)
+function Base.show(io::IO, m::MIME"text/plain", bs::PairSet)
     println(io, "PairSet with $(count(bs.bmat)) bonds")
     print(io, "on ")
     show(io, m, bs.lattice)

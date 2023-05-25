@@ -1,5 +1,5 @@
 using LinearAlgebra, Statistics, Logging
-import Base: length, size, pairs, getindex, setindex!, eachindex, eltype, copyto!, mapreduce, show, ==
+import Base: ==
 
 struct LatticeValueWrapper{VT<:AbstractVector,LatticeSym}
     lattice::Lattice{LatticeSym}
@@ -14,19 +14,19 @@ end
 lattice(l::Lattice) = l
 lattice(lvw::LatticeValueWrapper) = lvw.lattice
 
-size(lvw::LatticeValueWrapper) = size(lvw.values)
-length(lvw::LatticeValueWrapper) = length(lvw.values)
+Base.size(lvw::LatticeValueWrapper) = size(lvw.values)
+Base.length(lvw::LatticeValueWrapper) = length(lvw.values)
 function _to_index(lvw::LatticeValueWrapper, site::LatticeSite)
     i = CartesianIndex(site_index(lattice(lvw), site))
     i === nothing ? throw(BoundsError(lvw, site)) : return i
 end
 _to_index(::LatticeValueWrapper, i::CartesianIndex{1}) = i
-getindex(lvw::LatticeValueWrapper, i) = getindex(lvw.values, _to_index(lvw, i))
-setindex!(lvw::LatticeValueWrapper, val, i) = setindex!(lvw.values, val, _to_index(lvw, i))
-eltype(lvw::LatticeValueWrapper) = eltype(lvw.values)
-eachindex(lvw::LatticeValueWrapper) = lattice(lvw)
-iterate(lvw::LatticeValueWrapper, s...) = iterate(lvw.values, s...)
-pairs(lvw::LatticeValueWrapper) = Iterators.map(=>, lvw.lattice, lvw.values)
+Base.getindex(lvw::LatticeValueWrapper, i) = getindex(lvw.values, _to_index(lvw, i))
+Base.setindex!(lvw::LatticeValueWrapper, val, i) = setindex!(lvw.values, val, _to_index(lvw, i))
+Base.eltype(lvw::LatticeValueWrapper) = eltype(lvw.values)
+Base.eachindex(lvw::LatticeValueWrapper) = lattice(lvw)
+Base.iterate(lvw::LatticeValueWrapper, s...) = iterate(lvw.values, s...)
+Base.pairs(lvw::LatticeValueWrapper) = Iterators.map(=>, lvw.lattice, lvw.values)
 
 """
     LatticeValue{T, LatticeSym}
@@ -55,25 +55,24 @@ Generates a tuple of `LatticeValue`s representing spatial coordinates.
 coord_values(l::Lattice) =
     [LatticeValue(l, vec) for vec in eachrow(collect_coords(l))]
 
-import Base: rand, randn, fill, fill!, zero, zeros, one, ones
-rand(l::Lattice) = LatticeValue(l, rand(length(l)))
-rand(T::Type, l::Lattice) = LatticeValue(l, rand(T, length(l)))
-randn(l::Lattice) = LatticeValue(l, randn(length(l)))
-randn(T::Type, l::Lattice) = LatticeValue(l, randn(T, length(l)))
-fill(value, l::Lattice) = LatticeValue(l, fill(value, length(l)))
-fill!(lv::LatticeValue, value) = (fill!(lv.values, value); lv)
-zero(lvw::LatticeValueWrapper) = LatticeValueWrapper(lattice(lvw), zero(lvw.values))
-zeros(l::Lattice) = fill(0., l)
-zeros(T::Type, l::Lattice) = fill(zero(T), l)
-one(lvw::LatticeValueWrapper) = LatticeValueWrapper(lattice(lvw), one(lvw.values))
-ones(l::Lattice) = fill(1., l)
-ones(T::Type, l::Lattice) = fill(one(T), l)
+Base.rand(l::Lattice) = LatticeValue(l, rand(length(l)))
+Base.rand(T::Type, l::Lattice) = LatticeValue(l, rand(T, length(l)))
+Base.randn(l::Lattice) = LatticeValue(l, randn(length(l)))
+Base.randn(T::Type, l::Lattice) = LatticeValue(l, randn(T, length(l)))
+Base.fill(value, l::Lattice) = LatticeValue(l, fill(value, length(l)))
+Base.fill!(lv::LatticeValue, value) = (fill!(lv.values, value); lv)
+Base.zero(lvw::LatticeValueWrapper) = LatticeValueWrapper(lattice(lvw), zero(lvw.values))
+Base.zeros(l::Lattice) = fill(0., l)
+Base.zeros(T::Type, l::Lattice) = fill(zero(T), l)
+Base.one(lvw::LatticeValueWrapper) = LatticeValueWrapper(lattice(lvw), one(lvw.values))
+Base.ones(l::Lattice) = fill(1., l)
+Base.ones(T::Type, l::Lattice) = fill(one(T), l)
 
 ==(lvw1::LatticeValueWrapper, lvw2::LatticeValueWrapper) = (lvw1.lattice == lvw2.lattice) && (lvw1.values == lvw2.values)
 
 struct LVWStyle <: Broadcast.BroadcastStyle end
-copyto!(lvw::LatticeValueWrapper, src::Broadcast.Broadcasted{LVWStyle}) = (copyto!(lvw.values, src); return lvw)
-copyto!(lvw::LatticeValueWrapper, src::Broadcast.Broadcasted{Broadcast.DefaultArrayStyle{0}}) = (copyto!(lvw.values, src); return lvw)
+Base.copyto!(lvw::LatticeValueWrapper, src::Broadcast.Broadcasted{LVWStyle}) = (copyto!(lvw.values, src); return lvw)
+Base.copyto!(lvw::LatticeValueWrapper, src::Broadcast.Broadcasted{Broadcast.DefaultArrayStyle{0}}) = (copyto!(lvw.values, src); return lvw)
 Base.broadcastable(lvw::LatticeValueWrapper) = lvw
 Base.BroadcastStyle(::Type{<:LatticeValueWrapper}) = LVWStyle()
 Base.BroadcastStyle(bs::Broadcast.BroadcastStyle, ::LVWStyle) =
@@ -104,7 +103,7 @@ function _extract_lattice_s(l::Lattice, l2::Lattice, rem_args::Tuple)
     _extract_lattice_s(l, rem_args)
 end
 
-function show(io::IO, mime::MIME"text/plain", lv::LatticeValueWrapper)
+function Base.show(io::IO, mime::MIME"text/plain", lv::LatticeValueWrapper)
     print(io, "$(typeof(lv)) on a ")
     show(io, mime, lattice(lv))
     if !get(io, :compact, false)
@@ -113,7 +112,7 @@ function show(io::IO, mime::MIME"text/plain", lv::LatticeValueWrapper)
     end
 end
 
-Base.@propagate_inbounds function getindex(l::Lattice{LatticeSym,N,NB},
+Base.@propagate_inbounds function Base.getindex(l::Lattice{LatticeSym,N,NB},
         lv_mask::LatticeValue{Bool,LatticeSym}) where {LatticeSym,N,NB}
     @boundscheck check_is_sublattice(l, lattice(lv_mask))
     new_mask = zero(l.mask)
@@ -121,7 +120,7 @@ Base.@propagate_inbounds function getindex(l::Lattice{LatticeSym,N,NB},
     Lattice(LatticeSym, size(l), bravais(l), vec(new_mask .& l.mask))
 end
 
-Base.@propagate_inbounds function getindex(lv::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
+Base.@propagate_inbounds function Base.getindex(lv::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
     new_l  = lattice(lv)[lv_mask]
     LatticeValueWrapper(new_l, lv.values[new_l.mask[lv.lattice.mask]])
 end
@@ -132,7 +131,7 @@ Base.@propagate_inbounds function Base.Broadcast.dotview(lv::LatticeValueWrapper
 end
 Base.Broadcast.dotview(lv::LatticeValueWrapper; kw...) = Base.Broadcast.dotview(lv, _kws_to_mask(lattice(lv), kw))
 
-Base.@propagate_inbounds function setindex!(lv::LatticeValueWrapper, lv_rhs::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
+Base.@propagate_inbounds function Base.setindex!(lv::LatticeValueWrapper, lv_rhs::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
     @boundscheck begin
         check_is_sublattice(lattice(lv), lattice(lv_mask))
         check_is_sublattice(lattice(lv), lattice(lv_rhs))
@@ -176,9 +175,9 @@ function _kws_to_mask(l, @nospecialize(kw))
     cnt = count(relmask)
     cnt == 1 ? CartesianIndex(findfirst(relmask)) : LatticeValue(l, relmask)
 end
-getindex(lvw::LatticeValueWrapper; kw...) = getindex(lvw, _kws_to_mask(lattice(lvw), kw))
-getindex(l::Lattice; kw...) = getindex(l, _kws_to_mask(l, kw))
-setindex!(lvw::LatticeValueWrapper, rhs; kw...) = setindex!x(lvw, rhs, _kws_to_mask(lattice(lvw), kw))
+Base.getindex(lvw::LatticeValueWrapper; kw...) = getindex(lvw, _kws_to_mask(lattice(lvw), kw))
+Base.getindex(l::Lattice; kw...) = getindex(l, _kws_to_mask(l, kw))
+Base.setindex!(lvw::LatticeValueWrapper, rhs; kw...) = setindex!x(lvw, rhs, _kws_to_mask(lattice(lvw), kw))
 
 raw"""
     macro_cell_values(lv::LatticeValue)

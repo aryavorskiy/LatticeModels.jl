@@ -1,5 +1,4 @@
 using SparseArrays, StaticArrays
-import Base: size, materialize
 @static if VERSION < v"1.8"
     allequal(seq) = all(s == first(seq) for s in seq)
 end
@@ -12,7 +11,7 @@ struct SparseMatrixBuilder{T}
     SparseMatrixBuilder{T}(sz) where T = new{T}(sz, [], [], [])
     SparseMatrixBuilder{T}(sz...) where T = SparseMatrixBuilder{T}(sz)
 end
-size(smb::SparseMatrixBuilder) = smb.size
+Base.size(smb::SparseMatrixBuilder) = smb.size
 materialize(builder::SparseMatrixBuilder) =
     sparse(builder.Is, builder.Js, builder.Vs, builder.size...)
 

@@ -125,7 +125,7 @@ end
     @test s_3 == s_4
     @test s_4 == s_5
     @test_throws MethodError hl[x.<y]
-    @test hl[j1=3, j2=2, index=1] == LatticeSite(SA[3, 2], 1, SA[3., 2.])
+    @test hl[j1=3, j2=2, index=1] == LatticeSite(SA[3, 2], 1, SA[4.0, 1.7320508075688772])
     xb, yb = coord_values(SquareLattice(5, 40))
     @static if VERSION ≥ v"1.8"
         @test_throws "macrocell mismatch" sql[xb.<yb]
@@ -285,7 +285,7 @@ end
     @test rec[site] == Dict(t => xy[site]  for t in time_domain(rec))
     @test rec[xly] == LatticeRecord(fill(xy[xly], 3), [0:2;])
     @test collect(rec) == [0 => xy, 1 => xy, 2 => xy]
-    @test diff(rec) == LatticeRecord([zeros(l), zeros(l)], [0.5, 1.5])
+    @test differentiate(rec) == LatticeRecord([zeros(l), zeros(l)], [0.5, 1.5])
     rec2 = init_record(xy .* 0)
     insert!(rec2, 1, xy .* 1)
     insert!(rec2, 2, xy .* 2)
@@ -519,14 +519,7 @@ end
 @testset "Currents" begin
     l = SquareLattice(10, 10)
     x, y = coord_values(l)
-    H(B) = @hamiltonian begin
-        lattice := l
-        field := LandauField(B)
-        dims_internal := 2
-        @diag [1 0; 0 -1]
-        @hop axis = 1 [1 im; im -1] / 2
-        @hop axis = 2 [1 1; -1 -1] / 2
-    end
+    H(B) = SpinTightBinding(l, field=LandauField(B))
     P = filled_projector(spectrum(H(0)))
     dc = DensityCurrents(H(0.1), P)
     bs = bonds(H(0.1))
@@ -540,4 +533,8 @@ end
     @test m1.currents == m4.currents
     @test m1.currents == md.currents
     @test (m1 + m2 - m3).currents ≈ (2 * m4 * 1 - md / 1).currents
+    s1 = l[23]
+    s2 = l[45]
+    @test dc[s1, s2] == -dc[s2, s1]
+    @test abs(dc[s1, s1]) < eps()
 end

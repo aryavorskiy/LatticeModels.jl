@@ -1,6 +1,5 @@
 using Logging
 import LinearAlgebra: eigen, Hermitian, eigvals, eigvecs
-import Base: length, view, setindex!
 
 _lazy_tp(m::AbstractMatrix, lv::LatticeValue) = TensorProduct(lv, m)
 _lazy_tp(lv::LatticeValue, m::AbstractMatrix) = TensorProduct(lv, m)
@@ -150,14 +149,14 @@ eigvals(sp::Spectrum) = sp.energies
 eigvecs(sp::Spectrum) = sp.states
 basis(sp::Spectrum) = sp.basis
 
-length(sp::Spectrum) = length(sp.energies)
-getindex(sp::Spectrum, i::Int) = LatticeArray(sp.basis, sp.states[:, i])
-getindex(sp::Spectrum; E::Number) =
+Base.length(sp::Spectrum) = length(sp.energies)
+Base.getindex(sp::Spectrum, i::Int) = LatticeArray(sp.basis, sp.states[:, i])
+Base.getindex(sp::Spectrum; E::Number) =
     LatticeArray(sp.basis, sp.states[:, argmin(@. abs(E - sp.energies))])
-getindex(sp::Spectrum, mask) =
+Base.getindex(sp::Spectrum, mask) =
     Spectrum(sp.basis, sp.states[:, mask], sp.energies[mask])
 
-function show(io::IO, ::MIME"text/plain", sp::Spectrum)
+function Base.show(io::IO, ::MIME"text/plain", sp::Spectrum)
     println(io, "Spectrum with $(length(sp)) eigenstates")
     println(io, "Eigenvalues in range $(minimum(sp.energies)) .. $(maximum(sp.energies))")
 end

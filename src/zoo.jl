@@ -238,6 +238,6 @@ struct DensityCurrents <: AbstractCurrents
     end
 end
 
-current_lambda(curr::DensityCurrents) =
-(i::Int, j::Int) -> 2imag(tr(curr.density[i, j] * curr.hamiltonian[j, i]))
+Base.getindex(curr::DensityCurrents, i::Int, j::Int) =
+    2imag(tr(curr.density[i, j] * curr.hamiltonian[j, i]))
 lattice(curr::DensityCurrents) = curr.hamiltonian.basis.lattice

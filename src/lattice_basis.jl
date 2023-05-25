@@ -1,3 +1,5 @@
+import Base: ==
+
 """
     SingleParticleBasis{LT} where {LT<:Lattice}
 
@@ -12,7 +14,7 @@ struct SingleParticleBasis{LT<:Lattice} <: Basis
 end
 lattice(b::SingleParticleBasis) = b.lattice
 dims_internal(b::SingleParticleBasis) = b.internal_dim
-length(b::SingleParticleBasis) = length(lattice(b)) * dims_internal(b)
+Base.length(b::SingleParticleBasis) = length(lattice(b)) * dims_internal(b)
 ==(b1::SingleParticleBasis, b2::SingleParticleBasis) =
     b1.internal_dim == b2.internal_dim && b1.lattice == b2.lattice
 site_states(b::SingleParticleBasis) = lattice(b)
@@ -22,7 +24,7 @@ to_slice(b::SingleParticleBasis, i::Int) = b.internal_dim * (i - 1) + 1:b.intern
 to_slice(b::SingleParticleBasis, site::LatticeSite) = to_slice(b, site_index(lattice(b), site))
 to_slice(::SingleParticleBasis, c::Colon) = c
 
-function show(io::IO, m::MIME"text/plain", b::Basis)
+function Base.show(io::IO, m::MIME"text/plain", b::Basis)
     println(io, "Basis with $(b.internal_dim)-dimensional internal phase space")
     print(io, "on ")
     show(io, m, b.lattice)
@@ -50,7 +52,7 @@ end
 dims_internal(tp::TensorProduct) = size(tp.matrix)[1]
 lattice(tp::TensorProduct) = lattice(tp.lattice_value)
 basis(tp::TensorProduct) = SingleParticleBasis(lattice(tp), dims_internal(tp))
-zero(tp::TensorProduct) = zero_on_basis(lattice(tp), tp.matrix)
+Base.zero(tp::TensorProduct) = zero_on_basis(lattice(tp), tp.matrix)
 materialize(tp::TensorProduct) = _diag_operator!(zero_on_basis(basis(tp)), tp)
 ⊗(lv::LatticeValue, m::Matrix) = materialize(TensorProduct(lv, m))
 ⊗(m::Matrix, lv::LatticeValue) = materialize(TensorProduct(lv, m))

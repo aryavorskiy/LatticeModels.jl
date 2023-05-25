@@ -28,10 +28,10 @@ include("evolution.jl")
 export @evolution
 
 include("currents.jl")
-export AbstractCurrents, materialize, current_lambda, lattice, pairs_by_distance, map_currents
+export AbstractCurrents, materialize, lattice, pairs_by_distance, map_currents
 
 include("record.jl")
-export init_record, integrate, time_domain,
+export init_record, integrate, differentiate, time_domain,
     LatticeRecord, LatticeValueRecord, LatticeArrayRecord, CurrentsRecord
 
 include("zoo.jl")

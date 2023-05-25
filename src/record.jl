@@ -1,4 +1,4 @@
-import Base: ==, length, first, last, insert!, pairs, diff
+import Base: ==, diff
 
 const STORABLE_TYPES = (LatticeArray, LatticeValue, MaterializedCurrents)
 const StorableLatticeType = Union{STORABLE_TYPES...}
@@ -30,11 +30,11 @@ struct LatticeRecord{ET<:StorableLatticeType} <: AbstractDict{Float64, ET}
     LatticeRecord{ET}(l::Lattice) where ET = new{_storable(ET)}(l, [], [])
 end
 
-first(lr::LatticeRecord{ET}) where ET = ET(lattice(lr), first(lr.snapshots))
-last(lr::LatticeRecord{ET}) where ET = ET(lattice(lr), last(lr.snapshots))
-length(lr::LatticeRecord) = length(lr.snapshots)
+Base.first(lr::LatticeRecord{ET}) where ET = ET(lattice(lr), first(lr.snapshots))
+Base.last(lr::LatticeRecord{ET}) where ET = ET(lattice(lr), last(lr.snapshots))
+Base.length(lr::LatticeRecord) = length(lr.snapshots)
 
-function show(io::IO, ::MIME"text/plain", lr::LatticeRecord)
+function Base.show(io::IO, ::MIME"text/plain", lr::LatticeRecord)
     print(io, "LatticeRecord with $(length(lr)) records")
     if length(lr.times) ≥ 2
         print(io, "\nTimestamps in range $(lr.times[1]) .. $(lr.times[end])")
@@ -95,18 +95,18 @@ function Base.getindex(lr::LatticeRecord{ET}, args...) where {ET}
     end
 end
 
-function iterate(lr::LatticeRecord{ET}, state=(1, length(lr))) where ET
+function Base.iterate(lr::LatticeRecord{ET}, state=(1, length(lr))) where ET
     ind, len = state
     1 ≤ ind ≤ len || return nothing
     lr.times[ind] => ET(lr.lattice, lr.snapshots[ind]), (ind + 1, len)
 end
 
 """
-    diff(lr::LatticeRecord)
+    differentiate(lr::LatticeRecord)
 
 Differentiate the values stored in the record by time using the symmetric difference formula.
 """
-function Base.diff(lr::LatticeRecord{ET}) where ET
+function differentiate(lr::LatticeRecord{ET}) where ET
     length(lr) < 2 && error("Cannot differentiate LatticeRecord of length $(length(lr))")
     td = time_domain(lr)
     LatticeRecord{ET}(lattice(lr),
