@@ -11,11 +11,11 @@ struct LatticeValueWrapper{VT<:AbstractVector,LatticeSym}
     end
 end
 
-lattice(l::Lattice) = l
 lattice(lvw::LatticeValueWrapper) = lvw.lattice
 
-Base.size(lvw::LatticeValueWrapper) = size(lvw.values)
+Base.copy(lvw::LatticeValueWrapper) = LatticeValueWrapper(lattice(lvw), copy(lvw.values))
 Base.length(lvw::LatticeValueWrapper) = length(lvw.values)
+Base.size(lvw::LatticeValueWrapper) = size(lvw.values)
 function _to_index(lvw::LatticeValueWrapper, site::LatticeSite)
     i = CartesianIndex(site_index(lattice(lvw), site))
     i === nothing ? throw(BoundsError(lvw, site)) : return i

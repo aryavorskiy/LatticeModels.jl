@@ -28,11 +28,11 @@ include("evolution.jl")
 export @evolution
 
 include("currents.jl")
-export AbstractCurrents, materialize, lattice, pairs_by_distance, map_currents
+export AbstractCurrents, materialize, currents_from, currents_from_to, pairs_by_distance, map_currents
 
 include("record.jl")
-export init_record, integrate, differentiate, time_domain,
-    LatticeRecord, LatticeValueRecord, LatticeArrayRecord, CurrentsRecord
+export init_record, integrate, integrate!, differentiate, differentiate!, time_domain,
+    TimeSequence, LatticeValueSequence, LatticeArraySequence, CurrentsSequence
 
 include("zoo.jl")
 export SquareLattice, HoneycombLattice,
@@ -40,7 +40,7 @@ export SquareLattice, HoneycombLattice,
     TightBinding, SpinTightBinding, Haldane,
     DensityCurrents
 
-include("precompile.jl")
-_precompile_()
+# include("precompile.jl")
+# _precompile_()
 
 end # module LatticeModels

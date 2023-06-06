@@ -59,9 +59,10 @@ end
 MaterializedCurrents(l::Lattice) =
     MaterializedCurrents(l, zeros(length(l), length(l)))
 
+Base.copy(mc::MaterializedCurrents) = MaterializedCurrents(lattice(mc), copy(mc.currents))
 lattice(mcurr::MaterializedCurrents) = mcurr.lattice
-Base.getindex(mcurr::MaterializedCurrents, i::Int, j::Int) = mcurr.currents[i, j]
 
+Base.getindex(mcurr::MaterializedCurrents, i::Int, j::Int) = mcurr.currents[i, j]
 function Base.getindex(curr::AbstractCurrents, lvm::LatticeValue{Bool})
     check_lattice_match(curr, lvm)
     indices = findall(lvm.values)
@@ -84,10 +85,10 @@ function currents_from(curr::AbstractCurrents, src)
     is = _site_indices(l, src)
     LatticeValue(l, Float64[j in is ? 0 : sum(curr[i, j] for i in is) for j in eachindex(l)])
 end
-function currents_from_to(curr::AbstractCurrents, src, dst)
+function currents_from_to(curr::AbstractCurrents, src, dst=nothing)
     l = lattice(curr)
     is = _site_indices(l, src)
-    js = _site_indices(l, dst)
+    js = dst === nothing ? setdiff(eachindex(l), is) : _site_indices(l, dst)
     sum(curr[i, j] for i in is, j in js)
 end
 
@@ -172,14 +173,14 @@ function map_currents(f::Function, curr::AbstractCurrents; reduce_fn::Union{Noth
         end
     end
     if reduce_fn !== nothing
-        ms_set = collect(Set(ms))
+        ms_set = unique(ms)
         cs = [reduce_fn(cs[ms .== m]) for m in ms_set]
         ms = ms_set
     end
     if sort
         perm = sortperm(ms)
-        ms = ms[perm]
-        cs = cs[perm]
+        permute!(ms, perm)
+        permute!(cs, perm)
     end
     if eltype(cs) <: Vector
         ms, transpose(hcat(cs...))

@@ -109,6 +109,7 @@ function ==(l1::T, l2::T) where {T<:Lattice}
     (size(l1) == size(l2)) && (bravais(l1) == bravais(l2))
 end
 
+lattice(l::Lattice) = l
 Base.copymutable(l::Lattice{LatticeSym}) where {LatticeSym} =
     Lattice(LatticeSym, size(l), bravais(l), copy(l.mask))
 Base.copy(l::Lattice) = Base.copymutable(l)

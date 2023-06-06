@@ -272,25 +272,25 @@ end
     end
 end
 
-@testset "LatticeRecord" begin
+@testset "TimeSequence" begin
     l = SquareLattice(3, 3)
     site = l[5]
     x, y = coord_values(l)
     xy = x .* y
     xly = x .< y
-    rec = LatticeValueRecord(l)
+    rec = LatticeValueSequence()
     insert!(rec, 0, xy)
     insert!(rec, 1, xy)
     insert!(rec, 2, xy)
-    @test rec[site] == Dict(t => xy[site]  for t in time_domain(rec))
-    @test rec[xly] == LatticeRecord(fill(xy[xly], 3), [0:2;])
+    @test rec[site] == TimeSequence(time_domain(rec), fill(xy[site], 3))
+    @test rec[xly] == TimeSequence(0:2, fill(xy[xly], 3))
     @test collect(rec) == [0 => xy, 1 => xy, 2 => xy]
-    @test differentiate(rec) == LatticeRecord([zeros(l), zeros(l)], [0.5, 1.5])
-    rec2 = init_record(xy .* 0)
+    @test differentiate(rec) == TimeSequence([0.5, 1.5], [zeros(l), zeros(l)])
+    rec2 = TimeSequence(xy .* 0)
     insert!(rec2, 1, xy .* 1)
     insert!(rec2, 2, xy .* 2)
     @test rec2(0.9) == xy
-    @test rec2(0.9, 2.1) == LatticeRecord([xy, xy .* 2], [1, 2])
+    @test rec2(0.9, 2.1) == TimeSequence([1, 2], [xy, xy .* 2])
     @test integrate(rec) == rec2
 end
 

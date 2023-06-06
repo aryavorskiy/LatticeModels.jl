@@ -53,10 +53,12 @@ For example, `LatticeOperator(LinearAlgebra.I, basis)` yields an identity operat
 LatticeOperator(bas::Basis, op::UniformScaling) =
     LatticeArray(bas, Matrix(op, length(bas), length(bas)))
 
-Base.size(la::LatticeArray) = size(la.array)
 basis(la::LatticeArray) = la.basis
 dims_internal(x) = dims_internal(basis(x))
 lattice(x) = lattice(basis(x))
+
+Base.copy(la::LatticeArray) = LatticeArray(basis(la), copy(la.array))
+Base.size(la::LatticeArray) = size(la.array)
 
 @inline _to_indices(is::Tuple, b::Basis) = _to_indices((), is, b)
 @inline _to_indices(rngs::Tuple, ::Tuple{}, ::Basis) = rngs
@@ -173,7 +175,7 @@ end
     _make_wrapper(f(checked_args...; kw...), basis)
 
 LatticeSummable = Union{LatticeArray,UniformScaling}
-import Base: +, -, *, /, \, ^, adjoint, copy, exp, inv
+import Base: +, -, *, /, \, ^, adjoint, exp, inv
 @inline +(ls::LatticeSummable, lss::LatticeSummable...) = _unwrap(+, (ls, lss...))
 @inline -(lo1::LatticeSummable, lo2::LatticeSummable) = _unwrap(-, (lo1, lo2))
 @inline *(la::LatticeArray, las::LatticeArray...) = _unwrap(*, (la, las...))
@@ -181,7 +183,7 @@ for f in (:*, :/, :\, :^)
     @eval @inline ($f)(la::LatticeArray, num::Number) = _unwrap(($f), (la, num))
     @eval @inline ($f)(num::Number, la::LatticeArray) = _unwrap(($f), (num, la))
 end
-for f in (:adjoint, :copy, :exp, :inv, :-)
+for f in (:adjoint, :exp, :inv, :-)
     @eval @inline ($f)(la::LatticeArray) = _unwrap(($f), (la,))
 end
 
