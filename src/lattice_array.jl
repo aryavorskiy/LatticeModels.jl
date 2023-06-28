@@ -1,4 +1,4 @@
-using LinearAlgebra, Statistics, Logging
+using LinearAlgebra, Logging
 import Base: ==
 
 abstract type Basis end
@@ -19,7 +19,7 @@ function to_slice end
 @doc """
     LatticeArray{AT, BT, N}
 
-A wrapper object for array representing a wave function or linear operator.
+A wrapper object for array representing a wavefunction or linear operator.
 Stores information about its basis to perform lattice checks.
 """
 struct LatticeArray{AT,BT,N}
@@ -57,8 +57,10 @@ basis(la::LatticeArray) = la.basis
 dims_internal(x) = dims_internal(basis(x))
 lattice(x) = lattice(basis(x))
 
+Base.zero(la::LatticeArray) = LatticeArray(basis(la), zero(la))
 Base.copy(la::LatticeArray) = LatticeArray(basis(la), copy(la.array))
 Base.size(la::LatticeArray) = size(la.array)
+==(lvm1::LatticeArray, lvm2::LatticeArray) = (lvm1.basis == lvm2.basis) && (lvm1.array == lvm2.array)
 
 @inline _to_indices(is::Tuple, b::Basis) = _to_indices((), is, b)
 @inline _to_indices(rngs::Tuple, ::Tuple{}, ::Basis) = rngs
@@ -71,8 +73,6 @@ Base.setindex!(la::LatticeArray, val, is::Vararg{Any}) =
     (la.array[_to_indices(is, basis(la))...] = val)
 increment!(la::LatticeArray, rhs, is::Vararg{Any}) =
     increment!(la.array, rhs, _to_indices(is, basis(la))...)
-
-==(lvm1::LatticeArray, lvm2::LatticeArray) = (lvm1.basis == lvm2.basis) && (lvm1.array == lvm2.array)
 
 _typename(::LatticeVector) = "LatticeVector"
 _typename(::LatticeOperator) = "LatticeOperator"
@@ -118,7 +118,7 @@ end
     site_density(lattice_vector::LatticeVector)
     site_density(lattice_operator::LatticeOperator)
 
-A convenience function to find local density for wave functions (represented by `lattice_vector`)
+A convenience function to find local density for wavefunctions (represented by `lattice_vector`)
 and density matrices (represented by `lattice_operator`).
 
 Returns a LatticeValue representing the total probability of the particle of being on every site.

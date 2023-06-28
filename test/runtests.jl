@@ -1,6 +1,13 @@
 using Test, LinearAlgebra, StaticArrays, Plots
 using LatticeModels
 
+@static if VERSION < v"1.8"
+    # Ignore test_throws
+    macro test_throws(args...)
+        :()
+    end
+end
+
 @testset "Workflows" begin
     @test begin
         l = SquareLattice(10, 10) do (x, y)
@@ -127,9 +134,7 @@ end
     @test_throws MethodError hl[x.<y]
     @test hl[j1=3, j2=2, index=1] == LatticeSite(SA[3, 2], 1, SA[4.0, 1.7320508075688772])
     xb, yb = coord_values(SquareLattice(5, 40))
-    @static if VERSION ≥ v"1.8"
-        @test_throws "macrocell mismatch" sql[xb.<yb]
-    end
+    @test_throws "macrocell mismatch" sql[xb.<yb]
     sql2 = sublattice(sql) do site
         site ∉ (sql[1], sql[end])
     end
@@ -172,23 +177,19 @@ end
         @test x .|> (x -> 2x) == xm2
         y .= x .* y
         @test y == xy
-        @static if VERSION ≥ v"1.8"
-            @test_throws "cannot broadcast" x .* ones(100)
-        end
+        @test_throws "cannot broadcast" x .* ones(100)
         l2 = SquareLattice(5, 20)
         x2 = LatticeValue(l2) do (x, y)
             x
         end
-        @static if VERSION ≥ v"1.8"
-            @test_throws "lattice mismatch" x .* x2
-        end
+        @test_throws "lattice mismatch" x .* x2
     end
     @testset "Indexing" begin
         z = zeros(l)
         z2 = zero(z)
         z .= 1
-        z2[x .≥ y] .+= 1
-        z2[x .< y] = ones(l)
+        z2[x.≥y] .+= 1
+        z2[x.<y] = ones(l)
         @test z == ones(l)
         @test z2 == ones(l)
         @test z[x=1, x2=1] == 1
@@ -245,17 +246,15 @@ end
         @test dot(vc, X, vc) == xf
         @test ptrace(X, :internal) == diagm(x.values) * 2
         @test ptrace(X, :lattice) == sum(x.values) * [1 0; 0 1]
-        @static if VERSION ≥ v"1.8"
-            @test_throws "basis mismatch" X * X2
-        end
+        @test_throws "basis mismatch" X * X2
         @test_throws MethodError X * ones(200, 200)
     end
     @testset "Lattice-value constructor" begin
         @test diag_operator(x .* y, 2) == xy
         @test (x .* y) ⊗ [1 0; 0 1] == xy
         @test [1 0; 0 1] ⊗ (x .* y) == xy
-        @static if VERSION ≥ v"1.8"
-            @test_throws "Lambda returned a String" diag_operator(bas2) do _; "kek"; end
+        @test_throws "Lambda returned a String" diag_operator(bas2) do _
+            "kek"
         end
     end
     @testset "Wrapper macro" begin
@@ -278,6 +277,7 @@ end
     x, y = coord_values(l)
     xy = x .* y
     xly = x .< y
+    @test_throws "length mismatch" TimeSequence([0.5], [xy, xy])
     rec = LatticeValueSequence()
     insert!(rec, 0, xy)
     insert!(rec, 1, xy)
@@ -286,6 +286,7 @@ end
     @test rec[xly] == TimeSequence(0:2, fill(xy[xly], 3))
     @test collect(rec) == [0 => xy, 1 => xy, 2 => xy]
     @test differentiate(rec) == TimeSequence([0.5, 1.5], [zeros(l), zeros(l)])
+    @test differentiate(rec[site]) == TimeSequence([0.5, 1.5], [0, 0])
     rec2 = TimeSequence(xy .* 0)
     insert!(rec2, 1, xy .* 1)
     insert!(rec2, 2, xy .* 2)
@@ -299,21 +300,19 @@ end
         @test hopping(axis=1) == hopping(translate_uc=[1])
         @test hopping(axis=1) != hopping(translate_uc=[1, 0])
         @test hopping(axis=1) == LatticeModels.promote_dims!(hopping(translate_uc=[1, 0], pbc=[false, true]), 1)
-        @test hopping(site_indices=(1,2)) == LatticeModels.promote_dims!(hopping(site_indices=(1,2), pbc=[false, true]), 1)
+        @test hopping(site_indices=(1, 2)) == LatticeModels.promote_dims!(hopping(site_indices=(1, 2), pbc=[false, true]), 1)
         @test hopping(axis=2, pbc=true) == hopping(translate_uc=[0, 1], pbc=[true, true])
         @test hopping(axis=2, pbc=[true, true]) == hopping(translate_uc=[0, 1], pbc=[true, true])
         @test hopping(fill(-1, 1, 1), axis=1) == hopping(-1, axis=1)
-        @static if VERSION ≥ v"1.8"
-            @test_throws "to hopping indices" hopping(site_indices=(1, 2, 3))
-            @test_throws "connects site to itself" hopping(translate_uc=[0, 0], site_indices=2)
-            @test_throws "cannot shrink" LatticeModels.promote_dims!(hopping(translate_uc=[0, 1]), 1)
-        end
+        @test_throws "to hopping indices" hopping(site_indices=(1, 2, 3))
+        @test_throws "connects site to itself" hopping(translate_uc=[0, 0], site_indices=2)
+        @test_throws "cannot shrink" LatticeModels.promote_dims!(hopping(translate_uc=[0, 1]), 1)
     end
     @testset "Hopping matching" begin
         l = SquareLattice(6, 5)
-        hx = hopping(axis = 1)
+        hx = hopping(axis=1)
         LatticeModels.promote_dims!(hx, dims(l))
-        hxmy = hopping(translate_uc = [1, -1], pbc = [true, false])
+        hxmy = hopping(translate_uc=[1, -1], pbc=[true, false])
         for site in l
             ucx, ucy = site.unit_cell
             dst_dx = LatticeModels.hopping_dest(l, hx, site)
@@ -392,9 +391,7 @@ end
         @test LatticeModels.path_integral(flx + sym, p1, p2, 1000) ≈
               LatticeModels.path_integral(flx + sym, p1, p2) atol = 1e-8
 
-        @static if VERSION ≥ v"1.8"
-            @test_throws "no vector potential function" LatticeModels.vector_potential(emf, SA[1, 2, 3])
-        end
+        @test_throws "no vector potential function" LatticeModels.vector_potential(emf, SA[1, 2, 3])
     end
 
     @testset "Field application" begin
@@ -435,7 +432,7 @@ end
             lattice := l
             dims_internal := 2
             @hop translate_uc = [0, 1] pbc = [true, false] [1 0; 0 -1] (l, s1, s2) ->
-                                                    ((x, y) = s1.coords; x + 1 < y)
+                ((x, y) = s1.coords; x + 1 < y)
             @diag site -> [site.x+site.y 0; 0 -site.x-site.y]
             field := LandauField(0.5)
         end
@@ -461,10 +458,10 @@ end
     @testset "Hamiltonian builtins" begin
         l = SquareLattice(15)
         fld = LandauField(0.2)
-        PBC=false
+        PBC = false
         H1 = @hamiltonian begin
             lattice := l
-            @hop axis=1 pbc=PBC
+            @hop axis = 1 pbc = PBC
         end
         @test H1 == TightBinding(l, pbc=PBC)
 
@@ -474,9 +471,9 @@ end
             lattice := l
             field := fld
             @diag site -> site.x + exp(site.y)
-            @hop site_indices=(2,1)
-            @hop site_indices=(2,1) axis=1
-            @hop site_indices=(2,1) axis=2
+            @hop site_indices = (2, 1)
+            @hop site_indices = (2, 1) axis = 1
+            @hop site_indices = (2, 1) axis = 2
         end
         lv = @. x + exp(y)
         @test H2 == TightBinding(lv, field=fld)
@@ -492,14 +489,12 @@ end
             dims_internal := 2
             sparse := true
             @diag σ[3]
-            @hop (σ[3] - im * σ[1]) / 2 axis=1 sel
-            @hop (σ[3] - im * σ[2]) / 2 axis=2 sel
+            @hop (σ[3] - im * σ[1]) / 2 axis = 1 sel
+            @hop (σ[3] - im * σ[2]) / 2 axis = 2 sel
         end
         @test H3 == SpinTightBinding(sel, l, field=fld)
         @test H3 == SpinTightBinding(sel, ones(l), field=fld)
-        @static if VERSION ≥ v"1.8"
-            @test_throws "no method" SpinTightBinding(ones(l), 2)
-        end
+        @test_throws "no method" SpinTightBinding(ones(l), 2)
     end
 
     @testset "DOS & LDOS" begin

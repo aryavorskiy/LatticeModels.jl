@@ -4,7 +4,7 @@
 using LatticeModels
 ```
 
-A [`LatticeArray`](@ref LatticeModels.LatticeArray) is a wrapper type that maps an array representing an operator matrix or a wave function vector to a basis it is defined on.
+A [`LatticeArray`](@ref LatticeModels.LatticeArray) is a wrapper type that maps an array representing an operator matrix or a wavefunction vector to a basis it is defined on.
 
 A `Basis`, in turn, is generally a pair of a `Lattice` and an `Int` which is the number of internal states on every lattice site. In future releases, however, this definition may be extended to a more complex combination of states of several particles.
 
@@ -94,7 +94,7 @@ lv = diag_reduce(tr, op) # same as site_density(op)
 lv == 2 .* x
 ```
 
-[`site_density`](@ref) function is also applicable to wave functions represented as `LatticeVector`s.
+[`site_density`](@ref) function is also applicable to wavefunctions represented as `LatticeVector`s.
 
 ## Hopping operators
 

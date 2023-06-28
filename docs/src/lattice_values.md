@@ -24,7 +24,7 @@ lv == x .+ y .+ 1
 ```
 
 !!! note
-    A wave function cannot and must not be stored as a `LatticeValue`, use `LatticeVector` instead. 
+    A wavefunction cannot and must not be stored as a `LatticeValue`, use `LatticeVector` instead. 
     The reason is that a `LatticeValue` does not take one-site phase spaces into account, which renders them unusable for these purposes.
     
     Linear algebra operations and `@on_lattice` wrapping are deliberately unsupported for `LatticeValue`s.

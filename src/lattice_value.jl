@@ -1,4 +1,4 @@
-using LinearAlgebra, Statistics, Logging
+using LinearAlgebra, Logging
 import Base: ==
 
 struct LatticeValueWrapper{VT<:AbstractVector,LatticeSym}

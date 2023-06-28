@@ -30,7 +30,7 @@ export @evolution
 include("currents.jl")
 export AbstractCurrents, materialize, currents_from, currents_from_to, pairs_by_distance, map_currents
 
-include("record.jl")
+include("time_sequence.jl")
 export init_record, integrate, integrate!, differentiate, differentiate!, time_domain,
     TimeSequence, LatticeValueSequence, LatticeArraySequence, CurrentsSequence
 

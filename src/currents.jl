@@ -5,7 +5,7 @@ using LinearAlgebra
     AbstractCurrents
 
 Supertype for all type representing currents-like values on a lattice.
-Subtypes must implement `getindex(::Int, ::Int)` and `lattice` functions.
+Subtypes must implement `Base.getindex(::Int, ::Int)` and `lattice` functions.
 """
 abstract type AbstractCurrents end
 
@@ -59,7 +59,9 @@ end
 MaterializedCurrents(l::Lattice) =
     MaterializedCurrents(l, zeros(length(l), length(l)))
 
+Base.convert(::Type{MaterializedCurrents}, curr::AbstractCurrents) = materialize(curr)
 Base.copy(mc::MaterializedCurrents) = MaterializedCurrents(lattice(mc), copy(mc.currents))
+Base.zero(mc::MaterializedCurrents) = MaterializedCurrents(lattice(mc), zero(mc.currents))
 lattice(mcurr::MaterializedCurrents) = mcurr.lattice
 
 Base.getindex(mcurr::MaterializedCurrents, i::Int, j::Int) = mcurr.currents[i, j]
