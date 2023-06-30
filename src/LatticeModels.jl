@@ -1,5 +1,8 @@
 module LatticeModels
 
+using Reexport
+@reexport using QuantumOpticsBase
+
 include("utils.jl")
 include("lattice.jl")
 export Bravais, LatticeSite, Lattice, dims, sublattice, site_index, site_distance
@@ -7,7 +10,7 @@ export Bravais, LatticeSite, Lattice, dims, sublattice, site_index, site_distanc
 include("lattice_value.jl")
 export LatticeValue, coord_values, project
 
-include("lattice_array.jl")
+
 include("lattice_basis.jl")
 export LatticeArray, LatticeOperator, Basis, ⊗, lattice, basis, dims_internal,
     diag_operator, coord_operators, diag_reduce, ptrace, site_density, @on_lattice
