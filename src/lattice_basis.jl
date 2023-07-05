@@ -10,12 +10,17 @@ end
 lattice(lb::LatticeBasis) = lb.latt
 
 QuantumOpticsBase.basisstate(T::Type, b::LatticeBasis, site::LatticeSite) =
-    QuantumOpticsBase.basisstate(T, b, site_index(b.latt, site))
+    basisstate(T, b, site_index(b.latt, site))
 function QuantumOpticsBase.diagonaloperator(lv::LatticeValue)
-    QuantumOpticsBase.diagonaloperator(LatticeBasis(lattice(lv)), lv.values)
+    diagonaloperator(LatticeBasis(lattice(lv)), lv.values)
 end
 function QuantumOpticsBase.diagonaloperator(f::Function, b::LatticeBasis)
-    QuantumOpticsBase.diagonaloperator(b, f.(b.latt))
+    diagonaloperator(b, f.(b.latt))
+end
+
+function densityoperator(lb::LatticeBasis, l::Lattice)
+    check_is_sublattice(lb.latt, l)
+    diagonaloperator(in(l), lb)
 end
 
 """
@@ -23,4 +28,5 @@ coord_operators(lb::LatticeBasis)
 
 Returns a `Tuple` of coordinate `LatticeOperator`s for given basis.
 """
-coord_operators(lb::LatticeBasis) = (diagonaloperator(lv) for lv in coord_values(lb.latt))
+coords(lb::LatticeBasis) = Tuple(diagonaloperator(lv) for lv in coord_values(lb.latt))
+coord(lb::LatticeBasis, coord) = diagonaloperator(coord_values(lb.latt)[_parse_axis_descriptor(coord)])

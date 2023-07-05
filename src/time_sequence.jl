@@ -143,7 +143,3 @@ function integrate!(tseq::TimeSequence)
     tseq
 end
 integrate(tseq::TimeSequence) = integrate!(copy(tseq))
-
-@recipe function f(tseq::TimeSequence)
-    tseq.times, tseq.snapshots
-end

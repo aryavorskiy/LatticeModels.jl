@@ -17,18 +17,6 @@ function SquareLattice{N}(sz::Vararg{Int,N}) where {N}
     Lattice(:square, sz, Bravais(eye))
 end
 
-@recipe function f(lv::PlottableLatticeValue{:square})
-    seriestype --> :heatmap
-    if plotattributes[:seriestype] === :heatmap
-        aspect_ratio := :equal
-        axes_lims = [1:ax for ax in size(lattice(lv))]
-        heatmap_values = reshape(macro_cell_values(lv), reverse(size(lattice(lv))))'
-        axes_lims..., heatmap_values
-    else
-        plot_fallback(lv)
-    end
-end
-
 """
     HoneycombLattice
 Type alias for `Lattice{:honeycomb,2,2}`.

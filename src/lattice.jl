@@ -72,6 +72,9 @@ _cind(site::LatticeSite) = CartesianIndex(site.basis_index, site.unit_cell...)
 Base.isless(site1::LatticeSite, site2::LatticeSite) =
     isless(_cind(site1), _cind(site2))
 
+displace_site(l::Lattice, site::LatticeSite{N}, js) where N =
+    LatticeSite(site.unit_cell, site.basis_index, site.coords + bravais(l).translation_vectors * SVector{N}(js))
+
 """
     Lattice{LatticeSym, N, NB}
 A finite subset of a `Brvais{N, NB}`. `LatticeSym` is a `Symbol` which represents
@@ -132,14 +135,14 @@ function LatticeSite(unit_cell, basis_index, l::Lattice)
     LatticeSite(unit_cell, basis_index, site_coords(l, basis_index, unit_cell))
 end
 
-_cinds(l::Lattice{LatticeSym,N,NB} where {LatticeSym}) where {N,NB} =
+cartesian_indices(l::Lattice{LatticeSym,N,NB} where {LatticeSym}) where {N,NB} =
     CartesianIndex{N + 1}(1):CartesianIndex(NB, size(l)...)
 
 site_coords(::Lattice, site::LatticeSite) =  error("`site_coords(l, site)` is no longer available. Use `site.coords` instead")
 
 function Base.getindex(l::Lattice{Sym, N} where Sym, i::Int) where N
     counter = 0
-    cinds = _cinds(l)
+    cinds = cartesian_indices(l)
     i ≤ 0 && throw(BoundsError(l, i))
     for j in 1:length(l.mask)
         counter += l.mask[j]
@@ -187,7 +190,7 @@ Base.lastindex(l::Lattice) = length(l)
 Base.eltype(::Lattice{LatticeSym,N}) where {LatticeSym,N} = LatticeSite{N}
 
 function Base.iterate(l::Lattice{Sym,N} where Sym) where N
-    cinds = _cinds(l)
+    cinds = cartesian_indices(l)
     index = findfirst(l.mask)
     index === nothing && return nothing
     cind = cinds[index]
@@ -238,35 +241,6 @@ This notation can be handy when passing this function as an argument.
 """
 site_distance(;pbc) = (l, site1, site2) -> site_distance(l, site1, site2, pbc=pbc)
 
-@recipe function f(site::LatticeSite)
-    seriestype := :scatter
-    [Tuple(site.coords),]
-end
-
-@recipe function f(l::Lattice; pretty=true, high_contrast=false)
-    if high_contrast
-        pretty = false
-        markersize := 4
-        markercolor := :black
-        markerstrokealpha := 1
-        markerstrokestyle := :solid
-        markerstrokewidth := 2
-        markerstrokecolor := :white
-    end
-    if pretty
-        l_outp = copy(l)
-        fill!(l_outp.mask, true)
-        annotations = repeat(Any[""], length(l_outp))
-        annotations[l.mask] .= ((i, :left, :top, :grey, 8) for i in 1:length(l))
-        series_annotations := annotations
-        seriesalpha := l.mask .* 0.9 .+ 0.1
-        label --> ""
-        l_outp, nothing
-    else
-        l, nothing
-    end
-end
-
 function collect_coords(l::Lattice)
     d = dims(l)
     pts = zeros(d, length(l))
@@ -274,40 +248,6 @@ function collect_coords(l::Lattice)
         pts[:, i] = site.coords
     end
     pts
-end
-
-@recipe function f(l::Lattice, v)
-    aspect_ratio := :equal
-    marker_z := v
-    pts = collect_coords(l)
-    if dims(l) == 3
-        X, Y, Z = eachrow(pts)
-        Xr, Yr, Zr = eachrow(round.(pts, digits=3))
-        seriestype := :scatter3d
-        if v !== nothing && RecipesBase.is_key_supported(:hover)
-            hover := string.(round.(v, digits=3), " @ (", Xr, ", ", Yr, ", ", Zr, ")")
-        end
-        X, Y, Z
-    else
-        if dims(l) == 1
-            X = vec(pts)
-            Y = zero(X)
-        else
-            X, Y = eachrow(pts[1:2, :])
-        end
-        seriestype --> :scatter
-        if v !== nothing && RecipesBase.is_key_supported(:hover)
-            Xr, Yr = eachrow(round.(pts, digits=3))
-            hover := string.(round.(v, digits=3), " @ (", Xr, ", ", Yr, ")")
-        end
-        if plotattributes[:seriestype] == :scatter
-            X, Y
-        elseif plotattributes[:seriestype] == :surface
-            X, Y, v
-        else
-            throw(ArgumentError("unsupported series type $(plotattributes[:seriestype])"))
-        end
-    end
 end
 
 function Base.show(io::IO, ::MIME"text/plain", l::Lattice{LatticeSym,N}) where {N,LatticeSym}

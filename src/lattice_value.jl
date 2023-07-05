@@ -215,10 +215,6 @@ end
 
 const PlottableLatticeValue{LT} = LatticeValue{<:Number, LT}
 
-@recipe function f(lv::PlottableLatticeValue)
-    lv.lattice, lv.values
-end
-
 """
     project(lv::LatticeValue, axis)
 

@@ -28,3 +28,4 @@ Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs, 
         push!(builder.Vs, v)
     end
 end
+one_hot(index, ::Val{N}) = SVector{N}(1:N) .== index
