@@ -1,7 +1,5 @@
 using RecipesBase, LinearAlgebra, Logging, StaticArrays
 import Base: ==
-# import Base: length, keys, size, copy, iterate, getindex, eltype, show, ==, isless,
-#     pop!, popat!, popfirst!, splice!, lastindex, getproperty
 
 """
     Bravais{N, NB}
@@ -72,9 +70,6 @@ _cind(site::LatticeSite) = CartesianIndex(site.basis_index, site.unit_cell...)
 Base.isless(site1::LatticeSite, site2::LatticeSite) =
     isless(_cind(site1), _cind(site2))
 
-displace_site(l::Lattice, site::LatticeSite{N}, js) where N =
-    LatticeSite(site.unit_cell, site.basis_index, site.coords + bravais(l).translation_vectors * SVector{N}(js))
-
 """
     Lattice{LatticeSym, N, NB}
 A finite subset of a `Brvais{N, NB}`. `LatticeSym` is a `Symbol` which represents
@@ -131,9 +126,12 @@ site_coords(l::Lattice{Sym,N,1} where {Sym,N}, ::Int, unit_cell) =
     bravais(l).translation_vectors * unit_cell
 site_coords(::Lattice{:square,N,1} where {N}, ::Int, unit_cell) = Float64.(unit_cell)
 
-function LatticeSite(unit_cell, basis_index, l::Lattice)
+function get_site(l::Lattice, unit_cell, basis_index)
     LatticeSite(unit_cell, basis_index, site_coords(l, basis_index, unit_cell))
 end
+
+displace_site(l::Lattice, site::LatticeSite{N}, js::SVector{N}) where N =
+    LatticeSite(site.unit_cell + js, site.basis_index, site.coords + bravais(l).translation_vectors * js)
 
 cartesian_indices(l::Lattice{LatticeSym,N,NB} where {LatticeSym}) where {N,NB} =
     CartesianIndex{N + 1}(1):CartesianIndex(NB, size(l)...)
@@ -148,7 +146,7 @@ function Base.getindex(l::Lattice{Sym, N} where Sym, i::Int) where N
         counter += l.mask[j]
         if counter == i
             basis_index, unit_cell... = Tuple(cinds[j])
-            return LatticeSite(SVector(unit_cell), basis_index, l)
+            return get_site(l, SVector(unit_cell), basis_index)
         end
     end
     throw(BoundsError(l, i))
@@ -171,7 +169,10 @@ Returns the integer index for given `site` in `lattice`.
 Returns `nothing` if the site is not present in the lattice.
 """
 function site_index(l::Lattice, site::LatticeSite)
-    i = LinearIndices((1:basis_length(l), (1:s for s in size(l))...))[_cind(site)]
+    linds = LinearIndices((1:basis_length(l), (1:s for s in size(l))...))
+    cind = _cind(site)
+    !checkbounds(Bool, linds, cind) && return nothing
+    i = @inbounds linds[cind]
     (i === nothing || !l.mask[i]) && return nothing
     count(@view l.mask[1:i])
 end
@@ -195,7 +196,7 @@ function Base.iterate(l::Lattice{Sym,N} where Sym) where N
     index === nothing && return nothing
     cind = cinds[index]
     basis_index, unit_cell... = Tuple(cind)
-    LatticeSite(SVector(unit_cell), basis_index, l), (cinds, index)
+    get_site(l, SVector(unit_cell), basis_index), (cinds, index)
 end
 
 function Base.iterate(l::Lattice{Sym,N} where Sym, state) where N
@@ -204,7 +205,7 @@ function Base.iterate(l::Lattice{Sym,N} where Sym, state) where N
     index === nothing && return nothing
     cind = cinds[index]
     basis_index, unit_cell... = Tuple(cind)
-    LatticeSite(SVector(unit_cell), basis_index, l), (cinds, index)
+    get_site(l, SVector(unit_cell), basis_index), (cinds, index)
 end
 
 """
@@ -341,5 +342,5 @@ function Base.setdiff!(l1::Lattice{Sym}, l2::Lattice{Sym}) where Sym
     l1
 end
 
-Base.emptymutable(l::Lattice{Sym}, ::Type{U}=eltype(l)) where {Sym, U} =
+Base.emptymutable(l::Lattice{Sym, N}, ::Type{LatticeSite{N}}=eltype(l)) where {Sym, N} =
     Lattice(Sym, size(l), bravais(l), zero(l.mask))

@@ -43,16 +43,16 @@ $ \mathcal{U}(t) = e^{-\frac{1}{i\hbar} \hat{H} t} $
 - `p`: if set to `true`, the matrix exponent will be calculated using a Padé approximant, which is
 more precise than Taylor expansion but can also be slower and uses matrix inversion.
 """
-evolution_operator(H, t::Real, ::Nothing=nothing, ::Bool=false) = @on_lattice exp((-im * t) * H)
+evolution_operator(H, t::Real, ::Nothing=nothing, ::Bool=false) = exp((-im * t) * H)
 evolution_operator(H, t::Real, k::Int, p::Bool=false) = if p
-    @on_lattice pade_exp((-im * t) * H, k)
+    pade_exp((-im * t) * H, k)
 else
-    @on_lattice taylor_exp((-im * t) * H, k)
+    taylor_exp((-im * t) * H, k)
 end
 
-evolved(P::AbstractMatrix, ev::AbstractMatrix) = ev * P * ev'
-evolved(V::AbstractVector, ev::AbstractMatrix) = ev * V
-evolved(LA, ev) = @on_lattice evolved(LA, ev)
+evolved(bra::Bra, ev) = bra * ev'
+evolved(ket::Ket, ev) = ev * ket
+evolved(op::Operator, ev) = ev * op * ev'
 
 function _expand_chain(chain)
     if Meta.isexpr(chain, :-->)

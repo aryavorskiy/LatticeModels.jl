@@ -5,23 +5,24 @@ using Reexport
 
 include("utils.jl")
 include("lattice.jl")
-export Bravais, LatticeSite, Lattice, dims, sublattice, site_index, site_distance
+export Bravais, LatticeSite, Lattice, sublattice, site_index, site_distance
 
 include("lattice_value.jl")
 export LatticeValue, coord_values, project
 
-
 include("lattice_basis.jl")
-export LatticeArray, LatticeOperator, Basis, ⊗, lattice, basis, dims_internal,
-    diag_operator, coords, diag_reduce, ptrace, site_density, @on_lattice
+export LatticeOperator, LatticeBasis,
+    diag_operator, coord_operators, coord, site_density
 
 include("field.jl")
 export @field_def, AbstractField, apply_field!, NoField
 
 include("hoppings.jl")
-export hopping, hoppings,
-    DomainsSelector, PairLhsSelector, PairRhsSelector,
+export Bonds, hoppings,
+    DomainsSelector, PairLhsGraph, PairRhsGraph,
     bonds, is_adjacent, @hopping_operator
+
+export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions
 
 include("hamiltonian.jl")
 export @hamiltonian, Spectrum, spectrum, eigvals, eigvecs, projector, filled_projector,

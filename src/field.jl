@@ -13,21 +13,16 @@ unless you want to use built-in trapezoidal rule integrating.
 vector_potential(fld::AbstractField, _) =
     error("no vector potential function defined for field type $(typeof(fld))")
 
-const LenType{N} = Union{SVector{N}, NTuple{N, Any}}
-@inline @generated function dot_assuming_zeros(p1::LenType{M}, p2::LenType{N}) where {M,N}
-    Expr(:call, :+, [:(p1[$i] * p2[$i]) for i in 1:min(M, N)]...)
-end
-
 @doc raw"""
-    path_integral(field, p1, p2[, n_steps=1])
+    line_integral(field, p1, p2[, n_steps=1])
 
 Calculates the $\int_{p1}^{p2} \overrightarrow{A} \cdot \overrightarrow{dl}$ integral using the trapezoidal rule.
-Increase `n_steps` to improve accuracy (for linear fields like Landau or symmetrical calibrations the formula is accurate).
+Increase `n_steps` to improve accuracy (note that for linear fields like Landau or symmetrical calibrations the formula is already pefrectly accurate).
 If needed, redefine this function for specific field types - this is likely to boost accuracy and performance.
 """
-path_integral(field::AbstractField, p1, p2) =
+line_integral(field::AbstractField, p1, p2) =
     dot_assuming_zeros(p2 - p1, vector_potential(field, (p2 + p1) / 2))
-function path_integral(field::AbstractField, p1, p2, n_steps)
+function line_integral(field::AbstractField, p1, p2, n_steps)
     integral = 0.0
     dp = (p2 - p1) / n_steps
     p = p1 + 0.5dp
@@ -50,7 +45,7 @@ function apply_field!(ham::LatticeOperator, field::AbstractField)
             if i > j && !iszero(ham[i, j])
                 p1 = site1.coords
                 p2 = site2.coords
-                pmod = exp(-2π * im * path_integral(field, p1, p2))
+                pmod = exp(-2π * im * line_integral(field, p1, p2))
                 !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
                 ham[i, j] *= pmod
                 ham[j, i] *= pmod'
@@ -99,7 +94,7 @@ macro field_def(struct_block)
     end
     body = struct_block.args[3]
     struct_definition = quote
-        import LatticeModels: path_integral, vector_potential
+        import LatticeModels: line_integral, vector_potential
         import Base: show
         struct $struct_name <: AbstractField
             $(esc.(struct_fields)...)
@@ -139,13 +134,13 @@ macro field_def(struct_block)
                 else
                     error("invalid argument types")
                 end
-            elseif fn_name === :path_integral
+            elseif fn_name === :line_integral
                 Meta.isexpr(fn_args[1], :parameters) &&
-                    error("path_integral must not accept kwargs")
+                    error("line_integral must not accept kwargs")
                 length(fn_args) != 2 &&
-                    error("path_integral must have 2 positional arguments")
+                    error("line_integral must have 2 positional arguments")
                 push!(struct_definition.args, :(
-                    function LatticeModels.path_integral($escf, $(esc.(fn_args)...))
+                    function LatticeModels.line_integral($escf, $(esc.(fn_args)...))
                         $fn_body
                     end
                 ))
@@ -162,8 +157,8 @@ macro field_def(struct_block)
             key, arg = statement.args
             if key === :n_steps
                 push!(struct_definition.args, :(
-                    LatticeModels.path_integral(field::$struct_name, p1, p2) =
-                        LatticeModels.path_integral(field, p1, p2, $arg)
+                    LatticeModels.line_integral(field::$struct_name, p1, p2) =
+                        LatticeModels.line_integral(field, p1, p2, $arg)
                 ))
             else
                 @warn "unsupported key $key ignored"
@@ -176,7 +171,7 @@ macro field_def(struct_block)
 end
 
 @field_def struct NoField
-    path_integral(p1, p2) = 0
+    line_integral(p1, p2) = 0
 end
 """
     NoField <: AbstractField
@@ -190,7 +185,7 @@ struct FieldSum{FT<:Tuple} <: AbstractField
     fields::FT
 end
 vector_potential(f::FieldSum, p1) = sum(SVector(vector_potential(field, p1)) for field in f.fields)
-path_integral(f::FieldSum, p1, p2) = sum(path_integral(field, p1, p2) for field in f.fields)
+line_integral(f::FieldSum, p1, p2) = sum(line_integral(field, p1, p2) for field in f.fields)
 function Base.show(io::IO, m::MIME"text/plain", f::FieldSum)
     print(io, "Sum of $(length(f.fields)) fields:")
     i = 1

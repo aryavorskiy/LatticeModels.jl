@@ -25,10 +25,6 @@ Constructs a TimeSequence with one single snapshot. The timestamp is zero by def
 """
 TimeSequence(val; t::Real=0) = TimeSequence([t], [val])
 
-const LatticeValueSequence = TimeSequence{LatticeValue}
-const LatticeArraySequence = TimeSequence{LatticeArray}
-const CurrentsSequence = TimeSequence{MaterializedCurrents}
-
 """
     time_domain(ts::TimeSequence)
 
@@ -92,16 +88,16 @@ function Base.iterate(tseq::TimeSequence, state=(1, length(tseq)))
     tseq.times[ind] => tseq.snapshots[ind], (ind + 1, len)
 end
 
-_internal(la::LatticeArray) = la.array
+_internal(op::Operator) = op.data
 _internal(lv::LatticeValue) = lv.values
 _internal(curr::MaterializedCurrents) = curr.currents
-const LatticeType = Union{LatticeValue, LatticeArray, MaterializedCurrents}
-function _axpby!(a, x::LatticeType, b, y::LatticeType)
+# const LatticeType = Union{LatticeValue, LatticeArray, MaterializedCurrents}
+function _axpby!(a, x, b, y)
     axpby!(a, _internal(x), b, _internal(y))
     y
 end
 _axpby!(a, x::Number, b, y::Number) = a * x + b * y
-_axpby!(a, x, b, y) = axpby!(a, x, b, y)
+# _axpby!(a, x, b, y) = axpby!(a, x, b, y)
 
 """
     differentiate!(ts::TimeSequence)

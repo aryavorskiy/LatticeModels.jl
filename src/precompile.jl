@@ -70,7 +70,7 @@ function _precompile_()
     Base.precompile(Tuple{typeof(RecipesBase.apply_recipe),AbstractDict{Symbol, Any},Lattice})   # time: 0.1965443
     Base.precompile(Tuple{typeof(RecipesBase.apply_recipe),AbstractDict{Symbol, Any},Lattice,Any})   # time: 0.1859396
     Base.precompile(Tuple{typeof(ptrace),LatticeOperator{SubArray{Float64, 2, Array{Float64, 3}, Tuple{Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}, Int64}, true}, SingleParticleBasis{SquareLattice{2}}},Symbol})   # time: 0.1852091
-    Base.precompile(Tuple{typeof(coord_operators),SingleParticleBasis{HoneycombLattice}})   # time: 0.1779326
+    Base.precompile(Tuple{typeof(coords),SingleParticleBasis{HoneycombLattice}})   # time: 0.1779326
     Base.precompile(Tuple{Core.kwftype(typeof(TightBinding)),NamedTuple{(:pbc,), Tuple{Bool}},typeof(TightBinding),SquareLattice{1}})   # time: 0.1748882
     Base.precompile(Tuple{typeof(ldos),Spectrum{SingleParticleBasis{SquareLattice{2}}, Matrix{ComplexF64}},Float64})   # time: 0.1695119
     Base.precompile(Tuple{typeof(RecipesBase.apply_recipe),AbstractDict{Symbol, Any},AbstractCurrents})   # time: 0.1682023
@@ -80,7 +80,7 @@ function _precompile_()
     Base.precompile(Tuple{typeof(spectrum),LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{SquareLattice{2}}}})   # time: 0.1278806
     Base.precompile(Tuple{Type{PairSet},SquareLattice{2},BitMatrix})   # time: 0.1268993
     Base.precompile(Tuple{typeof(increment!),LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{SquareLattice{2}}},SMatrix{2, 2, Float64, 4},Int64,Int64})   # time: 0.122939
-    Base.precompile(Tuple{typeof(coord_operators),SingleParticleBasis{SquareLattice{2}}})   # time: 0.1205561
+    Base.precompile(Tuple{typeof(coords),SingleParticleBasis{SquareLattice{2}}})   # time: 0.1205561
     Base.precompile(Tuple{typeof(apply_field!),LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{SquareLattice{2}}},LandauField})   # time: 0.1153717
     Base.precompile(Tuple{typeof(increment!),LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{SquareLattice{2}}},SMatrix{1, 1, ComplexF64, 1},Int64,Int64})   # time: 0.1102889
     Base.precompile(Tuple{typeof(collect_coords),SquareLattice{3}})   # time: 0.1077307
@@ -95,7 +95,7 @@ function _precompile_()
     Base.precompile(Tuple{typeof(|),PairSet{SquareLattice{2}},PairSet{SquareLattice{2}}})   # time: 0.0897024
     Base.precompile(Tuple{typeof(integrate),LatticeValueRecord})   # time: 0.0894642
     Base.precompile(Tuple{typeof(_hopping_operator!),LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{SquareLattice{2}}},Nothing,Hopping{2},LandauField})   # time: 0.0871479
-    Base.precompile(Tuple{typeof(path_integral),FluxField,SVector{2, Int64},SVector{2, Int64}})   # time: 0.0854924
+    Base.precompile(Tuple{typeof(line_integral),FluxField,SVector{2, Int64},SVector{2, Int64}})   # time: 0.0854924
     Base.precompile(Tuple{typeof(^),PairSet{SquareLattice{2}},Int64})   # time: 0.0818278
     Base.precompile(Tuple{typeof(_unwrap_from_macro),typeof(*),LatticeOperator{SubArray{Float64, 2, Array{Float64, 3}, Tuple{Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}, Int64}, true}, SingleParticleBasis{SquareLattice{2}}},Any})   # time: 0.0809664
     Base.precompile(Tuple{typeof(!),PairSet{SquareLattice{2}}})   # time: 0.0806011
@@ -103,7 +103,7 @@ function _precompile_()
     isdefined(LatticeModels, Symbol("#88#89")) && Base.precompile(Tuple{getfield(LatticeModels, Symbol("#88#89")),Int64})   # time: 0.0797146
     Base.precompile(Tuple{typeof(filled_projector),Spectrum{SingleParticleBasis{HoneycombLattice}, Matrix{ComplexF64}}})   # time: 0.0791378
     Base.precompile(Tuple{Type{LatticeTimeSequence},Vector{LatticeValue{Float64, :square}},Vector{Float64}})   # time: 0.076106
-    Base.precompile(Tuple{typeof(path_integral),LandauField,SVector{2, Int64},SVector{2, Int64},Int64})   # time: 0.0742832
+    Base.precompile(Tuple{typeof(line_integral),LandauField,SVector{2, Int64},SVector{2, Int64},Int64})   # time: 0.0742832
     Base.precompile(Tuple{typeof(_diag_operator!),LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{SquareLattice{2}}},LatticeValue{Float64, :square}})   # time: 0.0736744
     Base.precompile(Tuple{typeof(increment!),LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{SquareLattice{2}}},SMatrix{2, 2, Int64, 4},Int64,Int64})   # time: 0.0727854
     Base.precompile(Tuple{Core.kwftype(typeof(getindex)),NamedTuple{(:x, :x2), Tuple{Int64, Int64}},typeof(getindex),LatticeValue{Float64, :square}})   # time: 0.0694017
@@ -113,7 +113,7 @@ function _precompile_()
     Base.precompile(Tuple{typeof(==),LatticeValueRecord,LatticeValueRecord})   # time: 0.062036
     Base.precompile(Tuple{Core.kwftype(typeof(SpinTightBinding)),NamedTuple{(:field,), Tuple{LandauField}},typeof(SpinTightBinding),Function,SquareLattice{2}})   # time: 0.061175
     Base.precompile(Tuple{typeof(filled_projector),Spectrum{SingleParticleBasis{SquareLattice{2}}, Matrix{ComplexF64}},Float64})   # time: 0.0609035
-    Base.precompile(Tuple{typeof(path_integral),SymmetricField,SVector{2, Int64},SVector{2, Int64},Int64})   # time: 0.0595919
+    Base.precompile(Tuple{typeof(line_integral),SymmetricField,SVector{2, Int64},SVector{2, Int64},Int64})   # time: 0.0595919
     Base.precompile(Tuple{typeof(_hopping_operator!),LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{SquareLattice{2}}},Nothing,Hopping,LandauField})   # time: 0.0594814
     let fbody = try __lookup_kwbody__(which(map_currents, (typeof(site_distance),DensityCurrents,))) catch missing end
     if !ismissing(fbody)
@@ -122,7 +122,7 @@ function _precompile_()
 end   # time: 0.0586801
     Base.precompile(Tuple{typeof(_hopping_operator!),LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{HoneycombLattice}},Nothing,Hopping{1},NoField})   # time: 0.0570815
     Base.precompile(Tuple{Core.kwftype(typeof(getindex)),NamedTuple{(:E,), Tuple{Int64}},typeof(getindex),Spectrum{SingleParticleBasis{HoneycombLattice}, Matrix{ComplexF64}}})   # time: 0.0554889
-    Base.precompile(Tuple{typeof(path_integral),FieldSum{Tuple{FluxField, SymmetricField}},SVector{2, Int64},SVector{2, Int64},Int64})   # time: 0.055067
+    Base.precompile(Tuple{typeof(line_integral),FieldSum{Tuple{FluxField, SymmetricField}},SVector{2, Int64},SVector{2, Int64},Int64})   # time: 0.055067
     Base.precompile(Tuple{typeof(copyto!),LatticeValue{Int64},Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(+), Tuple{Int64, Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(*), Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(<=), Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(sqrt), Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(+), Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(Base.literal_pow), Tuple{Base.RefValue{typeof(^)}, LatticeValue{Float64, :square}, Base.RefValue{Val{2}}}}, Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(Base.literal_pow), Tuple{Base.RefValue{typeof(^)}, LatticeValue{Float64, :square}, Base.RefValue{Val{2}}}}}}}}, Int64}}, Int64}}}}})   # time: 0.0534229
     Base.precompile(Tuple{typeof(getindex),LatticeValueRecord,LatticeValue{Bool, :square}})   # time: 0.052836
     Base.precompile(Tuple{LatticeValueRecord,Float64,Float64})   # time: 0.0525196
@@ -184,7 +184,7 @@ end   # time: 0.0187215
     Base.precompile(Tuple{typeof(getindex),Spectrum{SingleParticleBasis{HoneycombLattice}, Matrix{ComplexF64}},Int64})   # time: 0.0145357
     Base.precompile(Tuple{typeof(coord_values),HoneycombLattice})   # time: 0.0139526
     Base.precompile(Tuple{typeof(getindex),LatticeValue{Float64, :square},LatticeValue{Bool, :square}})   # time: 0.0138717
-    Base.precompile(Tuple{typeof(path_integral),FieldSum{Tuple{FluxField, SymmetricField}},SVector{2, Int64},SVector{2, Int64}})   # time: 0.013861
+    Base.precompile(Tuple{typeof(line_integral),FieldSum{Tuple{FluxField, SymmetricField}},SVector{2, Int64},SVector{2, Int64}})   # time: 0.013861
     Base.precompile(Tuple{typeof(dot),LatticeArray{Vector{Float64}, SingleParticleBasis{SquareLattice{2}}, 1},LatticeOperator{SubArray{Float64, 2, Array{Float64, 3}, Tuple{Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}, Int64}, true}, SingleParticleBasis{SquareLattice{2}}},LatticeArray{Vector{Float64}, SingleParticleBasis{SquareLattice{2}}, 1}})   # time: 0.0135801
     Base.precompile(Tuple{typeof(_kws_to_mask),SquareLattice{2},Any})   # time: 0.0128924
     Base.precompile(Tuple{typeof(copyto!),LatticeValue{Bool, :square},Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(<), Tuple{LatticeValue{Float64, :square}, Int64}}})   # time: 0.0127437
@@ -207,7 +207,7 @@ end   # time: 0.0187215
     Base.precompile(Tuple{Core.kwftype(typeof(hopping)),NamedTuple{(:translate_uc, :pbc), Tuple{Vector{Int64}, Vector{Bool}}},typeof(hopping)})   # time: 0.0102778
     isdefined(LatticeModels, Symbol("#108#110")) && Base.precompile(Tuple{getfield(LatticeModels, Symbol("#108#110")),Vector{Float64}})   # time: 0.0100866
     Base.precompile(Tuple{typeof(copyto!),LatticeValueWrapper{SubArray{Float64, 1, Vector{Float64}, Tuple{Vector{Int64}}, false}, :square},Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(+), Tuple{LatticeValue{Float64, :square}, Int64}}})   # time: 0.0100554
-    Base.precompile(Tuple{typeof(path_integral),FluxField,SVector{2, Int64},SVector{2, Int64},Int64})   # time: 0.009822
+    Base.precompile(Tuple{typeof(line_integral),FluxField,SVector{2, Int64},SVector{2, Int64},Int64})   # time: 0.009822
     Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, :square},Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(*), Tuple{LatticeValue{Float64, :square}, LatticeValue{Float64, :square}}}})   # time: 0.0098096
     Base.precompile(Tuple{typeof(getindex),Spectrum{SingleParticleBasis{HoneycombLattice}, Matrix{ComplexF64}},BitVector})   # time: 0.0097496
     Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, :honeycomb},Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(|>), Tuple{LatticeValue{Float64, :honeycomb}, Base.RefValue{typeof(real)}}}})   # time: 0.0096538
@@ -279,7 +279,7 @@ end   # time: 0.0187215
     Base.precompile(Tuple{typeof(similar),Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(|>), Tuple{LatticeValue{ComplexF64, :square}, Base.RefValue{typeof(real)}}},Type{Float64}})   # time: 0.0032323
     Base.precompile(Tuple{typeof(similar),Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(+), Tuple{LatticeValue{Float64, :honeycomb}, Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(exp), Tuple{LatticeValue{Float64, :honeycomb}}}}},Type{Float64}})   # time: 0.0031473
     Base.precompile(Tuple{typeof(*),LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{HoneycombLattice}},LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{HoneycombLattice}}})   # time: 0.0031205
-    Base.precompile(Tuple{typeof(path_integral),LandauField,SVector{2, Float64},SVector{2, Float64}})   # time: 0.0031049
+    Base.precompile(Tuple{typeof(line_integral),LandauField,SVector{2, Float64},SVector{2, Float64}})   # time: 0.0031049
     Base.precompile(Tuple{typeof(+),LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{SquareLattice{2}}},LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{SquareLattice{2}}}})   # time: 0.0030444
     Base.precompile(Tuple{typeof(increment!),LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{HoneycombLattice}},Matrix{Float64},Int64,Int64})   # time: 0.0030374
     Base.precompile(Tuple{typeof(*),ComplexF64,LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{SquareLattice{2}}}})   # time: 0.0030219
@@ -349,7 +349,7 @@ end   # time: 0.0017903
         precompile(fbody, (Base.Iterators.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}},typeof(_unwrap),Function,Tuple{},Tuple{Int64, Int64},))
     end
 end   # time: 0.0017449
-    Base.precompile(Tuple{typeof(path_integral),LandauField,SVector{2, Int64},SVector{2, Int64}})   # time: 0.0017181
+    Base.precompile(Tuple{typeof(line_integral),LandauField,SVector{2, Int64},SVector{2, Int64}})   # time: 0.0017181
     let fbody = try __lookup_kwbody__(which(_unwrap, (Function,Tuple{},Tuple{UniformScaling{Bool}, LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{HoneycombLattice}}},))) catch missing end
     if !ismissing(fbody)
         precompile(fbody, (Base.Iterators.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}},typeof(_unwrap),Function,Tuple{},Tuple{UniformScaling{Bool}, LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{HoneycombLattice}}},))
@@ -363,7 +363,7 @@ end   # time: 0.0017105
 end   # time: 0.0016175
     Base.precompile(Tuple{Type{LatticeValue},SquareLattice{2},Vector{Bool}})   # time: 0.0016114
     Base.precompile(Tuple{typeof(==),LatticeOperator{Matrix{Float64}, SingleParticleBasis{SquareLattice{2}}},LatticeOperator{Matrix{Float64}, SingleParticleBasis{SquareLattice{2}}}})   # time: 0.0015984
-    Base.precompile(Tuple{typeof(path_integral),SymmetricField,SVector{2, Int64},SVector{2, Int64}})   # time: 0.0015966
+    Base.precompile(Tuple{typeof(line_integral),SymmetricField,SVector{2, Int64},SVector{2, Int64}})   # time: 0.0015966
     Base.precompile(Tuple{typeof(zeros),SquareLattice{2}})   # time: 0.0015952
     Base.precompile(Tuple{typeof(==),LatticeValue{Float64, :square},LatticeValue{Float64, :square}})   # time: 0.0015835
     Base.precompile(Tuple{Type{LatticeValue},Lattice{:plot_fallback, 2, 1},Vector{Float64}})   # time: 0.00158
@@ -377,8 +377,8 @@ end   # time: 0.0016175
 end   # time: 0.0015643
     Base.precompile(Tuple{typeof(==),LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{SquareLattice{1}}},LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{SquareLattice{1}}}})   # time: 0.0015584
     Base.precompile(Tuple{typeof(zero),LatticeValue{Float64, :square}})   # time: 0.0015296
-    Base.precompile(Tuple{PairLhsSelector,HoneycombLattice,LatticeSite{2},LatticeSite{2}})   # time: 0.0015222
-    Base.precompile(Tuple{typeof(check_lattice_fits),PairLhsSelector,SquareLattice{2}})   # time: 0.0015083
+    Base.precompile(Tuple{PairLhsGraph,HoneycombLattice,LatticeSite{2},LatticeSite{2}})   # time: 0.0015222
+    Base.precompile(Tuple{typeof(check_lattice_fits),PairLhsGraph,SquareLattice{2}})   # time: 0.0015083
     Base.precompile(Tuple{Type{LatticeValue},SquareLattice{2},Vector})   # time: 0.0015043
     Base.precompile(Tuple{typeof(similar),Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(*), Tuple{LatticeValue{Float64, :square}, LatticeValue{Float64, :square}}},Type{Float64}})   # time: 0.0015041
     let fbody = try __lookup_kwbody__(which(_unwrap, (Function,Tuple{},Tuple{UniformScaling{Bool}, LatticeOperator{Matrix{ComplexF64}, SingleParticleBasis{SquareLattice{2}}}},))) catch missing end

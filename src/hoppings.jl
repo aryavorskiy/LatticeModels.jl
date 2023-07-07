@@ -2,43 +2,67 @@ using StaticArrays
 import Base: ==
 
 abstract type Boundary end
-function shift_site(bc::Boundary, l::Lattice, site::LatticeSite{N}) where N
-    lspan = l.lattice_size[i]
-    offset = div(site.unit_cell[bc.i] - 1, lspan, RoundDown)
-    offset == 0 && return site, 1
-    dv = one_hot(bc.i, N)
-    factor = 1.
-    for _ in 1:abs(offset)
-        if offset > 0
-            site = displace_site(l, site, -dv * offset)
-            factor *= phase_fshift(bc, l, site)
-        else
-            factor *= phase_fshift(bc, l, site)'
-            site = displace_site(l, site, dv * offset)
-        end
-    end
-    factor, site
-end
 
 struct TwistedBoundary <: Boundary
     i::Int
     Θ::Float64
 end
 PeriodicBoundary(i) = TwistedBoundary(i, 0)
-phase_fshift(::Lattice, ::LatticeSite, bc::TwistedBoundary) = exp(im * bc.Θ)
+function shift_site(bc::TwistedBoundary, l::Lattice, site::LatticeSite{N}) where N
+    bc.i > dims(l) && return 1., site
+    lspan = l.lattice_size[bc.i]
+    offset = div(site.unit_cell[bc.i] - 1, lspan, RoundDown)
+    offset == 0 && return 1., site
+    dv = one_hot(bc.i, Val(N))
+    site = displace_site(l, site, -dv * offset * lspan)
+    exp(im * bc.Θ * offset), site
+end
 
-struct FunctionBoundaryCondition{F<:Function} <: Boundary
+struct FunctionBoundary{F<:Function} <: Boundary
     i::Int
     condition::F
 end
-phase(bc::Boundary, ::Lattice, ls::LatticeSite) = bc.condition(ls)
+function shift_site(bc::FunctionBoundary, l::Lattice, site::LatticeSite{N}) where N
+    bc.i > dims(l) && return 1., site
+    lspan = l.lattice_size[bc.i]
+    offset = div(site.unit_cell[bc.i] - 1, lspan, RoundDown)
+    offset == 0 && return site, 1
+    dv = one_hot(bc.i, Val(N))
+    factor = 1.
+    for _ in 1:abs(offset)
+        if offset > 0
+            site = displace_site(l, site, -dv * lspan)
+            factor *= bc.condition(ls)
+        else
+            factor *= bc.condition(ls)'
+            site = displace_site(l, site, dv * lspan)
+        end
+    end
+    factor, site
+end
 
 struct BoundaryConditions{CondsTuple}
-    conds::CondsTuple
-    BoundaryConditions(bcs::BT) where BT<:Tuple{<:Boundary} =
+    bcs::CondsTuple
+    function BoundaryConditions(bcs::BT) where BT<:NTuple{N, <:Boundary} where N
+        @assert allunique(bc.i for bc in bcs)
         new{BT}(bcs)
+    end
 end
-BoundaryConditions(conds...) = BoundaryConditions(conds)
+_extract_boundary_conditions(b::Boundary) = b
+function _extract_boundary_conditions(pb::Pair{Int, Bool})
+    !pb.second && error("")
+    PeriodicBoundary(pb.first)
+end
+_extract_boundary_conditions(pb::Pair{Int, <:Real}) = TwistedBoundary(pb...)
+BoundaryConditions(args...) = BoundaryConditions(_extract_boundary_conditions.(args))
+function shift_site(bcs::BoundaryConditions, l::Lattice, site::LatticeSite)
+    factor = 1.
+    for bc in bcs.bcs
+        new_factor, site = shift_site(bc, l, site)
+        factor *= new_factor
+    end
+    factor, site
+end
 
 struct SingleBond{N}
     site1::LatticeSite{N}
@@ -46,97 +70,52 @@ struct SingleBond{N}
 end
 
 """
-    Bonds
+    Bonds{N}
 
 A struct representing bonds in some direction in a lattice.
 - `site_indices`: a `NTuple{2, Int}` with indices of sites connected by the bond.
 - `translate_uc`: the unit cell offset.
 """
-struct Bonds
-    site_indices::Tuple{Int,Int}
-    translate_uc::Vector{Int}
-    function Bonds(site_indices, translate_uc, pbc)
-        N = size(hop_operator)[1]
-        new{N}(site_indices, translate_uc)
-    end
+struct Bonds{N}
+    site_indices::Pair{Int,Int}
+    translate_uc::SVector{N, Int}
 end
-
-_tr_and_pbc(tr_vc::Vector, pbc::Vector) = (tr_vc, pbc)
-_tr_and_pbc(tr_vc::Vector, pbc::Bool) = (tr_vc, fill(pbc, length(tr_vc)))
-_tr_and_pbc(pbc::Vector) = (zeros(Int, length(pbc)), pbc)
-_tr_and_pbc(pbc::Bool) = ([0], [pbc])
-function _tr_and_pbc(axis_no::Int, pbc::Vector)
-    newdim = max(axis_no, length(pbc))
-    tr_vc = zeros(Int, newdim)
-    tr_vc[axis_no] = 1
-    newpbc = zeros(Bool, newdim)
-    newpbc[eachindex(pbc)] = pbc
-    return (tr_vc, newpbc)
-end
-function _tr_and_pbc(axis_no::Int, pbc::Bool)
-    tr_vc = zeros(Int, axis_no)
-    tr_vc[axis_no] = 1
-    return (tr_vc, fill(pbc, axis_no))
-end
-_get_site_indices(a) = error("Cannot convert object of type $(typeof(a)) to bond indices")
-_get_site_indices(i::Int) = (i, i)
-_get_site_indices(t::NTuple{2, Int}) = t
 
 """
-    DirectedBonds(kwargs...)
+    Bonds(site_indices; kwargs...)
 
-A convenient constructor for a `DirectedBonds` object. `hop_operator` can be either a matrix or a number
-(in that case a 1×1 matrix will be created automatically)
+A convenient constructor for a `Bonds` object.
+`site_indices` is a `::Int => ::Int` pair with indices of sites connected by the bond; `1 => 1` is the default value.
 
 **Keyword arguments:**
-- `site_indices`: a `NTuple{2, Int}` (or `Int` if they are equal) with indices of sites connected by the bond. `(1, 1)` by default.
-- `translate_uc`: the unit cell offset. Zeros by default.
+- `translate_uc`: the unit cell offset, a `Tuple` or a `SVector`. Zeros by default.
 - `axis`: overrides `translate_uc` and sets its components to zero on all axes except given.
-- `pbc`: a vector of boolean values indicating if the bonds should be applied periodically over each axis.
-Can also be a single boolean, which will set all elements of the vector to given value. `false` by default.
 
 If `site_indices` are equal and `translate_uc` is zero, this means that the bond connects each site with itself,
 in which case an error will be thrown.
-Note that the dimension count for the hopping is dynamic and will automatically change during runtime.
+Note that the dimension count for the bond is static, it is automatically compatible to higher-dimensional lattices.
 """
-function Bonds(hop_operator=1; site_indices=1, pbc=false, kw...)
-    site_indices = _get_site_indices(site_indices)::NTuple{2, Int}
-    if :axis in keys(kw)
-        tr_vc, pbc = _tr_and_pbc(kw[:axis], pbc)
+function Bonds(site_indices=Pair(1, 1); kw...)
+    tr_vc = if :axis in keys(kw)
+        one_hot(kw[:axis], kw[:axis])
     elseif :translate_uc in keys(kw)
-        tr_vc, pbc = _tr_and_pbc(kw[:translate_uc], pbc)
+        kw[:translate_uc]
     elseif site_indices[1] != site_indices[2]
-        tr_vc, pbc = _tr_and_pbc(pbc)
+        SA[0]
     end
     if iszero(tr_vc) && ==(site_indices...)
-        throw(ArgumentError("hopping connects site to itself"))
+        throw(ArgumentError("bond connects site to itself"))
     end
-    Bonds(site_indices, tr_vc, pbc)
+    Bonds(site_indices, tr_vc)
 end
 
 ==(h1::Bonds, h2::Bonds) =
     all(getproperty(h1, fn) == getproperty(h2, fn) for fn in fieldnames(Bonds))
 
-function Base.show(io::IO, m::MIME"text/plain", hop::Bonds)
+function Base.show(io::IO, ::MIME"text/plain", hop::Bonds)
     println(io, "Bonds connect site #$(hop.site_indices[1]) with site #$(hop.site_indices[1]) translated by $(hop.translate_uc)")
-    if !iszero(hop.translate_uc)
-        print(io, "Boundary conditions: ")
-        if all(hop.pbc .| (hop.translate_uc .== 0))
-            println(io, "periodic")
-        else
-            p_axes = [i for i in eachindex(hop.translate_uc) if hop.pbc[i] && hop.translate_uc[i] != 0]
-            if length(p_axes) == 0
-                println(io, "open")
-            elseif length(p_axes) == 1
-                println(io, "periodic at axis $(only(p_axes))")
-            else
-                println(io, "periodic at axes $(join(p_axes, "×"))")
-            end
-        end
-    end
 end
-dims(h::Bonds) = length(h.translate_uc)
-dims_internal(::Bonds{N}) where N = N
+dims(::Bonds{N}) where N = N
 
 """
     radius_vector(l::Lattice, hop::Hopping)
@@ -145,29 +124,8 @@ Finds the vector between two sites on a lattice according to possibly periodic b
 """
 function radius_vector(l::Lattice, hop::Bonds)
     i, j = hop.site_indices
-    bravais(l).basis[:, j] - bravais(l).basis[:, i] + bravais(l).translation_vectors * hop.translate_uc
-end
-
-"""
-    promote_dims!(h::Hopping, ndims::Int)
-
-Changes dimension count of `hopping` to `ndims` if possible.
-"""
-function promote_dims!(h::Bonds, ndims::Int)
-    if ndims ≥ dims(h)
-        append!(h.pbc, fill(false, ndims - dims(h)))
-        append!(h.translate_uc, fill(0, ndims - dims(h)))
-    else
-        for _ in 1:dims(h)-ndims
-            if h.translate_uc[end] == 0
-                pop!(h.translate_uc)
-                pop!(h.pbc)
-            else
-                throw(ArgumentError("cannot shrink hopping dims, non-zero translation found"))
-            end
-        end
-    end
-    h
+    bravais(l).basis[:, j] - bravais(l).basis[:, i] +
+     mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
 end
 
 """
@@ -179,43 +137,47 @@ Returns a tuple containing the destination site and a `SVector` with integer num
 """
 function hopping_dest(l::Lattice, hop::Bonds, site::LatticeSite)
     site.basis_index != hop.site_indices[1] && return nothing
-    new_uc = site.unit_cell + hop.translate_uc
-    resid = fld.(new_uc .- 1, size(l))
-    all(@. hop.pbc | (resid == 0)) || return nothing
-    LatticeSite(mod.(new_uc .- 1, l.lattice_size) .+ 1, hop.site_indices[2], l), resid
+    new_uc = add_assuming_zeros(site.unit_cell, hop.translate_uc)
+    get_site(l, new_uc, hop.site_indices[2])
 end
 
 check_lattice_fits(::Any, ::Lattice) = nothing
 @inline _get_bool_value(::Nothing, ::Lattice, ::LatticeSite, ::LatticeSite) = true
 @inline _get_bool_value(f::Function, l::Lattice, site1::LatticeSite, site2::LatticeSite) =
     f(l, site1, site2)
-function hoppings(selector, lb::LatticeBasis, hops::Bonds...; field::AbstractField=NoField())
+function hoppings(selector, lb::LatticeBasis, hops::Bonds...; field::AbstractField=NoField(), boundaries::BoundaryConditions=BoundaryConditions())
     l = lb.latt
     check_lattice_fits(selector, l)
-    promote_dims!(hop, dims(l))
-    trv = radius_vector(l, hop)
+    trvs = [radius_vector(l, hop) for hop in hops]
     Is = Int[]
     Js = Int[]
     Vs = ComplexF64[]
+    for hop in hops
+        dims(hop) > dims(l) && error("Incompatible dims")
+    end
     for (i, site1) in enumerate(l)
-        for hop in hops
-            dst = hopping_dest(l, hop, site1)
-            dst === nothing && continue
-            site2, _ = dst
+        for (hi, hop) in enumerate(hops)
+            site1.basis_index != hop.site_indices[1] && continue
+            site2 = LatticeSite(add_assuming_zeros(site1.unit_cell, hop.translate_uc),
+                hop.site_indices[2], site1.coords + trvs[hi])
+            factor, site2 = shift_site(boundaries, l, site2)
             j = site_index(l, site2)
             j === nothing && continue
             !_get_bool_value(selector, l, site1, site2) && continue
 
             p1 = site1.coords
-            pmod = exp(-2π * im * path_integral(field, p1, p1 + trv))
+            pmod = exp(-2π * im * line_integral(field, p1, p1 + trvs[hi])) * factor
             !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
             push!(Is, i, j)
             push!(Js, j, i)
             push!(Vs, pmod, pmod')
         end
     end
-    sparse(Is, Js, Vs, length(lb), length(lb))
+    mat = sparse(Is, Js, Vs, length(lb), length(lb))
+    Operator(lb, mat)
 end
+hoppings(selector, l::Lattice, args...; kw...) =
+    hoppings(selector, LatticeBasis(l), args...; kw...)
 
 @doc raw"""
     hoppings([f, ]lattice::Lattice, hopping::Hopping[, field::AbstractField])
@@ -230,8 +192,8 @@ Can also be a `PairSelector`,
 - `hopping`: the `Hopping` object describing the site pairs and the $\hat{t}$ operator.
 - `field`: the `AbstractField` object that defines the magnetic field to generate phase factors using Peierls substitution.
 """
-hoppings(lb::LatticeBasis, hops::Bonds...; field::AbstractField=NoField()) =
-    hoppings(nothing, lb, hops...; field=field)
+hoppings(l, hops::Bonds...; field::AbstractField=NoField(), boundaries=BoundaryConditions()) =
+    hoppings(nothing, l, hops...; field=field, boundaries=boundaries)
 
 """
     AbstractGraph <: Function
@@ -258,40 +220,41 @@ A selector used for hopping operator definition or currents materialization.
 Takes a `LatticeValue`.
 A pair matches the selector if the value of `domains` is the same on two sites.
 """
-struct DomainsSelector <: AbstractGraph
-    domains::LatticeValue
+struct DomainsSelector{LT} <: AbstractGraph
+    domains::LT
+    DomainsSelector(domains::LT) where LT<:LatticeValue = new{LT}(domains)
 end
 lattice(ps::DomainsSelector) = lattice(ps.domains)
 match(ps::DomainsSelector, site1::LatticeSite, site2::LatticeSite) =
     ps.domains[site1] == ps.domains[site2]
 
 """
-    PairLhsSelector(lhs::LatticeValue)
+    PairLhsGraph(lhs::LatticeValue)
 
 A selector used for hopping operator definition or currents materialization.
 
 Takes a `LatticeValue`.
 A pair matches the selector if the value of `lhs` is true on the first site of the pair.
 """
-struct PairLhsSelector <: AbstractGraph
+struct PairLhsGraph <: AbstractGraph
     lhs::LatticeValue
 end
-lattice(ps::PairLhsSelector) = lattice(ps.lhs)
-match(ps::PairLhsSelector, site1::LatticeSite, ::LatticeSite) = ps.lhs[site1]
+lattice(ps::PairLhsGraph) = lattice(ps.lhs)
+match(ps::PairLhsGraph, site1::LatticeSite, ::LatticeSite) = ps.lhs[site1]
 
 """
-    PairRhsSelector(rhs::LatticeValue)
+    PairRhsGraph(rhs::LatticeValue)
 
 A selector used for hopping operator definition or currents materialization.
 
 Takes a `LatticeValue`.
 A pair matches the selector if the value of `rhs` is true on the first site of the pair.
 """
-struct PairRhsSelector <: AbstractGraph
+struct PairRhsGraph <: AbstractGraph
     rhs::LatticeValue
 end
-lattice(ps::PairRhsSelector) = lattice(ps.rhs)
-match(ps::PairRhsSelector, ::LatticeSite, site2::LatticeSite) = ps.rhs[site2]
+lattice(ps::PairRhsGraph) = lattice(ps.rhs)
+match(ps::PairRhsGraph, ::LatticeSite, site2::LatticeSite) = ps.rhs[site2]
 
 macro hopping_operator(for_loop::Expr)
     if for_loop.head !== :for
@@ -358,17 +321,6 @@ end
 lattice(bs::PairSet) = bs.lattice
 match(bs::PairSet, site1::LatticeSite, site2::LatticeSite) =
     bs.bmat[site_index(lattice(bs), site1), site_index(lattice(bs), site2)]
-
-"""
-    bonds(op::LatticeOperator)
-
-Generates a `PairSet` for the provided operator.
-"""
-function bonds(op::LatticeOperator)
-    matrix = Bool[!iszero(op[i, j])
-                  for i in 1:length(lattice(op)), j in 1:length(lattice(op))]
-    return PairSet(lattice(op), matrix)
-end
 
 """
     bonds(l::Lattice, hoppings::Hopping...)

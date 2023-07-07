@@ -38,7 +38,7 @@ end
 
 @field_def struct LandauField(B::Number)
     vector_potential(x) = (0, x*B)
-    path_integral(p1, p2) = ((p1[1] + p2[1]) / 2) * (p2[2] - p1[2]) * B
+    line_integral(p1, p2) = ((p1[1] + p2[1]) / 2) * (p2[2] - p1[2]) * B
     show(io::IO, ::MIME"text/plain") = print(io, "Landau calibration field; B = $B flux quanta per 1×1 plaquette")
 end
 """
@@ -52,7 +52,7 @@ LandauField
 
 @field_def struct SymmetricField(B::Number)
     vector_potential(x, y) = SA[-y, x] * B / 2
-    path_integral(p1, p2) = (p1[1] * p2[2] - p2[1] * p1[2]) / 2 * B
+    line_integral(p1, p2) = (p1[1] * p2[2] - p2[1] * p1[2]) / 2 * B
     show(io::IO, ::MIME"text/plain") = print(io, "Symmetric calibration field; B = $B flux quanta per 1×1 plaquette")
 end
 """
@@ -70,7 +70,7 @@ _angle(p1, p2) = asin((1.0 - 1e-11) * det(hcat(p1, p2)) / norm(p1) / norm(p2))
         norm = (x^2 + y^2)
         (-y / norm * B, x / norm * B)
     end
-    function path_integral(p1, p2)
+    function line_integral(p1, p2)
         Pv = SVector(P)
         p1 = p1[1:2] - Pv
         p2 = p2[1:2] - Pv

@@ -1,8 +1,8 @@
 import Base: ==
-import QuantumOpticsBase: diagonaloperator
+import QuantumOpticsBase
 
 struct LatticeBasis{LT<:Lattice} <: QuantumOpticsBase.Basis
-    shape::SVector{Int, 1}
+    shape::SVector{1, Int}
     latt::LT
     LatticeBasis(l::LT) where LT<:Lattice = new{LT}(SA[length(l)], l)
 end
@@ -28,5 +28,7 @@ coord_operators(lb::LatticeBasis)
 
 Returns a `Tuple` of coordinate `LatticeOperator`s for given basis.
 """
-coords(lb::LatticeBasis) = Tuple(diagonaloperator(lv) for lv in coord_values(lb.latt))
-coord(lb::LatticeBasis, coord) = diagonaloperator(coord_values(lb.latt)[_parse_axis_descriptor(coord)])
+coord_operators(lb::LatticeBasis) = Tuple(diagonaloperator(lb, lv) for lv in coord_values(lb.latt))
+# coord(lb::LatticeBasis, coord) = diagonaloperator(lb, coord_values(lb.latt)[_parse_axis_descriptor(coord)])
+
+const LatticeOperator{T, MT} = Operator{T, T, MT} where T<:LatticeBasis

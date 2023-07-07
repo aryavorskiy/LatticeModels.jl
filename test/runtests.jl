@@ -13,8 +13,8 @@ end
         l = SquareLattice(10, 10) do (x, y)
             √(x^2 + y^2) < 5
         end
-        b = Basis(l, 1)
-        d = LatticeOperator(b, I)
+        b = LatticeBasis(l)
+        d = Operator(b, I)
         hx = hopping_operator(l, hopping(axis=1))
         hy = hopping_operator(l, hopping(axis=2))
         H = d + hx + hy
@@ -70,7 +70,7 @@ end
 
     @test begin
         l = SquareLattice(10, 10)
-        X, Y = coord_operators(l, 2)
+        X, Y = coord_operators(l)
         x, y = coord_values(l)
         xy = x .* y
         p = plot(layout=4)
@@ -339,7 +339,7 @@ end
         abs(x + y) < 2.5
     end
     x, y = coord_values(l)
-    op1 = hopping_operator(PairLhsSelector(x .< y), l, hopping(axis=1))
+    op1 = hopping_operator(PairLhsGraph(x .< y), l, hopping(axis=1))
     op2 = hopping_operator(l, hopping(axis=1)) do l, site1, site2
         local (x, y) = site1.coords
         x < y
@@ -355,7 +355,7 @@ end
     end
     @field_def struct StrangeLandauField
         vector_potential(point...) = (0, point[1] * 0.1)
-        path_integral(p1, p2) = 123
+        line_integral(p1, p2) = 123
     end
     @field_def struct EmptyField end
     l = SquareLattice(10, 10)
@@ -370,26 +370,26 @@ end
     @testset "Path integral" begin
         p1 = SA[1, 2]
         p2 = SA[3, 4]
-        @test LatticeModels.path_integral(la, p1, p2) ≈
-              LatticeModels.path_integral(la, p1, p2, 100)
-        @test LatticeModels.path_integral(lla, p1, p2, 100) ==
-              LatticeModels.path_integral(lla, p1, p2)
-        @test LatticeModels.path_integral(la, p1, p2) ≈
-              LatticeModels.path_integral(lla, p1, p2)
+        @test LatticeModels.line_integral(la, p1, p2) ≈
+              LatticeModels.line_integral(la, p1, p2, 100)
+        @test LatticeModels.line_integral(lla, p1, p2, 100) ==
+              LatticeModels.line_integral(lla, p1, p2)
+        @test LatticeModels.line_integral(la, p1, p2) ≈
+              LatticeModels.line_integral(lla, p1, p2)
 
-        @test LatticeModels.path_integral(sla, p1, p2, 100) ≈
-              LatticeModels.path_integral(la, p1, p2)
-        @test LatticeModels.path_integral(sla, p1, p2) == 123
+        @test LatticeModels.line_integral(sla, p1, p2, 100) ≈
+              LatticeModels.line_integral(la, p1, p2)
+        @test LatticeModels.line_integral(sla, p1, p2) == 123
 
-        @test LatticeModels.path_integral(sym, p1, p2, 1) ≈
-              LatticeModels.path_integral(sym, p1, p2)
-        @test LatticeModels.path_integral(sym, p1, p2, 100) ≈
-              LatticeModels.path_integral(sym, p1, p2)
+        @test LatticeModels.line_integral(sym, p1, p2, 1) ≈
+              LatticeModels.line_integral(sym, p1, p2)
+        @test LatticeModels.line_integral(sym, p1, p2, 100) ≈
+              LatticeModels.line_integral(sym, p1, p2)
 
-        @test LatticeModels.path_integral(flx, p1, p2, 1000) ≈
-              LatticeModels.path_integral(flx, p1, p2) atol = 1e-8
-        @test LatticeModels.path_integral(flx + sym, p1, p2, 1000) ≈
-              LatticeModels.path_integral(flx + sym, p1, p2) atol = 1e-8
+        @test LatticeModels.line_integral(flx, p1, p2, 1000) ≈
+              LatticeModels.line_integral(flx, p1, p2) atol = 1e-8
+        @test LatticeModels.line_integral(flx + sym, p1, p2, 1000) ≈
+              LatticeModels.line_integral(flx + sym, p1, p2) atol = 1e-8
 
         @test_throws "no vector potential function" LatticeModels.vector_potential(emf, SA[1, 2, 3])
     end
@@ -426,7 +426,7 @@ end
             field := LandauField(0.5)
             dims_internal := 2
             @diag [1 0; 0 -1] ⊗ (@. x + y)
-            @hop [1 0; 0 -1] axis = 2 PairLhsSelector(@. x + 1 < y)
+            @hop [1 0; 0 -1] axis = 2 PairLhsGraph(@. x + 1 < y)
         end
         H2 = @hamiltonian begin
             lattice := l

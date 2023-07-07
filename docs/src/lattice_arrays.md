@@ -17,7 +17,7 @@ larr = LatticeArray(Basis(l, 1), [1, 2, 3, 4, 5, 6])    # LatticeVector construc
 larr.array                  # Access the array object wrapped by the LatticeArray
 ```
 
-You can create `LatticeArray` representations of coordinate operators by using the `coord_operators` function. 
+You can create `LatticeArray` representations of coordinate operators by using the `coords` function. 
 
 ```@repl env
 l = SquareLattice(5, 5)
@@ -165,4 +165,4 @@ plot(bonds(hop_op2))
 plot!(domains, cbar=false)
 ```
 
-See also [`DomainsSelector`](@ref), [`PairLhsSelector`](@ref), [`PairLhsSelector`](@ref).
+See also [`DomainsSelector`](@ref), [`PairLhsGraph`](@ref), [`PairLhsGraph`](@ref).
