@@ -1,5 +1,4 @@
 using StaticArrays
-import Base: ==
 
 abstract type Boundary end
 
@@ -9,33 +8,39 @@ struct TwistedBoundary <: Boundary
 end
 PeriodicBoundary(i) = TwistedBoundary(i, 0)
 function shift_site(bc::TwistedBoundary, l::Lattice, site::LatticeSite{N}) where N
-    bc.i > dims(l) && return 1., site
+    ret = 1., site
+    bc.i > dims(l) && return ret
     lspan = l.lattice_size[bc.i]
     offset = div(site.unit_cell[bc.i] - 1, lspan, RoundDown)
-    offset == 0 && return 1., site
+    offset == 0 && return ret
     dv = one_hot(bc.i, Val(N))
-    site = displace_site(l, site, -dv * offset * lspan)
+    site = shift_site(l, site, -dv * offset * lspan)
     exp(im * bc.Θ * offset), site
 end
 
 struct FunctionBoundary{F<:Function} <: Boundary
-    i::Int
     condition::F
+    i::Int
 end
+
+shift_site(js::SVector{N}, l::Lattice, site::LatticeSite{N}) where N =
+    LatticeSite(site.unit_cell + js, site.basis_index, site.coords + bravais(l).translation_vectors * js)
+
 function shift_site(bc::FunctionBoundary, l::Lattice, site::LatticeSite{N}) where N
-    bc.i > dims(l) && return 1., site
+    ret = 1., site
+    bc.i > dims(l) && return ret
     lspan = l.lattice_size[bc.i]
     offset = div(site.unit_cell[bc.i] - 1, lspan, RoundDown)
-    offset == 0 && return site, 1
+    offset == 0 && return ret
     dv = one_hot(bc.i, Val(N))
     factor = 1.
     for _ in 1:abs(offset)
         if offset > 0
-            site = displace_site(l, site, -dv * lspan)
+            site = shift_site(-dv * lspan, l, site)
             factor *= bc.condition(ls)
         else
             factor *= bc.condition(ls)'
-            site = displace_site(l, site, dv * lspan)
+            site = shift_site(dv * lspan, l, site)
         end
     end
     factor, site
@@ -43,9 +48,9 @@ end
 
 struct BoundaryConditions{CondsTuple}
     bcs::CondsTuple
-    function BoundaryConditions(bcs::BT) where BT<:NTuple{N, <:Boundary} where N
+    function BoundaryConditions(bcs::CondsTuple) where CondsTuple<:NTuple{N, <:Boundary} where N
         @assert allunique(bc.i for bc in bcs)
-        new{BT}(bcs)
+        new{CondsTuple}(bcs)
     end
 end
 _extract_boundary_conditions(b::Boundary) = b
@@ -64,10 +69,7 @@ function shift_site(bcs::BoundaryConditions, l::Lattice, site::LatticeSite)
     factor, site
 end
 
-struct SingleBond{N}
-    site1::LatticeSite{N}
-    site2::LatticeSite{N}
-end
+const SingleBond{N} = Pair{LatticeSite{N}, LatticeSite{N}}
 
 """
     Bonds{N}
@@ -109,7 +111,7 @@ function Bonds(site_indices=Pair(1, 1); kw...)
     Bonds(site_indices, tr_vc)
 end
 
-==(h1::Bonds, h2::Bonds) =
+Base.:(==)(h1::Bonds, h2::Bonds) =
     all(getproperty(h1, fn) == getproperty(h2, fn) for fn in fieldnames(Bonds))
 
 function Base.show(io::IO, ::MIME"text/plain", hop::Bonds)
@@ -128,54 +130,54 @@ function radius_vector(l::Lattice, hop::Bonds)
      mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
 end
 
-"""
-    hopping_dest(l::Lattice, hop::Hopping, site::LatticeSite)
-
-Finds the destination site of the `hop` hopping, given the lattice and the source site `site`.
-
-Returns a tuple containing the destination site and a `SVector` with integer numbers describing the macrocell shift.
-"""
-function hopping_dest(l::Lattice, hop::Bonds, site::LatticeSite)
-    site.basis_index != hop.site_indices[1] && return nothing
-    new_uc = add_assuming_zeros(site.unit_cell, hop.translate_uc)
-    get_site(l, new_uc, hop.site_indices[2])
-end
-
 check_lattice_fits(::Any, ::Lattice) = nothing
 @inline _get_bool_value(::Nothing, ::Lattice, ::LatticeSite, ::LatticeSite) = true
 @inline _get_bool_value(f::Function, l::Lattice, site1::LatticeSite, site2::LatticeSite) =
     f(l, site1, site2)
-function hoppings(selector, lb::LatticeBasis, hops::Bonds...; field::AbstractField=NoField(), boundaries::BoundaryConditions=BoundaryConditions())
+# @inline _get_bool_value(g::AbstractGraph, ::Lattice, site1::LatticeSite, site2::LatticeSite) =
+#     match(g, site1, site2)
+
+function add_hoppings!(builder, selector, l::Lattice, op, bond::Bonds,
+        field::AbstractField, boundaries::BoundaryConditions)
+    dims(bond) > dims(l) && error("Incompatible dims")
+    trv = radius_vector(l, bond)
+    for site1 in l
+        site1.basis_index != hop.site_indices[1] && continue
+        site2 = LatticeSite(add_assuming_zeros(site1.unit_cell, hop.translate_uc),
+            hop.site_indices[2], site1.coords + trv)
+        add_hoppings!(builder, selector, l, op, site1 => site2, field, boundaries)
+    end
+end
+
+function add_hoppings!(builder, selector, l::Lattice, bond::SingleBond,
+        field::AbstractField, boundaries::BoundaryConditions)
+    site1, site2 = bond
+    p1 = site1.coords
+    p2 = site2.coords
+    factor, site2 = shift_site(boundaries, l, site2)
+    i = @inline site_index(l, site1)
+    j = @inline site_index(l, site2)
+    i === nothing && return
+    j === nothing && return
+    !_get_bool_value(selector, l, site1, site2) && return
+    total_factor = exp(-2π * im * line_integral(field, p1, p2)) * factor
+    !isfinite(total_factor) && error("got NaN or Inf when finding the phase factor")
+    increment!(builder, total_factor, i, j)
+    increment!(builder, total_factor', j, i)
+end
+
+function hoppings(selector, lb::LatticeBasis, hops...;
+        field::AbstractField=NoField(), boundaries::BoundaryConditions=BoundaryConditions())
     l = lb.latt
     check_lattice_fits(selector, l)
-    trvs = [radius_vector(l, hop) for hop in hops]
-    Is = Int[]
-    Js = Int[]
-    Vs = ComplexF64[]
+    builder = SparseMatrixBuilder((length(lb), length(lb)))
     for hop in hops
-        dims(hop) > dims(l) && error("Incompatible dims")
+        add_hoppings!(builder, selector, l, hop, field, boundaries)
     end
-    for (i, site1) in enumerate(l)
-        for (hi, hop) in enumerate(hops)
-            site1.basis_index != hop.site_indices[1] && continue
-            site2 = LatticeSite(add_assuming_zeros(site1.unit_cell, hop.translate_uc),
-                hop.site_indices[2], site1.coords + trvs[hi])
-            factor, site2 = shift_site(boundaries, l, site2)
-            j = site_index(l, site2)
-            j === nothing && continue
-            !_get_bool_value(selector, l, site1, site2) && continue
-
-            p1 = site1.coords
-            pmod = exp(-2π * im * line_integral(field, p1, p1 + trvs[hi])) * factor
-            !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
-            push!(Is, i, j)
-            push!(Js, j, i)
-            push!(Vs, pmod, pmod')
-        end
-    end
-    mat = sparse(Is, Js, Vs, length(lb), length(lb))
-    Operator(lb, mat)
+    Operator(lb, to_matrix(builder))
 end
+hoppings(selector, lb::LatticeBasis; kw...) =
+    hoppings(selector, lb, default_bonds(lb.latt)...; kw...)
 hoppings(selector, l::Lattice, args...; kw...) =
     hoppings(selector, LatticeBasis(l), args...; kw...)
 
@@ -213,19 +215,19 @@ check_lattice_fits(ps::AbstractGraph, l::Lattice) = check_is_sublattice(l, latti
 (ps::AbstractGraph)(::Lattice, site1::LatticeSite, site2::LatticeSite) = match(ps, site1, site2)
 
 """
-    DomainsSelector(domains::LatticeValue)
+    Domains(domains::LatticeValue)
 
 A selector used for hopping operator definition or currents materialization.
 
 Takes a `LatticeValue`.
 A pair matches the selector if the value of `domains` is the same on two sites.
 """
-struct DomainsSelector{LT} <: AbstractGraph
+struct Domains{LT} <: AbstractGraph
     domains::LT
-    DomainsSelector(domains::LT) where LT<:LatticeValue = new{LT}(domains)
+    Domains(domains::LT) where LT<:LatticeValue = new{LT}(domains)
 end
-lattice(ps::DomainsSelector) = lattice(ps.domains)
-match(ps::DomainsSelector, site1::LatticeSite, site2::LatticeSite) =
+lattice(ps::Domains) = lattice(ps.domains)
+match(ps::Domains, site1::LatticeSite, site2::LatticeSite) =
     ps.domains[site1] == ps.domains[site2]
 
 """
@@ -256,110 +258,10 @@ end
 lattice(ps::PairRhsGraph) = lattice(ps.rhs)
 match(ps::PairRhsGraph, ::LatticeSite, site2::LatticeSite) = ps.rhs[site2]
 
-macro hopping_operator(for_loop::Expr)
-    if for_loop.head !== :for
-        throw(ArgumentError("expression must be a for loop, not $(for_loop.head)"))
-    elseif length(for_loop.args) != 2
-        throw(ArgumentError("malformed for loop")) # This should never happen, but still...
-    end
-    itr::Expr, body::Expr = for_loop.args
-    if !Meta.isexpr(itr, :(=), 2)
-        throw(ArgumentError("invalid loop iteration specification"))
-    end
-    itr_vars, lattice_var = itr.args
-    if !Meta.isexpr(itr_vars, :tuple, 2)
-        throw(ArgumentError("invalid loop iteration variable; must be a LatticeSite 2-tuple"))
-    end
-    site1_var, site2_var = itr_vars.args
-    while body.args[end] isa LineNumberNode
-        pop!(body.args)
-    end
-    dump(body)
-    quote
-        l = $(esc(lattice_var))
-        local matrix = nothing
-        for (i, $(esc(site1_var))) in enumerate(l)
-            for (j, $(esc(site2_var))) in enumerate(l)
-                if i ≥ j
-                    continue
-                end
-                block_res = $(esc(body))
-                if block_res !== nothing
-                    if matrix === nothing
-                        matrix = zero_on_basis(basis(l, block_res))
-                    end
-                    matrix[i, j] .= block_res
-                    matrix[j, i] .= block_res'
-                end
-            end
-        end
-        matrix
-    end
+struct InvertedGraph{GT} <: AbstractGraph
+    graph::GT
 end
-
-"""
-    PairSet{LT} where {LT<:Lattice}
-
-Represents the bonds on some lattice.
-
-`PairSet`s can be combined with the `|` operator and negated with the `!` operator.
-Also you can create a `PairSet` which connects sites that were connected by `≤n` bonds of the previous `PairSet`
-by taking its power: `bs2 = bs1 ^ n`.
-"""
-struct PairSet{LT<:Lattice} <: AbstractGraph
-    lattice::LT
-    bmat::Matrix{Bool}
-    function PairSet(l::LT, bmat) where {LT<:Lattice}
-        !all(size(bmat) .== length(l)) && error("inconsistent connectivity matrix size")
-        new{LT}(l, bmat .| bmat' .| Matrix(I, length(l), length(l)))
-    end
-    function PairSet(l::Lattice)
-        PairSet(l, Matrix(I, length(l), length(l)))
-    end
-end
-
-lattice(bs::PairSet) = bs.lattice
-match(bs::PairSet, site1::LatticeSite, site2::LatticeSite) =
-    bs.bmat[site_index(lattice(bs), site1), site_index(lattice(bs), site2)]
-
-"""
-    bonds(l::Lattice, hoppings::Hopping...)
-
-Generates a `PairSet` for a given set of `Hopping`s on a given `Lattice`.
-"""
-function bonds(l::Lattice, hops::Bonds...)
-    bs = PairSet(l)
-    for h in hops
-        promote_dims!(h, dims(l))
-    end
-    for i in 1:length(l)
-        site1 = bs.lattice[i]
-        for hop in hops
-            dst = hopping_dest(l, hop, site1)
-            dst === nothing && continue
-            site2 = dst[1]
-            j = site_index(l, site2)
-            j === nothing && continue
-            bs.bmat[i, j] = bs.bmat[j, i] = true
-        end
-    end
-    bs
-end
-
-import Base: !, ^, |
-
-function |(bss::PairSet...)
-    !allequal(getproperty.(bss, :lattice)) && error("lattice mismatch")
-    PairSet(bss[1].lattice, .|(getproperty.(bss, :bmat)...))
-end
-
-^(bs1::PairSet, n::Int) = PairSet(bs1.lattice, bs1.bmat^n .!= 0)
-
-!(bs::PairSet) =
-    PairSet(bs.lattice, Matrix(I, length(bs.lattice), length(bs.lattice)) .| .!(bs.bmat))
-
-function Base.show(io::IO, m::MIME"text/plain", bs::PairSet)
-    println(io, "PairSet with $(count(bs.bmat)) bonds")
-    print(io, "on ")
-    show(io, m, bs.lattice)
-end
+lattice(ig::InvertedGraph) = lattice(ig.graph)
+match(ig::InvertedGraph, site1, site2) = match(ig.graph, site1, site2)
+Base.:(!)(g::AbstractGraph) = InvertedGraph(g)
+Base.:(!)(g::InvertedGraph) = g.graph

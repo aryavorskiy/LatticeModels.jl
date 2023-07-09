@@ -1,5 +1,4 @@
 using LinearAlgebra, Logging
-import Base: ==
 
 struct LatticeValueWrapper{VT<:AbstractVector,LatticeSym}
     lattice::Lattice{LatticeSym}
@@ -68,7 +67,7 @@ Base.one(lvw::LatticeValueWrapper) = LatticeValueWrapper(lattice(lvw), one(lvw.v
 Base.ones(l::Lattice) = fill(1., l)
 Base.ones(T::Type, l::Lattice) = fill(one(T), l)
 
-==(lvw1::LatticeValueWrapper, lvw2::LatticeValueWrapper) = (lvw1.lattice == lvw2.lattice) && (lvw1.values == lvw2.values)
+Base.:(==)(lvw1::LatticeValueWrapper, lvw2::LatticeValueWrapper) = (lvw1.lattice == lvw2.lattice) && (lvw1.values == lvw2.values)
 
 struct LVWStyle <: Broadcast.BroadcastStyle end
 Base.copyto!(lvw::LatticeValueWrapper, src::Broadcast.Broadcasted{LVWStyle}) = (copyto!(lvw.values, src); return lvw)

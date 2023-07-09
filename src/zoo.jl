@@ -16,6 +16,7 @@ function SquareLattice{N}(sz::Vararg{Int,N}) where {N}
     eye = SMatrix{N,N}(I)
     Lattice(:square, sz, Bravais(eye))
 end
+default_bonds(::SquareLattice{N}) where {N} = Tuple(Bonds(axis=i) for i in 1:N)
 
 """
     HoneycombLattice
@@ -31,6 +32,7 @@ function HoneycombLattice(sz::Vararg{Int, 2})
     bvs = Bravais([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])
     Lattice(:honeycomb, sz, bvs)
 end
+default_bonds(::HoneycombLattice) = (Bonds(2 => 1), Bonds(2 => 1, axis=1), Bonds(2 => 1, axis=2))
 
 ##########
 # Fields #
@@ -64,7 +66,7 @@ Fields:
 """
 SymmetricField
 
-_angle(p1, p2) = asin((1.0 - 1e-11) * det(hcat(p1, p2)) / norm(p1) / norm(p2))
+_angle(p1, p2) = asin((1 - 1e-11) * det(hcat(p1, p2)) / norm(p1) / norm(p2))
 @field_def struct FluxField(B::Number, P::NTuple{2,Number} = (0, 0))
     function vector_potential(x, y)
         norm = (x^2 + y^2)

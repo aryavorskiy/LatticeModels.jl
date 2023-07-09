@@ -12,7 +12,7 @@ struct SparseMatrixBuilder{T}
     SparseMatrixBuilder{T}(sz...) where T = SparseMatrixBuilder{T}(sz)
 end
 Base.size(smb::SparseMatrixBuilder) = smb.size
-materialize(builder::SparseMatrixBuilder) =
+to_matrix(builder::SparseMatrixBuilder) =
     sparse(builder.Is, builder.Js, builder.Vs, builder.size...)
 
 Base.@propagate_inbounds function increment!(matrix::Matrix, rhs, idx1, idx2)

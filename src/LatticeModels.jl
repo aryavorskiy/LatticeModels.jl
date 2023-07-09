@@ -19,7 +19,7 @@ export @field_def, AbstractField, apply_field!, NoField
 
 include("hoppings.jl")
 export Bonds, hoppings,
-    DomainsSelector, PairLhsGraph, PairRhsGraph,
+    Domains, PairLhsGraph, PairRhsGraph,
     bonds, is_adjacent, @hopping_operator
 
 export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions
@@ -43,6 +43,8 @@ export SquareLattice, HoneycombLattice,
     LandauField, SymmetricField, FluxField,
     TightBinding, SpinTightBinding, Haldane,
     DensityCurrents
+
+include("plot_recipes.jl")
 
 # include("precompile.jl")
 # _precompile_()

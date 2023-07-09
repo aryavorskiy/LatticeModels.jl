@@ -1,5 +1,4 @@
-using RecipesBase, LinearAlgebra, Logging, StaticArrays
-import Base: ==
+using LinearAlgebra, Logging, StaticArrays
 
 """
     Bravais{N, NB}
@@ -62,13 +61,13 @@ end
 
 Base.iterate(site::LatticeSite{N}, i=1) where N = i > N ? nothing : (site.coords[i], i + 1)
 
-_cind(site::LatticeSite) = CartesianIndex(site.basis_index, site.unit_cell...)
+cartesian_index(site::LatticeSite) = CartesianIndex(site.basis_index, site.unit_cell...)
 
-==(site1::LatticeSite, site2::LatticeSite) =
+Base.:(==)(site1::LatticeSite, site2::LatticeSite) =
     site1.basis_index == site2.basis_index && site1.unit_cell == site2.unit_cell && site1.coords == site2.coords
 
 Base.isless(site1::LatticeSite, site2::LatticeSite) =
-    isless(_cind(site1), _cind(site2))
+    isless(cartesian_index(site1), cartesian_index(site2))
 
 """
     Lattice{LatticeSym, N, NB}
@@ -103,9 +102,8 @@ end
 Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}) where {N} =
     Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}, fill(true, prod(sz) * length(bvs)))
 
-function ==(l1::T, l2::T) where {T<:Lattice}
+Base.:(==)(l1::T, l2::T) where {T<:Lattice} =
     (size(l1) == size(l2)) && (bravais(l1) == bravais(l2))
-end
 
 lattice(l::Lattice) = l
 Base.copymutable(l::Lattice{LatticeSym}) where {LatticeSym} =
@@ -126,15 +124,16 @@ site_coords(l::Lattice{Sym,N,1} where {Sym,N}, ::Int, unit_cell) =
     bravais(l).translation_vectors * unit_cell
 site_coords(::Lattice{:square,N,1} where {N}, ::Int, unit_cell) = Float64.(unit_cell)
 
+default_bonds(::Lattice) = ()
+
 function get_site(l::Lattice, unit_cell, basis_index)
     LatticeSite(unit_cell, basis_index, site_coords(l, basis_index, unit_cell))
 end
 
-displace_site(l::Lattice, site::LatticeSite{N}, js::SVector{N}) where N =
-    LatticeSite(site.unit_cell + js, site.basis_index, site.coords + bravais(l).translation_vectors * js)
-
 cartesian_indices(l::Lattice{LatticeSym,N,NB} where {LatticeSym}) where {N,NB} =
     CartesianIndex{N + 1}(1):CartesianIndex(NB, size(l)...)
+linear_indices(l::Lattice{LatticeSym,N,NB} where {LatticeSym,N}) where {NB} =
+    LinearIndices((NB, size(l)...))
 
 site_coords(::Lattice, site::LatticeSite) =  error("`site_coords(l, site)` is no longer available. Use `site.coords` instead")
 
@@ -168,11 +167,10 @@ end
 Returns the integer index for given `site` in `lattice`.
 Returns `nothing` if the site is not present in the lattice.
 """
-function site_index(l::Lattice, site::LatticeSite)
-    linds = LinearIndices((1:basis_length(l), (1:s for s in size(l))...))
-    cind = _cind(site)
-    !checkbounds(Bool, linds, cind) && return nothing
-    i = @inbounds linds[cind]
+function site_index(l::Lattice, site::LatticeSite...)
+    linds = linear_indices(l)
+    cind = cartesian_index(site)
+    i = get(linds, cind, nothing)
     (i === nothing || !l.mask[i]) && return nothing
     count(@view l.mask[1:i])
 end

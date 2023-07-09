@@ -14,13 +14,12 @@ end
             √(x^2 + y^2) < 5
         end
         b = LatticeBasis(l)
-        d = Operator(b, I)
-        hx = hopping_operator(l, hopping(axis=1))
-        hy = hopping_operator(l, hopping(axis=2))
+        d = identityoperator(b)
+        hx = hoppings(l, Bonds(axis=1))
+        hy = hoppings(l, Bonds(axis=2))
         H = d + hx + hy
         sp = spectrum(H)
         P = filled_projector(sp)
-        d = diag_reduce(tr, P)
         true
     end
 
@@ -70,6 +69,8 @@ end
 
     @test begin
         l = SquareLattice(10, 10)
+        lb = LatticeBasis(l)
+        spin = SpinBasis()
         X, Y = coord_operators(l)
         x, y = coord_values(l)
         xy = x .* y

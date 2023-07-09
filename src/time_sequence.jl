@@ -1,5 +1,3 @@
-import Base: ==
-
 """
     TimeSequence{ET}
 Series of some data depending on time.
@@ -47,7 +45,7 @@ function Base.show(io::IO, ::MIME"text/plain", tseq::TimeSequence{ET}) where ET
     end
 end
 
-==(ts1::TimeSequence, ts2::TimeSequence) =
+Base.:(==)(ts1::TimeSequence, ts2::TimeSequence) =
     (ts1.times == ts2.times) && (ts1.snapshots == ts2.snapshots)
 
 function Base.get(tseq::TimeSequence, t::Number, default)

@@ -1,29 +1,49 @@
+using RecipesBase
+
 @recipe function f(site::LatticeSite)
     seriestype := :scatter
     [Tuple(site.coords),]
 end
 
-@recipe function f(l::Lattice; pretty=true, high_contrast=false)
-    if high_contrast
-        pretty = false
-        markersize := 4
-        markercolor := :black
-        markerstrokealpha := 1
-        markerstrokestyle := :solid
-        markerstrokewidth := 2
-        markerstrokecolor := :white
-    end
-    if pretty
-        l_outp = copy(l)
-        fill!(l_outp.mask, true)
+@recipe function f(l::Lattice, style::Symbol=:plain)
+    l, Val(style)
+end
+
+@recipe function f(::Lattice, ::Val{StyleT}) where StyleT
+    error("Unsupported lattice plot style $StyleT")
+end
+
+@recipe function f(l::Lattice, ::Val{:plain})
+    l, nothing
+end
+
+@recipe function f(l::Lattice, ::Val{:high_contrast})
+    markersize := 4
+    markercolor := :black
+    markerstrokealpha := 1
+    markerstrokestyle := :solid
+    markerstrokewidth := 2
+    markerstrokecolor := :white
+    l, nothing
+end
+
+@recipe function f(l::Lattice, ::Val{:pretty})
+    l_outp = copy(l)
+    fill!(l_outp.mask, true)
+    label --> ""
+    @series begin   # The sites
+        seriestype := :scatter
         annotations = repeat(Any[""], length(l_outp))
         annotations[l.mask] .= ((i, :left, :top, :grey, 8) for i in 1:length(l))
         series_annotations := annotations
         seriesalpha := l.mask .* 0.9 .+ 0.1
-        label --> ""
         l_outp, nothing
-    else
-        l, nothing
+    end
+
+    @series begin   # The bonds
+        seriestype := :path
+        label := ""
+        l, default_bonds(l)...
     end
 end
 
@@ -65,26 +85,30 @@ end
     lv.lattice, lv.values
 end
 
-@recipe function f(bs::PairSet)
+function displace_site(l::Lattice, site::LatticeSite, hop::Bonds, periodic=true)
+    site.basis_index != hop.site_indices[1] && return nothing
+    new_uc = add_assuming_zeros(site.unit_cell, hop.translate_uc)
+    if periodic
+        new_uc = rem.(new_uc .- 1, l.lattice_size, RoundDown) .+ 1
+    end
+    new_site = get_site(l, new_uc, hop.site_indices[2])
+    new_site in l ? new_site : nothing
+end
+
+@recipe function f(l::Lattice{Sym, N}, bss::Bonds...) where {Sym, N}
     aspect_ratio := :equal
-    l = bs.lattice
-    pts = Tuple{Float64,Float64}[]
+    pts = NTuple{N, Float64}[]
     br_pt = fill(NaN, dims(l)) |> Tuple
-    for i in 1:length(l)
-        site1 = bs.lattice[i]
-        A = site1.coords
-        for j in 1:length(l)
-            if i != j && bs.bmat[i, j]
-                site2 = bs.lattice[j]
-                B = site2.coords
-                T = radius_vector(l, site2, site1)
-                push!(pts, Tuple(A))
-                push!(pts, Tuple(A + T / 2))
-                push!(pts, br_pt)
-                push!(pts, Tuple(B))
-                push!(pts, Tuple(B - T / 2))
-                push!(pts, br_pt)
-            end
+    for bs in bss
+        T = radius_vector(l, bs)
+        for i in 1:length(l)
+            site1 = l[i]
+            site2 = displace_site(l, site1, bs)
+            site2 === nothing && continue
+
+            A = site1.coords
+            B = site2.coords
+            push!(pts, Tuple(A), Tuple(A + T / 2), br_pt, Tuple(B), Tuple(B - T / 2), br_pt)
         end
     end
     label := nothing

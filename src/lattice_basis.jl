@@ -1,4 +1,3 @@
-import Base: ==
 import QuantumOpticsBase
 
 struct LatticeBasis{LT<:Lattice} <: QuantumOpticsBase.Basis
@@ -6,7 +5,7 @@ struct LatticeBasis{LT<:Lattice} <: QuantumOpticsBase.Basis
     latt::LT
     LatticeBasis(l::LT) where LT<:Lattice = new{LT}(SA[length(l)], l)
 end
-==(lb1::LatticeBasis, lb2::LatticeBasis) = lb1.latt == lb2.latt
+Base.:(==)(lb1::LatticeBasis, lb2::LatticeBasis) = lb1.latt == lb2.latt
 lattice(lb::LatticeBasis) = lb.latt
 
 QuantumOpticsBase.basisstate(T::Type, b::LatticeBasis, site::LatticeSite) =

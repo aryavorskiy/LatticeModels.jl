@@ -140,9 +140,9 @@ Finds eigenvalues and eigenvectors for a `LatticeOperator` and stores in in a Sp
     Consider redefining it for your array type or constructing the Spectrum object explicitly.
 """
 function spectrum(lop::LatticeOperator)
-    !all(isfinite.(lop.array)) && error("NaN of Inf in operator matrix")
-    vals, vecs = eigen(Hermitian(lop.array))
-    Spectrum(lop.basis, vecs, vals)
+    !all(isfinite.(lop.data)) && error("NaN of Inf in operator matrix")
+    vals, vecs = eigen(Hermitian(lop.data))
+    Spectrum(basis(lop), vecs, vals)
 end
 
 eigvals(sp::Spectrum) = sp.energies
