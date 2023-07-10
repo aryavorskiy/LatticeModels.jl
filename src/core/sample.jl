@@ -67,10 +67,27 @@ function shift_site(bcs::BoundaryConditions, l::Lattice, site::LatticeSite)
     factor, site
 end
 
-struct Sample{LT, BT, FT}
-    latt::LT
-    boundaries::BT
-    field::FT
-    nparticles::Int
+@enum ParticleStatistics begin
+    one_particle
+    fermi
+    bose
 end
-Sample(latt, boundaries=BoundaryConditions(), field=NoField(); N=1) = Sample(latt, boundaries, field, N)
+
+struct Sample{LT, BasisT}
+    latt::LT
+    internal::BasisT
+    nparticles::Int
+    statistics::ParticleStatistics
+end
+
+function Sample(latt::LT, internal::BT=GenericBasis(1);
+        N::Int=1, statistics::ParticleStatistics=one_particle) where {LT, BT}
+    N ≤ 0 && error("Positive particle count expected")
+    N == 1 && return Sample(latt, internal, 1, one_particle)
+    statistics == one_particle && error("One-particle statistics invalid for multi-particle systems")
+    Sample{LT, BT}(latt, internal, N, statistics)
+end
+Base.length(sample::Sample) = length(sample.latt) * length(sample.internal)
+lattice(sample::Sample) = sample.latt
+internal_one(sample::Sample) =
+    sample.statistics == one_particle ? 1 : one(sample.internal)

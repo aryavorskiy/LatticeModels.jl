@@ -2,6 +2,7 @@ module LatticeModels
 
 using Reexport
 @reexport using QuantumOpticsBase
+@reexport using IntervalSets
 
 include("core/utils.jl")
 include("core/lattice.jl")
@@ -14,13 +15,14 @@ include("core/field.jl")
 export @field_def, AbstractField, NoField
 
 include("core/sample.jl")
-export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions
+export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions, Sample,
+    fermi, bose
 
 include("core/bonds.jl")
 export Bonds, Domains, PairLhsGraph, PairRhsGraph
 
 include("operators.jl")
-export LatticeBasis, diag_operator, coord_operators, apply_field!, coord, site_density, hoppings
+export LatticeBasis, diag_operator, coord_operators, coord, site_density, hoppings, tight_binding
 
 include("spectrum.jl")
 export Spectrum, spectrum, eigvals, eigvecs, projector, filled_projector,

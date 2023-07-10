@@ -140,36 +140,19 @@ Base.@propagate_inbounds function Base.setindex!(lv::LatticeValueWrapper, lv_rhs
     lv.values[new_mask[lv.lattice.mask]] = lv_rhs.values[new_mask[lv_rhs.lattice.mask]]
 end
 
-function _parse_axis_descriptor(coord::Symbol)
-    coord === :x && return (:c, 1)
-    coord === :y && return (:c, 2)
-    coord === :z && return (:c, 3)
-    axis_s = string(coord)
-    axis = tryparse(Int, axis_s[2:end])
-    if axis isa Int && axis > 0
-        axis_s[1] == 'x' && return (:c, axis)
-        axis_s[1] == 'j' && return (:j, axis)
-    end
-    error("failed to parse axis descriptor '$coord'")
-end
-function _parse_axis_descriptor(i::Int)
-    i ≤ 0 && error("axis number must be a positive integer, not $i")
-    (:c, i)
-end
 function _kws_to_mask(l, @nospecialize(kw))
-    coords = collect_coords(l)
     relmask = fill(true, length(l))
     for (descr, val) in kw
         if descr === :index
-            @. relmask &= (site.basis_index == val for site in l)
+            @. relmask &= (site.basis_index in val for site in l)
             continue
         end
 
-        type, axis_no = _parse_axis_descriptor(descr)
+        type, axis_no = try_parse_axis_sym(descr)
         axis_no > dims(l) && error(
             "axis number $axis_no (descriptor '$descr') exceeds lattice dimensionality $(dims(l))")
-        type === :j && @.(relmask &= (site.unit_cell[axis_no] == val for site in l))
-        type === :c && @.(relmask &= abs(coords[axis_no, :] - val) < eps())
+        type === :j && (relmask .&= (site.unit_cell[axis_no] in val for site in l))
+        type === :c && (relmask .&= (site.coords[axis_no] in val for site in l))
     end
     cnt = count(relmask)
     cnt == 1 ? CartesianIndex(findfirst(relmask)) : LatticeValue(l, relmask)
@@ -222,7 +205,7 @@ The coordinate axis to project the sites onto can be set with the `axis` argumen
 it can be either an integer from 1 to 3 or an axis descriptor `Symbol`.
 """
 function project(lv::PlottableLatticeValue, axis)
-    type, axis_no = _parse_axis_descriptor(axis)
+    type, axis_no = try_parse_axis_sym(axis)
     l = lattice(lv)
     axis_no > dims(lattice(lv)) && error(
         "axis number $axis_no (descriptor '$axis') exceeds lattice dimensionality $(dims(l))")

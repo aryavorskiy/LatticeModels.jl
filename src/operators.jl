@@ -1,15 +1,5 @@
-import QuantumOpticsBase
+include("operators_core.jl")
 
-struct LatticeBasis{LT<:Lattice} <: QuantumOpticsBase.Basis
-    shape::SVector{1, Int}
-    latt::LT
-    LatticeBasis(l::LT) where LT<:Lattice = new{LT}(SA[length(l)], l)
-end
-Base.:(==)(lb1::LatticeBasis, lb2::LatticeBasis) = lb1.latt == lb2.latt
-lattice(lb::LatticeBasis) = lb.latt
-
-QuantumOpticsBase.basisstate(T::Type, b::LatticeBasis, site::LatticeSite) =
-    basisstate(T, b, site_index(b.latt, site))
 function QuantumOpticsBase.diagonaloperator(lv::LatticeValue)
     diagonaloperator(LatticeBasis(lattice(lv)), lv.values)
 end
@@ -28,88 +18,13 @@ coord_operators(lb::LatticeBasis)
 Returns a `Tuple` of coordinate `LatticeOperator`s for given basis.
 """
 coord_operators(lb::LatticeBasis) = Tuple(diagonaloperator(lb, lv) for lv in coord_values(lb.latt))
-# coord(lb::LatticeBasis, coord) = diagonaloperator(lb, coord_values(lb.latt)[_parse_axis_descriptor(coord)])
-
-const LatticeOperator{T, MT} = Operator{T, T, MT} where T<:LatticeBasis
-
-"""
-    apply_field!(hamiltonian, field[; nsteps])
-
-Applies magnetic field to given hamiltonian matrix by adjusting the phase factors.
-"""
-function apply_field!(ham::LatticeOperator, field::AbstractField)
-    l = lattice(ham)
-    for (i, site1) in enumerate(l)
-        for (j, site2) in enumerate(l)
-            if i > j && !iszero(ham[i, j])
-                p1 = site1.coords
-                p2 = site2.coords
-                pmod = exp(-2π * im * line_integral(field, p1, p2))
-                !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
-                ham[i, j] *= pmod
-                ham[j, i] *= pmod'
-            end
-        end
-    end
-end
-
-function add_diagonal!(builder, op, diag)
-    for i in 1:length(diag)
-        increment!(builder, op * diag[CartesianIndex(i)], i, i)
-    end
-end
-
-"""
-    radius_vector(l::Lattice, hop::Hopping)
-Finds the vector between two sites on a lattice according to possibly periodic boundary conditions
-(`site2` will be translated along the macrocell to minimize the distance between them).
-"""
-function radius_vector(l::Lattice, hop::Bonds)
-    i, j = hop.site_indices
-    bravais(l).basis[:, j] - bravais(l).basis[:, i] +
-     mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
-end
-
-@inline _get_bool_value(::Nothing, ::Lattice, ::LatticeSite, ::LatticeSite) = true
-@inline _get_bool_value(f::Function, l::Lattice, site1::LatticeSite, site2::LatticeSite) =
-    f(l, site1, site2)
-@inline _get_bool_value(g::AbstractGraph, ::Lattice, site1::LatticeSite, site2::LatticeSite) =
-    match(g, site1, site2)
-
-function add_hoppings!(builder, selector, l::Lattice, op, bond::Bonds,
-        field::AbstractField, boundaries::BoundaryConditions)
-    dims(bond) > dims(l) && error("Incompatible dims")
-    trv = radius_vector(l, bond)
-    for site1 in l
-        site1.basis_index != hop.site_indices[1] && continue
-        site2 = LatticeSite(add_assuming_zeros(site1.unit_cell, hop.translate_uc),
-            hop.site_indices[2], site1.coords + trv)
-        add_hoppings!(builder, selector, l, op, site1 => site2, field, boundaries)
-    end
-end
-
-function add_hoppings!(builder, selector, l::Lattice, op, bond::SingleBond,
-        field::AbstractField, boundaries::BoundaryConditions)
-    site1, site2 = bond
-    p1 = site1.coords
-    p2 = site2.coords
-    factor, site2 = shift_site(boundaries, l, site2)
-    i = @inline site_index(l, site1)
-    j = @inline site_index(l, site2)
-    i === nothing && return
-    j === nothing && return
-    !_get_bool_value(selector, l, site1, site2) && return
-    total_factor = exp(-2π * im * line_integral(field, p1, p2)) * factor
-    !isfinite(total_factor) && error("got NaN or Inf when finding the phase factor")
-    increment!(builder, op * total_factor, i, j)
-    increment!(builder, op' * total_factor', j, i)
-end
+coord(lb::LatticeBasis, coord) = diagonaloperator(lb, [getproperty(site, coord) for site in lb.latt])
 
 function hoppings(selector, lb::LatticeBasis, bonds...;
         field::AbstractField=NoField(), boundaries::BoundaryConditions=BoundaryConditions())
     l = lb.latt
     check_lattice_fits(selector, l)
-    builder = SparseMatrixBuilder((length(lb), length(lb)))
+    builder = SparseMatrixBuilder{ComplexF64}(length(lb), length(lb))
     for bond in bonds
         add_hoppings!(builder, selector, l, 1, bond, field, boundaries)
     end
@@ -119,6 +34,66 @@ hoppings(selector, lb::LatticeBasis; kw...) =
     hoppings(selector, lb, default_bonds(lb.latt)...; kw...)
 hoppings(selector, l::Lattice, args...; kw...) =
     hoppings(selector, LatticeBasis(l), args...; kw...)
+
+const AbstractBonds = Union{Bonds, SingleBond}
+function tight_binding!(selector, builder::SparseMatrixBuilder, sample::Sample, arg::Pair{<:Any, <:AbstractBonds};
+        field=NoField(), boundaries=BoundaryConditions())
+    op, bond = arg
+    opdata = op isa Operator ? op.data : op
+    add_hoppings!(builder, selector, sample.latt, opdata, bond, field, boundaries)
+end
+
+function tight_binding!(selector, builder::SparseMatrixBuilder, sample::Sample, arg::Pair{<:Any, <:LatticeValue}; kw...)
+    op, lv = arg
+    check_lattice_match(sample, lv)
+    opdata = op isa Operator ? op.data : op
+    add_diagonal!(builder, opdata, lv.values)
+end
+
+function process_argument(sample, arg)
+    internal_one(sample) => arg
+end
+
+function process_argument(sample::Sample, arg::Operator)
+    if QuantumOpticsBase.samebases(arg, sample.internal)
+        arg.data => ones(sample.latt)
+    elseif QuantumOpticsBase.samebases(arg, LatticeBasis(sample.latt))
+        internal_one(sample).data => arg.data
+    else
+        error("Invalid Operator argument: basis does not match neither lattice nor internal phase space")
+    end
+end
+
+function process_argument(sample::Sample, arg::Pair)
+    op, on_lattice = arg
+    if op isa Operator
+        QuantumOpticsBase.check_samebases(QuantumOpticsBase.basis(op), sample.internal)
+        opdata = op.data
+    else
+        opdata = op
+    end
+    opdata => on_lattice
+end
+
+function tight_binding(selector, sample::Sample, args...;
+        field=NoField(), boundaries=BoundaryConditions())
+    builder = SparseMatrixBuilder{ComplexF64}(length(sample), length(sample))
+    for arg in args
+        tight_binding!(selector, builder, sample, process_argument(sample, arg);
+            field=field, boundaries=boundaries)
+    end
+    bas = one_particle_basis(sample)
+    oper = Operator(bas, to_matrix(builder))
+    if sample.statistics == one_particle
+        return oper
+    end
+    occupations = sample.statistics == fermi ? fermionstates(bas, sample.nparticles) : bosonstates(bas, sample.nparticles)
+    manybodyoperator(ManyBodyBasis(bas, occupations), oper)
+end
+
+tight_binding(selector, latt::Lattice, args...; kw...) = tight_binding(selector, Sample(latt), args...; kw...)
+tight_binding(sample, args...; kw...) = tight_binding(nothing, sample, args...; kw...)
+tight_binding(::Nothing, ::Nothing, args...; kw...) = throw(MethodError(tight_binding, args))
 
 @doc raw"""
     hoppings([f, ]lattice::Lattice, hopping::Hopping[, field::AbstractField])

@@ -47,13 +47,35 @@ struct LatticeSite{N}
     basis_index::Int
     coords::SVector{N,Float64}
 end
+
+axis_parse_error(sym::Symbol) = error("Symbol :$sym does not correspond to any of lattice axes")
+axis_parse_error(i::Int) = error("Integer $i does not correspond to any of lattice axes")
+function try_parse_axis_sym(sym::Symbol)
+    sym === :x && return (:c, 1)
+    sym === :y && return (:c, 2)
+    sym === :z && return (:c, 3)
+    axis_s = string(sym)
+    axis = tryparse(Int, axis_s[2:end])
+    if axis isa Int && axis > 0
+        axis_s[1] == 'x' && return (:c, axis)
+        axis_s[1] == 'j' && return (:j, axis)
+    end
+    nothing
+end
+function try_parse_axis_sym(i::Int)
+    i ≤ 0 && nothing
+    (:c, i)
+end
+
 function Base.getproperty(site::LatticeSite{N}, sym::Symbol) where N
-    if N ≥ 1 && sym === :x
-        site.coords[1]
-    elseif N ≥ 2 && sym === :y
-        site.coords[2]
-    elseif N ≥ 3 && sym === :z
-        site.coords[3]
+    desc = try_parse_axis_sym(sym)
+    desc === nothing && return getfield(site, sym)
+    axtype, index = desc
+
+    if axtype == :c && index ≤ N
+        site.coords[index]
+    elseif axtype == :j && index ≤ N
+        site.unit_cell[index]
     else
         getfield(site, sym)
     end
@@ -252,15 +274,16 @@ end
 function Base.show(io::IO, ::MIME"text/plain", l::Lattice{LatticeSym,N}) where {N,LatticeSym}
     print(io, "$(length(l))-site ", LatticeSym)
     if N != 1
-        print(io, " lattice on ", join(size(l), "×"), " macrocell")
+        print(io, " lattice (", join(size(l), "×"), " macrocell")
     elseif !all(l.mask)
-        print(io, " chain on ", size(l)[1], " unit cells")
+        print(io, " chain (", size(l)[1], " unit cells")
     else
         print(io, " chain")
     end
     if N > 1 && basis_length(l) > 1
-        print(io, " (", basis_length(l), "-site basis)")
+        print(io, ", ", basis_length(l), "-site basis")
     end
+    print(io, ")")
 end
 
 """

@@ -3,28 +3,6 @@ using SparseArrays, StaticArrays
     allequal(seq) = all(s == first(seq) for s in seq)
 end
 
-struct SparseMatrixBuilder{T}
-    size::Tuple{Int,Int}
-    Is::Vector{Int}
-    Js::Vector{Int}
-    Vs::Vector{T}
-    SparseMatrixBuilder{T}(sz) where T = new{T}(sz, [], [], [])
-    SparseMatrixBuilder{T}(sz...) where T = SparseMatrixBuilder{T}(sz)
-end
-Base.size(smb::SparseMatrixBuilder) = smb.size
-to_matrix(builder::SparseMatrixBuilder) =
-    sparse(builder.Is, builder.Js, builder.Vs, builder.size...)
-
-Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs, i1, i2)
-    for i in eachindex(idx1), j in eachindex(idx2)
-        v = rhs[i, j]
-        iszero(v) && continue
-        push!(builder.Is, idx1[i])
-        push!(builder.Js, idx2[j])
-        push!(builder.Vs, v)
-    end
-end
-
 one_hot(index, ::Val{N}) where N = Int.(SVector{N}(1:N) .== index)
 one_hot(index, N) = one_hot(index, Val(N))
 

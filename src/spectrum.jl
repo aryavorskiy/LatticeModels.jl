@@ -36,7 +36,7 @@ end
 
 eigvals(sp::Spectrum) = sp.energies
 eigvecs(sp::Spectrum) = sp.states
-basis(sp::Spectrum) = sp.basis
+# basis(sp::Spectrum) = sp.basis
 
 Base.length(sp::Spectrum) = length(sp.energies)
 Base.getindex(sp::Spectrum, i::Int) = LatticeArray(sp.basis, sp.states[:, i])
