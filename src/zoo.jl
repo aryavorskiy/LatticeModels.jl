@@ -25,7 +25,7 @@ Type alias for `Lattice{:honeycomb,2,2}`.
 ---
     HoneycombLattice(sz::Vararg{Int, 2})
 
-Constructs a honeycomb lattice with a `sz`-size macro cell.
+Constructs a honeycomb lattice with a `sz`-size macrocell.
 """
 const HoneycombLattice = Lattice{:honeycomb,2,2}
 function HoneycombLattice(sz::Vararg{Int, 2})
@@ -96,6 +96,9 @@ FluxField
 ################
 # Hamiltonians #
 ################
+
+# TODO: fix these
+#==
 
 @doc raw"""
     TightBinding([f, ]l::Lattice[, field::AbstractField; pbc=false])
@@ -231,3 +234,5 @@ end
 Base.getindex(curr::DensityCurrents, i::Int, j::Int) =
     2imag(tr(curr.density[i, j] * curr.hamiltonian[j, i]))
 lattice(curr::DensityCurrents) = curr.hamiltonian.basis.lattice
+
+==#

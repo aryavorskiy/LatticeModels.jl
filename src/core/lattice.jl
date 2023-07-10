@@ -79,8 +79,8 @@ which allows to introduce various optimizations or to define specific plot recip
 ---
     Lattice(sym, sz, bvs[, mask])
 Constructs a finite `Lattice{sym, N, NB}` as a subset of the `bvs` Bravais lattice.
-`sz` is a `NTuple{N, Int}` which represents how many times the unit cell of `bvs` was translated by each axis - these sites form a *macro cell*.
-`mask`, if defined, is a `Vector{Bool}` storing information about which of the sites from the macro cell
+`sz` is a `NTuple{N, Int}` which represents how many times the unit cell of `bvs` was translated by each axis - these sites form a *macrocell*.
+`mask`, if defined, is a `Vector{Bool}` storing information about which of the sites from the macrocell
 are actually included in the lattice, and which are not.
 
 For example, a 3×3 square lattice with its center site excluded is represented as
@@ -167,7 +167,7 @@ end
 Returns the integer index for given `site` in `lattice`.
 Returns `nothing` if the site is not present in the lattice.
 """
-function site_index(l::Lattice, site::LatticeSite...)
+function site_index(l::Lattice, site::LatticeSite)
     linds = linear_indices(l)
     cind = cartesian_index(site)
     i = get(linds, cind, nothing)
@@ -209,7 +209,7 @@ end
 """
     radius_vector(l::Lattice, site1::LatticeSite, site2::LatticeSite) -> vector
 Finds the vector between two sites on a lattice according to possibly periodic boundary conditions
-(`site2` will be translated along the macro cell to minimize the distance between them).
+(`site2` will be translated along the macrocell to minimize the distance between them).
 """
 function radius_vector(l::Lattice, site1::LatticeSite{N}, site2::LatticeSite{N}) where N
     hsz = SVector{N, Int}(size(l) .÷ 2)
@@ -252,7 +252,7 @@ end
 function Base.show(io::IO, ::MIME"text/plain", l::Lattice{LatticeSym,N}) where {N,LatticeSym}
     print(io, "$(length(l))-site ", LatticeSym)
     if N != 1
-        print(io, " lattice on ", join(size(l), "×"), " macro cell")
+        print(io, " lattice on ", join(size(l), "×"), " macrocell")
     elseif !all(l.mask)
         print(io, " chain on ", size(l)[1], " unit cells")
     else

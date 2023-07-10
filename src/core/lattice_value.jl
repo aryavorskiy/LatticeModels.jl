@@ -181,8 +181,8 @@ Base.setindex!(lvw::LatticeValueWrapper, rhs; kw...) = setindex!x(lvw, rhs, _kws
 raw"""
     macro_cell_values(lv::LatticeValue)
 
-Returng an array of the values of `lv` on its macro cell.
-The $i$-th element of the array corresponds to the $i$-th site of the macro cell.
+Returng an array of the values of `lv` on its macrocell.
+The $i$-th element of the array corresponds to the $i$-th site of the macrocell.
 If the element is `NaN`, it means that the corresponding site is not present in the `lv`'s lattice.
 
 This function might be quite useful in custom plot recipes.

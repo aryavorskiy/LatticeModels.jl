@@ -1,26 +1,26 @@
 ## Simple Bravais lattice
 
-The simplest variant of a finite Bravais lattice is a *macro cell*, 
+The simplest variant of a finite Bravais lattice is a *macrocell*, 
 which is the lattice basis translated finite number of times along every translation vector.
 
 ```@setup env
 using LatticeModels, Plots, LinearAlgebra
 ```
 
-Constructing a macro cell is simple: the lattice constructor accepts positional arguments
+Constructing a macrocell is simple: the lattice constructor accepts positional arguments
 which will be translation ranges along all dimensions.
 
 Note that lattices of some types can be of any dimensionality, while others can not.
 
 ```jldoctest; setup=:(using LatticeModels)
 julia> SquareLattice(10, 10)
-100-site square lattice on 10×10 macro cell
+100-site square lattice on 10×10 macrocell
 
 julia> SquareLattice(3, 3, 3)
-27-site square lattice on 3×3×3 macro cell
+27-site square lattice on 3×3×3 macrocell
 
 julia> HoneycombLattice(5, 5)
-50-site honeycomb lattice on 5×5 macro cell (2-site basis)
+50-site honeycomb lattice on 5×5 macrocell (2-site basis)
 
 julia> HoneycombLattice(3, 3, 2)
 ERROR: MethodError: no method matching HoneycombLattice(::Int64, ::Int64, ::Int64)
@@ -67,7 +67,7 @@ plot!(l[index=1], pretty=false, ms=10, alpha=0.3, lab="Select a Bravais sublatti
 ## Sublattices
 
 Suppose we want to create a lattice with non-trivial geometry (for example, with holes). 
-This can be done by deleting some of the sites from the macro cell. There are three ways ways to do this:
+This can be done by deleting some of the sites from the macrocell. There are three ways ways to do this:
 
 **The Convenient way**
 
@@ -78,7 +78,7 @@ x, y = coord_values(l)
 l1 = l[@. x > 5 || y > 5]
 ```
 
-Here we first create the macro cell, then find the coordinate values for its sites.
+Here we first create the macrocell, then find the coordinate values for its sites.
 After that we use LatticeValue broadcasting, see [Lattice values](@ref) for more detail.
 
 !!! tip
@@ -124,7 +124,7 @@ const SquareLattice{N} = Lattice{:square, N, 1}
 
 **Define the constructor**
 
-The only positional arguments allowed are the macro cell size.[^1] The [`Bravais`](@ref) object must be generated in the constructor and passed to the default constructor `Lattice(sym, sz, bvs)`.
+The only positional arguments allowed are the macrocell size.[^1] The [`Bravais`](@ref) object must be generated in the constructor and passed to the default constructor `Lattice(sym, sz, bvs)`.
 
 [^1]: This is done with purpose to achieve code consistency. Also in-place sublattice generation will almost certainly be broken. Use keyword arguments if you need additional parameters for some lattice type.
 

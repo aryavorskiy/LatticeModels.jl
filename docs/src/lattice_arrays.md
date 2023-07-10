@@ -38,7 +38,7 @@ ERROR: MethodError: no method matching sin
 julia> @on_lattice X * sin(Y)
 50×50 LatticeOperator with inner type Matrix{Float64}
 on Basis with 2-dimensional internal phase space
-on 25-site square lattice on 5×5 macro cell
+on 25-site square lattice on 5×5 macrocell
 ```
 
 !!! warning

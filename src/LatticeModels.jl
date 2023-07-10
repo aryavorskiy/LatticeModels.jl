@@ -3,29 +3,27 @@ module LatticeModels
 using Reexport
 @reexport using QuantumOpticsBase
 
-include("utils.jl")
-include("lattice.jl")
+include("core/utils.jl")
+include("core/lattice.jl")
 export Bravais, LatticeSite, Lattice, sublattice, site_index, site_distance
 
-include("lattice_value.jl")
+include("core/lattice_value.jl")
 export LatticeValue, coord_values, project
 
-include("lattice_basis.jl")
-export LatticeOperator, LatticeBasis,
-    diag_operator, coord_operators, coord, site_density
+include("core/field.jl")
+export @field_def, AbstractField, NoField
 
-include("field.jl")
-export @field_def, AbstractField, apply_field!, NoField
-
-include("hoppings.jl")
-export Bonds, hoppings,
-    Domains, PairLhsGraph, PairRhsGraph,
-    bonds, is_adjacent, @hopping_operator
-
+include("core/sample.jl")
 export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions
 
-include("hamiltonian.jl")
-export @hamiltonian, Spectrum, spectrum, eigvals, eigvecs, projector, filled_projector,
+include("core/bonds.jl")
+export Bonds, Domains, PairLhsGraph, PairRhsGraph
+
+include("operators.jl")
+export LatticeBasis, diag_operator, coord_operators, apply_field!, coord, site_density, hoppings
+
+include("spectrum.jl")
+export Spectrum, spectrum, eigvals, eigvecs, projector, filled_projector,
     fermi_dirac, bose_einstein, dos, ldos
 
 include("evolution.jl")

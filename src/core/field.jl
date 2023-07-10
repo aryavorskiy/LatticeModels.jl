@@ -33,27 +33,6 @@ function line_integral(field::AbstractField, p1, p2, n_steps)
     integral
 end
 
-"""
-    apply_field!(hamiltonian, field[; nsteps])
-
-Applies magnetic field to given hamiltonian matrix by adjusting the phase factors.
-"""
-function apply_field!(ham::LatticeOperator, field::AbstractField)
-    l = lattice(ham)
-    for (i, site1) in enumerate(l)
-        for (j, site2) in enumerate(l)
-            if i > j && !iszero(ham[i, j])
-                p1 = site1.coords
-                p2 = site2.coords
-                pmod = exp(-2π * im * line_integral(field, p1, p2))
-                !isfinite(pmod) && error("got NaN or Inf when finding the phase factor")
-                ham[i, j] *= pmod
-                ham[j, i] *= pmod'
-            end
-        end
-    end
-end
-
 function _wrap_block!(f::Function, block::Expr, fields::Vector)
     _begin = 1 + Meta.isexpr(block, :call)
     for i in _begin:length(block.args)

@@ -15,11 +15,7 @@ Base.size(smb::SparseMatrixBuilder) = smb.size
 to_matrix(builder::SparseMatrixBuilder) =
     sparse(builder.Is, builder.Js, builder.Vs, builder.size...)
 
-Base.@propagate_inbounds function increment!(matrix::Matrix, rhs, idx1, idx2)
-    matrix[idx1, idx2] .= rhs .+ @view matrix[idx1, idx2]
-    return
-end
-Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs, idx1, idx2)
+Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs, i1, i2)
     for i in eachindex(idx1), j in eachindex(idx2)
         v = rhs[i, j]
         iszero(v) && continue
@@ -28,7 +24,7 @@ Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs, 
         push!(builder.Vs, v)
     end
 end
-function one_hot end
+
 one_hot(index, ::Val{N}) where N = Int.(SVector{N}(1:N) .== index)
 one_hot(index, N) = one_hot(index, Val(N))
 
