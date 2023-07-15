@@ -16,17 +16,19 @@ export @field_def, AbstractField, NoField
 
 include("core/sample.jl")
 export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions, Sample,
-    fermi, bose
+    FermiDirac, BoseEinstein
 
 include("core/bonds.jl")
 export Bonds, Domains, PairLhsGraph, PairRhsGraph
 
+include("operators_core.jl")
 include("operators.jl")
 export LatticeBasis, diag_operator, coord_operators, coord, site_density, hoppings, tight_binding
+include("operators_manybody.jl")
 
 include("spectrum.jl")
 export Spectrum, spectrum, eigvals, eigvecs, projector, filled_projector,
-    fermi_dirac, bose_einstein, dos, ldos
+    FermiDirac, BoseEinstein, dos, ldos
 
 include("evolution.jl")
 export @evolution

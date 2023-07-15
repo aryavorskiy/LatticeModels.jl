@@ -69,24 +69,27 @@ end
 
 @enum ParticleStatistics begin
     one_particle
-    fermi
-    bose
+    FermiDirac
+    BoseEinstein
 end
 
-struct Sample{LT, BasisT}
+struct Sample{AdjMatT, LT, BasisT}
+    adjacency_matrix::AdjMatT
     latt::LT
     internal::BasisT
     nparticles::Int
     statistics::ParticleStatistics
 end
 
-function Sample(latt::LT, internal::BT=GenericBasis(1);
-        N::Int=1, statistics::ParticleStatistics=one_particle) where {LT, BT}
+function Sample(adjacency_matrix, latt::LT, internal::BT=GenericBasis(1);
+        N::Int=1, statistics::ParticleStatistics=one_particle) where {LT<:Lattice, BT}
     N ≤ 0 && error("Positive particle count expected")
-    N == 1 && return Sample(latt, internal, 1, one_particle)
+    N == 1 && return Sample(adjacency_matrix, latt, internal, 1, one_particle)
     statistics == one_particle && error("One-particle statistics invalid for multi-particle systems")
-    Sample{LT, BT}(latt, internal, N, statistics)
+    Sample(adjacency_matrix, latt, internal, N, statistics)
 end
+Sample(latt::Lattice, internal=GenericBasis(1); kw...) =
+    Sample(nothing, latt, internal; kw...)
 Base.length(sample::Sample) = length(sample.latt) * length(sample.internal)
 lattice(sample::Sample) = sample.latt
 internal_one(sample::Sample) =

@@ -6,41 +6,42 @@ const SingleBond{N} = Pair{LatticeSite{N}, LatticeSite{N}}
     Bonds{N}
 
 A struct representing bonds in some direction in a lattice.
-- `site_indices`: a `NTuple{2, Int}` with indices of sites connected by the bond.
+- `site_indices`: a `::Int => ::Int` pair with indices of sites connected by the bond.
 - `translate_uc`: the unit cell offset.
 """
 struct Bonds{N}
     site_indices::Pair{Int,Int}
     translate_uc::SVector{N, Int}
+    function Bonds(site_indices, tr_uc::AbstractVector)
+        iszero(tr_uc) && ==(site_indices...) && throw(ArgumentError("bond connects site to itself"))
+        new{length(tr_uc)}(site_indices, tr_uc)
+    end
 end
 
 """
-    Bonds(site_indices; kwargs...)
+    Bonds([site_indices, ]translate_uc)
 
-A convenient constructor for a `Bonds` object.
-`site_indices` is a `::Int => ::Int` pair with indices of sites connected by the bond; `1 => 1` is the default value.
-
-**Keyword arguments:**
-- `translate_uc`: the unit cell offset, a `Tuple` or a `SVector`. Zeros by default.
-- `axis`: overrides `translate_uc` and sets its components to zero on all axes except given.
+Constructs a `Bonds` object. `site_indices` is `1 => 1` by default.
 
 If `site_indices` are equal and `translate_uc` is zero, this means that the bond connects each site with itself,
 in which case an error will be thrown.
 Note that the dimension count for the bond is static, it is automatically compatible to higher-dimensional lattices.
 """
-function Bonds(site_indices=Pair(1, 1); kw...)
-    tr_vc = if :axis in keys(kw)
-        one_hot(kw[:axis], kw[:axis])
-    elseif :translate_uc in keys(kw)
-        kw[:translate_uc]
-    elseif site_indices[1] != site_indices[2]
-        SA[0]
-    end
-    if iszero(tr_vc) && ==(site_indices...)
-        throw(ArgumentError("bond connects site to itself"))
-    end
-    Bonds(site_indices, tr_vc)
-end
+Bonds(tr_uc::AbstractVector) = Bonds(1 => 1, tr_uc)
+
+"""
+    Bonds([site_indices; ]axis[, dist=1])
+
+A convenient constructor for a `Bonds` object. `site_indices` is `1 => 1` by default.
+
+`site_indices` is a `::Int => ::Int` pair with indices of sites connected by the bond; `1 => 1` is the default value.
+
+**Keyword arguments:**
+- `axis`: The hopping direction axis in terms of unit cell vectors.
+- `dist`: The hopping distance in terms of
+"""
+Bonds(site_indices::Pair{Int,Int}=Pair(1, 1); axis, dist=1) =
+    Bonds(site_indices, one_hot(axis, axis) * dist)
 
 Base.:(==)(h1::Bonds, h2::Bonds) =
     all(getproperty(h1, fn) == getproperty(h2, fn) for fn in fieldnames(Bonds))
@@ -112,6 +113,39 @@ end
 lattice(ps::PairRhsGraph) = lattice(ps.rhs)
 match(ps::PairRhsGraph, ::LatticeSite, site2::LatticeSite) = ps.rhs[site2]
 
+"""
+    AdjacencyMatrix{LT} where {LT<:Lattice}
+
+Represents the bonds on some lattice.
+
+`AdjacencyMatrix`s can be combined with the `|` operator and negated with the `!` operator.
+Also you can create a `AdjacencyMatrix` which connects sites that were connected by `≤n` bonds of the previous `AdjacencyMatrix`
+by taking its power: `bs2 = bs1 ^ n`.
+"""
+struct AdjacencyMatrix{LT<:Lattice} <: AbstractGraph
+    lattice::LT
+    bmat::Matrix{Bool}
+    function AdjacencyMatrix(l::LT, bmat) where {LT<:Lattice}
+        !all(size(bmat) .== length(l)) && error("inconsistent connectivity matrix size")
+        new{LT}(l, bmat .| bmat' .| Matrix(I, length(l), length(l)))
+    end
+    function AdjacencyMatrix(l::Lattice)
+        AdjacencyMatrix(l, Matrix(I, length(l), length(l)))
+    end
+end
+
+lattice(bs::AdjacencyMatrix) = bs.lattice
+match(bs::AdjacencyMatrix, site1::LatticeSite, site2::LatticeSite) =
+    bs.bmat[site_index(lattice(bs), site1), site_index(lattice(bs), site2)]
+
+function Base.:(|)(bss::AdjacencyMatrix...)
+    !allequal(getproperty.(bss, :lattice)) && error("lattice mismatch")
+    AdjacencyMatrix(bss[1].lattice, .|(getproperty.(bss, :bmat)...))
+end
+
+Base.:(^)(bs1::AdjacencyMatrix, n::Int) =
+    AdjacencyMatrix(bs1.lattice, bs1.bmat^n .!= 0)
+
 struct InvertedGraph{GT} <: AbstractGraph
     graph::GT
 end
@@ -119,3 +153,5 @@ lattice(ig::InvertedGraph) = lattice(ig.graph)
 match(ig::InvertedGraph, site1, site2) = match(ig.graph, site1, site2)
 Base.:(!)(g::AbstractGraph) = InvertedGraph(g)
 Base.:(!)(g::InvertedGraph) = g.graph
+Base.:(!)(bs::AdjacencyMatrix) =
+    AdjacencyMatrix(bs.lattice, Matrix(I, length(bs.lattice), length(bs.lattice)) .| .!(bs.bmat))

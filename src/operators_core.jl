@@ -1,10 +1,11 @@
 using SparseArrays
 import QuantumOpticsBase
+import QuantumOpticsBase: Basis, SparseOperator, SparseOpPureType, coefficient
 
 struct LatticeBasis{LT<:Lattice} <: QuantumOpticsBase.Basis
-    shape::SVector{1, Int}
+    shape::Int
     latt::LT
-    LatticeBasis(l::LT) where LT<:Lattice = new{LT}(SA[length(l)], l)
+    LatticeBasis(l::LT) where LT<:Lattice = new{LT}(length(l), l)
 end
 Base.:(==)(lb1::LatticeBasis, lb2::LatticeBasis) = lb1.latt == lb2.latt
 lattice(lb::LatticeBasis) = lb.latt
@@ -17,7 +18,31 @@ end
 QuantumOpticsBase.basisstate(T::Type, b::LatticeBasis, site::LatticeSite) =
     basisstate(T, b, site_index(b.latt, site))
 
-const LatticeOperator{BT, MT} = Operator{BT, BT, MT} where BT<:LatticeBasis
+const CompositeLatticeBasis{S, BT, LT} = CompositeBasis{S, Tuple{BT, LatticeBasis{LT}}}
+const LatticeOperator{MT} = Operator{BT, BT, MT} where BT<:LatticeBasis
+const CompositeLatticeOperator{MT} = Operator{BT, BT, MT} where BT<:CompositeLatticeBasis
+lattice(op::LatticeOperator) = lattice(basis(op))
+lattice(op::CompositeLatticeOperator) = lattice(basis(op).bases[2])
+internal_basis(op::CompositeLatticeOperator) = basis(op).bases[1]
+
+"""
+    adjacency_matrix(op::Operator)
+
+Generates an `AdjacencyMatrix` for the provided operator.
+"""
+function adjacency_matrix(op::LatticeOperator)
+    matrix = Bool[!iszero(op.data[i, j])
+                  for i in 1:length(lattice(op)), j in 1:length(lattice(op))]
+    return AdjacencyMatrix(lattice(op), matrix)
+end
+function adjacency_matrix(op::CompositeLatticeOperator)
+    n = length(internal_basis(op))
+    ind(k) = (k - 1) * n + 1 : k * n
+    matrix = Bool[!iszero(op.data[ind(i), ind(j)])
+                  for i in 1:length(lattice(op)), j in 1:length(lattice(op))]
+    return AdjacencyMatrix(lattice(op), matrix)
+end
+
 
 struct SparseMatrixBuilder{T}
     size::Tuple{Int,Int}
@@ -32,6 +57,8 @@ to_matrix(builder::SparseMatrixBuilder) =
     sparse(builder.Is, builder.Js, builder.Vs, builder.size...)
 
 Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::Number, i1::Int, i2::Int, factor=1)
+    @boundscheck @assert 1 ≤ i1 ≤ builder.size[1]
+    @boundscheck @assert 1 ≤ i2 ≤ builder.size[2]
     push!(builder.Is, i1)
     push!(builder.Js, i2)
     push!(builder.Vs, rhs * factor)
@@ -44,6 +71,15 @@ Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::
         iszero(v) && continue
         increment!(builder, v, i + N * (i1 - 1), j + N * (i2 - 1), factor)
     end
+end
+
+function increment!(builder::SparseMatrixBuilder, rhs::SparseMatrixCSC)
+    @assert size(rhs) == size(builder)
+    nis, njs, nvs = findnz(rhs)
+    append!(builder.Is, nis)
+    append!(builder.Js, njs)
+    append!(builder.Vs, nvs)
+    nothing
 end
 
 function add_diagonal!(builder, op, diag)
