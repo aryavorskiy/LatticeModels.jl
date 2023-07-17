@@ -30,6 +30,7 @@ Note that the dimension count for the bond is static, it is automatically compat
 Bonds(tr_uc::AbstractVector) = Bonds(1 => 1, tr_uc)
 
 """
+    Bonds(site_indices)
     Bonds([site_indices; ]axis[, dist=1])
 
 A convenient constructor for a `Bonds` object. `site_indices` is `1 => 1` by default.
@@ -40,8 +41,10 @@ A convenient constructor for a `Bonds` object. `site_indices` is `1 => 1` by def
 - `axis`: The hopping direction axis in terms of unit cell vectors.
 - `dist`: The hopping distance in terms of
 """
-Bonds(site_indices::Pair{Int,Int}=Pair(1, 1); axis, dist=1) =
+function Bonds(site_indices::Pair{Int,Int}=Pair(1, 1); axis=0, dist=1)
+    axis == 0 && return Bonds(site_indices, [])
     Bonds(site_indices, one_hot(axis, axis) * dist)
+end
 
 Base.:(==)(h1::Bonds, h2::Bonds) =
     all(getproperty(h1, fn) == getproperty(h2, fn) for fn in fieldnames(Bonds))

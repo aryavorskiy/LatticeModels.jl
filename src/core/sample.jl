@@ -68,9 +68,9 @@ function shift_site(bcs::BoundaryConditions, l::Lattice, site::LatticeSite)
 end
 
 @enum ParticleStatistics begin
-    OneParticle
-    FermiDirac
-    BoseEinstein
+    OneParticle = 0
+    FermiDirac = 1
+    BoseEinstein = -1
 end
 
 struct Sample{AdjMatT, LT, BasisT}
@@ -92,6 +92,7 @@ Sample(latt::Lattice, internal=GenericBasis(1); kw...) =
     Sample(nothing, latt, internal; kw...)
 Base.length(sample::Sample) = length(sample.latt) * length(sample.internal)
 lattice(sample::Sample) = sample.latt
+default_bonds(sample::Sample) = default_bonds(lattice(sample))
 internal_one(sample::Sample) =
     sample.statistics == OneParticle ? 1 : one(sample.internal)
 ismanybody(sample::Sample) = sample.nparticles != 1

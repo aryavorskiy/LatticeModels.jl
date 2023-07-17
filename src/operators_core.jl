@@ -8,7 +8,6 @@ struct LatticeBasis{LT<:Lattice} <: QuantumOpticsBase.Basis
     LatticeBasis(l::LT) where LT<:Lattice = new{LT}(length(l), l)
 end
 Base.:(==)(lb1::LatticeBasis, lb2::LatticeBasis) = lb1.latt == lb2.latt
-lattice(lb::LatticeBasis) = lb.latt
 
 function onebodybasis(sample::Sample)
     lb = LatticeBasis(sample.latt)
@@ -20,13 +19,19 @@ QuantumOpticsBase.basisstate(T::Type, b::LatticeBasis, site::LatticeSite) =
 
 const CompositeLatticeBasis{S, BT, LT} = CompositeBasis{S, Tuple{BT, LatticeBasis{LT}}}
 const AbstractLatticeBasis = Union{LatticeBasis, CompositeLatticeBasis}
-lattice(b::CompositeLatticeBasis) = lattice(b.bases[2])
 
 const LatticeOperator{MT} = Operator{BT, BT, MT} where BT<:LatticeBasis
 const CompositeLatticeOperator{MT} = Operator{BT, BT, MT} where BT<:CompositeLatticeBasis
 const AbstractLatticeOperator{MT} = Operator{BT, BT, MT} where BT<:AbstractLatticeBasis
-lattice(op::LatticeOperator) = lattice(basis(op))
-internal_basis(op::CompositeLatticeOperator) = basis(op).bases[1]
+
+lattice(lb::LatticeBasis) = lb.latt
+lattice(b::CompositeLatticeBasis) = lattice(b.bases[2])
+lattice(b::Basis) = throw(MethodError(lattice, (b,)))
+lattice(any) = lattice(basis(any))
+internal_basis(::LatticeBasis) = 1
+internal_basis(b::CompositeLatticeBasis) = b.bases[1]
+internal_basis(b::Basis) = throw(MethodError(internal_basis, (b,)))
+internal_basis(any) = internal_basis(basis(any))
 
 """
     adjacency_matrix(op::Operator)

@@ -2,133 +2,119 @@ using Logging
 import LinearAlgebra: eigen, Hermitian, eigvals, eigvecs
 
 """
-    Spectrum{LT, MT} where {LT<:Lattice, MT<:AbstractMatrix}
+    Eigensystem{LT, MT} where {LT<:Lattice, MT<:AbstractMatrix}
 
 Eigenvalues and eigenvectors for some operator.
 """
-struct Spectrum{BT<:Basis,MT<:AbstractMatrix}
+struct Eigensystem{BT<:Basis,MT<:AbstractMatrix}
     basis::BT
     states::MT
-    energies::Vector{Float64}
-    function Spectrum(basis::BT, states::MT, energies::AbstractVector) where {BT,MT}
+    values::Vector{Float64}
+    function Eigensystem(basis::BT, states::MT, values::AbstractVector) where {BT,MT}
         length(basis) != size(states)[1] && error("inconsistent basis dimensionality")
-        length(energies) != size(states)[2] && error("inconsistent energies list length")
-        new{BT,MT}(basis, states, energies)
+        length(values) != size(states)[2] && error("inconsistent energies list length")
+        new{BT,MT}(basis, states, values)
     end
 end
 
 const LatticeOperatorMT{MT} = LatticeOperator{BT,<:MT} where {BT}
 
 """
-    spectrum(op::LatticeOperator)
+    diagonalize(op::Operator)
 
-Finds eigenvalues and eigenvectors for a `LatticeOperator` and stores in in a Spectrum.
-
-!!! note
-    This method finds eigenvalues and eigenvectors using `LinearAlgebra.eigen`, which can be not defined for some array types.
-    Consider redefining it for your array type or constructing the Spectrum object explicitly.
+Finds eigenvalues and eigenvectors for a `Operator` and stores it in an Eigensystem.
 """
-function spectrum(lop::LatticeOperator)
-    !all(isfinite.(lop.data)) && error("NaN of Inf in operator matrix")
-    vals, vecs = eigen(Hermitian(lop.data))
-    Spectrum(basis(lop), vecs, vals)
+function diagonalize(op::Operator)
+    # TODO support sparse diagonalization also
+    vals, vecs = eigen(dense(op).data)
+    Eigensystem(basis(op), vecs, vals)
 end
 
-eigvals(sp::Spectrum) = sp.energies
-eigvecs(sp::Spectrum) = sp.states
-# basis(sp::Spectrum) = sp.basis
+Base.length(eig::Eigensystem) = length(eig.values)
+Base.getindex(eig::Eigensystem, i::Int) = Ket(eig.basis, eig.states[:, i])
+Base.getindex(eig::Eigensystem; value::Number) =
+    Ket(eig.basis, eig.states[:, argmin(@. abs(value - eig.values))])
+Base.getindex(eig::Eigensystem, mask) =
+    Eigensystem(eig.basis, eig.states[:, mask], eig.values[mask])
 
-Base.length(sp::Spectrum) = length(sp.energies)
-Base.getindex(sp::Spectrum, i::Int) = LatticeArray(sp.basis, sp.states[:, i])
-Base.getindex(sp::Spectrum; E::Number) =
-    LatticeArray(sp.basis, sp.states[:, argmin(@. abs(E - sp.energies))])
-Base.getindex(sp::Spectrum, mask) =
-    Spectrum(sp.basis, sp.states[:, mask], sp.energies[mask])
-
-function Base.show(io::IO, ::MIME"text/plain", sp::Spectrum)
-    println(io, "Spectrum with $(length(sp)) eigenstates")
-    println(io, "Eigenvalues in range $(minimum(sp.energies)) .. $(maximum(sp.energies))")
+function Base.show(io::IO, ::MIME"text/plain", eig::Eigensystem)
+    println(io, "Eigensystem with $(length(eig)) eigenstates")
+    println(io, "Eigenvalues in range $(minimum(eig.values)) .. $(maximum(eig.values))")
 end
 
 @doc raw"""
-    projector(sp::Spectrum)
+    projector(eig::Eigensystem)
+
+returns an `Operator` that projects onto the eigenvectors of the spectrum, defined by the formula below.
 
 $$\hat{\mathcal{P}} = \sum_i |\psi_i⟩⟨\psi_i|$$
-
-Creates a `LatticeOperator` that projects onto the eigenvectors of the spectrum, described by the formula above.
 """
-projector(sp::Spectrum) = LatticeArray(sp.basis, sp.states * sp.states')
+projector(eig::Eigensystem) = Operator(eig.basis, eig.states * eig.states')
 
 @doc raw"""
-    projector(f, sp::Spectrum)
+    apply_to_eigenvalues(f, eig::Eigensystem)
 
-$$\hat{\mathcal{P}} = \sum_i p_i |\psi_i⟩⟨\psi_i|$$
+Returns an `Operator` representing a function applied to the diagonalized operator defined by the formula below:
 
-Creates a `LatticeOperator` that projects onto the eigenvectors of the spectrum, described by the formula above.
-The ``p_i`` amplitudes are defined by the `f` function, which takes the eigenvalue ``E_i`` and returns a number (or a boolean).
+$$\hat{\mathcal{P}} = \sum_i f(A_i) |\psi_i⟩⟨\psi_i|$$
 """
-projector(f::Function, sp::Spectrum) =
-    LatticeArray(sp.basis, sp.states * (f.(sp.energies) .* sp.states'))
-
-"""
-    filled_projector(sp::Spectrum[, fermi_level=0])
-
-Creates a `LatticeOperator` that projects onto the eigenvectors which have eigenvalues ``E_i`` less than `fermi_level` (0 by default).
-
-Same as `projector(<(fermi_level), sp)`, see
-"""
-filled_projector(sp::Spectrum, fermi_level=0) = projector(<(fermi_level), sp)
+function apply_to_eigenvalues(f, eig::Eigensystem)
+    Operator(eig.basis, eig.states * (f.(eig.values) .* eig.states'))
+end
 
 """
-    fermi_dirac(μ, T)
+    densitymatrix(eig::Eigensystem[; μ=0, T=0, statistics=FermiDirac])
 
-Generates a function that takes the energy and returns the state density acccording to Fermi-Dirac statistics.
-"""
-fermi_dirac(μ, T) = E -> 1 / (exp((E - μ) / T) + 1)
+Creates an `Operator` representing a equilibrium density matrix, given the eigensystem `eig`
+of the Hamiltonian.
 
+## Keyword arguments
+The `μ` and `T` keywords set the chemical potential and the temperature respectively.
+The `statistics` Keyword sets the probability distribution .`OneParticle`, which is the
+default, means Boltzmann distribution.
 """
-    bose_einstein(μ, T)
-
-Generates a function that takes the energy and returns the state density acccording to Bose-Einstein statistics.
-"""
-bose_einstein(μ, T) = E -> 1 / (exp((E - μ) / T) - 1)
+function densitymatrix(eig::Eigensystem; μ::Real=0, T::Real=0, statistics::ParticleStatistics=OneParticle)
+    apply_to_eigenvalues(eig) do E
+        E - μ == T == 0 ? 1. : 1 / (exp((E - μ) / T) + Int(statistics))
+    end
+end
 
 @doc raw"""
-    dos(sp::Spectrum, δ)
+    dos(eig::Eigensystem, δ)
 
 Generates a function to calculate the DOS (Density of States), which is defined as
 $\text{tr}\left(\frac{1}{\hat{H} - E - i\delta}\right)$ and can be understood as a sum
 of Lorenz distributions with width equal to $\delta$.
 """
-dos(sp::Spectrum, δ::Real) = (E -> imag(sum(1 ./ (eigvals(sp) .- (E + im * δ)))))
+dos(eig::Eigensystem, δ::Real) = (E -> imag(sum(1 ./ (eigvals(eig) .- (E + im * δ)))))
 
 @doc raw"""
-    ldos(sp::Spectrum, E, δ)
+    ldos(eig::Eigensystem, E, δ)
 
 Calculates the LDOS (Local Density of States), which is defined as the imaginary part of partial trace of
 $\frac{1}{\hat{H} - E - i\delta}$ operator.
 """
-function ldos(sp::Spectrum, E::Real, δ::Real)
-    Es = eigvals(sp)
-    Vs = eigvecs(sp)
-    l = lattice(sp)
-    N = dims_internal(sp)
+function ldos(eig::Eigensystem{<:AbstractLatticeBasis}, E::Real, δ::Real)
+    Es = eig.values
+    Vs = eig.states
+    l = lattice(eig.basis)
+    N = length(internal_basis(eig.basis))
     inves = imag.(1 ./ (Es .- (E + im * δ)))'
     LatticeValue(l, [sum(abs2.(Vs[(i-1)*N+1:i*N, :]) .* inves) for i in 1:length(l)])
 end
 
 """
-    ldos(sp::Spectrum, δ)
+    ldos(eig::Eigensystem, δ)
 
 Generates a function that accepts the energy `E` and returns `ldos(sp, E, δ)`.
 Use this if you want to find the LDOS for the same `Spectrum`, but for many different values of `E` -
 the produced function is optimized and reduces overall computation time dramatically.
 """
-function ldos(sp::Spectrum, δ::Real)
-    Es = eigvals(sp)
-    l = lattice(sp)
-    N = dims_internal(sp)
+function ldos(eig::Eigensystem{<:AbstractLatticeBasis}, δ::Real)
+    Es = eig.values
+    l = lattice(eig.basis)
+    N = length(internal_basis(eig.basis))
     density_sums = reshape(
-        sum(reshape(abs2.(eigvecs(sp)), (N, :, length(sp))), dims=1), (:, length(sp)))
+        sum(reshape(abs2.(eigvecs(eig)), (N, :, length(eig))), dims=1), (:, length(eig)))
     E -> LatticeValue(l, vec(sum(density_sums .* imag.(1 ./ (Es .- (E + im * δ)))', dims=2)))
 end

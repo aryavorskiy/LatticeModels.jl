@@ -7,20 +7,15 @@ function QuantumOpticsBase.diagonaloperator(f::Function, b::LatticeBasis)
     diagonaloperator(b, f.(b.latt))
 end
 
-function densityoperator(lb::LatticeBasis, l::Lattice)
-    check_is_sublattice(lb.latt, l)
-    diagonaloperator(in(l), lb)
-end
-
 """
 coord_operators(lb::LatticeBasis)
 
 Returns a `Tuple` of coordinate `LatticeOperator`s for given basis.
 """
-coord_operators(lb::LatticeBasis) = Tuple(diagonaloperator(lb, lv) for lv in coord_values(lb.latt))
+coord_operators(lb::LatticeBasis) = Tuple(diagonaloperator(lb, lv.values) for lv in coord_values(lb.latt))
 coord_operators(l::Lattice) = coord_operators(LatticeBasis(l))
-coord(lb::LatticeBasis, coord) = diagonaloperator(lb, [getproperty(site, coord) for site in lb.latt])
-coord(l::Lattice, coord) = coord(LatticeBasis(l), coord)
+coord(lb::LatticeBasis, crd) = diagonaloperator(lb, [getproperty(site, crd) for site in lb.latt])
+coord(l::Lattice, crd) = coord(LatticeBasis(l), crd)
 
 @doc raw"""
     hoppings([f, ]lattice::Lattice, hopping::Hopping[, field::AbstractField])
@@ -131,4 +126,33 @@ function tight_binding(sample::Sample, args...;
     end
     manybodyoperator(ManyBodyBasis(bas, occupations(sample)), oper)
 end
-tight_binding(::Nothing, ::Nothing, args...; kw...) = throw(MethodError(tight_binding, args))
+function tight_binding(sample::Sample; kw...)
+    bs = default_bonds(sample)
+    isempty(bs) && @warn("No default bonds defined for")
+    tight_binding(sample, bs...; kw...)
+end
+tight_binding(l::Lattice, args...; kw...) = tight_binding(Sample(l), args...; kw...)
+tight_binding(l::Lattice, b::Basis, args...; kw...) = tight_binding(Sample(l, b), args...; kw...)
+
+function site_density(ket::Ket{<:LatticeBasis})
+    LatticeValue(lattice(ket), map(abs2, ket.data))
+end
+
+function site_density(ket::Ket{<:CompositeLatticeBasis})
+    l = lattice(ket)
+    N = length(internal_basis(ket))
+    LatticeValue(l, [sum(abs2, @view(ket.data[(i - 1) * N + 1: i * N])) for i in 1:length(l)])
+end
+
+site_density(bra::Bra) = site_density(dagger(bra))
+
+function site_density(op::LatticeOperator)
+    LatticeValue(lattice(op), diag(op.data))
+end
+
+function site_density(op::CompositeLatticeOperator)
+    l = lattice(ket)
+    N = length(internal_basis(ket))
+    dg = diag(op.data)
+    LatticeValue(l, [sum(@view(dg[(i - 1) * N + 1: i * N])) for i in 1:length(l)])
+end

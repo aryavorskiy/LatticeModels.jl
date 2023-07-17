@@ -15,8 +15,12 @@ end
     Expr(:call, :(SVector{M}), [:(p1[$i] + p2[$i]) for i in 1:mi]...,
         [M > N ? :(p1[$i]) : :(p2[$i]) for i in mi+1:M]...)
 end
-@inline @generated function mm_assuming_zeros(m, v::LenType{N}) where N
-    Expr(:call, :+, [:(m[:, $i] * v[$i]) for i in 1:N]...)
+@inline @generated function mm_assuming_zeros(m::SMatrix{M}, v::LenType{N}) where {M, N}
+    if N == 0
+        return :(zero(SVector{$M}))
+    else
+        Expr(:call, :+, [:(m[:, $i] * v[$i]) for i in 1:N]...)
+    end
 end
 
 function dims end

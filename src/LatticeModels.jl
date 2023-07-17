@@ -23,13 +23,12 @@ export Bonds, Domains, PairLhsGraph, PairRhsGraph
 
 include("operators_core.jl")
 include("operators.jl")
-export LatticeBasis, diag_operator, coord_operators, coord, site_density, hoppings, tight_binding
+export LatticeBasis, coord_operators, coord, site_density, hoppings, tight_binding
 include("operators_manybody.jl")
 export interaction
 
 include("spectrum.jl")
-export Spectrum, spectrum, eigvals, eigvecs, projector, filled_projector,
-    FermiDirac, BoseEinstein, dos, ldos
+export Eigensystem, diagonalize, projector, apply_to_eigenvalues, densitymatrix, dos, ldos
 
 include("evolution.jl")
 export @evolution
@@ -44,7 +43,7 @@ export init_record, integrate, integrate!, differentiate, differentiate!, time_d
 include("zoo.jl")
 export SquareLattice, HoneycombLattice,
     LandauField, SymmetricField, FluxField,
-    TightBinding, SpinTightBinding, Haldane,
+    qwz, haldane,
     DensityCurrents
 
 include("plot_recipes.jl")

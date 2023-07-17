@@ -67,5 +67,27 @@ function interaction(f::Function, T::Type{<:Number}, sample::Sample)
     end
     diagonaloperator(ManyBodyBasis(onebodybasis(sample), occups), diags)
 end
-
 interaction(f::Function, sample::Sample) = interaction(f, ComplexF64, sample)
+
+function site_density(ket::Ket{<:ManyBodyBasis{<:Any,<:AbstractLatticeBasis}})
+    vs = zeros(length(basis(ket).onebodybasis))
+    for i in 1:length(ket)
+        occ = basis(ket).occupations[i]
+        @. vs += occ * abs2(ket.data[i])
+    end
+    N = length(internal_basis(ket))
+    l = lattice(ket)
+    LatticeValue(l, [@view(vs[(i - 1) * N + 1: i * N]) for i in 1:length(l)])
+end
+
+function site_density(op::Operator{BT, BT} where BT<:ManyBodyBasis{<:Any, <:AbstractLatticeBasis})
+    vs = zeros(length(basis(op).onebodybasis))
+    ds = diag(op.data)
+    for i in 1:length(ds)
+        occ = basis(op).occupations[i]
+        @. vs += occ * ds[i]
+    end
+    N = length(internal_basis(op))
+    l = lattice(op)
+    LatticeValue(l, [@view(vs[(i - 1) * N + 1: i * N]) for i in 1:length(l)])
+end
