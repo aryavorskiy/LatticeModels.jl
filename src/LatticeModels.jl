@@ -25,6 +25,7 @@ include("operators_core.jl")
 include("operators.jl")
 export LatticeBasis, diag_operator, coord_operators, coord, site_density, hoppings, tight_binding
 include("operators_manybody.jl")
+export interaction
 
 include("spectrum.jl")
 export Spectrum, spectrum, eigvals, eigvecs, projector, filled_projector,

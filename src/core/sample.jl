@@ -12,7 +12,7 @@ function shift_site(bc::TwistedBoundary, l::Lattice, site::LatticeSite{N}) where
     offset = div(site.unit_cell[bc.i] - 1, lspan, RoundDown)
     offset == 0 && return ret
     dv = one_hot(bc.i, Val(N))
-    site = shift_site(l, site, -dv * offset * lspan)
+    site = shift_site(-dv * offset * lspan, l, site)
     exp(im * bc.Θ * offset), site
 end
 
@@ -68,7 +68,7 @@ function shift_site(bcs::BoundaryConditions, l::Lattice, site::LatticeSite)
 end
 
 @enum ParticleStatistics begin
-    one_particle
+    OneParticle
     FermiDirac
     BoseEinstein
 end
@@ -82,10 +82,10 @@ struct Sample{AdjMatT, LT, BasisT}
 end
 
 function Sample(adjacency_matrix, latt::LT, internal::BT=GenericBasis(1);
-        N::Int=1, statistics::ParticleStatistics=one_particle) where {LT<:Lattice, BT}
+        N::Int=1, statistics::ParticleStatistics=OneParticle) where {LT<:Lattice, BT}
     N ≤ 0 && error("Positive particle count expected")
-    N == 1 && return Sample(adjacency_matrix, latt, internal, 1, one_particle)
-    statistics == one_particle && error("One-particle statistics invalid for multi-particle systems")
+    N == 1 && return Sample(adjacency_matrix, latt, internal, 1, OneParticle)
+    statistics == OneParticle && error("One-particle statistics invalid for multi-particle systems")
     Sample(adjacency_matrix, latt, internal, N, statistics)
 end
 Sample(latt::Lattice, internal=GenericBasis(1); kw...) =
@@ -93,4 +93,15 @@ Sample(latt::Lattice, internal=GenericBasis(1); kw...) =
 Base.length(sample::Sample) = length(sample.latt) * length(sample.internal)
 lattice(sample::Sample) = sample.latt
 internal_one(sample::Sample) =
-    sample.statistics == one_particle ? 1 : one(sample.internal)
+    sample.statistics == OneParticle ? 1 : one(sample.internal)
+ismanybody(sample::Sample) = sample.nparticles != 1
+
+function occupations(sample::Sample)
+    if sample.statistics == FermiDirac
+        fermionstates(length(sample), sample.nparticles)
+    elseif sample.statistics == BoseEinstein
+        bosonstates(length(sample), sample.nparticles)
+    elseif sample.statistics == OneParticle
+        bosonstates(length(sample), sample.nparticles)
+    end
+end

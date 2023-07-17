@@ -72,7 +72,7 @@ function tight_binding!(builder::SparseMatrixBuilder, ::Sample, arg::Operator; k
 end
 
 function preprocess_argument(sample::Sample, arg::Operator)
-    if samebases(basis(arg), one_particle_basis(sample))
+    if samebases(basis(arg), onebodybasis(sample))
         sparse(arg)
     elseif samebases(basis(arg), sample.internal)
         sparse(arg) ⊗ one(LatticeBasis(sample.latt))
@@ -92,6 +92,9 @@ function preprocess_argument(sample::Sample, arg::AbstractMatrix)
     end
 end
 
+preprocess_argument(sample::Sample, arg) =
+    preprocess_argument(sample, internal_one(sample) => arg)
+
 preprocess_argument(sample::Sample, n::Number) = preprocess_argument(sample, n * internal_one(sample))
 
 function preprocess_argument(sample::Sample, arg::Pair)
@@ -101,6 +104,8 @@ function preprocess_argument(sample::Sample, arg::Pair)
         opdata = sparse(op.data)
     elseif op isa AbstractMatrix
         opdata = sparse(op)
+    elseif op isa Number
+        opdata = op
     else
         error("Invalid Pair argument: unsupported on-site operator type")
     end
@@ -119,12 +124,11 @@ function tight_binding(sample::Sample, args...;
         tight_binding!(builder, sample, preprocess_argument(sample, arg);
             field=field, boundaries=boundaries)
     end
-    bas = one_particle_basis(sample)
+    bas = onebodybasis(sample)
     oper = Operator(bas, to_matrix(builder))
-    if sample.statistics == one_particle
+    if sample.statistics == OneParticle
         return oper
     end
-    occupations = sample.statistics == FermiDirac ? fermionstates(bas, sample.nparticles) : bosonstates(bas, sample.nparticles)
-    manybodyoperator(ManyBodyBasis(bas, occupations), oper)
+    manybodyoperator(ManyBodyBasis(bas, occupations(sample)), oper)
 end
 tight_binding(::Nothing, ::Nothing, args...; kw...) = throw(MethodError(tight_binding, args))

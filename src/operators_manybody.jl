@@ -1,46 +1,71 @@
-const AbstractLatticeBasis = Union{LatticeBasis, CompositeLatticeBasis}
 # Override this function with more performant one
 function QuantumOpticsBase.manybodyoperator_1(basis::ManyBodyBasis,
-        op::Operator{<:AbstractLatticeBasis, <:AbstractLatticeBasis, <:SparseMatrixCSC})
+        op::Operator{<:AbstractLatticeBasis, <:AbstractLatticeBasis})
     N = length(basis)
+    S = length(basis.onebodybasis)
     builder = SparseMatrixBuilder{ComplexF64}(N, N)
     M = op.data
-    @inbounds for colindex = 1:M.n
-        for i=M.colptr[colindex]:M.colptr[colindex+1]-1
-            row = M.rowval[i]
-            value = M.nzval[i]
-            for m=1:N, n=1:N
-                C = my_coefficient(basis.occupations[m], basis.occupations[n], row, colindex)
-                if C != 0.
-                    increment!(builder, C * value, m, n)
-                end
+    @inbounds for m=1:N, n=1:N
+        # This code is horrific, but 10x more performant. DO NOT TOUCH!!!
+        # Wait until general optimization
+        diffcount = 0
+        occ_m = basis.occupations[m]
+        occ_n = basis.occupations[n]
+        mi = 0
+        ni = 0
+        for i in 1:S
+            occ_m[i] == occ_n[i] && continue
+            diffcount += 1
+            diffcount ≥ 3 && break
+            di = occ_m[i] - occ_n[i]
+            if di == 1
+                mi = i
+            elseif di == -1
+                ni = i
+            else
+                diffcount = 1
+                break
             end
+        end
+        if diffcount == 0
+            mat_el = 0.
+            for i in 1:S
+                occ_m[i] == 0 && continue
+                mat_el += occ_m[i] * M[i, i]
+            end
+            increment!(builder, mat_el, m, n)
+        elseif diffcount == 2
+            mi != 0 && ni != 0 &&
+                increment!(builder,  √(occ_m[mi] * occ_n[ni]) * M[mi, ni], m, n)
         end
     end
     return SparseOperator(basis, to_matrix(builder))
 end
 
-# And also this
-Base.@propagate_inbounds function my_coefficient(occ_m, occ_n, at_indices, a_indices)
-    any(==(0), (occ_m[m] for m in at_indices)) && return 0.
-    any(==(0), (occ_n[n] for n in a_indices)) && return 0.
-    C = prod(√, @view occ_m[at_indices]) * prod(√, @view occ_n[a_indices])
-    for i in 1:length(occ_m)
-        vm = occ_m[i]
-        vn = occ_n[i]
-        i in at_indices && (vm -= 1)
-        i in a_indices && (vn -= 1)
-        vm != vn && return zero(C)
-    end
-    return C
-end
-
-function fills_iterator end
-
-function midsite_interaction(f::Function, sample::Sample)
-    for site1 in lattice(sample)
-        for site2 in lattice(sample)
-
+function interaction(f::Function, T::Type{<:Number}, sample::Sample)
+    l = lattice(sample)
+    !ismanybody(sample) &&
+        throw(ArgumentError("Cannot define interaction on one-particle sample"))
+    occups = occupations(sample)
+    diags = T[]
+    N = length(sample.internal)
+    for occ in occups
+        int_energy = 0.
+        for i in 1:length(l)
+            occi = sum(@view occ[(i - 1) * N + 1: i * N])
+            occi == 0 && continue
+            site1 = l[i]
+            for j in 1:i-1
+                occj = sum(@view occ[(j - 1) * N + 1: j * N])
+                occj == 0 && continue
+                site2 = l[j]
+                int_energy += f(site1, site2) * occi * occj
+            end
+            int_energy += f(site1, site1) * occi * (occi - 1) / 2
         end
+        push!(diags, int_energy)
     end
+    diagonaloperator(ManyBodyBasis(onebodybasis(sample), occups), diags)
 end
+
+interaction(f::Function, sample::Sample) = interaction(f, ComplexF64, sample)

@@ -10,7 +10,7 @@ end
 Base.:(==)(lb1::LatticeBasis, lb2::LatticeBasis) = lb1.latt == lb2.latt
 lattice(lb::LatticeBasis) = lb.latt
 
-function one_particle_basis(sample::Sample)
+function onebodybasis(sample::Sample)
     lb = LatticeBasis(sample.latt)
     length(sample.internal) == 1 ? lb : sample.internal ⊗ lb
 end
@@ -19,10 +19,13 @@ QuantumOpticsBase.basisstate(T::Type, b::LatticeBasis, site::LatticeSite) =
     basisstate(T, b, site_index(b.latt, site))
 
 const CompositeLatticeBasis{S, BT, LT} = CompositeBasis{S, Tuple{BT, LatticeBasis{LT}}}
+const AbstractLatticeBasis = Union{LatticeBasis, CompositeLatticeBasis}
+lattice(b::CompositeLatticeBasis) = lattice(b.bases[2])
+
 const LatticeOperator{MT} = Operator{BT, BT, MT} where BT<:LatticeBasis
 const CompositeLatticeOperator{MT} = Operator{BT, BT, MT} where BT<:CompositeLatticeBasis
+const AbstractLatticeOperator{MT} = Operator{BT, BT, MT} where BT<:AbstractLatticeBasis
 lattice(op::LatticeOperator) = lattice(basis(op))
-lattice(op::CompositeLatticeOperator) = lattice(basis(op).bases[2])
 internal_basis(op::CompositeLatticeOperator) = basis(op).bases[1]
 
 """
