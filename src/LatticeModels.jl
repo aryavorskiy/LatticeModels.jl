@@ -26,13 +26,13 @@ include("core/adjacency.jl")
 export Domains, PairLhsGraph, PairRhsGraph
 
 include("operators_core.jl")
-export LatticeBasis, adjacency_matrix, tightbinding_hamiltonian
+export LatticeBasis
 include("operators_build.jl")
-export hoppings, build_hamiltonian
+export hoppings, tightbinding_hamiltonian, build_hamiltonian
 include("operators_manybody.jl")
 export interaction
 include("operators_utils.jl")
-export coord_operators, coord, site_density
+export coord_operators, coord, site_density, diag_reduce, adjacency_matrix, apply_field!
 
 include("spectrum.jl")
 export Eigensystem, diagonalize, projector, apply_to_eigenvalues, densitymatrix, dos, ldos
@@ -45,7 +45,7 @@ export AbstractCurrents, materialize, currents_from, currents_from_to, pairs_by_
 
 include("time_sequence.jl")
 export init_record, integrate, integrate!, differentiate, differentiate!, time_domain,
-    TimeSequence, LatticeValueSequence, LatticeArraySequence, CurrentsSequence
+    TimeSequence
 
 include("zoo.jl")
 export SquareLattice, HoneycombLattice,

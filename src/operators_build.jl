@@ -35,6 +35,27 @@ function increment!(builder::SparseMatrixBuilder, rhs::SparseMatrixCSC)
     nothing
 end
 
+function tightbinding_hamiltonian(sample::Sample; tn=1, tnn=0, tnnn=0,
+    field=NoField(), boundaries=BoundaryConditions())
+    builder = SparseMatrixBuilder{ComplexF64}(length(sample), length(sample))
+    internal_eye = one(internal).data
+    for bond in default_bonds(l)
+        add_hoppings!(builder, nothing, l, tn * internal_eye, bond, field, boundaries)
+    end
+    if tnn != 0
+        for bond in default_nnbonds(l)
+            add_hoppings!(builder, nothing, l, tnn * internal_eye, bond, field, boundaries)
+        end
+    end
+    if tnnn != 0
+        for bond in default_nnnbonds(l)
+            add_hoppings!(builder, nothing, l, tnnn * internal_eye, bond, field, boundaries)
+        end
+    end
+    return manybodyoperator(sample, to_matrix(builder))
+end
+@accepts_lattice tightbinding_hamiltonian
+
 const AbstractBonds = Union{Bonds, SingleBond}
 function build_operator!(builder::SparseMatrixBuilder, sample::Sample, arg::Pair{<:Any, <:AbstractBonds};
         field=NoField())
@@ -92,10 +113,15 @@ function preprocess_argument(sample::Sample, arg::Pair)
     end
     if on_lattice isa LatticeValue
         check_lattice_match(on_lattice, sample)
-    elseif !(on_lattice isa AbstractBonds)
+        return opdata => on_lattice
+    elseif on_lattice isa Number
+        return preprocess_argument(sample, opdata * on_lattice)
+    elseif on_lattice isa AbstractBonds
+        return opdata => on_lattice
+    else
         error("Invalid Pair argument: unsupported on-lattice operator type")
     end
-    opdata => on_lattice
+
 end
 
 function build_hamiltonian(sample::Sample, args...;
@@ -108,11 +134,7 @@ function build_hamiltonian(sample::Sample, args...;
     op = Operator(onebodybasis(sample), to_matrix(builder))
     return manybodyoperator(sample, op)
 end
-build_hamiltonian(l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =
-    build_hamiltonian(Sample(l, boundaries=boundaries), args...; kw...)
-build_hamiltonian(l::Lattice, b::Basis, args...; boundaries=BoundaryConditions(), kw...) =
-    build_hamiltonian(Sample(l, b, boundaries=boundaries), args...; kw...)
+@accepts_lattice build_hamiltonian
 
-hoppings(l::Lattice, bs::Bonds...; kw...) = build_hamiltonian(l, bs...; kw...)
-hoppings(l::Lattice, args...; field=NoField(), kw...) =
-    build_hamiltonian(l, Bonds(args...; kw...); field=field)
+hoppings(adj, l::Lattice, bs::Bonds...; kw...) = build_hamiltonian(Sample(adj, l), bs...; kw...)
+hoppings(l::Lattice, bs::Bonds...; kw...) = build_hamiltonian(Sample(l), bs...; kw...)

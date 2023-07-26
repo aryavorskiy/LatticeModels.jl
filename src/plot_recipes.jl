@@ -106,6 +106,24 @@ function displace_site(l::Lattice, site::LatticeSite, hop::Bonds)
     new_site in l ? new_site : nothing
 end
 
+@recipe function f(ag::AbstractGraph)
+    aspect_ratio := :equal
+    l = lattice(ag)
+    pts = NTuple{dims(l), Float64}[]
+    br_pt = fill(NaN, dims(l)) |> Tuple
+    for i in 1:length(l), j in 1:length(l)
+        site1 = l[i]
+        site2 = l[j]
+        !match(ag, site1, site2) && continue
+        A = site1.coords
+        B = site2.coords
+        T = radius_vector(l, site1, site2)
+        push!(pts, Tuple(A), Tuple(A + T / 2), br_pt, Tuple(B), Tuple(B - T / 2), br_pt)
+    end
+    label := nothing
+    pts
+end
+
 @recipe function f(l::Lattice{Sym, N}, bss::NTuple{M, Bonds} where M) where {Sym, N}
     aspect_ratio := :equal
     pts = NTuple{N, Float64}[]

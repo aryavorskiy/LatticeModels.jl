@@ -124,11 +124,11 @@ function materialize(curr::AbstractCurrents)
     m
 end
 
-function materialize(f::Function, curr::AbstractCurrents)
+function materialize(selector, curr::AbstractCurrents)
     l = lattice(curr)
     m = MaterializedCurrents(l)
     for i in 1:length(l), j in 1:i-1
-        !f(l, l[i], l[j]) && continue
+        !_get_bool_value(selector, l, l[i], l[j]) && continue
         ij_curr = curr[i, j]
         m.currents[i, j] = ij_curr
         m.currents[j, i] = -ij_curr

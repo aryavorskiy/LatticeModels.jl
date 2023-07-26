@@ -75,7 +75,7 @@ function site_density(ket::Ket{<:ManyBodyBasis{<:Any,<:AbstractLatticeBasis}})
         occ = basis(ket).occupations[i]
         @. vs += occ * abs2(ket.data[i])
     end
-    N = length(internal_basis(ket))
+    N = internal_length(ket)
     l = lattice(ket)
     LatticeValue(l, [@view(vs[(i - 1) * N + 1: i * N]) for i in 1:length(l)])
 end
@@ -87,7 +87,7 @@ function site_density(op::Operator{BT, BT} where BT<:ManyBodyBasis{<:Any, <:Abst
         occ = basis(op).occupations[i]
         @. vs += occ * ds[i]
     end
-    N = length(internal_basis(op))
+    N = internal_length(op)
     l = lattice(op)
     LatticeValue(l, [@view(vs[(i - 1) * N + 1: i * N]) for i in 1:length(l)])
 end

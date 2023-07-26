@@ -16,8 +16,7 @@ struct Eigensystem{BT<:Basis,MT<:AbstractMatrix}
         new{BT,MT}(basis, states, values)
     end
 end
-
-const LatticeOperatorMT{MT} = LatticeOperator{BT,<:MT} where {BT}
+QuantumOpticsBase.basis(eig::Eigensystem) = eig.basis
 
 """
     diagonalize(op::Operator)
@@ -86,7 +85,7 @@ Generates a function to calculate the DOS (Density of States), which is defined 
 $\text{tr}\left(\frac{1}{\hat{H} - E - i\delta}\right)$ and can be understood as a sum
 of Lorenz distributions with width equal to $\delta$.
 """
-dos(eig::Eigensystem, δ::Real) = (E -> imag(sum(1 ./ (eigvals(eig) .- (E + im * δ)))))
+dos(eig::Eigensystem, δ::Real) = (E -> imag(sum(1 ./ (eig.values .- (E + im * δ)))))
 
 @doc raw"""
     ldos(eig::Eigensystem, E, δ)
@@ -115,6 +114,6 @@ function ldos(eig::Eigensystem{<:AbstractLatticeBasis}, δ::Real)
     l = lattice(eig.basis)
     N = length(internal_basis(eig.basis))
     density_sums = reshape(
-        sum(reshape(abs2.(eigvecs(eig)), (N, :, length(eig))), dims=1), (:, length(eig)))
+        sum(reshape(abs2.(eig.states), (N, :, length(eig))), dims=1), (:, length(eig)))
     E -> LatticeValue(l, vec(sum(density_sums .* imag.(1 ./ (Es .- (E + im * δ)))', dims=2)))
 end

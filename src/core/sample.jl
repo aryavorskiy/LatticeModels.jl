@@ -2,12 +2,21 @@ import QuantumOpticsBase: Basis, AbstractOperator
 abstract type Boundary end
 abstract type AbstractBoundaryConditions end
 
+shift_site(js::SVector{N}, ::Lattice, lp::LatticePointer{N}) where N =
+    LatticePointer(lp.unit_cell + js, lp.basis_index)
+shift_site(js::SVector{N}, l::Lattice, site::LatticeSite{N}) where N =
+    LatticePointer(shift_site(js, l, site.lp), site.coords + bravais(l).translation_vectors * js)
+function shift_site(any::Union{Boundary, AbstractBoundaryConditions}, l::Lattice, site::LatticeSite)
+    factor, new_lp = shift_site(any, l, site.lp)
+    return factor, get_site(l, new_lp)
+end
+
 struct TwistedBoundary <: Boundary
     i::Int
     Θ::Float64
 end
 PeriodicBoundary(i) = TwistedBoundary(i, 0)
-function shift_site(bc::TwistedBoundary, l::Lattice, site::LatticeSite{N}) where N
+function shift_site(bc::TwistedBoundary, l::Lattice, site::LatticePointer{N}) where N
     ret = 1., site
     bc.i > dims(l) && return ret
     lspan = l.lattice_size[bc.i]
@@ -23,10 +32,7 @@ struct FunctionBoundary{F<:Function} <: Boundary
     i::Int
 end
 
-shift_site(js::SVector{N}, l::Lattice, site::LatticeSite{N}) where N =
-    LatticeSite(site.unit_cell + js, site.basis_index, site.coords + bravais(l).translation_vectors * js)
-
-function shift_site(bc::FunctionBoundary, l::Lattice, site::LatticeSite{N}) where N
+function shift_site(bc::FunctionBoundary, l::Lattice, site::LatticePointer{N}) where N
     ret = 1., site
     bc.i > dims(l) && return ret
     lspan = l.lattice_size[bc.i]
@@ -62,7 +68,7 @@ function _extract_boundary_conditions(pb::Pair{Int, Bool})
 end
 _extract_boundary_conditions(pb::Pair{Int, <:Real}) = TwistedBoundary(pb...)
 BoundaryConditions(args...) = BoundaryConditions(Tuple(skipmissing(_extract_boundary_conditions.(args))))
-function shift_site(bcs::BoundaryConditions, l::Lattice, site::LatticeSite)
+function shift_site(bcs::BoundaryConditions, l::Lattice, site::LatticePointer)
     factor = 1.
     for bc in bcs.bcs
         new_factor, site = shift_site(bc, l, site)
@@ -129,3 +135,13 @@ function QuantumOpticsBase.manybodyoperator(sample::Sample, op::AbstractOperator
 end
 QuantumOpticsBase.manybodyoperator(sample::Sample, mat::AbstractMatrix) =
     manybodyoperator(sample, Operator(onebodybasis(sample), mat))
+
+macro accepts_lattice(fname, default_basis=nothing)
+    esc(quote
+        global $fname(selector, l::Lattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
+            $fname(Sample(selector, l, bas, boundaries=boundaries), args...; kw...)
+        global $fname(selector, l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =
+            $fname(Sample(selector, l, $default_basis, boundaries=boundaries), args...; kw...)
+        global $fname(l::Lattice, args...; kw...) = $fname(nothing, l::Lattice, args...; kw...)
+    end)
+end

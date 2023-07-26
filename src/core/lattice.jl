@@ -59,7 +59,7 @@ default_bonds(::Lattice) = ()
 default_nnbonds(::Lattice) = ()
 default_nnnbonds(::Lattice) = ()
 
-function get_site(l::Lattice, lp::LatticePointer)
+function get_site(l::Lattice, lp::LatticePointer, boundaries=BoundaryConditions())
     LatticeSite(lp, site_coords(l, lp))
 end
 
@@ -99,7 +99,7 @@ end
 Returns the integer index for given `site` in `lattice`.
 Returns `nothing` if the site is not present in the lattice.
 """
-function site_index(l::Lattice, site::LatticeSite)
+function site_index(l::Lattice, site::Union{LatticeSite, LatticePointer})
     linds = linear_indices(l)
     cind = cartesian_index(site)
     i = get(linds, cind, nothing)

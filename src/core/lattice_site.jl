@@ -35,6 +35,7 @@ struct LatticePointer{N}
     unit_cell::SVector{N,Int}
     basis_index::Int
 end
+dims(::LatticePointer{N}) where N = N
 
 """
     LatticeSite{N}
@@ -51,6 +52,7 @@ struct LatticeSite{N}
     lp::LatticePointer{N}
     coords::SVector{N,Float64}
 end
+dims(::LatticeSite{N}) where N = N
 
 axis_parse_error(sym::Symbol) = error("Symbol :$sym does not correspond to any of lattice axes")
 axis_parse_error(i::Int) = error("Integer $i does not correspond to any of lattice axes")
@@ -72,22 +74,26 @@ function try_parse_axis_sym(i::Int)
     (:c, i)
 end
 
+function get_coord(site::LatticeSite, desc)
+    axtype, index = desc
+    if axtype == :c && index ≤ dims(site)
+        return site.coords[index]
+    elseif axtype == :j && index ≤ dims(site)
+        return site.lp.unit_cell[index]
+    elseif axtype == :b
+        return site.lp.basis_index
+    else
+        return nothing
+    end
+end
+
 function Base.getproperty(site::LatticeSite{N}, sym::Symbol) where N
     sym === :basis_index && return site.lp.basis_index
     sym === :unit_cell && return site.lp.unit_cell
     desc = try_parse_axis_sym(sym)
     desc === nothing && return getfield(site, sym)
-    axtype, index = desc
-
-    if axtype == :c && index ≤ N
-        site.coords[index]
-    elseif axtype == :j && index ≤ N
-        site.lp.unit_cell[index]
-    elseif axtype == :b && index == 0
-        site.lp.basis_index
-    else
-        getfield(site, sym)
-    end
+    val = get_coord(site, desc)
+    val === nothing ? getfield(site, sym) : val
 end
 
 Base.iterate(site::LatticeSite{N}, i=1) where N = i > N ? nothing : (site.coords[i], i + 1)
