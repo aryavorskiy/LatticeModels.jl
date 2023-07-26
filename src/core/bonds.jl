@@ -3,31 +3,39 @@ using StaticArrays
 const SingleBond{N} = Pair{LatticeSite{N}, LatticeSite{N}}
 
 """
-    Bonds{N}
+    Bonds{T, N}
 
 A struct representing bonds in some direction in a lattice.
-- `site_indices`: a `::Int => ::Int` pair with indices of sites connected by the bond.
-- `translate_uc`: the unit cell offset.
-"""
-struct Bonds{N}
-    site_indices::Pair{Int,Int}
-    translate_uc::SVector{N, Int}
-    function Bonds(site_indices, tr_uc::AbstractVector)
-        iszero(tr_uc) && ==(site_indices...) && throw(ArgumentError("bond connects site to itself"))
-        new{length(tr_uc)}(site_indices, tr_uc)
-    end
-end
 
-"""
+---
     Bonds([site_indices, ]translate_uc)
 
-Constructs a `Bonds` object. `site_indices` is `1 => 1` by default.
+Constructs a `Bonds` object.
 
-If `site_indices` are equal and `translate_uc` is zero, this means that the bond connects each site with itself,
-in which case an error will be thrown.
-Note that the dimension count for the bond is static, it is automatically compatible to higher-dimensional lattices.
+## Arguments:
+- `site_indices`: a `::Int => ::Int` pair with indices of sites connected by the bond.
+When not defined, the resulting `bonds` object will connect site with any basis index to
+a site with the same basis index, but in another unit cell.
+- `translate_uc`: the unit cell offset.
+
+If `site_indices` are equal or undefined and `translate_uc` is zero, the bond connects
+each site with itself. In this case an error will be thrown.
+Note that though the dimension count for the bond is static, it is automatically compatible to higher-dimensional lattices.
 """
-Bonds(tr_uc::AbstractVector) = Bonds(1 => 1, tr_uc)
+struct Bonds{T, N}
+    site_indices::T
+    translate_uc::SVector{N, Int}
+    function Bonds(site_indices::Pair{Int, Int}, tr_uc::AbstractVector)
+        any(<(1), site_indices) && throw(ArgumentError("Positive site indices expected"))
+        iszero(tr_uc) && ==(site_indices...) && throw(ArgumentError("bond connects site to itself"))
+        new{Pair{Int, Int}, length(tr_uc)}(site_indices, tr_uc)
+    end
+    function Bonds(tr_uc::AbstractVector)
+        iszero(tr_uc) && throw(ArgumentError("bond connects site to itself"))
+        new{Nothing, length(tr_uc)}(nothing, tr_uc)
+    end
+end
+Bonds(::Nothing, tr_uc) = Bonds(tr_uc)
 
 """
     Bonds(site_indices)
@@ -41,7 +49,7 @@ A convenient constructor for a `Bonds` object. `site_indices` is `1 => 1` by def
 - `axis`: The hopping direction axis in terms of unit cell vectors.
 - `dist`: The hopping distance in terms of
 """
-function Bonds(site_indices::Pair{Int,Int}=Pair(1, 1); axis=0, dist=1)
+function Bonds(site_indices::Nullable{Pair{Int,Int}}=nothing; axis=0, dist=1)
     axis == 0 && return Bonds(site_indices, [])
     Bonds(site_indices, one_hot(axis, axis) * dist)
 end
@@ -49,112 +57,45 @@ end
 Base.:(==)(h1::Bonds, h2::Bonds) =
     all(getproperty(h1, fn) == getproperty(h2, fn) for fn in fieldnames(Bonds))
 
-function Base.show(io::IO, ::MIME"text/plain", hop::Bonds)
-    println(io, "Bonds connect site #$(hop.site_indices[1]) with site #$(hop.site_indices[1]) translated by $(hop.translate_uc)")
+function Base.show(io::IO, ::MIME"text/plain", hop::Bonds{<:Pair})
+    println(io, "Bonds connecting site #$(hop.site_indices[1]) with site #$(hop.site_indices[1]) translated by $(hop.translate_uc)")
 end
-dims(::Bonds{N}) where N = N
-
-"""
-    AbstractGraph <: Function
-
-A function-like object that accepts a `Lattice` and two `LatticeSite`s and returns whether the site pair is *selected* or not.
-Implements a built-in sanity check algorithm to make sure the pair set was defined on a correct lattice.
-
-Define these functions for all subclasses:
-- `LatticeModels.lattice(::YourSelector)` must return the lattice your selector was defined on.
-- `LatticeModels.match(::YourSelector, site1::LatticeSite, site2::LatticeSite)` must return whether the `(site1, site2)` pair is *selected*.
-"""
-abstract type AbstractGraph end
-match(ps::AbstractGraph, ::LatticeSite, ::LatticeSite) =
-    error("match(::$(typeof(ps)), ::LatticeSite, ::LatticeSite) must be explicitly implemented")
-lattice(ps::AbstractGraph) = error("lattice(::$(typeof(ps))) must be explicitly implemented")
-
-check_lattice_fits(::Any, ::Lattice) = nothing
-check_lattice_fits(ps::AbstractGraph, l::Lattice) = check_is_sublattice(l, lattice(ps))
-
-"""
-    Domains(domains::LatticeValue)
-
-A selector used for hopping operator definition or currents materialization.
-
-Takes a `LatticeValue`.
-A pair matches the selector if the value of `domains` is the same on two sites.
-"""
-struct Domains{LT} <: AbstractGraph
-    domains::LT
-    Domains(domains::LT) where LT<:LatticeValue = new{LT}(domains)
+function Base.show(io::IO, ::MIME"text/plain", hop::Bonds{<:Nothing})
+    println(io, "Bonds connecting sites translated by $(hop.translate_uc)")
 end
-lattice(ps::Domains) = lattice(ps.domains)
-match(ps::Domains, site1::LatticeSite, site2::LatticeSite) =
-    ps.domains[site1] == ps.domains[site2]
+dims(::Bonds{T, N} where T) where N = N
 
 """
-    PairLhsGraph(lhs::LatticeValue)
-
-A selector used for hopping operator definition or currents materialization.
-
-Takes a `LatticeValue`.
-A pair matches the selector if the value of `lhs` is true on the first site of the pair.
+    radius_vector(l::Lattice, hop::Bonds)
+Finds the vector between two sites on a lattice according to possibly periodic boundary conditions
+(`site2` will be translated along the macrocell to minimize the distance between them).
 """
-struct PairLhsGraph <: AbstractGraph
-    lhs::LatticeValue
+function radius_vector(l::Lattice, hop::Bonds{<:Pair})
+    i, j = hop.site_indices
+    return bravais(l).basis[:, j] - bravais(l).basis[:, i] +
+     mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
 end
-lattice(ps::PairLhsGraph) = lattice(ps.lhs)
-match(ps::PairLhsGraph, site1::LatticeSite, ::LatticeSite) = ps.lhs[site1]
+radius_vector(l::Lattice, hop::Bonds{Nothing}) =
+    mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
 
-"""
-    PairRhsGraph(rhs::LatticeValue)
-
-A selector used for hopping operator definition or currents materialization.
-
-Takes a `LatticeValue`.
-A pair matches the selector if the value of `rhs` is true on the first site of the pair.
-"""
-struct PairRhsGraph <: AbstractGraph
-    rhs::LatticeValue
+struct LatticeOffset{LT, BC}
+    l::LT
+    bc::BC
 end
-lattice(ps::PairRhsGraph) = lattice(ps.rhs)
-match(ps::PairRhsGraph, ::LatticeSite, site2::LatticeSite) = ps.rhs[site2]
+Bonds(l::Lattice, args...; kw...) = LatticeOffset(l, Bonds(args...; kw...))
 
-"""
-    AdjacencyMatrix{LT} where {LT<:Lattice}
+@inline function Base.:(+)(lp::LatticePointer, bs::Bonds{<:Pair})
+    bs.site_indices[1] != lp.basis_index && return nothing
+    return LatticePointer(add_assuming_zeros(lp.unit_cell, bs.translate_uc), bs.site_indices[2])
+end
+@inline Base.:(+)(lp::LatticePointer, bs::Bonds{<:Nothing}) =
+    return LatticePointer(add_assuming_zeros(lp.unit_cell, bs.translate_uc), lp.basis_index)
 
-Represents the bonds on some lattice.
-
-`AdjacencyMatrix`s can be combined with the `|` operator and negated with the `!` operator.
-Also you can create a `AdjacencyMatrix` which connects sites that were connected by `≤n` bonds of the previous `AdjacencyMatrix`
-by taking its power: `bs2 = bs1 ^ n`.
-"""
-struct AdjacencyMatrix{LT<:Lattice} <: AbstractGraph
-    lattice::LT
-    bmat::Matrix{Bool}
-    function AdjacencyMatrix(l::LT, bmat) where {LT<:Lattice}
-        !all(size(bmat) .== length(l)) && error("inconsistent connectivity matrix size")
-        new{LT}(l, bmat .| bmat' .| Matrix(I, length(l), length(l)))
-    end
-    function AdjacencyMatrix(l::Lattice)
-        AdjacencyMatrix(l, Matrix(I, length(l), length(l)))
-    end
+@inline function Base.:(+)(lp::LatticePointer, lofs::LatticeOffset)
+    new_lp = lp + lofs.bc
+    new_lp === nothing && return nothing
+    new_unit_cell = mod.(new_lp.unit_cell .- 1, size(lofs.l)) .+ 1
+    return LatticePointer(new_unit_cell, new_lp.basis_index)
 end
 
-lattice(bs::AdjacencyMatrix) = bs.lattice
-match(bs::AdjacencyMatrix, site1::LatticeSite, site2::LatticeSite) =
-    bs.bmat[site_index(lattice(bs), site1), site_index(lattice(bs), site2)]
-
-function Base.:(|)(bss::AdjacencyMatrix...)
-    !allequal(getproperty.(bss, :lattice)) && error("lattice mismatch")
-    AdjacencyMatrix(bss[1].lattice, .|(getproperty.(bss, :bmat)...))
-end
-
-Base.:(^)(bs1::AdjacencyMatrix, n::Int) =
-    AdjacencyMatrix(bs1.lattice, bs1.bmat^n .!= 0)
-
-struct InvertedGraph{GT} <: AbstractGraph
-    graph::GT
-end
-lattice(ig::InvertedGraph) = lattice(ig.graph)
-match(ig::InvertedGraph, site1, site2) = match(ig.graph, site1, site2)
-Base.:(!)(g::AbstractGraph) = InvertedGraph(g)
-Base.:(!)(g::InvertedGraph) = g.graph
-Base.:(!)(bs::AdjacencyMatrix) =
-    AdjacencyMatrix(bs.lattice, Matrix(I, length(bs.lattice), length(bs.lattice)) .| .!(bs.bmat))
+@inline Base.:(+)(site::LatticeSite, bs) = site.lp + bs

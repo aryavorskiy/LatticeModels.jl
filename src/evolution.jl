@@ -16,7 +16,7 @@ end
 
 function pade_exp(A::AbstractMatrix, k::Int)
     even_ms = one(A) * (factorial(2k) / factorial(k))
-    M = copy(A) * (factorial(2k - 1) / factorial(k - 1))
+    M = A * (factorial(2k - 1) / factorial(k - 1))
     odd_ms = copy(M)
     for j in 2:k
         M *= A * ((k - j + 1) / (2k - j + 1) / j)
@@ -28,6 +28,8 @@ function pade_exp(A::AbstractMatrix, k::Int)
     end
     (even_ms + odd_ms) * inv(even_ms - odd_ms)
 end
+
+densemat(m::SparseMatrixCSC) = Array(m)
 
 @doc raw"""
     evolution_operator(H, t[, k, p])
@@ -43,16 +45,16 @@ $ \mathcal{U}(t) = e^{-\frac{1}{i\hbar} \hat{H} t} $
 - `p`: if set to `true`, the matrix exponent will be calculated using a Padé approximant, which is
 more precise than Taylor expansion but can also be slower and uses matrix inversion.
 """
-evolution_operator(H, t::Real, ::Nothing=nothing, ::Bool=false) = exp((-im * t) * H)
-evolution_operator(H, t::Real, k::Int, p::Bool=false) = if p
-    pade_exp((-im * t) * H, k)
-else
+evolution_operator(H::AbstractMatrix, t::Real, ::Nothing=nothing, ::Val=Val(false)) = exp((-im * t) * densemat(H))
+evolution_operator(H::AbstractMatrix, t::Real, k::Int, ::Val{true}) =
+    pade_exp((-im * t) * densemat(H), k)
+evolution_operator(H::AbstractMatrix, t::Real, k::Int, ::Val{false}) =
     taylor_exp((-im * t) * H, k)
-end
+evolution_operator(op::Operator, args...) = Operator(basis(op), evolution_operator(op.data, args...))
 
-evolved(bra::Bra, ev) = bra * ev'
 evolved(ket::Ket, ev) = ev * ket
 evolved(op::Operator, ev) = ev * op * ev'
+evolved(bra::Bra, ev) = evolved(bra', ev)'
 
 function _expand_chain(chain)
     if Meta.isexpr(chain, :-->)
@@ -122,23 +124,23 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true
             push!(inits,
                 :(local $h_eval = $(esc(ham_expr))),
                 :(local $h_eval_new = $(esc(ham_expr))),
-                :(local $p_target_ev = _unwrap_from_macro(one, $(esc(ham_expr)))))
+                :(local $p_target_ev = one($(esc(ham_expr)))))
             push!(ham_evals, :($h_eval_new = $(esc(ham_expr))))
             push!(evolutor_updates,
                 :(
                     if dt_changed || $h_eval != $h_eval_new
-                        $p_target_ev = evolution_operator($h_eval_new, dt, $k, $pade)
+                        $p_target_ev = evolution_operator($h_eval_new, dt, $k, Val($pade))
                     end
                 ),
                 :($h_eval = $h_eval_new))
         else
             push!(inits,
                 :(local $h_eval = $(esc(ham_expr))),
-                :(local $p_target_ev = _unwrap_from_macro(one, $(esc(ham_expr)))))
+                :(local $p_target_ev = one($(esc(ham_expr)))))
             push!(evolutor_updates,
                 :(
                     if dt_changed
-                        $p_target_ev = evolution_operator($h_eval, dt, $k, $pade)
+                        $p_target_ev = evolution_operator($h_eval, dt, $k, Val($pade))
                     end
                 ))
         end
@@ -166,7 +168,7 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true
             h_eval_new = Symbol("ham_eval_new_$ham_i")
             p_target_ev = Symbol("evolutor_$ham_i")
             push!(inits,
-                :(local $(esc(p_target)) = _unwrap_from_macro(copy, $(esc(p_initial)))))
+                :(local $(esc(p_target)) = copy($(esc(p_initial)))))
             push!(p_evolutions,
                 :($(esc(p_target)) =
                     evolved($(esc(p_target)), $p_target_ev)))

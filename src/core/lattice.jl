@@ -1,97 +1,6 @@
 using LinearAlgebra, Logging, StaticArrays
 
 """
-    Bravais{N, NB}
-`N`-dimensional infinite Bravais lattice with `NB` sites in basis.
-
----
-    Bravais(translation_vectors[, basis])
-Constructs a Bravais lattice with given translation vectors and locations of basis sites
-relative to some unit cell.
-The `basis` argument can be omitted, in which case the lattice basis will consist of
-one site located in the bottom-left corner of the unit cell.
-
-`translation_vectors` argument must be an `AbstractMatrix{<:Real}` of size `N×N`,
-while `basis` must also be an  abstract matrix of size `N×NB`.
-"""
-struct Bravais{N,NB}
-    translation_vectors::SMatrix{N,N,Float64}
-    basis::SMatrix{N,NB,Float64}
-    function Bravais(translation_vectors::AbstractMatrix{<:Real}, basis::AbstractMatrix{<:Real},
-        origin::AbstractVector{<:Real}=zeros(size(basis)[1]))
-        (size(translation_vectors)[1] != size(basis)[1]) &&
-            error("inconsistent dimension count (got $(size(translation_vectors)[1]), $(size(basis)[1]))")
-        N, NB = size(basis)
-        new{N,NB}(translation_vectors, basis .- origin)
-    end
-end
-Bravais(translation_vectors::AbstractMatrix{<:Real}) =
-    Bravais(translation_vectors, zeros((size(translation_vectors)[1], 1)))
-
-dims(@nospecialize _::Bravais{N}) where {N} = N
-Base.length(::Bravais{N,NB}) where {N,NB} = NB
-
-"""
-    LatticeSite{N}
-A site of a `Lattice{LatticeSym, N, NB}` lattice.
-
-Fields:
-- `unit_cell`: a set of translations along all axes representing the unit cell the site is located in.
-- `basis_index`: the number of site in the lattice basis.
-
-This type is used to iterate over all sites of a `Lattice{LatticeSym, N, NB}`.
-The exact location of a `LatticeSite` can be found using the `site.coords` function.
-"""
-struct LatticeSite{N}
-    unit_cell::SVector{N,Int}
-    basis_index::Int
-    coords::SVector{N,Float64}
-end
-
-axis_parse_error(sym::Symbol) = error("Symbol :$sym does not correspond to any of lattice axes")
-axis_parse_error(i::Int) = error("Integer $i does not correspond to any of lattice axes")
-function try_parse_axis_sym(sym::Symbol)
-    sym === :x && return (:c, 1)
-    sym === :y && return (:c, 2)
-    sym === :z && return (:c, 3)
-    axis_s = string(sym)
-    axis = tryparse(Int, axis_s[2:end])
-    if axis isa Int && axis > 0
-        axis_s[1] == 'x' && return (:c, axis)
-        axis_s[1] == 'j' && return (:j, axis)
-    end
-    nothing
-end
-function try_parse_axis_sym(i::Int)
-    i ≤ 0 && nothing
-    (:c, i)
-end
-
-function Base.getproperty(site::LatticeSite{N}, sym::Symbol) where N
-    desc = try_parse_axis_sym(sym)
-    desc === nothing && return getfield(site, sym)
-    axtype, index = desc
-
-    if axtype == :c && index ≤ N
-        site.coords[index]
-    elseif axtype == :j && index ≤ N
-        site.unit_cell[index]
-    else
-        getfield(site, sym)
-    end
-end
-
-Base.iterate(site::LatticeSite{N}, i=1) where N = i > N ? nothing : (site.coords[i], i + 1)
-
-cartesian_index(site::LatticeSite) = CartesianIndex(site.basis_index, site.unit_cell...)
-
-Base.:(==)(site1::LatticeSite, site2::LatticeSite) =
-    site1.basis_index == site2.basis_index && site1.unit_cell == site2.unit_cell && site1.coords == site2.coords
-
-Base.isless(site1::LatticeSite, site2::LatticeSite) =
-    isless(cartesian_index(site1), cartesian_index(site2))
-
-"""
     Lattice{LatticeSym, N, NB}
 A finite subset of a `Brvais{N, NB}`. `LatticeSym` is a `Symbol` which represents
 the type of the lattice (e. g. `:square`, `:honeycomb`).
@@ -140,16 +49,18 @@ dims(l) = dims(lattice(l))
 basis_length(::Lattice{LatticeSym,N,NB} where {LatticeSym,N}) where {NB} = NB
 bravais(l::Lattice) = l.bravais
 
-site_coords(l::Lattice, basis_index::Int, unit_cell) =
-    bravais(l).basis[:, basis_index] + bravais(l).translation_vectors * unit_cell
-site_coords(l::Lattice{Sym,N,1} where {Sym,N}, ::Int, unit_cell) =
-    bravais(l).translation_vectors * unit_cell
-site_coords(::Lattice{:square,N,1} where {N}, ::Int, unit_cell) = Float64.(unit_cell)
+site_coords(l::Lattice, lp::LatticePointer) =
+    bravais(l).basis[:, lp.basis_index] + bravais(l).translation_vectors * lp.unit_cell
+site_coords(l::Lattice{Sym,N,1} where {Sym,N}, lp::LatticePointer) =
+    bravais(l).translation_vectors * lp.unit_cell
+site_coords(::Lattice{:square,N,1} where {N}, lp::LatticePointer) = Float64.(lp.unit_cell)
 
 default_bonds(::Lattice) = ()
+default_nnbonds(::Lattice) = ()
+default_nnnbonds(::Lattice) = ()
 
-function get_site(l::Lattice, unit_cell, basis_index)
-    LatticeSite(unit_cell, basis_index, site_coords(l, basis_index, unit_cell))
+function get_site(l::Lattice, lp::LatticePointer)
+    LatticeSite(lp, site_coords(l, lp))
 end
 
 cartesian_indices(l::Lattice{LatticeSym,N,NB} where {LatticeSym}) where {N,NB} =
@@ -166,8 +77,7 @@ function Base.getindex(l::Lattice{Sym, N} where Sym, i::Int) where N
     for j in 1:length(l.mask)
         counter += l.mask[j]
         if counter == i
-            basis_index, unit_cell... = Tuple(cinds[j])
-            return get_site(l, SVector(unit_cell), basis_index)
+            return get_site(l, LatticePointer(cinds[j]))
         end
     end
     throw(BoundsError(l, i))
@@ -204,7 +114,7 @@ function Base.splice!(l::Lattice, is)
     l
 end
 Base.popat!(l::Lattice, i::Int) = splice!(l, i)
-Base.pop!(l::Lattice) = popat!(  l, length(l))
+Base.pop!(l::Lattice) = popat!(l, length(l))
 Base.popfirst!(l::Lattice) = popat!(l, 1)
 Base.lastindex(l::Lattice) = length(l)
 
@@ -214,18 +124,14 @@ function Base.iterate(l::Lattice{Sym,N} where Sym) where N
     cinds = cartesian_indices(l)
     index = findfirst(l.mask)
     index === nothing && return nothing
-    cind = cinds[index]
-    basis_index, unit_cell... = Tuple(cind)
-    get_site(l, SVector(unit_cell), basis_index), (cinds, index)
+    get_site(l, LatticePointer(cinds[index])), (cinds, index)
 end
 
 function Base.iterate(l::Lattice{Sym,N} where Sym, state) where N
     cinds, index = state
     index = findnext(l.mask, index + 1)
     index === nothing && return nothing
-    cind = cinds[index]
-    basis_index, unit_cell... = Tuple(cind)
-    get_site(l, SVector(unit_cell), basis_index), (cinds, index)
+    get_site(l, LatticePointer(cinds[index])), (cinds, index)
 end
 
 """

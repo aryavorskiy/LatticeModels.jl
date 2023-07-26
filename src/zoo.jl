@@ -1,3 +1,5 @@
+import QuantumOpticsBase: check_samebases
+
 ############
 # Lattices #
 ############
@@ -17,6 +19,8 @@ function SquareLattice{N}(sz::Vararg{Int,N}) where {N}
     Lattice(:square, sz, Bravais(eye))
 end
 default_bonds(::SquareLattice{N}) where {N} = Tuple(Bonds(axis=i) for i in 1:N)
+default_nnbonds(::SquareLattice{N}) where {N} = Tuple(Bonds(one_hot(i, Val(N)) + k * one_hot(j, Val(N))) for i in 1:N for j in 1:i-1 for k in (-1, 1))
+default_nnnbonds(::SquareLattice{N}) where {N} = Tuple(Bonds(axis=i, dist=2) for i in 1:N)
 
 """
     HoneycombLattice
@@ -33,6 +37,8 @@ function HoneycombLattice(sz::Vararg{Int, 2})
     Lattice(:honeycomb, sz, bvs)
 end
 default_bonds(::HoneycombLattice) = (Bonds(2 => 1), Bonds(2 => 1, axis=1), Bonds(2 => 1, axis=2))
+default_nnbonds(::HoneycombLattice) = (Bonds(axis = 1), Bonds(axis=2), Bonds(SA[1, -1]))
+default_nnnbonds(::HoneycombLattice) = (Bonds(2 => 1, SA[1, 1]), Bonds(2 => 1, SA[1, -1]), Bonds(2 => 1, SA[-1, 1]))
 
 ##########
 # Fields #
@@ -151,7 +157,7 @@ $$\hat{H} =
 Generates a Haldane topological insulator hamiltonian operator.
 """
 haldane(l::HoneycombLattice, t1::Real, t2::Real, m::Real=0; kw...) =
-    tight_binding(l,
+    build_hamiltonian(l,
     (coord(l, :basis_index) * 2 - one(LatticeBasis(l))) * m,
     t1 => Bonds(2 => 1),
     t1 => Bonds(2 => 1, axis = 1),
@@ -173,23 +179,26 @@ DensityCurrents <: AbstractCurrents
 
 Density currents for given density matrix and given hamiltonian.
 """
-struct DensityCurrents <: AbstractCurrents
-    hamiltonian::LatticeOperator
-    density::LatticeOperator
+struct DensityCurrents{OT} <: AbstractCurrents
+    hamiltonian::OT
+    density::OT
 
     """
         DensityCurrents(hamiltonian, density_mat)
 
     Constructs a `DensityCurrents` object for given `hamiltonian` and `density_mat`.
     """
-    function DensityCurrents(ham::LatticeOperator, dens::LatticeOperator)
-        check_basis_match(ham, dens)
-        new(ham, dens)
+    function DensityCurrents(ham::CompositeLatticeOperator, dens::CompositeLatticeOperator)
+        check_samebases(ham, dens)
+        OT = typeof(ham)
+        new{OT}(ham, dens)
     end
 end
 
-Base.getindex(curr::DensityCurrents, i::Int, j::Int) =
-    2imag(tr(curr.density[i, j] * curr.hamiltonian[j, i]))
-lattice(curr::DensityCurrents) = curr.hamiltonian.basis.lattice
-
-==#
+function Base.getindex(curr::DensityCurrents, i::Int, j::Int)
+    N = length(internal_basis(curr.hamiltonian))
+    is = (i - 1) * N + 1: i * N
+    js = (j - 1) * N + 1: j * N
+    2imag(tr(curr.density.data[is, js] * curr.hamiltonian.data[js, is]))
+end
+lattice(curr::DensityCurrents) = lattice(curr.hamiltonian)

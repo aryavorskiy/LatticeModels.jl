@@ -3,8 +3,10 @@ using SparseArrays, StaticArrays
     allequal(seq) = all(s == first(seq) for s in seq)
 end
 
-one_hot(index, ::Val{N}) where N = Int.(SVector{N}(1:N) .== index)
-one_hot(index, N) = one_hot(index, Val(N))
+@generated function one_hot(indices, ::Val{N}) where N
+    Expr(:call, :(SVector{N}), (:(Int($v in indices)) for v in 1:N)...)
+end
+one_hot(indices, N) = one_hot(indices, Val(N))
 
 const LenType{N} = Union{SVector{N}, NTuple{N, Any}}
 @inline @generated function dot_assuming_zeros(p1::LenType{M}, p2::LenType{N}) where {M,N}
@@ -25,3 +27,5 @@ end
 
 function dims end
 function lattice end
+
+const Nullable{T} = Union{Nothing,T}

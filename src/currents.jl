@@ -22,7 +22,7 @@ Base.getindex(curr::AbstractCurrents, s1::LatticeSite, s2::LatticeSite) =
 """
     SubCurrents{CT<:AbstractCurrents} <: AbstractCurrents
 
-A lazy wrapper for a `SubCurrents` object representing the same currents but on a smaller lattice.
+A lazy wrapper for a `Currents` object representing the same currents but on a smaller lattice.
 """
 struct SubCurrents{CT} <: AbstractCurrents
     parent_currents::CT
@@ -160,7 +160,7 @@ For example, if `aggr_fn=(x -> mean(abs.(x)))`, and `map_fn` finds the distance 
 the returned lists will store the distance between sites and the average absolute current between sites with such distance.
 - `sort`: if true, the output arrays will be sorted by mapped value.
 """
-function map_currents(f::Function, curr::AbstractCurrents; reduce_fn::Union{Nothing, Function}=nothing, sort::Bool=false)
+function map_currents(f::Function, curr::AbstractCurrents; reduce_fn::Nullable{Function}=nothing, sort::Bool=false)
     l = lattice(curr)
     cs = Float64[]
     ms = only(Base.return_types(f, (Lattice, LatticeSite, LatticeSite)))[]

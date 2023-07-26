@@ -34,7 +34,7 @@ end
     @series begin   # The sites
         seriestype := :scatter
         annotations = repeat(Any[""], length(l_outp))
-        annotations[l.mask] .= ((i, :left, :top, :grey, 8) for i in 1:length(l))
+        annotations[l.mask] .= ((" " * string(i), :left, :top, :grey, 6) for i in 1:length(l))
         series_annotations := annotations
         seriesalpha := l.mask .* 0.9 .+ 0.1
         l_outp, nothing
@@ -43,7 +43,21 @@ end
     @series begin   # The bonds
         seriestype := :path
         label := ""
-        l, default_bonds(l)...
+        l, default_bonds(l)
+    end
+    @series begin   # The nnbonds
+        seriestype := :path
+        linestyle := :dash
+        linealpha := 0.8
+        label := ""
+        l, default_nnbonds(l)
+    end
+    @series begin   # The nnnbonds
+        seriestype := :path
+        linestyle := :dot
+        linealpha := 0.5
+        label := ""
+        l, default_nnnbonds(l)
     end
 end
 
@@ -85,17 +99,14 @@ end
     lv.lattice, lv.values
 end
 
-function displace_site(l::Lattice, site::LatticeSite, hop::Bonds, periodic=true)
-    site.basis_index != hop.site_indices[1] && return nothing
-    new_uc = add_assuming_zeros(site.unit_cell, hop.translate_uc)
-    if periodic
-        new_uc = rem.(new_uc .- 1, l.lattice_size, RoundDown) .+ 1
-    end
-    new_site = get_site(l, new_uc, hop.site_indices[2])
+function displace_site(l::Lattice, site::LatticeSite, hop::Bonds)
+    new_lp = site + LatticeOffset(l, hop)
+    new_lp === nothing && return nothing
+    new_site = get_site(l, new_lp)
     new_site in l ? new_site : nothing
 end
 
-@recipe function f(l::Lattice{Sym, N}, bss::Bonds...) where {Sym, N}
+@recipe function f(l::Lattice{Sym, N}, bss::NTuple{M, Bonds} where M) where {Sym, N}
     aspect_ratio := :equal
     pts = NTuple{N, Float64}[]
     br_pt = fill(NaN, dims(l)) |> Tuple

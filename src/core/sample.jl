@@ -1,4 +1,6 @@
+import QuantumOpticsBase: Basis, AbstractOperator
 abstract type Boundary end
+abstract type AbstractBoundaryConditions end
 
 struct TwistedBoundary <: Boundary
     i::Int
@@ -44,20 +46,22 @@ function shift_site(bc::FunctionBoundary, l::Lattice, site::LatticeSite{N}) wher
     factor, site
 end
 
-struct BoundaryConditions{CondsTuple}
+struct BoundaryConditions{CondsTuple} <: AbstractBoundaryConditions
     bcs::CondsTuple
     function BoundaryConditions(bcs::CondsTuple) where CondsTuple<:NTuple{N, <:Boundary} where N
         @assert allunique(bc.i for bc in bcs)
         new{CondsTuple}(bcs)
     end
 end
+
+struct MagneticBoundaryConditions <: AbstractBoundaryConditions end
 _extract_boundary_conditions(b::Boundary) = b
 function _extract_boundary_conditions(pb::Pair{Int, Bool})
-    !pb.second && error("")
+    !pb.second && return missing
     PeriodicBoundary(pb.first)
 end
 _extract_boundary_conditions(pb::Pair{Int, <:Real}) = TwistedBoundary(pb...)
-BoundaryConditions(args...) = BoundaryConditions(_extract_boundary_conditions.(args))
+BoundaryConditions(args...) = BoundaryConditions(Tuple(skipmissing(_extract_boundary_conditions.(args))))
 function shift_site(bcs::BoundaryConditions, l::Lattice, site::LatticeSite)
     factor = 1.
     for bc in bcs.bcs
@@ -73,36 +77,55 @@ end
     BoseEinstein = -1
 end
 
-struct Sample{AdjMatT, LT, BasisT}
+struct Sample{AdjMatT, LT, BasisT, BoundaryT}
     adjacency_matrix::AdjMatT
     latt::LT
+    boundaries::BoundaryT
     internal::BasisT
     nparticles::Int
     statistics::ParticleStatistics
 end
+const LatticeSample{AdjMatT, LT, BoundaryT} = Sample{AdjMatT, LT, Nothing, BoundaryT}
 
-function Sample(adjacency_matrix, latt::LT, internal::BT=GenericBasis(1);
-        N::Int=1, statistics::ParticleStatistics=OneParticle) where {LT<:Lattice, BT}
+function Sample(adjacency_matrix, latt::LT, internal::BT=nothing; N::Int=1,
+        statistics::ParticleStatistics=OneParticle, boundaries=BoundaryConditions()) where {LT<:Lattice, BT<:Nullable{Basis}}
     N ≤ 0 && error("Positive particle count expected")
-    N == 1 && return Sample(adjacency_matrix, latt, internal, 1, OneParticle)
-    statistics == OneParticle && error("One-particle statistics invalid for multi-particle systems")
-    Sample(adjacency_matrix, latt, internal, N, statistics)
+    N != 1 && statistics == OneParticle && error("One-particle statistics invalid for multi-particle systems")
+    return Sample(adjacency_matrix, latt, boundaries, internal, N, statistics)
 end
-Sample(latt::Lattice, internal=GenericBasis(1); kw...) =
+Sample(latt::Lattice, internal=nothing; kw...) =
     Sample(nothing, latt, internal; kw...)
+
 Base.length(sample::Sample) = length(sample.latt) * length(sample.internal)
+Base.length(sample::LatticeSample) = length(sample.latt)
 lattice(sample::Sample) = sample.latt
 default_bonds(sample::Sample) = default_bonds(lattice(sample))
-internal_one(sample::Sample) =
-    sample.statistics == OneParticle ? 1 : one(sample.internal)
+internal_one(sample::Sample) = one(sample.internal)
+internal_one(sample::LatticeSample) = 1
 ismanybody(sample::Sample) = sample.nparticles != 1
 
 function occupations(sample::Sample)
+    sample.nparticles == 1 && throw(ArgumentError("Cannot generate occupations for one-particle sample"))
     if sample.statistics == FermiDirac
         fermionstates(length(sample), sample.nparticles)
     elseif sample.statistics == BoseEinstein
         bosonstates(length(sample), sample.nparticles)
-    elseif sample.statistics == OneParticle
-        bosonstates(length(sample), sample.nparticles)
     end
 end
+
+samplebasis(sample::Sample) = sample.nparticles == 1 ? onebodybasis(sample) :
+        ManyBodyBasis(onebodybasis(sample), occupations(sample))
+
+QuantumOpticsBase.:(⊗)(l::Lattice, b::Basis) = Sample(l, b)
+QuantumOpticsBase.:(⊗)(b::Basis, l::Lattice) = Sample(l, b)
+Base.zero(sample::Sample) = zero(samplebasis(sample))
+
+function QuantumOpticsBase.manybodyoperator(sample::Sample, op::AbstractOperator)
+    if sample.statistics == OneParticle
+        return op
+    else
+        return manybodyoperator(ManyBodyBasis(bas, occupations(sample)), oper)
+    end
+end
+QuantumOpticsBase.manybodyoperator(sample::Sample, mat::AbstractMatrix) =
+    manybodyoperator(sample, Operator(onebodybasis(sample), mat))

@@ -9,10 +9,8 @@ struct LatticeBasis{LT<:Lattice} <: QuantumOpticsBase.Basis
 end
 Base.:(==)(lb1::LatticeBasis, lb2::LatticeBasis) = lb1.latt == lb2.latt
 
-function onebodybasis(sample::Sample)
-    lb = LatticeBasis(sample.latt)
-    length(sample.internal) == 1 ? lb : sample.internal ⊗ lb
-end
+onebodybasis(sample::Sample) = sample.internal ⊗ LatticeBasis(sample.latt)
+onebodybasis(sample::LatticeSample) = LatticeBasis(sample.latt)
 
 QuantumOpticsBase.basisstate(T::Type, b::LatticeBasis, site::LatticeSite) =
     basisstate(T, b, site_index(b.latt, site))
@@ -51,60 +49,10 @@ function adjacency_matrix(op::CompositeLatticeOperator)
     return AdjacencyMatrix(lattice(op), matrix)
 end
 
-
-struct SparseMatrixBuilder{T}
-    size::Tuple{Int,Int}
-    Is::Vector{Int}
-    Js::Vector{Int}
-    Vs::Vector{T}
-    SparseMatrixBuilder{T}(sz) where T = new{T}(sz, [], [], [])
-    SparseMatrixBuilder{T}(sz...) where T = SparseMatrixBuilder{T}(sz)
-end
-Base.size(smb::SparseMatrixBuilder) = smb.size
-to_matrix(builder::SparseMatrixBuilder) =
-    sparse(builder.Is, builder.Js, builder.Vs, builder.size...)
-
-Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::Number, i1::Int, i2::Int, factor=1)
-    @boundscheck @assert 1 ≤ i1 ≤ builder.size[1]
-    @boundscheck @assert 1 ≤ i2 ≤ builder.size[2]
-    push!(builder.Is, i1)
-    push!(builder.Js, i2)
-    push!(builder.Vs, rhs * factor)
-end
-
-Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::AbstractMatrix, i1::Int, i2::Int, factor=1)
-    N = size(rhs)[1]
-    for i in 1:N, j in 1:N
-        v = rhs[i, j]
-        iszero(v) && continue
-        increment!(builder, v, i + N * (i1 - 1), j + N * (i2 - 1), factor)
-    end
-end
-
-function increment!(builder::SparseMatrixBuilder, rhs::SparseMatrixCSC)
-    @assert size(rhs) == size(builder)
-    nis, njs, nvs = findnz(rhs)
-    append!(builder.Is, nis)
-    append!(builder.Js, njs)
-    append!(builder.Vs, nvs)
-    nothing
-end
-
 function add_diagonal!(builder, op, diag)
     for i in 1:length(diag)
         increment!(builder, op, i, i, diag[CartesianIndex(i)])
     end
-end
-
-"""
-    radius_vector(l::Lattice, hop::Hopping)
-Finds the vector between two sites on a lattice according to possibly periodic boundary conditions
-(`site2` will be translated along the macrocell to minimize the distance between them).
-"""
-function radius_vector(l::Lattice, hop::Bonds)
-    i, j = hop.site_indices
-    bravais(l).basis[:, j] - bravais(l).basis[:, i] +
-     mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
 end
 
 @inline _get_bool_value(::Nothing, ::Lattice, ::LatticeSite, ::LatticeSite) = true
@@ -118,10 +66,9 @@ function add_hoppings!(builder, selector, l::Lattice, op, bond::Bonds,
     dims(bond) > dims(l) && error("Incompatible dims")
     trv = radius_vector(l, bond)
     for site1 in l
-        site1.basis_index != bond.site_indices[1] && continue
-        site2 = LatticeSite(add_assuming_zeros(site1.unit_cell, bond.translate_uc),
-            bond.site_indices[2], site1.coords + trv)
-        add_hoppings!(builder, selector, l, op, site1 => site2, field, boundaries)
+        lp = site1 + bond
+        lp === nothing && continue
+        add_hoppings!(builder, selector, l, op, site1 => LatticeSite(lp, site1.coords + trv), field, boundaries)
     end
 end
 
@@ -141,3 +88,25 @@ function add_hoppings!(builder, selector, l::Lattice, op, bond::SingleBond,
     increment!(builder, op, i, j, total_factor)
     increment!(builder, op', j, i, total_factor')
 end
+
+function tightbinding_hamiltonian(sample::Sample; tn=1, tnn=0, tnnn=0,
+    field=NoField(), boundaries=BoundaryConditions())
+    builder = SparseMatrixBuilder{ComplexF64}(length(sample), length(sample))
+    internal_eye = one(internal).data
+    for bond in default_bonds(l)
+        add_hoppings!(builder, nothing, l, tn * internal_eye, bond, field, boundaries)
+    end
+    if tnn != 0
+        for bond in default_nnbonds(l)
+            add_hoppings!(builder, nothing, l, tnn * internal_eye, bond, field, boundaries)
+        end
+    end
+    if tnnn != 0
+        for bond in default_nnnbonds(l)
+            add_hoppings!(builder, nothing, l, tnnn * internal_eye, bond, field, boundaries)
+        end
+    end
+    return manybodyoperator(sample, to_matrix(builder))
+end
+tightbinding_hamiltonian(l::Lattice, b::Basis=GenericBasis(1); kw...) =
+    tightbinding_hamiltonian(l ⊗ b; kw...)

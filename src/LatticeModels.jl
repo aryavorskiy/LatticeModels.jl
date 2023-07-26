@@ -5,8 +5,9 @@ using Reexport
 @reexport using IntervalSets
 
 include("core/utils.jl")
+include("core/lattice_site.jl")
 include("core/lattice.jl")
-export Bravais, LatticeSite, Lattice, sublattice, site_index, site_distance
+export Lattice, sublattice, site_index, site_distance
 
 include("core/lattice_value.jl")
 export LatticeValue, coord_values, project
@@ -19,13 +20,19 @@ export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions, 
     FermiDirac, BoseEinstein
 
 include("core/bonds.jl")
-export Bonds, Domains, PairLhsGraph, PairRhsGraph
+export Bonds
+
+include("core/adjacency.jl")
+export Domains, PairLhsGraph, PairRhsGraph
 
 include("operators_core.jl")
-include("operators.jl")
-export LatticeBasis, coord_operators, coord, site_density, hoppings, tight_binding
+export LatticeBasis, adjacency_matrix, tightbinding_hamiltonian
+include("operators_build.jl")
+export hoppings, build_hamiltonian
 include("operators_manybody.jl")
 export interaction
+include("operators_utils.jl")
+export coord_operators, coord, site_density
 
 include("spectrum.jl")
 export Eigensystem, diagonalize, projector, apply_to_eigenvalues, densitymatrix, dos, ldos
