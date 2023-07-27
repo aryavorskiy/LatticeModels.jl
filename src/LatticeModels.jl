@@ -17,10 +17,10 @@ export @field_def, AbstractField, NoField
 
 include("core/sample.jl")
 export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions, Sample,
-    FermiDirac, BoseEinstein
+    FermiDirac, BoseEinstein, @increment
 
 include("core/bonds.jl")
-export Bonds
+export SiteOffset, Bonds
 
 include("core/adjacency.jl")
 export Domains, PairLhsGraph, PairRhsGraph
@@ -28,7 +28,7 @@ export Domains, PairLhsGraph, PairRhsGraph
 include("operators_core.jl")
 export LatticeBasis
 include("operators_build.jl")
-export hoppings, tightbinding_hamiltonian, build_hamiltonian
+export hoppings, tightbinding_hamiltonian, build_hamiltonian, OperatorBuilder, to_operator
 include("operators_manybody.jl")
 export interaction
 include("operators_utils.jl")

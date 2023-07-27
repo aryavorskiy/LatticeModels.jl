@@ -36,7 +36,7 @@ function QuantumOpticsBase.manybodyoperator_1(basis::ManyBodyBasis,
             increment!(builder, mat_el, m, n)
         elseif diffcount == 2
             mi != 0 && ni != 0 &&
-                increment!(builder,  √(occ_m[mi] * occ_n[ni]) * M[mi, ni], m, n)
+                increment!(builder,  M[mi, ni], m, n, factor = √(occ_m[mi] * occ_n[ni]))
         end
     end
     return SparseOperator(basis, to_matrix(builder))

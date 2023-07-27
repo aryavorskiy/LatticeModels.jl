@@ -3,14 +3,14 @@ using StaticArrays
 const SingleBond{N} = Pair{LatticeSite{N}, LatticeSite{N}}
 
 """
-    Bonds{T, N}
+    SiteOffset{T, N}
 
 A struct representing bonds in some direction in a lattice.
 
 ---
-    Bonds([site_indices, ]translate_uc)
+    SiteOffset([site_indices, ]translate_uc)
 
-Constructs a `Bonds` object.
+Constructs a `SiteOffset` object.
 
 ## Arguments:
 - `site_indices`: a `::Int => ::Int` pair with indices of sites connected by the bond.
@@ -22,26 +22,26 @@ If `site_indices` are equal or undefined and `translate_uc` is zero, the bond co
 each site with itself. In this case an error will be thrown.
 Note that though the dimension count for the bond is static, it is automatically compatible to higher-dimensional lattices.
 """
-struct Bonds{T, N}
+struct SiteOffset{T, N}
     site_indices::T
     translate_uc::SVector{N, Int}
-    function Bonds(site_indices::Pair{Int, Int}, tr_uc::AbstractVector)
+    function SiteOffset(site_indices::Pair{Int, Int}, tr_uc::AbstractVector)
         any(<(1), site_indices) && throw(ArgumentError("Positive site indices expected"))
         iszero(tr_uc) && ==(site_indices...) && throw(ArgumentError("bond connects site to itself"))
         new{Pair{Int, Int}, length(tr_uc)}(site_indices, tr_uc)
     end
-    function Bonds(tr_uc::AbstractVector)
+    function SiteOffset(tr_uc::AbstractVector)
         iszero(tr_uc) && throw(ArgumentError("bond connects site to itself"))
         new{Nothing, length(tr_uc)}(nothing, tr_uc)
     end
 end
-Bonds(::Nothing, tr_uc) = Bonds(tr_uc)
+SiteOffset(::Nothing, tr_uc) = SiteOffset(tr_uc)
 
 """
-    Bonds(site_indices)
-    Bonds([site_indices; ]axis[, dist=1])
+    SiteOffset(site_indices)
+    SiteOffset([site_indices; ]axis[, dist=1])
 
-A convenient constructor for a `Bonds` object. `site_indices` is `1 => 1` by default.
+A convenient constructor for a `SiteOffset` object. `site_indices` is `1 => 1` by default.
 
 `site_indices` is a `::Int => ::Int` pair with indices of sites connected by the bond; `1 => 1` is the default value.
 
@@ -49,53 +49,41 @@ A convenient constructor for a `Bonds` object. `site_indices` is `1 => 1` by def
 - `axis`: The hopping direction axis in terms of unit cell vectors.
 - `dist`: The hopping distance in terms of
 """
-function Bonds(site_indices::Nullable{Pair{Int,Int}}=nothing; axis=0, dist=1)
-    axis == 0 && return Bonds(site_indices, [])
-    Bonds(site_indices, one_hot(axis, axis) * dist)
+function SiteOffset(site_indices::Nullable{Pair{Int,Int}}=nothing; axis=0, dist=1)
+    axis == 0 && return SiteOffset(site_indices, [])
+    SiteOffset(site_indices, one_hot(axis, axis) * dist)
 end
+const Bonds{N} = SiteOffset{N}
 
-Base.:(==)(h1::Bonds, h2::Bonds) =
-    all(getproperty(h1, fn) == getproperty(h2, fn) for fn in fieldnames(Bonds))
+Base.:(==)(h1::SiteOffset, h2::SiteOffset) =
+    all(getproperty(h1, fn) == getproperty(h2, fn) for fn in fieldnames(SiteOffset))
 
-function Base.show(io::IO, ::MIME"text/plain", hop::Bonds{<:Pair})
-    println(io, "Bonds connecting site #$(hop.site_indices[1]) with site #$(hop.site_indices[1]) translated by $(hop.translate_uc)")
+function Base.show(io::IO, ::MIME"text/plain", hop::SiteOffset{<:Pair})
+    println(io, "SiteOffset connecting site #$(hop.site_indices[1]) with site #$(hop.site_indices[1]) translated by $(hop.translate_uc)")
 end
-function Base.show(io::IO, ::MIME"text/plain", hop::Bonds{<:Nothing})
-    println(io, "Bonds connecting sites translated by $(hop.translate_uc)")
+function Base.show(io::IO, ::MIME"text/plain", hop::SiteOffset{<:Nothing})
+    println(io, "SiteOffset connecting sites translated by $(hop.translate_uc)")
 end
-dims(::Bonds{T, N} where T) where N = N
+dims(::SiteOffset{T, N} where T) where N = N
 
 """
-    radius_vector(l::Lattice, hop::Bonds)
+    radius_vector(l::Lattice, hop::SiteOffset)
 Finds the vector between two sites on a lattice according to possibly periodic boundary conditions
 (`site2` will be translated along the macrocell to minimize the distance between them).
 """
-function radius_vector(l::Lattice, hop::Bonds{<:Pair})
+function radius_vector(l::Lattice, hop::SiteOffset{<:Pair})
     i, j = hop.site_indices
     return bravais(l).basis[:, j] - bravais(l).basis[:, i] +
      mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
 end
-radius_vector(l::Lattice, hop::Bonds{Nothing}) =
+radius_vector(l::Lattice, hop::SiteOffset{Nothing}) =
     mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
 
-struct LatticeOffset{LT, BC}
-    l::LT
-    bc::BC
-end
-Bonds(l::Lattice, args...; kw...) = LatticeOffset(l, Bonds(args...; kw...))
-
-@inline function Base.:(+)(lp::LatticePointer, bs::Bonds{<:Pair})
+@inline function Base.:(+)(lp::LatticePointer, bs::SiteOffset{<:Pair})
     bs.site_indices[1] != lp.basis_index && return nothing
     return LatticePointer(add_assuming_zeros(lp.unit_cell, bs.translate_uc), bs.site_indices[2])
 end
-@inline Base.:(+)(lp::LatticePointer, bs::Bonds{<:Nothing}) =
+@inline Base.:(+)(lp::LatticePointer, bs::SiteOffset{<:Nothing}) =
     return LatticePointer(add_assuming_zeros(lp.unit_cell, bs.translate_uc), lp.basis_index)
-
-@inline function Base.:(+)(lp::LatticePointer, lofs::LatticeOffset)
-    new_lp = lp + lofs.bc
-    new_lp === nothing && return nothing
-    new_unit_cell = mod.(new_lp.unit_cell .- 1, size(lofs.l)) .+ 1
-    return LatticePointer(new_unit_cell, new_lp.basis_index)
-end
 
 @inline Base.:(+)(site::LatticeSite, bs) = site.lp + bs

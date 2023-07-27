@@ -99,10 +99,8 @@ end
     lv.lattice, lv.values
 end
 
-function displace_site(l::Lattice, site::LatticeSite, hop::Bonds)
-    new_lp = site + LatticeOffset(l, hop)
-    new_lp === nothing && return nothing
-    new_site = get_site(l, new_lp)
+function displace_site(l::Lattice, site::LatticeSite, bs::SiteOffset)
+    new_site = get_site_periodic(l, site + bs)
     new_site in l ? new_site : nothing
 end
 
@@ -124,7 +122,7 @@ end
     pts
 end
 
-@recipe function f(l::Lattice{Sym, N}, bss::NTuple{M, Bonds} where M) where {Sym, N}
+@recipe function f(l::Lattice{Sym, N}, bss::NTuple{M, SiteOffset} where M) where {Sym, N}
     aspect_ratio := :equal
     pts = NTuple{N, Float64}[]
     br_pt = fill(NaN, dims(l)) |> Tuple

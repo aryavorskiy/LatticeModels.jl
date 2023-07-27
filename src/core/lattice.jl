@@ -59,9 +59,9 @@ default_bonds(::Lattice) = ()
 default_nnbonds(::Lattice) = ()
 default_nnnbonds(::Lattice) = ()
 
-function get_site(l::Lattice, lp::LatticePointer, boundaries=BoundaryConditions())
-    LatticeSite(lp, site_coords(l, lp))
-end
+get_site(l::Lattice, lp::LatticePointer) = LatticeSite(lp, site_coords(l, lp))
+get_site(::Lattice, site::LatticeSite) = site
+get_site(::Lattice, ::Nothing) = nothing
 
 cartesian_indices(l::Lattice{LatticeSym,N,NB} where {LatticeSym}) where {N,NB} =
     CartesianIndex{N + 1}(1):CartesianIndex(NB, size(l)...)
@@ -106,8 +106,7 @@ function site_index(l::Lattice, site::Union{LatticeSite, LatticePointer})
     (i === nothing || !l.mask[i]) && return nothing
     count(@view l.mask[1:i])
 end
-site_index(::LatticeSite, ::Lattice) = error("site_index(::LatticeSite, ::Lattice) discontinued." *
-"This error message will be removed in future versions. Use site_index(::Lattice, ::LatticeSite) instead.")
+site_index(::Lattice, ::Nothing) = nothing
 
 function Base.splice!(l::Lattice, is)
     view(l.mask, l.mask)[collect(is)] .= false

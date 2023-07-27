@@ -335,7 +335,25 @@ end
 end
 
 @testset "Hamiltonian" begin
-    # TODO write new tests for tightbinding_hamiltonian and build_hamiltonian
+    @testset "Operator builder" begin
+        l = SquareLattice(10, 10)
+        spin = SpinBasis(1//2)
+        builder = OperatorBuilder(l ⊗ spin)
+        @increment for site in l
+            builder[site, site] += sigmaz(spin)
+
+            site_hx = site + SiteOffset(axis = 1)
+            builder[site, site_hx] += (sigmaz(spin) - im * sigmax(spin)) / 2
+            builder[site_hx, site] += (sigmaz(spin) + im * sigmax(spin)) / 2
+
+            site_hy = site + SiteOffset(axis = 2)
+            builder[site, site_hy] += (sigmaz(spin) - im * sigmay(spin)) / 2
+            builder[site_hy, site] += (sigmaz(spin) + im * sigmay(spin)) / 2
+        end
+        H1 = to_operator(builder)
+        H2 = qwz(l)
+        @test H1 == H2
+    end
 
     @testset "DOS & LDOS" begin
         sp = diagonalize(qwz(ones(SquareLattice(10, 10))))

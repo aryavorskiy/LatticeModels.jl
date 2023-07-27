@@ -1,7 +1,7 @@
 using LatticeModels, Plots
 l = SquareLattice(16, 16)
 spin = SpinBasis(1//2)
-H = tightbinding_hamiltonian(l, tn = 1, tnn = 0.25, tnnn = -1)
+H = tightbinding_hamiltonian(l, t1 = 1, t2 = 0.25, t3 = -1)
 eig = diagonalize(H)
 P = densitymatrix(eig, μ = 0, T = 1)
 dens = site_density(P)
@@ -23,18 +23,13 @@ plot(dens)
 #     j = site_index(l, site2)
 #     op.data[i, j] = t(i, j)
 # end
-# opb = OperatorBuilder(l, spin)
-# op = zero(l ⊗ spin)
-# for site1 in l, site2 in l
-#     # e1 = Bonds(axis = 1)
-#     if site1 == site2 + basis_vector(l, 1)
-#         op[site1, site2] = f(site1, site2) * sigmaz(spin)
-#     end
-# end
-# op = to_operator(opb)
-# for (site1, site2) in shifted(l, )
-#     op[site1, site2]
-# end
+opb = OperatorBuilder(l ⊗ spin)
+for site1 in l
+    site2 = site1 + SiteOffset(axis = 1)
+    @increment opb[site1, site2] += sigmaz(spin)
+    @increment opb[site2, site1] += sigmaz(spin)'
+end
+op = to_operator(opb)
 
 # amplitudes = ones(l)
 # site1 = l[2]

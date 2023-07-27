@@ -10,7 +10,7 @@ end
 Base.:(==)(lb1::LatticeBasis, lb2::LatticeBasis) = lb1.latt == lb2.latt
 
 onebodybasis(sample::Sample) = sample.internal ⊗ LatticeBasis(sample.latt)
-onebodybasis(sample::LatticeSample) = LatticeBasis(sample.latt)
+onebodybasis(sample::SampleWithoutInternal) = LatticeBasis(sample.latt)
 
 QuantumOpticsBase.basisstate(T::Type, b::LatticeBasis, site::LatticeSite) =
     basisstate(T, b, site_index(b.latt, site))
@@ -30,13 +30,16 @@ internal_basis(::LatticeBasis) = throw(ArgumentError("Lattice basis has no inter
 internal_basis(b::CompositeLatticeBasis) = b.bases[1]
 internal_basis(b::Basis) = throw(MethodError(internal_basis, (b,)))
 internal_basis(any) = internal_basis(basis(any))
+internal_basis(sample::SampleWithInternal) = sample.internal
 internal_length(any) = internal_length(basis(any))
 internal_length(::LatticeBasis) = 1
 internal_length(b::Basis) = length(internal_basis(b))
+internal_length(sample::SampleWithInternal) = length(sample.internal)
+internal_length(sample::SampleWithoutInternal) = 1
 
 function add_diagonal!(builder, op, diag)
     for i in 1:length(diag)
-        increment!(builder, op, i, i, diag[CartesianIndex(i)])
+        increment!(builder, op, i, i, factor=diag[CartesianIndex(i)])
     end
 end
 
@@ -46,7 +49,7 @@ end
 @inline _get_bool_value(g::AbstractGraph, ::Lattice, site1::LatticeSite, site2::LatticeSite) =
     match(g, site1, site2)
 
-function add_hoppings!(builder, selector, l::Lattice, op, bond::Bonds,
+function add_hoppings!(builder, selector, l::Lattice, op, bond::SiteOffset,
         field::AbstractField, boundaries::BoundaryConditions)
     dims(bond) > dims(l) && error("Incompatible dims")
     trv = radius_vector(l, bond)
@@ -70,6 +73,6 @@ function add_hoppings!(builder, selector, l::Lattice, op, bond::SingleBond,
     !_get_bool_value(selector, l, site1, site2) && return
     total_factor = exp(-2π * im * line_integral(field, p1, p2)) * factor
     !isfinite(total_factor) && error("got NaN or Inf when finding the phase factor")
-    increment!(builder, op, i, j, total_factor)
-    increment!(builder, op', j, i, total_factor')
+    increment!(builder, op, i, j, factor=total_factor)
+    increment!(builder, op', j, i, factor=total_factor')
 end

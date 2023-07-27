@@ -60,7 +60,6 @@ struct BoundaryConditions{CondsTuple} <: AbstractBoundaryConditions
     end
 end
 
-struct MagneticBoundaryConditions <: AbstractBoundaryConditions end
 _extract_boundary_conditions(b::Boundary) = b
 function _extract_boundary_conditions(pb::Pair{Int, Bool})
     !pb.second && return missing
@@ -77,6 +76,14 @@ function shift_site(bcs::BoundaryConditions, l::Lattice, site::LatticePointer)
     factor, site
 end
 
+struct PeriodicBoundaryConditions <: AbstractBoundaryConditions end
+function shift_site(::PeriodicBoundaryConditions, l::Lattice, site::LatticePointer)
+    new_uc = mod.(site.unit_cell .- 1, size(l)) .+ 1
+    1., LatticePointer(new_uc, site.basis_index)
+end
+
+struct MagneticBoundaryConditions <: AbstractBoundaryConditions end
+
 @enum ParticleStatistics begin
     OneParticle = 0
     FermiDirac = 1
@@ -91,7 +98,8 @@ struct Sample{AdjMatT, LT, BasisT, BoundaryT}
     nparticles::Int
     statistics::ParticleStatistics
 end
-const LatticeSample{AdjMatT, LT, BoundaryT} = Sample{AdjMatT, LT, Nothing, BoundaryT}
+const SampleWithoutInternal{AdjMatT, LT, BoundaryT} = Sample{AdjMatT, LT, Nothing, BoundaryT}
+const SampleWithInternal{AdjMatT, LT, BoundaryT} = Sample{AdjMatT, LT, <:Basis, BoundaryT}
 
 function Sample(adjacency_matrix, latt::LT, internal::BT=nothing; N::Int=1,
         statistics::ParticleStatistics=OneParticle, boundaries=BoundaryConditions()) where {LT<:Lattice, BT<:Nullable{Basis}}
@@ -103,11 +111,11 @@ Sample(latt::Lattice, internal=nothing; kw...) =
     Sample(nothing, latt, internal; kw...)
 
 Base.length(sample::Sample) = length(sample.latt) * length(sample.internal)
-Base.length(sample::LatticeSample) = length(sample.latt)
+Base.length(sample::SampleWithoutInternal) = length(sample.latt)
 lattice(sample::Sample) = sample.latt
 default_bonds(sample::Sample) = default_bonds(lattice(sample))
 internal_one(sample::Sample) = one(sample.internal)
-internal_one(sample::LatticeSample) = 1
+internal_one(sample::SampleWithoutInternal) = 1
 ismanybody(sample::Sample) = sample.nparticles != 1
 
 function occupations(sample::Sample)
@@ -135,6 +143,8 @@ function QuantumOpticsBase.manybodyoperator(sample::Sample, op::AbstractOperator
 end
 QuantumOpticsBase.manybodyoperator(sample::Sample, mat::AbstractMatrix) =
     manybodyoperator(sample, Operator(onebodybasis(sample), mat))
+
+shift_site(sample::Sample, site) = shift_site(sample.boundaries, sample.latt, site)
 
 macro accepts_lattice(fname, default_basis=nothing)
     esc(quote

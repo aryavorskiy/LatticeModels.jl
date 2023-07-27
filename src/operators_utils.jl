@@ -71,11 +71,17 @@ function adjacency_matrix(op::CompositeLatticeOperator)
     return AdjacencyMatrix(lattice(op), matrix)
 end
 
-function adjacency_matrix(l::Lattice, bss::Bonds...)
+function get_site_periodic(l::Lattice, site::LatticePointer)
+    new_site = get_site(l, site)
+    new_site === nothing ? nothing : shift_site(PeriodicBoundaryConditions(), l, new_site)[2]
+end
+function adjacency_matrix(l::Lattice, bss::SiteOffset...)
     matrix = zeros(Bool, length(l), length(l))
     for bs in bss
         for (i, site) in enumerate(l)
-            j = site_index(l, site + LatticeOffset(l, bs))
+            new_site = get_site_periodic(l, site + bs)
+            j = site_index(l, new_site)
+            j === nothing && continue
             matrix[i, j] = matrix[j, i] = true
         end
     end

@@ -4,13 +4,14 @@ struct SparseMatrixBuilder{T} <: AbstractMatrix{T}
     Js::Vector{Int}
     Vs::Vector{T}
     SparseMatrixBuilder{T}(sz) where T = new{T}(sz, [], [], [])
-    SparseMatrixBuilder{T}(sz...) where T = SparseMatrixBuilder{T}(sz)
 end
+SparseMatrixBuilder{T}(sz...) where T = SparseMatrixBuilder{T}(sz)
+SparseMatrixBuilder{T}(size_x::Int) where T = SparseMatrixBuilder{T}(size_x, size_x)
 Base.size(smb::SparseMatrixBuilder) = smb.size
 to_matrix(builder::SparseMatrixBuilder) =
     sparse(builder.Is, builder.Js, builder.Vs, builder.size...)
 
-Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::Number, i1::Int, i2::Int, factor=1)
+Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::Number, i1::Int, i2::Int; factor=1)
     @boundscheck @assert 1 ≤ i1 ≤ builder.size[1]
     @boundscheck @assert 1 ≤ i2 ≤ builder.size[2]
     push!(builder.Is, i1)
@@ -18,46 +19,121 @@ Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::
     push!(builder.Vs, rhs * factor)
 end
 
-Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::AbstractMatrix, i1::Int, i2::Int, factor=1)
+Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::AbstractMatrix, i1::Int, i2::Int; factor=1)
     N = size(rhs)[1]
     for i in 1:N, j in 1:N
         v = rhs[i, j]
-        iszero(v) || increment!(builder, v, i + N * (i1 - 1), j + N * (i2 - 1), factor)
+        iszero(v) || increment!(builder, v, i + N * (i1 - 1), j + N * (i2 - 1); factor=factor)
     end
 end
+Base.@propagate_inbounds increment!(builder::SparseMatrixBuilder, rhs::Operator, i1, i2) =
+    increment!(builder, rhs.data, i1, i2)
 
-function increment!(builder::SparseMatrixBuilder, rhs::SparseMatrixCSC)
-    @assert size(rhs) == size(builder)
+Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::SparseMatrixCSC; factor=1)
+    @boundscheck @assert size(rhs) == size(builder)
     nis, njs, nvs = findnz(rhs)
     append!(builder.Is, nis)
     append!(builder.Js, njs)
-    append!(builder.Vs, nvs)
+    append!(builder.Vs, nvs * factor)
     nothing
 end
 
-function tightbinding_hamiltonian(sample::Sample; tn=1, tnn=0, tnnn=0,
-    field=NoField(), boundaries=BoundaryConditions())
-    builder = SparseMatrixBuilder{ComplexF64}(length(sample), length(sample))
-    internal_eye = one(internal).data
-    for bond in default_bonds(l)
-        add_hoppings!(builder, nothing, l, tn * internal_eye, bond, field, boundaries)
+function _process_increment(expr::Expr)
+    !Meta.isexpr(expr, :(+=)) && error("+= increment expected")
+    lhs, rhs = expr.args
+    if Meta.isexpr(lhs, :ref)
+        builder, refs = lhs.args[1], lhs.args[2:end]
+        return :(LatticeModels.increment!($builder, $rhs, $(refs...)))
+    elseif lhs isa Symbol
+        return :(LatticeModels.increment!($lhs, $rhs))
     end
-    if tnn != 0
-        for bond in default_nnbonds(l)
-            add_hoppings!(builder, nothing, l, tnn * internal_eye, bond, field, boundaries)
+end
+function _process_increment_recursive!(expr)
+    !Meta.isexpr(expr, (:if, :elseif, :for, :while, :block)) && return expr
+    for i in eachindex(expr.args)
+        if Meta.isexpr(expr.args[i], :(+=))
+            expr.args[i] = _process_increment(expr.args[i])
+        else
+            _process_increment_recursive!(expr.args[i])
         end
     end
-    if tnnn != 0
+    return expr
+end
+macro increment(expr)
+    if Meta.isexpr(expr, :(+=))
+        return esc(_process_increment(expr))
+    else
+        return esc(_process_increment_recursive!(expr))
+    end
+end
+
+struct OperatorBuilder{SampleT, FieldT, T}
+    sample::SampleT
+    field::FieldT
+    internal_length::Int
+    builder::SparseMatrixBuilder{T}
+    OperatorBuilder{T}(sample::SampleT, field::FieldT=NoField()) where {SampleT<:Sample, FieldT<:AbstractField, T} =
+        new{SampleT, FieldT, T}(sample, field, internal_length(sample), SparseMatrixBuilder{T}(length(onebodybasis(sample))))
+end
+lattice(opb::OperatorBuilder) = lattice(opb.sample)
+OperatorBuilder(args...) = OperatorBuilder{ComplexF64}(args...)
+
+check_arg(::OperatorBuilder{<:SampleWithoutInternal}, n::Number) = n
+check_arg(opb::OperatorBuilder, n::Number) = n * internal_one(opb.sample)
+Base.@propagate_inbounds function check_arg(opb::OperatorBuilder{<:SampleWithInternal}, op::Operator)
+    @boundscheck QuantumOpticsBase.check_samebases(basis(op), internal_basis(opb.sample))
+    return op.data
+end
+Base.@propagate_inbounds function check_arg(opb::OperatorBuilder{<:SampleWithInternal}, mat::AbstractMatrix)
+    @boundscheck @assert all(==(internal_length(opb.sample)), size(mat))
+    return mat
+end
+
+Base.@propagate_inbounds function increment!(opbuilder::OperatorBuilder, rhs, lp1, lp2)
+    new_rhs = check_arg(opbuilder, rhs)
+    l = lattice(opbuilder)
+    site1 = get_site(l, lp1)
+    site2 = get_site(l, lp2)
+    ifact, new_site1 = shift_site(opbuilder.sample, site1)
+    jfact, new_site2 = shift_site(opbuilder.sample, site2)
+    field_fact = exp(-2π * im * line_integral(opbuilder.field, site1.coords, site2.coords))
+    l = lattice(opbuilder)
+    i1 = site_index(l, new_site1)
+    i2 = site_index(l, new_site2)
+    i1 === nothing && return
+    i2 === nothing && return
+    increment!(opbuilder.builder, new_rhs, i1, i2, factor = jfact * field_fact * ifact')
+end
+
+function to_operator(opb::OperatorBuilder)
+    op = Operator(onebodybasis(opb.sample), to_matrix(opb.builder))
+    return manybodyoperator(opb.sample, op)
+end
+
+function tightbinding_hamiltonian(sample::Sample; t1=1, t2=0, t3=0,
+    field=NoField(), boundaries=BoundaryConditions())
+    l = lattice(sample)
+    builder = SparseMatrixBuilder{ComplexF64}(length(sample), length(sample))
+    internal_eye = internal_one(sample)
+    for bond in default_bonds(l)
+        add_hoppings!(builder, nothing, l, t1 * internal_eye, bond, field, boundaries)
+    end
+    if t2 != 0
+        for bond in default_nnbonds(l)
+            add_hoppings!(builder, nothing, l, t2 * internal_eye, bond, field, boundaries)
+        end
+    end
+    if t3 != 0
         for bond in default_nnnbonds(l)
-            add_hoppings!(builder, nothing, l, tnnn * internal_eye, bond, field, boundaries)
+            add_hoppings!(builder, nothing, l, t3 * internal_eye, bond, field, boundaries)
         end
     end
     return manybodyoperator(sample, to_matrix(builder))
 end
 @accepts_lattice tightbinding_hamiltonian
 
-const AbstractBonds = Union{Bonds, SingleBond}
-function build_operator!(builder::SparseMatrixBuilder, sample::Sample, arg::Pair{<:Any, <:AbstractBonds};
+const AbstractSiteOffset = Union{SiteOffset, SingleBond}
+function build_operator!(builder::SparseMatrixBuilder, sample::Sample, arg::Pair{<:Any, <:AbstractSiteOffset};
         field=NoField())
     # Hopping operator
     opdata, bond = arg
@@ -116,7 +192,7 @@ function preprocess_argument(sample::Sample, arg::Pair)
         return opdata => on_lattice
     elseif on_lattice isa Number
         return preprocess_argument(sample, opdata * on_lattice)
-    elseif on_lattice isa AbstractBonds
+    elseif on_lattice isa AbstractSiteOffset
         return opdata => on_lattice
     else
         error("Invalid Pair argument: unsupported on-lattice operator type")
@@ -136,5 +212,5 @@ function build_hamiltonian(sample::Sample, args...;
 end
 @accepts_lattice build_hamiltonian
 
-hoppings(adj, l::Lattice, bs::Bonds...; kw...) = build_hamiltonian(Sample(adj, l), bs...; kw...)
-hoppings(l::Lattice, bs::Bonds...; kw...) = build_hamiltonian(Sample(l), bs...; kw...)
+hoppings(adj, l::Lattice, bs::SiteOffset...; kw...) = build_hamiltonian(Sample(adj, l), bs...; kw...)
+hoppings(l::Lattice, bs::SiteOffset...; kw...) = build_hamiltonian(Sample(l), bs...; kw...)
