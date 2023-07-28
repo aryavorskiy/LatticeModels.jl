@@ -172,7 +172,7 @@ function QuantumOpticsBase.manybodyoperator(ps::FilledZones, op::AbstractOperato
     check_samebases(systembasis(ps), basis(op))
     return op
 end
-QuantumOpticsBase.manybodyoperator(sample::Sample, mat::AbstractMatrix) =
+QuantumOpticsBase.manybodyoperator(sample, mat::AbstractMatrix) =
     manybodyoperator(sample, Operator(onebodybasis(sample), mat))
 
 shift_site(sample::Sample, site) = shift_site(sample.boundaries, sample.latt, site)

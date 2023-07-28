@@ -6,14 +6,15 @@ import LinearAlgebra: eigen, Hermitian, eigvals, eigvecs
 
 Eigenvalues and eigenvectors for some operator.
 """
-struct Eigensystem{BT<:Basis,MT<:AbstractMatrix}
+struct Eigensystem{BT<:Basis,MT<:AbstractMatrix, ST<:Nullable{<:System}}
     basis::BT
     states::MT
     values::Vector{Float64}
-    function Eigensystem(basis::BT, states::MT, values::AbstractVector) where {BT,MT}
+    sys::ST
+    function Eigensystem(basis::BT, states::MT, values::AbstractVector, sys::ST=nothing) where {BT,MT,ST}
         length(basis) != size(states)[1] && error("inconsistent basis dimensionality")
         length(values) != size(states)[2] && error("inconsistent energies list length")
-        new{BT,MT}(basis, states, values)
+        new{BT,MT,ST}(basis, states, values, sys)
     end
 end
 QuantumOpticsBase.basis(eig::Eigensystem) = eig.basis
@@ -26,7 +27,7 @@ Finds eigenvalues and eigenvectors for a `Operator` and stores it in an Eigensys
 function diagonalize(op::DataOperator)
     # TODO support sparse diagonalization also
     vals, vecs = eigen(dense(op).data)
-    Eigensystem(basis(op), vecs, vals)
+    Eigensystem(basis(op), vecs, vals, system(op))
 end
 
 Base.length(eig::Eigensystem) = length(eig.values)
@@ -62,21 +63,26 @@ function apply_to_eigenvalues(f, eig::Eigensystem)
 end
 
 """
-    densitymatrix(eig::Eigensystem[; μ=0, T=0, statistics=FermiDirac])
+    densitymatrix(eig::Eigensystem[; T=0, μ=0, statistics=OneParticle])
 
 Creates an `Operator` representing a equilibrium density matrix, given the eigensystem `eig`
 of the Hamiltonian.
 
 ## Keyword arguments
 The `μ` and `T` keywords set the chemical potential and the temperature respectively.
-The `statistics` Keyword sets the probability distribution .`OneParticle`, which is the
-default, means Boltzmann distribution.
+The `statistics` Keyword sets the probability distribution .`OneParticle` means Boltzmann distribution.
+
+Note that if `eig` is a diagonalized `Hamiltonian`, the `μ` and `statistics` parameters are inserted automatically.
 """
 function densitymatrix(eig::Eigensystem; μ::Real=0, T::Real=0, statistics::ParticleStatistics=OneParticle)
     apply_to_eigenvalues(eig) do E
-        E - μ == T == 0 ? 1. : 1 / (exp((E - μ) / T) + Int(statistics))
+        (E - μ == T == 0) ? 1. : 1 / (exp((E - μ) / T) + Int(statistics))
     end
 end
+densitymatrix(ham_eig::Eigensystem{<:Any, <:Any, <:System};
+    μ::Real=ham_eig.sys.chempotential, T::Real=0, statistics=ham_eig.sys.statistics) =
+    densitymatrix(Operator(ham_eig); T=T, statistics=statistics, μ=μ)
+densitymatrix(ham::Hamiltonian; kw...) = densitymatrix(diagonalize(ham); kw...)
 
 @doc raw"""
     dos(eig::Eigensystem, δ)

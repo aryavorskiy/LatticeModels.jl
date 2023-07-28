@@ -35,14 +35,14 @@ end
 site_density(bra::Bra) = site_density(dagger(bra))
 
 function site_density(op::LatticeOperator)
-    LatticeValue(lattice(op), diag(op.data))
+    LatticeValue(lattice(op), real.(diag(op.data)))
 end
 
 function site_density(op::CompositeLatticeOperator)
     l = lattice(op)
     N = internal_length(op)
     dg = diag(op.data)
-    LatticeValue(l, [sum(@view(dg[(i - 1) * N + 1: i * N])) for i in 1:length(l)])
+    LatticeValue(l, [real(sum(@view(dg[(i - 1) * N + 1: i * N]))) for i in 1:length(l)])
 end
 
 function diag_reduce(f, op::AbstractLatticeOperator)

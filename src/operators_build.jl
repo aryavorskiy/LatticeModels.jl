@@ -132,7 +132,9 @@ end
 function Hamiltonian(sys::System, op::Operator)
     return Hamiltonian(sys, basis(op), basis(op), op.data)
 end
-to_operator(ham::Hamiltonian) = Operator(ham.basis_l, ham.data)
+QuantumOpticsBase.Operator(ham::Hamiltonian) = Operator(ham.basis_l, ham.data)
+system(::DataOperator) = nothing
+system(ham::Hamiltonian) = ham.sys
 
 function tightbinding_hamiltonian(sys::System; t1=1, t2=0, t3=0,
     field=NoField(), boundaries=BoundaryConditions())
