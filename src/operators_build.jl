@@ -26,7 +26,7 @@ Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::
         iszero(v) || increment!(builder, v, i + N * (i1 - 1), j + N * (i2 - 1); factor=factor)
     end
 end
-Base.@propagate_inbounds increment!(builder::SparseMatrixBuilder, rhs::Operator, i1, i2) =
+Base.@propagate_inbounds increment!(builder::SparseMatrixBuilder, rhs::DataOperator, i1, i2) =
     increment!(builder, rhs.data, i1, i2)
 
 Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::SparseMatrixCSC; factor=1)
@@ -72,15 +72,16 @@ struct OperatorBuilder{SampleT, FieldT, T}
     field::FieldT
     internal_length::Int
     builder::SparseMatrixBuilder{T}
-    OperatorBuilder{T}(sample::SampleT, field::FieldT=NoField()) where {SampleT<:Sample, FieldT<:AbstractField, T} =
-        new{SampleT, FieldT, T}(sample, field, internal_length(sample), SparseMatrixBuilder{T}(length(onebodybasis(sample))))
+    auto_hermitian::Bool
+    OperatorBuilder{T}(sample::SampleT, field::FieldT=NoField(); auto_hermitian=false) where {SampleT<:Sample, FieldT<:AbstractField, T} =
+        new{SampleT, FieldT, T}(sample, field, internal_length(sample), SparseMatrixBuilder{T}(length(onebodybasis(sample))), auto_hermitian)
 end
 lattice(opb::OperatorBuilder) = lattice(opb.sample)
-OperatorBuilder(args...) = OperatorBuilder{ComplexF64}(args...)
+OperatorBuilder(args...; kw...) = OperatorBuilder{ComplexF64}(args...; kw...)
 
 check_arg(::OperatorBuilder{<:SampleWithoutInternal}, n::Number) = n
 check_arg(opb::OperatorBuilder, n::Number) = n * internal_one(opb.sample)
-Base.@propagate_inbounds function check_arg(opb::OperatorBuilder{<:SampleWithInternal}, op::Operator)
+Base.@propagate_inbounds function check_arg(opb::OperatorBuilder{<:SampleWithInternal}, op::DataOperator)
     @boundscheck QuantumOpticsBase.check_samebases(basis(op), internal_basis(opb.sample))
     return op.data
 end
@@ -102,11 +103,18 @@ Base.@propagate_inbounds function increment!(opbuilder::OperatorBuilder, rhs, lp
     i2 = site_index(l, new_site2)
     i1 === nothing && return
     i2 === nothing && return
-    increment!(opbuilder.builder, new_rhs, i1, i2, factor = jfact * field_fact * ifact')
+    total_factor = jfact * field_fact * ifact'
+    increment!(opbuilder.builder, new_rhs, i1, i2, factor = total_factor)
+    if opbuilder.auto_hermitian && i1 != i2
+        increment!(opbuilder.builder, new_rhs', i2, i1, factor = total_factor')
+    end
 end
 
-function to_operator(opb::OperatorBuilder)
+function to_operator(opb::OperatorBuilder; warning=false)
     op = Operator(onebodybasis(opb.sample), to_matrix(opb.builder))
+    if !ishermitian(op) && !warning && !opb.auto_hermitian
+        @warn "The resulting operator is not hermitian. Set `warning=false` to hide this message or add `auto_hermitian=true` to the `OperatorBuilder` constructor."
+    end
     return manybodyoperator(opb.sample, op)
 end
 
@@ -144,12 +152,12 @@ function build_operator!(builder::SparseMatrixBuilder, sample::Sample, arg::Pair
     opdata, lv = arg
     add_diagonal!(builder, opdata, lv.values)
 end
-function build_operator!(builder::SparseMatrixBuilder, ::Sample, arg::Operator; kw...)
+function build_operator!(builder::SparseMatrixBuilder, ::Sample, arg::DataOperator; kw...)
     # Arbitrary sparse operator
     increment!(builder, arg.data)
 end
 
-function preprocess_argument(sample::Sample, arg::Operator)
+function preprocess_argument(sample::Sample, arg::DataOperator)
     if samebases(basis(arg), onebodybasis(sample))
         sparse(arg)
     elseif samebases(basis(arg), sample.internal)

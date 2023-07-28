@@ -50,10 +50,10 @@ evolution_operator(H::AbstractMatrix, t::Real, k::Int, ::Val{true}) =
     pade_exp((-im * t) * densemat(H), k)
 evolution_operator(H::AbstractMatrix, t::Real, k::Int, ::Val{false}) =
     taylor_exp((-im * t) * H, k)
-evolution_operator(op::Operator, args...) = Operator(basis(op), evolution_operator(op.data, args...))
+evolution_operator(op::DataOperator, args...) = Operator(basis(op), evolution_operator(op.data, args...))
 
 evolved(ket::Ket, ev) = ev * ket
-evolved(op::Operator, ev) = ev * op * ev'
+evolved(op::DataOperator, ev) = ev * op * ev'
 evolved(bra::Bra, ev) = evolved(bra', ev)'
 
 function _expand_chain(chain)

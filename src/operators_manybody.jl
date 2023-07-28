@@ -80,7 +80,7 @@ function site_density(ket::Ket{<:ManyBodyBasis{<:Any,<:AbstractLatticeBasis}})
     LatticeValue(l, [@view(vs[(i - 1) * N + 1: i * N]) for i in 1:length(l)])
 end
 
-function site_density(op::Operator{BT, BT} where BT<:ManyBodyBasis{<:Any, <:AbstractLatticeBasis})
+function site_density(op::DataOperator{BT, BT} where BT<:ManyBodyBasis{<:Any, <:AbstractLatticeBasis})
     vs = zeros(length(basis(op).onebodybasis))
     ds = diag(op.data)
     for i in 1:length(ds)

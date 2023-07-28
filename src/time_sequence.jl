@@ -86,7 +86,7 @@ function Base.iterate(tseq::TimeSequence, state=(1, length(tseq)))
     tseq.times[ind] => tseq.snapshots[ind], (ind + 1, len)
 end
 
-_internal(op::Operator) = op.data
+_internal(op::DataOperator) = op.data
 _internal(lv::LatticeValue) = lv.values
 _internal(curr::MaterializedCurrents) = curr.currents
 # const LatticeType = Union{LatticeValue, LatticeArray, MaterializedCurrents}

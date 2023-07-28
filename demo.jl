@@ -25,9 +25,9 @@ plot(dens)
 # end
 opb = OperatorBuilder(l ⊗ spin)
 for site1 in l
-    site2 = site1 + SiteOffset(axis = 1)
+    site2 = site1 + SiteOffset(2 => 1, axis = 1)
     @increment opb[site1, site2] += sigmaz(spin)
-    @increment opb[site2, site1] += sigmaz(spin)'
+    # @increment opb[site2, site1] += sigmaz(spin)'
 end
 op = to_operator(opb)
 

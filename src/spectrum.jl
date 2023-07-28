@@ -19,11 +19,11 @@ end
 QuantumOpticsBase.basis(eig::Eigensystem) = eig.basis
 
 """
-    diagonalize(op::Operator)
+    diagonalize(op::DataOperator)
 
 Finds eigenvalues and eigenvectors for a `Operator` and stores it in an Eigensystem.
 """
-function diagonalize(op::Operator)
+function diagonalize(op::DataOperator)
     # TODO support sparse diagonalization also
     vals, vecs = eigen(dense(op).data)
     Eigensystem(basis(op), vecs, vals)
