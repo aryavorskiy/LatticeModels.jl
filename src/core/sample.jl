@@ -1,4 +1,4 @@
-import QuantumOpticsBase: Basis, AbstractOperator
+import QuantumOpticsBase: Basis, AbstractOperator, basis, check_samebases
 abstract type Boundary end
 abstract type AbstractBoundaryConditions end
 
@@ -84,28 +84,18 @@ end
 
 struct MagneticBoundaryConditions <: AbstractBoundaryConditions end
 
-@enum ParticleStatistics begin
-    OneParticle = 0
-    FermiDirac = 1
-    BoseEinstein = -1
-end
-
 struct Sample{AdjMatT, LT, BasisT, BoundaryT}
     adjacency_matrix::AdjMatT
     latt::LT
     boundaries::BoundaryT
     internal::BasisT
-    nparticles::Int
-    statistics::ParticleStatistics
 end
 const SampleWithoutInternal{AdjMatT, LT, BoundaryT} = Sample{AdjMatT, LT, Nothing, BoundaryT}
 const SampleWithInternal{AdjMatT, LT, BoundaryT} = Sample{AdjMatT, LT, <:Basis, BoundaryT}
 
-function Sample(adjacency_matrix, latt::LT, internal::BT=nothing; N::Int=1,
-        statistics::ParticleStatistics=OneParticle, boundaries=BoundaryConditions()) where {LT<:Lattice, BT<:Nullable{Basis}}
-    N ≤ 0 && error("Positive particle count expected")
-    N != 1 && statistics == OneParticle && error("One-particle statistics invalid for multi-particle systems")
-    return Sample(adjacency_matrix, latt, boundaries, internal, N, statistics)
+function Sample(adjacency_matrix, latt::LT, internal::BT=nothing;
+        boundaries=BoundaryConditions()) where {LT<:Lattice, BT<:Nullable{Basis}}
+    return Sample(adjacency_matrix, latt, boundaries, internal)
 end
 Sample(latt::Lattice, internal=nothing; kw...) =
     Sample(nothing, latt, internal; kw...)
@@ -116,38 +106,82 @@ lattice(sample::Sample) = sample.latt
 default_bonds(sample::Sample) = default_bonds(lattice(sample))
 internal_one(sample::Sample) = one(sample.internal)
 internal_one(sample::SampleWithoutInternal) = 1
-ismanybody(sample::Sample) = sample.nparticles != 1
+QuantumOpticsBase.:(⊗)(l::Lattice, b::Basis) = Sample(l, b)
+QuantumOpticsBase.:(⊗)(b::Basis, l::Lattice) = l ⊗ b
 
-function occupations(sample::Sample)
-    sample.nparticles == 1 && throw(ArgumentError("Cannot generate occupations for one-particle sample"))
-    if sample.statistics == FermiDirac
+@enum ParticleStatistics begin
+    OneParticle = 0
+    FermiDirac = 1
+    BoseEinstein = -1
+end
+
+abstract type System{SampleT} end
+Base.length(system::System) = length(system.sample)
+
+struct FilledZones{SampleT} <: System{SampleT}
+    sample::SampleT
+    chempotential::Float64
+    statistics::ParticleStatistics
+    function FilledZones(sample::SampleT, μ; statistics=FermiDirac) where SampleT
+        statistics == OneParticle && μ != 0 && error("OneParticle statistics cannot be present in systems with non-zero chemical potential")
+        new{SampleT}(sample, μ, statistics)
+    end
+end
+
+struct Particles{SampleT} <: System{SampleT}
+    sample::SampleT
+    nparticles::Int
+    statistics::ParticleStatistics
+    function Particles(sample::SampleT, nparticles; statistics=FermiDirac) where SampleT
+        statistics == OneParticle && nparticles> 1 && error("OneParticle statistics not supported for multi-particle systems")
+        new{SampleT}(sample, nparticles, statistics)
+    end
+end
+
+function System(sample::Sample; μ = nothing, N = nothing, statistics=FermiDirac)
+    if μ !== nothing && N === nothing
+        return FilledZones(sample, μ, statistics=statistics)
+    elseif N !== nothing && μ === nothing
+        return Particles(sample, N, statistics=statistics)
+    else
+        error("Please define the chemical potential `μ` or the particle number `N` (not both)")
+    end
+end
+System(args...; μ = nothing, N = nothing, statistics=FermiDirac, kw...) =
+    System(Sample(args...; kw...), μ=μ, N=N, statistics=statistics)
+
+lattice(sys::System) = lattice(sys.sample)
+Base.zero(sys::System) = zero(systembasis(sys))
+
+function occupations(ps::Particles)
+    if ps.statistics == FermiDirac
         fermionstates(length(sample), sample.nparticles)
-    elseif sample.statistics == BoseEinstein
+    elseif ps.statistics == BoseEinstein
         bosonstates(length(sample), sample.nparticles)
     end
 end
 
-samplebasis(sample::Sample) = sample.nparticles == 1 ? onebodybasis(sample) :
-        ManyBodyBasis(onebodybasis(sample), occupations(sample))
+systembasis(sys::FilledZones) = onebodybasis(sys.sample)
+systembasis(sys::Particles) = ManyBodyBasis(onebodybasis(sys.sample), occupations(sys))
 
-QuantumOpticsBase.:(⊗)(l::Lattice, b::Basis) = Sample(l, b)
-QuantumOpticsBase.:(⊗)(b::Basis, l::Lattice) = Sample(l, b)
-Base.zero(sample::Sample) = zero(samplebasis(sample))
-
-function QuantumOpticsBase.manybodyoperator(sample::Sample, op::AbstractOperator)
-    if sample.statistics == OneParticle
-        return op
-    else
-        return manybodyoperator(ManyBodyBasis(bas, occupations(sample)), oper)
-    end
+function QuantumOpticsBase.manybodyoperator(ps::Particles, op::AbstractOperator)
+    check_samebases(systembasis(ps), basis(op))
+    return manybodyoperator(ManyBodyBasis(bas, occupations(ps)), oper)
+end
+function QuantumOpticsBase.manybodyoperator(ps::FilledZones, op::AbstractOperator)
+    check_samebases(systembasis(ps), basis(op))
+    return op
 end
 QuantumOpticsBase.manybodyoperator(sample::Sample, mat::AbstractMatrix) =
     manybodyoperator(sample, Operator(onebodybasis(sample), mat))
 
 shift_site(sample::Sample, site) = shift_site(sample.boundaries, sample.latt, site)
+shift_site(sys::System, site) = shift_site(sys.sample, site)
 
 macro accepts_lattice(fname, default_basis=nothing)
     esc(quote
+        global $fname(sample::Sample, args...; kw...) =
+            $fname(System(sample, μ = 0, statistics=FermiDirac), args...; kw...)
         global $fname(selector, l::Lattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
             $fname(Sample(selector, l, bas, boundaries=boundaries), args...; kw...)
         global $fname(selector, l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =

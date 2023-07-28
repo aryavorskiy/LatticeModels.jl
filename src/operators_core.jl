@@ -11,6 +11,7 @@ Base.:(==)(lb1::LatticeBasis, lb2::LatticeBasis) = lb1.latt == lb2.latt
 
 onebodybasis(sample::Sample) = sample.internal ⊗ LatticeBasis(sample.latt)
 onebodybasis(sample::SampleWithoutInternal) = LatticeBasis(sample.latt)
+onebodybasis(sys::System) = onebodybasis(sys.sample)
 
 QuantumOpticsBase.basisstate(T::Type, b::LatticeBasis, site::LatticeSite) =
     basisstate(T, b, site_index(b.latt, site))
@@ -18,9 +19,9 @@ QuantumOpticsBase.basisstate(T::Type, b::LatticeBasis, site::LatticeSite) =
 const CompositeLatticeBasis{S, BT, LT} = CompositeBasis{S, Tuple{BT, LatticeBasis{LT}}}
 const AbstractLatticeBasis = Union{LatticeBasis, CompositeLatticeBasis}
 
-const LatticeOperator{MT} = Operator{BT, BT, MT} where BT<:LatticeBasis
-const CompositeLatticeOperator{MT} = Operator{BT, BT, MT} where BT<:CompositeLatticeBasis
-const AbstractLatticeOperator{MT} = Operator{BT, BT, MT} where BT<:AbstractLatticeBasis
+const LatticeOperator = DataOperator{BT, BT} where BT<:LatticeBasis
+const CompositeLatticeOperator = DataOperator{BT, BT} where BT<:CompositeLatticeBasis
+const AbstractLatticeOperator = DataOperator{BT, BT} where BT<:AbstractLatticeBasis
 
 lattice(lb::LatticeBasis) = lb.latt
 lattice(b::CompositeLatticeBasis) = lattice(b.bases[2])
@@ -30,12 +31,14 @@ internal_basis(::LatticeBasis) = throw(ArgumentError("Lattice basis has no inter
 internal_basis(b::CompositeLatticeBasis) = b.bases[1]
 internal_basis(b::Basis) = throw(MethodError(internal_basis, (b,)))
 internal_basis(any) = internal_basis(basis(any))
-internal_basis(sample::SampleWithInternal) = sample.internal
+internal_basis(sample::Sample) = sample.internal
+internal_basis(sys::System) = sys.sample.internal
 internal_length(any) = internal_length(basis(any))
 internal_length(::LatticeBasis) = 1
 internal_length(b::Basis) = length(internal_basis(b))
 internal_length(sample::SampleWithInternal) = length(sample.internal)
 internal_length(sample::SampleWithoutInternal) = 1
+internal_length(sys::System) = internal_length(sys.sample)
 
 function add_diagonal!(builder, op, diag)
     for i in 1:length(diag)

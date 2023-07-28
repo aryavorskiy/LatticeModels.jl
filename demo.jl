@@ -1,5 +1,6 @@
 using LatticeModels, Plots
 l = SquareLattice(16, 16)
+
 spin = SpinBasis(1//2)
 H = tightbinding_hamiltonian(l, t1 = 1, t2 = 0.25, t3 = -1)
 eig = diagonalize(H)

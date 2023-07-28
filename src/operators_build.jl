@@ -1,3 +1,5 @@
+import QuantumOpticsBase: DataOperator
+
 struct SparseMatrixBuilder{T} <: AbstractMatrix{T}
     size::Tuple{Int,Int}
     Is::Vector{Int}
@@ -67,26 +69,29 @@ macro increment(expr)
     end
 end
 
-struct OperatorBuilder{SampleT, FieldT, T}
-    sample::SampleT
+struct OperatorBuilder{SystemT, FieldT, T}
+    sys::SystemT
     field::FieldT
     internal_length::Int
     builder::SparseMatrixBuilder{T}
     auto_hermitian::Bool
-    OperatorBuilder{T}(sample::SampleT, field::FieldT=NoField(); auto_hermitian=false) where {SampleT<:Sample, FieldT<:AbstractField, T} =
-        new{SampleT, FieldT, T}(sample, field, internal_length(sample), SparseMatrixBuilder{T}(length(onebodybasis(sample))), auto_hermitian)
+    OperatorBuilder{T}(sys::SystemT, field::FieldT=NoField(); auto_hermitian=false) where {SystemT<:System, FieldT<:AbstractField, T} =
+        new{SystemT, FieldT, T}(sys, field, internal_length(sys), SparseMatrixBuilder{T}(length(onebodybasis(sys))), auto_hermitian)
 end
-lattice(opb::OperatorBuilder) = lattice(opb.sample)
+@accepts_lattice OperatorBuilder
+lattice(opb::OperatorBuilder) = lattice(opb.sys)
 OperatorBuilder(args...; kw...) = OperatorBuilder{ComplexF64}(args...; kw...)
+const OpBuilderWithInternal = OperatorBuilder{<:System{<:SampleWithInternal}}
+const OpBuilderWithoutInternal = OperatorBuilder{<:System{<:SampleWithoutInternal}}
 
-check_arg(::OperatorBuilder{<:SampleWithoutInternal}, n::Number) = n
-check_arg(opb::OperatorBuilder, n::Number) = n * internal_one(opb.sample)
-Base.@propagate_inbounds function check_arg(opb::OperatorBuilder{<:SampleWithInternal}, op::DataOperator)
-    @boundscheck QuantumOpticsBase.check_samebases(basis(op), internal_basis(opb.sample))
+check_arg(::OpBuilderWithoutInternal, n::Number) = n
+check_arg(opb::OperatorBuilder, n::Number) = n * internal_one(opb.sys)
+Base.@propagate_inbounds function check_arg(opb::OpBuilderWithInternal, op::DataOperator)
+    @boundscheck QuantumOpticsBase.check_samebases(basis(op), internal_basis(opb.sys))
     return op.data
 end
-Base.@propagate_inbounds function check_arg(opb::OperatorBuilder{<:SampleWithInternal}, mat::AbstractMatrix)
-    @boundscheck @assert all(==(internal_length(opb.sample)), size(mat))
+Base.@propagate_inbounds function check_arg(opb::OpBuilderWithInternal, mat::AbstractMatrix)
+    @boundscheck @assert all(==(internal_length(opb.sys)), size(mat))
     return mat
 end
 
@@ -95,8 +100,8 @@ Base.@propagate_inbounds function increment!(opbuilder::OperatorBuilder, rhs, lp
     l = lattice(opbuilder)
     site1 = get_site(l, lp1)
     site2 = get_site(l, lp2)
-    ifact, new_site1 = shift_site(opbuilder.sample, site1)
-    jfact, new_site2 = shift_site(opbuilder.sample, site2)
+    ifact, new_site1 = shift_site(opbuilder.sys, site1)
+    jfact, new_site2 = shift_site(opbuilder.sys, site2)
     field_fact = exp(-2π * im * line_integral(opbuilder.field, site1.coords, site2.coords))
     l = lattice(opbuilder)
     i1 = site_index(l, new_site1)
@@ -111,17 +116,29 @@ Base.@propagate_inbounds function increment!(opbuilder::OperatorBuilder, rhs, lp
 end
 
 function to_operator(opb::OperatorBuilder; warning=false)
-    op = Operator(onebodybasis(opb.sample), to_matrix(opb.builder))
+    op = Operator(onebodybasis(opb.sys), to_matrix(opb.builder))
     if !ishermitian(op) && !warning && !opb.auto_hermitian
         @warn "The resulting operator is not hermitian. Set `warning=false` to hide this message or add `auto_hermitian=true` to the `OperatorBuilder` constructor."
     end
-    return manybodyoperator(opb.sample, op)
+    return manybodyoperator(opb.sys, op)
 end
 
-function tightbinding_hamiltonian(sample::Sample; t1=1, t2=0, t3=0,
+struct Hamiltonian{SystemT, BasisT, T} <: DataOperator{BasisT, BasisT}
+    sys::SystemT
+    basis_l::BasisT
+    basis_r::BasisT
+    data::T
+end
+function Hamiltonian(sys::System, op::Operator)
+    return Hamiltonian(sys, basis(op), basis(op), op.data)
+end
+to_operator(ham::Hamiltonian) = Operator(ham.basis_l, ham.data)
+
+function tightbinding_hamiltonian(sys::System; t1=1, t2=0, t3=0,
     field=NoField(), boundaries=BoundaryConditions())
-    l = lattice(sample)
-    builder = SparseMatrixBuilder{ComplexF64}(length(sample), length(sample))
+    sample = sys.sample
+    l = lattice(sys)
+    builder = SparseMatrixBuilder{ComplexF64}(length(sys), length(sys))
     internal_eye = internal_one(sample)
     for bond in default_bonds(l)
         add_hoppings!(builder, nothing, l, t1 * internal_eye, bond, field, boundaries)
@@ -136,7 +153,7 @@ function tightbinding_hamiltonian(sample::Sample; t1=1, t2=0, t3=0,
             add_hoppings!(builder, nothing, l, t3 * internal_eye, bond, field, boundaries)
         end
     end
-    return manybodyoperator(sample, to_matrix(builder))
+    return Hamiltonian(sys, manybodyoperator(sys, to_matrix(builder)))
 end
 @accepts_lattice tightbinding_hamiltonian
 
@@ -205,20 +222,20 @@ function preprocess_argument(sample::Sample, arg::Pair)
     else
         error("Invalid Pair argument: unsupported on-lattice operator type")
     end
-
 end
 
-function build_hamiltonian(sample::Sample, args...;
+function build_hamiltonian(sys::System, args...;
         field=NoField())
+    sample = sys.sample
     builder = SparseMatrixBuilder{ComplexF64}(length(sample), length(sample))
     for arg in args
         build_operator!(builder, sample, preprocess_argument(sample, arg);
             field=field)
     end
     op = Operator(onebodybasis(sample), to_matrix(builder))
-    return manybodyoperator(sample, op)
+    return Hamiltonian(sys, manybodyoperator(sys, op))
 end
 @accepts_lattice build_hamiltonian
 
-hoppings(adj, l::Lattice, bs::SiteOffset...; kw...) = build_hamiltonian(Sample(adj, l), bs...; kw...)
-hoppings(l::Lattice, bs::SiteOffset...; kw...) = build_hamiltonian(Sample(l), bs...; kw...)
+hoppings(adj, l::Lattice, bs::SiteOffset...; kw...) = to_operator(build_hamiltonian(Sample(adj, l), bs...; kw...))
+hoppings(l::Lattice, bs::SiteOffset...; kw...) = to_operator(build_hamiltonian(Sample(l), bs...; kw...))

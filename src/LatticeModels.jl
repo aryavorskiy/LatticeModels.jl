@@ -16,7 +16,7 @@ include("core/field.jl")
 export @field_def, AbstractField, NoField
 
 include("core/sample.jl")
-export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions, Sample,
+export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions, System,
     FermiDirac, BoseEinstein, @increment
 
 include("core/bonds.jl")
@@ -54,6 +54,9 @@ export SquareLattice, HoneycombLattice,
     DensityCurrents
 
 include("plot_recipes.jl")
+
+l = SquareLattice(10, 10)
+qwz(l)
 
 # include("precompile.jl")
 # _precompile_()
