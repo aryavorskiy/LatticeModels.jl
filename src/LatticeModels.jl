@@ -13,7 +13,7 @@ include("core/lattice_value.jl")
 export LatticeValue, coord_values, project
 
 include("core/field.jl")
-export @field_def, AbstractField, NoField
+export @field_def, NoField, MagneticField
 
 include("core/sample.jl")
 export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions, System,

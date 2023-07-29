@@ -37,18 +37,21 @@ function HoneycombLattice(sz::Vararg{Int, 2})
     Lattice(:honeycomb, sz, bvs)
 end
 default_bonds(::HoneycombLattice) = (SiteOffset(2 => 1), SiteOffset(2 => 1, axis=1), SiteOffset(2 => 1, axis=2))
-default_nnbonds(::HoneycombLattice) = (SiteOffset(axis = 1), SiteOffset(axis=2), SiteOffset(SA[1, -1]))
-default_nnnbonds(::HoneycombLattice) = (SiteOffset(2 => 1, SA[1, 1]), SiteOffset(2 => 1, SA[1, -1]), SiteOffset(2 => 1, SA[-1, 1]))
+default_nnbonds(::HoneycombLattice) = (
+    SiteOffset(1 => 1, axis = 1),
+    SiteOffset(2 => 2, axis = 1, dist=-1),
+    SiteOffset(1 => 1, axis = 2, dist=-1),
+    SiteOffset(2 => 2, axis = 2),
+    SiteOffset(1 => 1, [-1, 1]),
+    SiteOffset(2 => 2, [1, -1]))
+default_nnnbonds(::HoneycombLattice) = (
+    SiteOffset(2 => 1, SA[1, 1]),
+    SiteOffset(2 => 1, SA[1, -1]),
+    SiteOffset(2 => 1, SA[-1, 1]))
 
 ##########
 # Fields #
 ##########
-
-@field_def struct LandauField(B::Number)
-    vector_potential(x) = (0, x*B)
-    line_integral(p1, p2) = ((p1[1] + p2[1]) / 2) * (p2[2] - p1[2]) * B
-    show(io::IO, ::MIME"text/plain") = print(io, "Landau calibration field; B = $B flux quanta per 1×1 plaquette")
-end
 """
     LandauField <: AbstractField
 
@@ -56,13 +59,13 @@ An object representing Landau calibrated uniform magnetic field along z-axis.
 Fields:
 - `B`: The magnetic field value
 """
-LandauField
-
-@field_def struct SymmetricField(B::Number)
-    vector_potential(x, y) = SA[-y, x] * B / 2
-    line_integral(p1, p2) = (p1[1] * p2[2] - p2[1] * p1[2]) / 2 * B
-    show(io::IO, ::MIME"text/plain") = print(io, "Symmetric calibration field; B = $B flux quanta per 1×1 plaquette")
+struct LandauField <: AbstractField
+    B::Float64
 end
+vector_potential(field::LandauField, p1) = (0, p1[1] * field.B)
+line_integral(field::LandauField, p1, p2) = ((p1[1] + p2[1]) / 2) * (p2[2] - p1[2]) * field.B
+show(io::IO, field::AbstractField, ::MIME"text/plain") = print(io, "Landau calibration field; B = $(field.B) flux quanta per 1×1 plaquette")
+
 """
     SymmetricField <: AbstractField
 
@@ -70,25 +73,13 @@ An object representing symmetrically calibrated uniform magnetic field along z-a
 Fields:
 - `B`: The magnetic field value
 """
-SymmetricField
-
-_angle(p1, p2) = asin((1 - 1e-11) * det(hcat(p1, p2)) / norm(p1) / norm(p2))
-@field_def struct FluxField(B::Number, P::NTuple{2,Number} = (0, 0))
-    function vector_potential(x, y)
-        norm = (x^2 + y^2)
-        (-y / norm * B, x / norm * B)
-    end
-    function line_integral(p1, p2)
-        Pv = SVector(P)
-        p1 = p1[1:2] - Pv
-        p2 = p2[1:2] - Pv
-        if iszero(p1) || iszero(p2)
-            return 0.0
-        end
-        _angle(p1, p2) * B
-    end
-    show(io::IO, ::MIME"text/plain") = print(io, "Delta flux field through point $P; B = $B flux quanta")
+struct SymmetricField <: AbstractField
+    B::Float64
 end
+vector_potential(field::SymmetricField, p1) = SA[-p1[2], p1[1]] * field.B / 2
+line_integral(field::SymmetricField, p1, p2) = (p1[1] * p2[2] - p2[1] * p1[2]) / 2 * field.B
+show(field::SymmetricField, io::IO, ::MIME"text/plain") = print(io, "Symmetric calibration field; B = $(field.B) flux quanta per 1×1 plaquette")
+
 """
     FluxField <: AbstractField
 
@@ -97,7 +88,26 @@ Fields:
 - `B`: The magnetic field value
 - `point`: A `NTuple{2, Number}` representing the point where the magnetic flux is located.
 """
-FluxField
+struct FluxField <: AbstractField
+    B::Float64
+    P::NTuple{2,Float64}
+    FluxField(B,P=(0,0)) = new(B, P)
+end
+function vector_potential(field::FluxField, p1)
+    (x, y) = p1
+    normsq = (x^2 + y^2)
+    SA[-y, x] / normsq * field.B
+end
+function line_integral(field::FluxField, p1, p2)
+    Pv = SVector(field.P)
+    p1 = p1[1:2] - Pv
+    p2 = p2[1:2] - Pv
+    if iszero(p1) || iszero(p2)
+        return 0.0
+    end
+    asin((1 - 1e-11) * det(hcat(p1, p2)) / norm(p1) / norm(p2)) * field.B
+end
+show(field::FluxField, io::IO, ::MIME"text/plain") = print(io, "Delta flux field through point $(field.P); B = $(field.B) flux quanta")
 
 ################
 # Hamiltonians #
@@ -146,11 +156,11 @@ haldane(sample::Sample{<:Any, <:HoneycombLattice}, t1::Real, t2::Real, m::Real=0
     t1 => SiteOffset(2 => 1, axis = 1),
     t1 => SiteOffset(2 => 1, axis = 2),
     im * t2 => SiteOffset(1 => 1, axis = 1),
-    -im * t2 => SiteOffset(2 => 2, axis = 1),
-    -im * t2 => SiteOffset(1 => 1, axis = 2),
+    im * t2 => SiteOffset(2 => 2, SA[-1, 0]),
+    im * t2 => SiteOffset(1 => 1, SA[0, -1]),
     im * t2 => SiteOffset(2 => 2, axis = 2),
-    im * t2 => SiteOffset(1 => 1, [-1, 1]),
-    -im * t2 => SiteOffset(2 => 2, [-1, 1]); kw...)
+    im * t2 => SiteOffset(1 => 1, SA[-1, 1]),
+    im * t2 => SiteOffset(2 => 2, SA[1, -1]); kw...)
 @accepts_lattice haldane
 
 ############

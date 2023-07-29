@@ -33,132 +33,23 @@ function line_integral(field::AbstractField, p1, p2, n_steps)
     integral
 end
 
-function _wrap_block!(f::Function, block::Expr, fields::Vector)
-    _begin = 1 + Meta.isexpr(block, :call)
-    for i in _begin:length(block.args)
-        if block.args[i] isa Symbol && block.args[i] in fields
-            block.args[i] = f(block.args[i])
-        elseif block.args[i] isa Expr
-            _wrap_block!(f, block.args[i], fields)
-        end
-    end
-end
-
-"""
-    @field_def block
-
-Defines a new magnetic field type.
-"""
-macro field_def(struct_block)
-    if !Meta.isexpr(struct_block, :struct)
-        error("Struct block expected")
-    end
-    struct_head = struct_block.args[2]
-    if Meta.isexpr(struct_head, :call)
-        struct_name, struct_args... = struct_head.args
-        struct_name = esc(struct_name)
-    elseif struct_head isa Symbol
-        struct_name = esc(struct_head)
-        struct_args = []
-    else
-        error("Invalid struct name")
-    end
-    struct_fields = map(struct_args) do expr
-        Meta.isexpr(expr, (:(=), :kw), 2) ? expr.args[1] : expr
-    end
-    struct_params = map(struct_fields) do var
-        var isa Symbol && return var
-        Meta.isexpr(var, :(::)) && var.args[1] isa Symbol && return var.args[1]
-        error("cannot extract variable name; invalid definition '$var'")
-    end
-    body = struct_block.args[3]
-    struct_definition = quote
-        import LatticeModels: line_integral, vector_potential
-        import Base: show
-        struct $struct_name <: AbstractField
-            $(esc.(struct_fields)...)
-            $struct_name($(esc.(struct_args)...)) = new($(esc.(struct_fields)...))
-        end
-    end
-    for statement in body.args
-        if Meta.isexpr(statement, (:function, :(=)))
-            fn_def, fn_body = statement.args
-            _wrap_block!(fn_body, struct_params) do field
-                :(field.$field)
-            end
-            fn_body = esc(fn_body)
-            if !Meta.isexpr(fn_def, :call)
-                error("not a function definition")
-            end
-            if length(fn_def.args) < 2
-                error("function definition with no arguments")
-            end
-            fn_name, fn_args... = fn_def.args
-            escf = :($(esc(:field))::$struct_name)
-            if fn_name === :vector_potential
-                if all(isa.(fn_args, Symbol))
-                    push!(struct_definition.args, :(
-                        function LatticeModels.vector_potential($escf, point)
-                            $(esc.(fn_args)...), = point
-                            $fn_body
-                        end
-                    ))
-                elseif length(fn_args) == 1 && Meta.isexpr(fn_args[1], :...)
-                    fn_arg = esc(fn_args[1].args[1])
-                    push!(struct_definition.args, :(
-                        function LatticeModels.vector_potential($escf, $fn_arg)
-                            $fn_body
-                        end
-                    ))
-                else
-                    error("invalid argument types")
-                end
-            elseif fn_name === :line_integral
-                Meta.isexpr(fn_args[1], :parameters) &&
-                    error("line_integral must not accept kwargs")
-                length(fn_args) != 2 &&
-                    error("line_integral must have 2 positional arguments")
-                push!(struct_definition.args, :(
-                    function LatticeModels.line_integral($escf, $(esc.(fn_args)...))
-                        $fn_body
-                    end
-                ))
-            elseif fn_name === :show
-                push!(struct_definition.args, :(import Base: show),
-                    :(function Base.show($(esc.(fn_args)...), $escf)
-                        $fn_body
-                    end
-                    ))
-            else
-                @warn "function definition $fn_def ignored"
-            end
-        elseif Meta.isexpr(statement, :(:=), 2)
-            key, arg = statement.args
-            if key === :n_steps
-                push!(struct_definition.args, :(
-                    LatticeModels.line_integral(field::$struct_name, p1, p2) =
-                        LatticeModels.line_integral(field, p1, p2, $arg)
-                ))
-            else
-                @warn "unsupported key $key ignored"
-            end
-        elseif statement isa Expr
-            error("not a function definition or key assignment:\n$statement")
-        end
-    end
-    struct_definition
-end
-
-@field_def struct NoField
-    line_integral(p1, p2) = 0
-end
 """
     NoField <: AbstractField
 
 A stub object representing zero magnetic field.
 Use it as a default magnetic field argument in functions - this will not cause any performance overhead.
 """
-NoField
+struct NoField <: AbstractField end
+line_integral(::NoField, p1, p2) = 0
+
+struct MagneticField{FuncT<:Function} <: AbstractField
+    func::FuncT
+    n::Int
+end
+MagneticField(func::FT) where FT = MagneticField(func, 10)
+vector_potential(field::MagneticField, p1::SVector) = field.func(p1)
+line_integral(field::MagneticField, p1, p2) =
+    line_integral(field, p1, p2, field.n)
 
 struct FieldSum{FT<:Tuple} <: AbstractField
     fields::FT

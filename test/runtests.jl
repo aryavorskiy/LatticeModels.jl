@@ -275,16 +275,14 @@ end
 end
 
 @testset "Field" begin
-    @field_def struct LazyLandauField(B::Number)
-        vector_potential(x) = (0, x * B)
-        n_steps := 100
-        show(io::IO, ::MIME"text/plain") = print(io, "Lazy Landau calibration field; B = $B flux quanta per 1×1 plaquette")
+    struct LazyLandauField <: LatticeModels.AbstractField
+        B::Number
     end
-    @field_def struct StrangeLandauField
-        vector_potential(point...) = (0, point[1] * 0.1)
-        line_integral(p1, p2) = 123
-    end
-    @field_def struct EmptyField end
+    LatticeModels.vector_potential(field::LazyLandauField, p1) = (0, p1[1] * field.B)
+    struct StrangeLandauField <: LatticeModels.AbstractField end
+    LatticeModels.vector_potential(::StrangeLandauField, point) = (0, point[1] * 0.1)
+    LatticeModels.line_integral(::StrangeLandauField, p1, p2) = 123
+    struct EmptyField <: LatticeModels.AbstractField end
     l = SquareLattice(10, 10)
     la = LandauField(0.1)
     lla = LazyLandauField(0.1)
@@ -294,15 +292,20 @@ end
     flx2 = FluxField(0.1, (0, 0))
     @test flx.P == flx2.P
     emf = EmptyField()
+    fla = MagneticField() do (x,)
+        (0, x * 0.1)
+    end
     @testset "Path integral" begin
         p1 = SA[1, 2]
         p2 = SA[3, 4]
         @test LatticeModels.line_integral(la, p1, p2) ≈
               LatticeModels.line_integral(la, p1, p2, 100)
-        @test LatticeModels.line_integral(lla, p1, p2, 100) ==
-              LatticeModels.line_integral(lla, p1, p2)
+        @test LatticeModels.line_integral(lla, p1, p2) ≈
+              LatticeModels.line_integral(lla, p1, p2, 100)
         @test LatticeModels.line_integral(la, p1, p2) ≈
               LatticeModels.line_integral(lla, p1, p2)
+        @test LatticeModels.line_integral(la, p1, p2) ≈
+              LatticeModels.line_integral(fla, p1, p2)
 
         @test LatticeModels.line_integral(sla, p1, p2, 100) ≈
               LatticeModels.line_integral(la, p1, p2)
