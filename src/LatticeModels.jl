@@ -55,9 +55,6 @@ export SquareLattice, HoneycombLattice,
 
 include("plot_recipes.jl")
 
-l = SquareLattice(10, 10)
-qwz(l)
-
 # include("precompile.jl")
 # _precompile_()
 

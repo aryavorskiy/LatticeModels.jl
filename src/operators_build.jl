@@ -239,5 +239,5 @@ function build_hamiltonian(sys::System, args...;
 end
 @accepts_lattice build_hamiltonian
 
-hoppings(adj, l::Lattice, bs::SiteOffset...; kw...) = to_operator(build_hamiltonian(Sample(adj, l), bs...; kw...))
-hoppings(l::Lattice, bs::SiteOffset...; kw...) = to_operator(build_hamiltonian(Sample(l), bs...; kw...))
+hoppings(adj, l::Lattice, bs::SiteOffset...; kw...) = Operator(build_hamiltonian(Sample(adj, l), bs...; kw...))
+hoppings(l::Lattice, bs::SiteOffset...; kw...) = Operator(build_hamiltonian(Sample(l), bs...; kw...))
