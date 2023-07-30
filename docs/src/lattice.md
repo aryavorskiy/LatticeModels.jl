@@ -14,13 +14,13 @@ Note that lattices of some types can be of any dimensionality, while others can 
 
 ```jldoctest; setup=:(using LatticeModels)
 julia> SquareLattice(10, 10)
-100-site square lattice on 10×10 macrocell
+100-site square lattice (10×10 macrocell)
 
 julia> SquareLattice(3, 3, 3)
-27-site square lattice on 3×3×3 macrocell
+27-site square lattice (3×3×3 macrocell)
 
 julia> HoneycombLattice(5, 5)
-50-site honeycomb lattice on 5×5 macrocell (2-site basis)
+50-site honeycomb lattice (5×5 macrocell, 2-site basis)
 
 julia> HoneycombLattice(3, 3, 2)
 ERROR: MethodError: no method matching HoneycombLattice(::Int64, ::Int64, ::Int64)

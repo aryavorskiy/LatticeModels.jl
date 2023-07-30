@@ -35,7 +35,7 @@ include("operators_utils.jl")
 export coord_operators, coord, site_density, diag_reduce, adjacency_matrix, apply_field!
 
 include("spectrum.jl")
-export Eigensystem, diagonalize, projector, apply_to_eigenvalues, densitymatrix, dos, ldos
+export Eigensystem, diagonalize, projector, densitymatrix, dos, ldos
 
 include("evolution.jl")
 export @evolution

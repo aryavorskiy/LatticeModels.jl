@@ -34,7 +34,7 @@ l = SquareLattice(10, 10)
 τ = 30
 a = Animation()
 B = 0.01
-P0 = filled_projector(spectrum(Chern(l, 0)))
+P0 = densitymatrix(diagonalize(qwz(l, 0)))
 
 @evolution {
     H := Chern(l, B * min(t, τ) / τ),
@@ -102,9 +102,9 @@ A `TimeSequence` is a struct that stores information about how some value change
 Here is an example:
 
 ```@example env
-P0 = filled_projector(spectrum(Chern(l, 0)))
-density_rec = LatticeValueSequence()
-deriv_rec = LatticeValueSequence()
+P0 = densitymatrix(diagonalize(qwz(l)))
+density_rec = TimeSequence()
+deriv_rec = TimeSequence()
 
 @evolution {
     H := Chern(l, B * min(t, τ) / τ),

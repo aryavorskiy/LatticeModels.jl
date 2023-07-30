@@ -64,7 +64,7 @@ struct LandauField <: AbstractField
 end
 vector_potential(field::LandauField, p1) = (0, p1[1] * field.B)
 line_integral(field::LandauField, p1, p2) = ((p1[1] + p2[1]) / 2) * (p2[2] - p1[2]) * field.B
-show(io::IO, field::AbstractField, ::MIME"text/plain") = print(io, "Landau calibration field; B = $(field.B) flux quanta per 1×1 plaquette")
+Base.show(io::IO, ::MIME"text/plain", field::LandauField) = print(io, "Landau calibration field; B = $(field.B) flux quanta per 1×1 plaquette")
 
 """
     SymmetricField <: AbstractField
@@ -78,7 +78,7 @@ struct SymmetricField <: AbstractField
 end
 vector_potential(field::SymmetricField, p1) = SA[-p1[2], p1[1]] * field.B / 2
 line_integral(field::SymmetricField, p1, p2) = (p1[1] * p2[2] - p2[1] * p1[2]) / 2 * field.B
-show(field::SymmetricField, io::IO, ::MIME"text/plain") = print(io, "Symmetric calibration field; B = $(field.B) flux quanta per 1×1 plaquette")
+Base.show(io::IO, ::MIME"text/plain", field::SymmetricField) = print(io, "Symmetric calibration field; B = $(field.B) flux quanta per 1×1 plaquette")
 
 """
     FluxField <: AbstractField
@@ -107,7 +107,7 @@ function line_integral(field::FluxField, p1, p2)
     end
     asin((1 - 1e-11) * det(hcat(p1, p2)) / norm(p1) / norm(p2)) * field.B
 end
-show(field::FluxField, io::IO, ::MIME"text/plain") = print(io, "Delta flux field through point $(field.P); B = $(field.B) flux quanta")
+Base.show(io::IO, ::MIME"text/plain", field::FluxField) = print(io, "Delta flux field through point $(field.P); B = $(field.B) flux quanta")
 
 ################
 # Hamiltonians #

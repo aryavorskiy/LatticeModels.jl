@@ -1,3 +1,6 @@
+!!! danger "Outdated docs"
+    This part of the documentation is outdated and does not refer to the current functionality of the package.
+
 ## Hamiltonian macro
 
 A hamiltonian operator usually consists of a [diagonal part](@ref Diagonal-operators) and a [hopping part](@ref Hopping-operators). 
@@ -64,7 +67,7 @@ nothing # hide
 
 Here we must explicitly set the internal phase space dimension count via `dims_internal := 2`.
 
-Some default hamiltonian formulas are already implemented - see [`TightBinding`](@ref), [`SpinTightBinding`](@ref), [`Haldane`](@ref) docstrings for more info.
+Some default hamiltonian formulas are already implemented - see [`qwz`](@ref), [`haldane`](@ref) docstrings for more info.
 
 !!! tip
     It is possible to set the matrix type of the hamiltonian operator at the generation time - use `arrtype := <Preferred type>` notation, this can be used e. g to reduce memory usage by switching to sparse arrays.
@@ -80,46 +83,37 @@ Most of these fields are designed for 2D lattices, but may also be applied to la
 
 ## Operator spectrum utilities
 
-A `Spectrum` object contains eigenvalues and eigenvectors of some hermitian operator. 
+A `Eigensystem` object contains eigenvalues and eigenvectors of some hermitian operator. 
 
 It is a very convenient way to work with eigenvectors. Check this out:
 
 ```@repl env
-sp = spectrum(TightBinding(5, 5))
-sp[1]       # Get the first eigenstate (e. g. the state with lowest energy)
-sp[3]       # Get the third eigenstate
-sp[E = 0]   # Get eigenstate with energy nearest to 0
-sp[1:3]     # Create a new Spectrum with states from #1 to #3
-E = eigvals(sp) # Get eigenvalues
-sp_filled = sp[E .< 0]  # Create a new Spectrum with filled bands only
+dg = diagonalize(tightbinding_hamiltonian(SquareLattice(5, 5)))
+dg[1]       # Get the first eigenstate (e. g. the state with lowest energy)
+dg[3]       # Get the third eigenstate
+dg[value = 0]   # Get eigenstate with energy nearest to 0
+dg[1:3]     # Create a new Eigensystem with states from #1 to #3
+E = dg.values   # Get eigenvalues
+diag_filled = dg[E .< 0]    # Create a new Eigensystem with filled bands only
 ```
 
-if you need an operator that projects onto some states, use [`projector`](@ref) or [`filled_projector`](@ref) functions:
+You can use [`densitymatrix`](@ref) or [`projector`](@ref) (only in zero-temperature cases) functions to find a density matrix of a system.
 
-```@repl env
-P = projector(E -> E < 0, sp)
-P = projector(sp_filled)                # The same thing
-P = filled_projector(sp, 0)             # The same thing
-P = filled_projector(sp)                # The same thing
-```
-
-Pass a lambda as a first argument to `filled_projector` to induce arbitrary state density. 
-The lambda must take the energy and return the density as a real number.
-The [`fermi_dirac`](@ref) and [`bose_einstein`](@ref) helper functions will generate such lambdas for the respective statistics.
-
-```@repl env
-PT = projector(E -> 1 / (exp(E) + 1), sp)
-PT = projector(fermi_dirac(0, 1), sp)   # The same thing
+```julia
+P = projector(E -> E < 0, dg)
+P = projector(diag_filled)              # The same thing
+P = densitymatrix(dg, μ = 0, T = 0)     # The same thing
+P = densitymatrix(dg)                   # The same thing
 ```
 
 !!! warning
-    The [`spectrum`](@ref) function finds the eigenvalues and eigenvectors using `LinearAlgebra.eigen`.
+    The [`diagonalize`](@ref) function finds the eigenvalues and eigenvectors using `LinearAlgebra.eigen`.
     You will probably have to define it for array types that do not support default `LinearAlgebra` routines.
 
-One more thing you can do with `Spectrum`s is finding the density of states (DOS) and the local density of states (LDOS). 
+One more thing you can do with `Eigensystem`s is finding the density of states (DOS) and the local density of states (LDOS). 
 The DOS is the imaginary part of $\text{tr}\left(\frac{1}{\hat{H} - E - i\delta}\right)$ operator, whereas the LDOS is its partial trace.
 
-It's highly recommended to use the built-in [`dos`](@ref) and [`ldos`](@ref) functions, because the `Spectrum` object stores the $\hat{H}$ operator already diagonalized, which makes calculations much faster.
+It's highly recommended to use the built-in [`dos`](@ref) and [`ldos`](@ref) functions, because the `Eigensystem` object stores the $\hat{H}$ operator already diagonalized, which makes calculations much faster.
 
 ```@example env
 using Plots

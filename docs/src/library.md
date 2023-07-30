@@ -4,32 +4,25 @@
 Modules = [LatticeModels]
 ```
 
-## Lattice creation
+## Lattice system
 
 ```@autodocs
 Modules = [LatticeModels]
-Pages   = ["lattice.jl"]
+Pages   = ["core/lattice.jl", "core/sample.jl"]
 ```
 
 ## Lattice values
 
 ```@autodocs
 Modules = [LatticeModels]
-Pages   = ["lattice_value.jl"]
+Pages   = ["core/lattice_value.jl"]
 ```
 
-## Lattice arrays
+## Bonds
 
 ```@autodocs
 Modules = [LatticeModels]
-Pages   = ["lattice_array.jl", "lattice_basis.jl"]
-```
-
-## Hoppings
-
-```@autodocs
-Modules = [LatticeModels]
-Pages   = ["hoppings.jl"]
+Pages   = ["core/bonds.jl"]
 ```
 
 ## Magnetic fields
@@ -39,11 +32,11 @@ Modules = [LatticeModels]
 Pages   = ["field.jl"]
 ```
 
-## Hamiltonian tools
+## Operators
 
 ```@autodocs
 Modules = [LatticeModels]
-Pages   = ["hamiltonian.jl"]
+Pages   = ["operators_core.jl", "operators_build.jl", "operators_manybody.jl"]
 ```
 
 ## Currents
@@ -60,11 +53,11 @@ Modules = [LatticeModels]
 Pages   = ["evolution.jl"]
 ```
 
-## Value records
+## Time sequences
 
 ```@autodocs
 Modules = [LatticeModels]
-Pages   = ["record.jl"]
+Pages   = ["time_sequence.jl"]
 ```
 
 ## Model zoo

@@ -1,16 +1,19 @@
-## `PairSelector` API
+!!! danger "Outdated docs"
+    This part of the documentation is outdated and does not refer to the current functionality of the package.
 
-A PairSelector, as described in the [Pair selectors](@ref Pair-selectors) paragraph, is a lambda-like object. 
+## `AbstractGraph` API
+
+A AbstractGraph, as described in the [Pair selectors](@ref Pair-selectors) paragraph, is a lambda-like object. 
 Actually, everything that differs is a built-in sanity check algorithm ensuring that the lattice it is used on is a subset of the lattice it was defined on.
 
-To implement this interface, you must inherit the `LatticeModels.AbstractPairSelector` class and define two methods:
+To implement this interface, you must inherit the `LatticeModels.AbstractGraph` class and define two methods:
 - `LatticeModels.lattice(::YourSelector)` must return the lattice your selector was defined on.
 - `LatticeModels.match(::YourSelector, site1::LatticeSite, site2::LatticeSite)` must return whether the `(site1, site2)` pair is *selected*.
 
 Let's take a look at the built-in `DomainsSelector`:
 
 ```julia
-struct DomainsSelector <: LatticeModels.AbstractPairSelector
+struct DomainsSelector <: LatticeModels.AbstractAbstractGraph
     domains::LatticeValue
 end
 LatticeModels.lattice(ps::DomainsSelector) = lattice(ps.domains)
@@ -18,13 +21,13 @@ LatticeModels.match(ps::DomainsSelector, site1::LatticeSite, site2::LatticeSite)
     ps.domains[site1] == ps.domains[site2]
 ```
 
-It's quite likely though that the built-in `PairSelector`s will cover all your needs:
+It's quite likely though that the built-in `AbstractGraph`s will cover all your needs:
 - [`DomainsSelector`](@ref) can split your lattice into different domains: pass a `LatticeValue` and the pair will be *selected*
   only if the values on both sites match.
 - [`PairLhsGraph`](@ref) takes a boolean-typed `LatticeValue` and *selects* a site pair only if the value on the first site of the pair is true. Can be useful for creating a slit in the lattice sample.
 - [`PairRhsGraph`](@ref) is the same as previous, but selects pairs by the second site of the pair.
 - [`PairSet`](@ref LatticeModels.PairSet) is an arbitrary set of site pairs - you can generate one by yourself or use the [`bonds`](@ref) function.
-- You may also find the [`pairs_by_distance`](@ref) function useful: it is not a `PairSelector` because it is lattice-independent, but you may find it convenient if you want to *select* site pairs depending on the distance between the sites in the pair.
+- You may also find the [`pairs_by_distance`](@ref) function useful: it is not a `AbstractGraph` because it is lattice-independent, but you may find it convenient if you want to *select* site pairs depending on the distance between the sites in the pair.
 
 ## Custom magnetic fields
 

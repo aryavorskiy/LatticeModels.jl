@@ -8,9 +8,9 @@ This package provides a set of tools to simulate different quantum lattice syste
 
 ## Installation
 
-```jldoctest
-julia> # type ] in REPL to enter pkg mode; then type the following command
-pkg> add https://github.com/aryavorskiy/LatticeModels.jl
+Paste the following line into the Julia REPL:
+```
+]add https://github.com/aryavorskiy/LatticeModels.jl
 ```
 or
 ```julia
@@ -20,25 +20,22 @@ import Pkg; Pkg.add(url="https://github.com/aryavorskiy/LatticeModels.jl")
 ## Sample workflow
 
 ```julia
-using LatticeModels
-using Plots
+using LatticeModels, Plots
 
 # First create a lattice
 l = SquareLattice(10, 10)
 
-# Define a tight-binding model hamiltonian with a flux field through point (0, 0)
-h(B) = TightBinding(l, field=FluxField(B))
-
-# Calculate eigenvalues and eigenvectors
-sp = spectrum(h(0))
+# Define a tight-binding model hamiltonian with a point flux field through point (5.5, 5.5)
+h(B) = tightbinding_hamiltonian(l, field=FluxField(B, (5.5, 5.5)))
 
 # Find density matrix for filled bands (e. g. with energy < 0)
-P_0 = filled_projector(sp)
+P_0 = densitymatrix(h(0))
 
 # Perform unitary evolution
 τ = 10
 a = Animation()
 @evolution {
+    # Turn on the magnetic field adiabatically
     H := h(0.1 * min(t, τ) / τ)
     P_0 --> H --> P
 } for t in 0:0.1:2τ

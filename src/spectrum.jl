@@ -71,13 +71,13 @@ $$\hat{\mathcal{P}} = \sum_i |\psi_i⟩⟨\psi_i|$$
 projector(eig::AbstractEigensystem) = Operator(eig.basis, eig.states * eig.states')
 
 @doc raw"""
-    apply_to_eigenvalues(f, eig::Eigensystem)
+    projector(f, eig::Eigensystem)
 
 Returns an `Operator` representing a function applied to the diagonalized operator defined by the formula below:
 
 $$\hat{\mathcal{P}} = \sum_i f(A_i) |\psi_i⟩⟨\psi_i|$$
 """
-function apply_to_eigenvalues(f, eig::AbstractEigensystem)
+function projector(f, eig::AbstractEigensystem)
     Operator(eig.basis, eig.states * (f.(eig.values) .* eig.states'))
 end
 
@@ -94,7 +94,7 @@ The `statistics` Keyword sets the probability distribution .`OneParticle` means 
 Note that if `eig` is a diagonalized `Hamiltonian`, the `μ` and `statistics` parameters are inserted automatically.
 """
 function densitymatrix(eig::Eigensystem; μ::Real=0, T::Real=0, statistics::ParticleStatistics=FermiDirac)
-    apply_to_eigenvalues(eig) do E
+    projector(eig) do E
         (E - μ == T == 0) ? 1. : 1 / (exp((E - μ) / T) + Int(statistics))
     end
 end

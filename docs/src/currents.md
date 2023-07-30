@@ -9,13 +9,8 @@ using LatticeModels, Plots
 
 ```@example env
 l = SquareLattice(10, 10)
-H = @hamiltonian begin   
-    lattice := l
-    @hop axis = 1
-    @hop axis = 2
-    field := FluxField(1, (5.5, 5.5))
-end
-P = filled_projector(spectrum(H), -0.5)
+H = tightbinding_hamiltonian(l, field = FluxField(1, (5.5, 5.5)))
+P = densitymatrix(diagonalize(H), μ = -0.5)
 
 curr = DensityCurrents(H, P)                    # Create Currents object
 heatmap(site_density(P))
