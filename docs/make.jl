@@ -14,15 +14,15 @@ makedocs(
     format = format,
     pages = [
         "Home" => "index.md",
-        "Tutorial" => [
+        "Tutorial" => "tutorial.md",
+        "Advanced options" => [
             "Defining a lattice" => "lattice.md",
             "Lattice values" => "lattice_values.md",
-            "Lattice arrays" => "lattice_arrays.md",
-            "Hamiltonian generation" => "hamiltonian.md",
+            "Operators" => "operators.md",
             "Currents" => "currents.md",
             "Unitary evolution" => "evolution.md"
         ],
-        "Advanced options" => "advanced.md",
+        "Internals" => "internals.md",
         "Library" => "library.md"
     ]
 )

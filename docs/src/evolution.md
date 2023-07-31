@@ -8,7 +8,7 @@ $$\mathcal{U}(t) = T\left\{ e^{\frac{1}{i\hbar} \int_{t_0}^t \hat{H}(\tau) d\tau
 This macro can be quite useful if your hamiltonian depends on time or if there are multiple hamiltonians in your experiment.
 It avoids excessive computation in several cases automatically:
 - If the hamiltonian does not change, the $\mathcal{U}(t, dt)$ operator will not be re-evaluated.
-- If several wave functions or density matrices evolve using the same hamiltonian, neither the hamiltonian nor the evolution operator matrix will be re-evaluated.
+- If several wavefunctions or density matrices evolve using the same hamiltonian, neither the hamiltonian nor the evolution operator matrix will be re-evaluated.
 
 Let us define a function that generates a Chern insulator hamiltonian:
 
@@ -26,7 +26,7 @@ end
 nothing # hide
 ```
 
-The [`@evolution`](@ref) macro creates a scope where the hamiltonian and wave functions (or density matrices) are evaluated for the given time interval. 
+The [`@evolution`](@ref) macro creates a scope where the hamiltonian and wavefunctions (or density matrices) are evaluated for the given time interval. 
 It takes two arguments: a braced list with evolution specifiers and a for-loop that iterates over the time interval:
 
 ```@example env
@@ -34,7 +34,7 @@ l = SquareLattice(10, 10)
 τ = 30
 a = Animation()
 B = 0.01
-P0 = filled_projector(spectrum(Chern(l, 0)))
+P0 = densitymatrix(diagonalize(qwz(l, 0)))
 
 @evolution {
     H := Chern(l, B * min(t, τ) / τ),
@@ -95,16 +95,16 @@ Keyword assignments should be placed before the rules list:
 @evolution k=2 rtol=1e-6 show_progress=false {...} for t in ...
 ```
 
-## Lattice records
+## Time sequences
 
-A `LatticeRecord` is a struct that stores information about how some value of storable type (only `LatticeValue`, `LatticeArray` or `MaterializedCurrents` are **storable**) changed during time. It simplifies working with time-dependent values by allowing you to run the computation pass only once and re-evaluate all visualization code as much as you want.
+A `TimeSequence` is a struct that stores information about how some value changed during time. It simplifies working with time-dependent values by allowing you to run the computation pass only once and re-evaluate all processing and visualization code as much as you want.
 
 Here is an example:
 
 ```@example env
-P0 = filled_projector(spectrum(Chern(l, 0)))
-density_rec = LatticeValueRecord(l)
-deriv_rec = LatticeValueRecord(l)
+P0 = densitymatrix(diagonalize(qwz(l)))
+density_rec = TimeSequence()
+deriv_rec = TimeSequence()
 
 @evolution {
     H := Chern(l, B * min(t, τ) / τ),
@@ -119,15 +119,17 @@ p = plot(layout=(2,1))
 plot!(p[1], density_rec[site], lab="p")
 
 # Compare computed time derivative with Heisenberg equation
-plot!(p[2], diff(density_rec)[site], lw=5, alpha=0.3, lab="dp/dt")
-plot!(p[2], deriv_rec[site], lab="Heisenberg") 
+plot!(p[2], differentiate(density_rec[site]), lw=5, alpha=0.3, lab="dp/dt")
+plot!(p[2], deriv_rec[site], lab="Heisenberg")
 ```
 
-Note that `LatticeRecord`s support two kinds of indexing:
+### Indexing and iteration
+
+`TimeSequence`s support two kinds of indexing:
 
 - Calling the record with a numeric value selects the time and returns the object in nearest snapshot. 
-  Calling it with two numeric values yields a new `LatticeRecord` with all timestamps between given values.
-- Indexing it with square brackets will apply this index to all snapshots. The output will be a `LatticeRecord` if the results of the indexing will be storable; otherwise a `time => value` dictionary will be returned.
+  Calling it with two numeric values yields a new `TimeSequence` with all timestamps between given values.
+- Indexing it with square brackets will apply this index to all snapshots. The output will also be a `TimeSequence`.
 
 Let's see how it works:
 
@@ -139,3 +141,23 @@ plot!(p[2], density_rec[l[25]])                     # The value on the 25-th sit
 typeof(density_rec[l[25]])                          # Dict{Float64, Float64}
 plot!(p[3], (density_rec(15, 25) |> diff)[l[25]])   # Derivative of the value by time where 15 ≤ t ≤ 25
 ```
+
+Note that `TimeSequence` impements the `AbstractDict` and therefore is iterable. The iterator yields `timestamp => value` pairs:
+
+```julia
+for (t, P) in density_rec
+    # Do what you need with t, P
+end
+```
+
+### Differentiation and integration
+
+You can also automatically differentiate and integrate the `TimeSequence` with [`differentiate`](@ref) and [`integrate`](@ref) functions (or their in-place alternatives [`differentiate!`](@ref) and [`integrate!`](@ref)). However, the type of the stored values must implement the following methods:
+- `Base.copy`: the non in-place methods simply call their in-place versions on a copy of the original TimeSequence.
+- `Base.zero`: this function will be called before integrating.
+- `LinearAlgebra.axpby!` to implement basic in-place math.
+
+Still, types in this library (`LatticeValue`, `LatticeArray`, `MaterializedCurrents`), numbers and arrays are compatible with differentiation and integration out of the box.
+
+!!! warning
+    Integrating or differentiating may produce unexpected results or crash if applied to a `TimeSequence` with elements of different type or defined on a different [`Lattice`](@ref)/[`Basis`](@ref). **Lattice or basis match is not checked when constructing a `TimeSequence`!**

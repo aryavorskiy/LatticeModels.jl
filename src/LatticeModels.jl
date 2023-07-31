@@ -1,44 +1,59 @@
 module LatticeModels
 
-include("utils.jl")
-include("lattice.jl")
-export Bravais, LatticeSite, Lattice, dims, sublattice, site_index, site_distance
+using Reexport
+@reexport using QuantumOpticsBase
+@reexport using IntervalSets
 
-include("lattice_value.jl")
+include("core/utils.jl")
+include("core/lattice_site.jl")
+include("core/lattice.jl")
+export Lattice, sublattice, site_index, site_distance
+
+include("core/lattice_value.jl")
 export LatticeValue, coord_values, project
 
-include("lattice_array.jl")
-include("lattice_basis.jl")
-export LatticeArray, LatticeOperator, Basis, ⊗, lattice, basis, dims_internal,
-    diag_operator, coord_operators, diag_reduce, ptrace, site_density, @on_lattice
+include("core/field.jl")
+export @field_def, NoField, MagneticField
 
-include("field.jl")
-export @field_def, AbstractField, apply_field!, NoField
+include("core/sample.jl")
+export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions, System,
+    FermiDirac, BoseEinstein, @increment
 
-include("hoppings.jl")
-export hopping, hopping_operator,
-    DomainsSelector, PairLhsSelector, PairRhsSelector,
-    bonds, is_adjacent, @hopping_operator
+include("core/bonds.jl")
+export SiteOffset, Bonds
 
-include("hamiltonian.jl")
-export @hamiltonian, Spectrum, spectrum, eigvals, eigvecs, projector, filled_projector,
-    fermi_dirac, bose_einstein, dos, ldos
+include("core/adjacency.jl")
+export Domains, PairLhsGraph, PairRhsGraph
+
+include("operators_core.jl")
+export LatticeBasis
+include("operators_build.jl")
+export hoppings, tightbinding_hamiltonian, build_hamiltonian, OperatorBuilder, to_operator
+include("operators_manybody.jl")
+export interaction
+include("operators_utils.jl")
+export coord_operators, coord, site_density, diag_reduce, adjacency_matrix, apply_field!
+
+include("spectrum.jl")
+export Eigensystem, diagonalize, projector, densitymatrix, dos, ldos
 
 include("evolution.jl")
 export @evolution
 
 include("currents.jl")
-export AbstractCurrents, materialize, current_lambda, lattice, pairs_by_distance, map_currents
+export AbstractCurrents, materialize, currents_from, currents_from_to, pairs_by_distance, map_currents
 
-include("record.jl")
-export init_record, integrate, time_domain,
-    LatticeRecord, LatticeValueRecord, LatticeArrayRecord, CurrentsRecord
+include("time_sequence.jl")
+export init_record, integrate, integrate!, differentiate, differentiate!, time_domain,
+    TimeSequence
 
 include("zoo.jl")
 export SquareLattice, HoneycombLattice,
     LandauField, SymmetricField, FluxField,
-    TightBinding, SpinTightBinding, Haldane,
+    qwz, haldane,
     DensityCurrents
+
+include("plot_recipes.jl")
 
 include("precompile.jl")
 _precompile_()

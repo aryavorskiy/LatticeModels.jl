@@ -9,13 +9,8 @@ using LatticeModels, Plots
 
 ```@example env
 l = SquareLattice(10, 10)
-H = @hamiltonian begin   
-    lattice := l
-    @hop axis = 1
-    @hop axis = 2
-    field := FluxField(1, (5.5, 5.5))
-end
-P = filled_projector(spectrum(H), -0.5)
+H = tightbinding_hamiltonian(l, field = FluxField(1, (5.5, 5.5)))
+P = densitymatrix(diagonalize(H), μ = -0.5)
 
 curr = DensityCurrents(H, P)                    # Create Currents object
 heatmap(site_density(P))
@@ -42,11 +37,11 @@ Here all currents **between** sites in the upper-left coordinate triangle are ma
 It is quite likely that you might want to define your own type of currents. All you need to do is inherit the `AbstractCurrents` type and define two functions:
 
 - `lattice(::MyCurrents)` must return the lattice which the currents are defined on
-- `currents_lambda(::MyCurrents)` must return a lambda which takes two integer site indices and returns the current between these two sites. Note that the function must be skew-symmetric, e. g. `curr_lambda(i, j) == -curr_lambda(j, i)`.
+- `Base.getindex(::MyCurrents, i::Int, j::Int)` must return the current between sites with indices `i` and `j`. Note that the function must be skew-symmetric, e. g. `curr[i, j] == -curr[j, i]`.
 
 ## Materialized currents
 
-An `AbstractCurrents` is a lazy object. This allows to avoid excessive computation, but the computations that are needed will be repeated every time when we use that object. That's where the `MaterializedCurrents` come in, having all their values stored explicitly in an array.
+An `AbstractCurrents` is a lazy object. This allows to avoid excessive computation of site-to-site currents, but the computations that are needed will be repeated every time when we access that object; also abstract currents cannot be normally stored into a `TimeSequence` (more precisely, you won't be able to differentiate or integrate such currents over time). That's where the `MaterializedCurrents` come in, having all their values stored explicitly in an array.
 
 To convert any type of currents to `MaterializedCurrents`, simply use the [`materialize`](@ref) function. You can avoid evaluating some currents (for example, if you know beforehand that they must be zero) by passing a lambda as a first argument (or with `do`-syntax): it must take the `Lattice` and two `LatticeSite`s and return whether the current between these sites must be evaluated.
 

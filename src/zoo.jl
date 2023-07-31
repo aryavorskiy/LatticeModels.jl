@@ -1,3 +1,5 @@
+import QuantumOpticsBase: check_samebases
+
 ############
 # Lattices #
 ############
@@ -16,18 +18,9 @@ function SquareLattice{N}(sz::Vararg{Int,N}) where {N}
     eye = SMatrix{N,N}(I)
     Lattice(:square, sz, Bravais(eye))
 end
-
-@recipe function f(lv::PlottableLatticeValue{:square})
-    seriestype --> :heatmap
-    if plotattributes[:seriestype] === :heatmap
-        aspect_ratio := :equal
-        axes_lims = [1:ax for ax in size(lattice(lv))]
-        heatmap_values = reshape(macro_cell_values(lv), reverse(size(lattice(lv))))'
-        axes_lims..., heatmap_values
-    else
-        plot_fallback(lv)
-    end
-end
+default_bonds(::SquareLattice{N}) where {N} = Tuple(SiteOffset(axis=i) for i in 1:N)
+default_nnbonds(::SquareLattice{N}) where {N} = Tuple(SiteOffset(one_hot(i, Val(N)) + k * one_hot(j, Val(N))) for i in 1:N for j in 1:i-1 for k in (-1, 1))
+default_nnnbonds(::SquareLattice{N}) where {N} = Tuple(SiteOffset(axis=i, dist=2) for i in 1:N)
 
 """
     HoneycombLattice
@@ -36,23 +29,29 @@ Type alias for `Lattice{:honeycomb,2,2}`.
 ---
     HoneycombLattice(sz::Vararg{Int, 2})
 
-Constructs a honeycomb lattice with a `sz`-size macro cell.
+Constructs a honeycomb lattice with a `sz`-size macrocell.
 """
 const HoneycombLattice = Lattice{:honeycomb,2,2}
 function HoneycombLattice(sz::Vararg{Int, 2})
     bvs = Bravais([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])
     Lattice(:honeycomb, sz, bvs)
 end
+default_bonds(::HoneycombLattice) = (SiteOffset(2 => 1), SiteOffset(2 => 1, axis=1), SiteOffset(2 => 1, axis=2))
+default_nnbonds(::HoneycombLattice) = (
+    SiteOffset(1 => 1, axis = 1),
+    SiteOffset(2 => 2, axis = 1, dist=-1),
+    SiteOffset(1 => 1, axis = 2, dist=-1),
+    SiteOffset(2 => 2, axis = 2),
+    SiteOffset(1 => 1, [-1, 1]),
+    SiteOffset(2 => 2, [1, -1]))
+default_nnnbonds(::HoneycombLattice) = (
+    SiteOffset(2 => 1, SA[1, 1]),
+    SiteOffset(2 => 1, SA[1, -1]),
+    SiteOffset(2 => 1, SA[-1, 1]))
 
 ##########
 # Fields #
 ##########
-
-@field_def struct LandauField(B::Number)
-    vector_potential(x) = (0, x*B)
-    path_integral(p1, p2) = ((p1[1] + p2[1]) / 2) * (p2[2] - p1[2]) * B
-    show(io::IO, ::MIME"text/plain") = print(io, "Landau calibration field; B = $B flux quanta per 1×1 plaquette")
-end
 """
     LandauField <: AbstractField
 
@@ -60,13 +59,13 @@ An object representing Landau calibrated uniform magnetic field along z-axis.
 Fields:
 - `B`: The magnetic field value
 """
-LandauField
-
-@field_def struct SymmetricField(B::Number)
-    vector_potential(x, y) = SA[-y, x] * B / 2
-    path_integral(p1, p2) = (p1[1] * p2[2] - p2[1] * p1[2]) / 2 * B
-    show(io::IO, ::MIME"text/plain") = print(io, "Symmetric calibration field; B = $B flux quanta per 1×1 plaquette")
+struct LandauField <: AbstractField
+    B::Float64
 end
+vector_potential(field::LandauField, p1) = (0, p1[1] * field.B)
+line_integral(field::LandauField, p1, p2) = ((p1[1] + p2[1]) / 2) * (p2[2] - p1[2]) * field.B
+Base.show(io::IO, ::MIME"text/plain", field::LandauField) = print(io, "Landau calibration field; B = $(field.B) flux quanta per 1×1 plaquette")
+
 """
     SymmetricField <: AbstractField
 
@@ -74,25 +73,13 @@ An object representing symmetrically calibrated uniform magnetic field along z-a
 Fields:
 - `B`: The magnetic field value
 """
-SymmetricField
-
-_angle(p1, p2) = asin((1.0 - 1e-11) * det(hcat(p1, p2)) / norm(p1) / norm(p2))
-@field_def struct FluxField(B::Number, P::NTuple{2,Number} = (0, 0))
-    function vector_potential(x, y)
-        norm = (x^2 + y^2)
-        (-y / norm * B, x / norm * B)
-    end
-    function path_integral(p1, p2)
-        Pv = SVector(P)
-        p1 = p1[1:2] - Pv
-        p2 = p2[1:2] - Pv
-        if iszero(p1) || iszero(p2)
-            return 0.0
-        end
-        _angle(p1, p2) * B
-    end
-    show(io::IO, ::MIME"text/plain") = print(io, "Delta flux field through point $P; B = $B flux quanta")
+struct SymmetricField <: AbstractField
+    B::Float64
 end
+vector_potential(field::SymmetricField, p1) = SA[-p1[2], p1[1]] * field.B / 2
+line_integral(field::SymmetricField, p1, p2) = (p1[1] * p2[2] - p2[1] * p1[2]) / 2 * field.B
+Base.show(io::IO, ::MIME"text/plain", field::SymmetricField) = print(io, "Symmetric calibration field; B = $(field.B) flux quanta per 1×1 plaquette")
+
 """
     FluxField <: AbstractField
 
@@ -101,55 +88,34 @@ Fields:
 - `B`: The magnetic field value
 - `point`: A `NTuple{2, Number}` representing the point where the magnetic flux is located.
 """
-FluxField
+struct FluxField <: AbstractField
+    B::Float64
+    P::NTuple{2,Float64}
+    FluxField(B,P=(0,0)) = new(B, P)
+end
+function vector_potential(field::FluxField, p1)
+    (x, y) = p1
+    normsq = (x^2 + y^2)
+    SA[-y, x] / normsq * field.B
+end
+function line_integral(field::FluxField, p1, p2)
+    Pv = SVector(field.P)
+    p1 = p1[1:2] - Pv
+    p2 = p2[1:2] - Pv
+    if iszero(p1) || iszero(p2)
+        return 0.0
+    end
+    asin((1 - 1e-11) * det(hcat(p1, p2)) / norm(p1) / norm(p2)) * field.B
+end
+Base.show(io::IO, ::MIME"text/plain", field::FluxField) = print(io, "Delta flux field through point $(field.P); B = $(field.B) flux quanta")
 
 ################
 # Hamiltonians #
 ################
 
 @doc raw"""
-    TightBinding([f, ]l::Lattice[, field::AbstractField; pbc=false])
-
-$$\hat{H} = \sum_i^\text{sites} \sum_{\hat{r}}^{\text{bonds}} c_i^\dagger c_{i+\hat{r}} + h.c.{}$$
-
-Generates a tight-binding hamiltonian operator on given lattice `l` with set magnetic field and boundary conditions.
-`l` must be a `SquareLattice` or a `HoneycombLattice`.
-
-`f` here must be a function or a `PairSelector` describing which hoppings will be excluded.
-"""
-@generated function TightBinding(f, l::SquareLattice{N}; field=NoField(), pbc=false) where N
-    quote
-        @hamiltonian begin
-            lattice := l
-            dims_internal := 1
-            field := field
-            $([:(@hop axis=$i pbc=pbc 1 f) for i in 1:N]...)
-        end
-    end
-end
-TightBinding(f, l::HoneycombLattice; field=NoField(), pbc=false) =
-@hamiltonian begin
-    lattice := l
-    dims_internal := 1
-    field := field
-    @hop site_indices=(2,1) pbc=pbc 1 f
-    @hop site_indices=(2,1) axis=1 pbc=pbc 1 f
-    @hop site_indices=(2,1) axis=2 pbc=pbc 1 f
-end
-
-@doc raw"""
-    TightBinding([f, ]lv::LatticeValue[; field::AbstractField, pbc=false])
-
-Same as `TightBinding(f, lattice(lv))`, but adds a diagonal part
-$\sum_i^{sites} V_i c_i^\dagger c_i$ with $V_i$ set by `lv`.
-"""
-TightBinding(f, lv::LatticeValue{<:Number}; kw...) =
-    _diag_operator!(TightBinding(f, lattice(lv); kw...), lv)
-TightBinding(arg; kw...) = TightBinding(nothing, arg; kw...)
-
-@doc raw"""
-    SpinTightBinding([f, ]mv::LatticeValue[; field::AbstractField, pbc=false])
-    SpinTightBinding([f, ]l::SquareLattice[, m::Number=1; field::AbstractField, pbc=false])
+    qwz([f, ]mv::LatticeValue[; field::AbstractField, pbc=false])
+    qwz([f, ]l::SquareLattice[, m::Number=1; field::AbstractField, pbc=false])
 
 $$\hat{H} =
 \sum_i^\text{sites} m_i c^\dagger_i \sigma_z c_i +
@@ -158,37 +124,22 @@ c^\dagger_{i + \hat{x}} \frac{\sigma_z - i \sigma_x}{2} c_i +
 c^\dagger_{i + \hat{y}} \frac{\sigma_z - i \sigma_y}{2} c_i +
 h. c. \right)$$
 
-Generates a spin-orbital tight-binding hamiltonian operator with set magnetic field and boundary conditions.
+Generates a QWZ model hamiltonian operator with set magnetic field.
 If the ``m_i`` values are set by the `mv::LatticeValue`, which must be defined on a `SquareLattice`.
 Otherwise they will all be set to `m`.
 
 `f` here must be a function or a `PairSelector` describing which hoppings will be excluded.
 """
-SpinTightBinding(f, m::LatticeValue{<:Number, :square}; field=NoField(), pbc=false) =
-@hamiltonian begin
-    lattice := lattice(m)
-    dims_internal := 2
-    field := field
-    @diag m ⊗ [1 0; 0 -1]
-    @hop axis=1 [1 -im; -im -1] / 2 pbc=pbc f
-    @hop axis=2 [1 -1; 1 -1] / 2 pbc=pbc f
-end
-SpinTightBinding(f, l::SquareLattice, m::Number=1; field=NoField(), pbc=false) =
-@hamiltonian begin
-    lattice := l
-    dims_internal := 2
-    field := field
-    @diag [m 0; 0 -m]
-    @hop axis=1 [1 -im; -im -1] / 2 pbc=pbc f
-    @hop axis=2 [1 -1; 1 -1] / 2 pbc=pbc f
-end
-SpinTightBinding(f, l_sz::NTuple{N, Int}, m::Number=1; kw...) where N =
-    SpinTightBinding(f, SquareLattice(l_sz...), m; kw...)
-SpinTightBinding(args...; kw...) = SpinTightBinding(nothing, args...; kw...)
-SpinTightBinding(::Nothing, ::Nothing, args...; kw...) = throw(MethodError(SpinTightBinding, args))
+qwz(m::LatticeValue; kw...) = qwz(lattice(m), m; kw...)
+qwz(sample::Sample{<:Any, <:SquareLattice}, m=1; kw...) =
+    build_hamiltonian(sample,
+    [1 0; 0 -1] => m,
+    [1 -im; -im -1] / 2 => SiteOffset(axis = 1),
+    [1 -1; 1 -1] / 2 => SiteOffset(axis = 2); kw...)
+@accepts_lattice qwz SpinBasis(1//2)
 
 @doc raw"""
-    Haldane([f, ]l::HoneycombLattice, t1::Real, t2::Real[, m::Real=0; field::AbstractField])
+    haldane(l::HoneycombLattice, t1::Real, t2::Real[, m::Real=0; field::AbstractField])
 
 $$\hat{H} =
 \sum_i^\text{sublattice A} m c^\dagger_i c_i +
@@ -198,21 +149,19 @@ $$\hat{H} =
 
 Generates a Haldane topological insulator hamiltonian operator.
 """
-Haldane(l::HoneycombLattice, t1::Real, t2::Real, m::Real=0; field=NoField(), pbc=false) = @hamiltonian begin
-    lattice := l
-    dims_internal := 1
-    field := field
-    @diag (site) -> (site.basis_index == 1 ? m : -m)
-    @hop t1 site_indices=(2,1) pbc=pbc
-    @hop t1 site_indices=(2,1) axis=1 pbc=pbc
-    @hop t1 site_indices=(2,1) axis=2 pbc=pbc
-    @hop im * t2 axis=1 pbc=pbc
-    @hop -im * t2 site_indices=2 axis = 1 pbc=pbc
-    @hop -im * t2 axis=2 pbc=pbc
-    @hop im * t2 site_indices=2 axis = 2 pbc=pbc
-    @hop im * t2 translate_uc=[-1, 1] pbc=pbc
-    @hop -im * t2 site_indices=2 translate_uc=[-1, 1] pbc=pbc
-end
+haldane(sample::Sample{<:Any, <:HoneycombLattice}, t1::Real, t2::Real, m::Real=0; kw...) =
+    build_hamiltonian(sample,
+    (coord(lattice(sample), :index) * 2 - one(LatticeBasis(lattice(sample)))) * m,
+    t1 => SiteOffset(2 => 1),
+    t1 => SiteOffset(2 => 1, axis = 1),
+    t1 => SiteOffset(2 => 1, axis = 2),
+    im * t2 => SiteOffset(1 => 1, axis = 1),
+    im * t2 => SiteOffset(2 => 2, SA[-1, 0]),
+    im * t2 => SiteOffset(1 => 1, SA[0, -1]),
+    im * t2 => SiteOffset(2 => 2, axis = 2),
+    im * t2 => SiteOffset(1 => 1, SA[-1, 1]),
+    im * t2 => SiteOffset(2 => 2, SA[1, -1]); kw...)
+@accepts_lattice haldane
 
 ############
 # Currents #
@@ -223,21 +172,25 @@ DensityCurrents <: AbstractCurrents
 
 Density currents for given density matrix and given hamiltonian.
 """
-struct DensityCurrents <: AbstractCurrents
-    hamiltonian::LatticeOperator
-    density::LatticeOperator
+struct DensityCurrents{HT, DT} <: AbstractCurrents
+    hamiltonian::HT
+    density::DT
 
     """
         DensityCurrents(hamiltonian, density_mat)
 
     Constructs a `DensityCurrents` object for given `hamiltonian` and `density_mat`.
     """
-    function DensityCurrents(ham::LatticeOperator, dens::LatticeOperator)
-        check_basis_match(ham, dens)
-        new(ham, dens)
+    function DensityCurrents(ham::HT, dens::DT) where {HT<:AbstractLatticeOperator, DT<:AbstractLatticeOperator}
+        check_samebases(ham, dens)
+        new{HT, DT}(ham, dens)
     end
 end
 
-current_lambda(curr::DensityCurrents) =
-(i::Int, j::Int) -> 2imag(tr(curr.density[i, j] * curr.hamiltonian[j, i]))
-lattice(curr::DensityCurrents) = curr.hamiltonian.basis.lattice
+function Base.getindex(curr::DensityCurrents, i::Int, j::Int)
+    N = internal_length(curr.hamiltonian)
+    is = (i - 1) * N + 1: i * N
+    js = (j - 1) * N + 1: j * N
+    2imag(tr(curr.density.data[is, js] * curr.hamiltonian.data[js, is]))
+end
+lattice(curr::DensityCurrents) = lattice(curr.hamiltonian)

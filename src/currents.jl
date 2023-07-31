@@ -5,16 +5,9 @@ using LinearAlgebra
     AbstractCurrents
 
 Supertype for all type representing currents-like values on a lattice.
-Subtypes must implement `current_lambda` and `lattice` functions.
+Subtypes must implement `Base.getindex(::Int, ::Int)` and `lattice` functions.
 """
 abstract type AbstractCurrents end
-
-"""
-    current_lambda(::AbstractCurrents)
-
-Returns a function that takes two integer indices of sites in a lattice and returns the current between these two sites.
-"""
-current_lambda(curr::AbstractCurrents) = error("current_lambda(::$(typeof(curr))) must be explicitly implemented")
 
 """
     lattice(::AbstractCurrents)
@@ -23,10 +16,13 @@ Gets the lattice where the given `AbstractCurrents` object is defined.
 """
 lattice(curr::AbstractCurrents) = error("lattice(::$(typeof(curr))) must be explicitly implemented")
 
+Base.getindex(curr::AbstractCurrents, s1::LatticeSite, s2::LatticeSite) =
+    curr[site_index(lattice(curr), s1), site_index(lattice(curr), s2)]
+
 """
     SubCurrents{CT<:AbstractCurrents} <: AbstractCurrents
 
-A lazy wrapper for a `SubCurrents` object representing the same currents but on a smaller lattice.
+A lazy wrapper for a `Currents` object representing the same currents but on a smaller lattice.
 """
 struct SubCurrents{CT} <: AbstractCurrents
     parent_currents::CT
@@ -43,10 +39,7 @@ struct SubCurrents{CT} <: AbstractCurrents
     end
 end
 
-function current_lambda(scurr::SubCurrents)
-    in_fn = current_lambda(scurr.parent_currents)
-    (i::Int, j::Int) -> in_fn(scurr.indices[i], scurr.indices[j])
-end
+Base.getindex(scurr::SubCurrents, i::Int, j::Int) = scurr.parent_currents[scurr.indices[i], scurr.indices[j]]
 lattice(scurr::SubCurrents) = scurr.lattice
 
 """
@@ -66,34 +59,39 @@ end
 MaterializedCurrents(l::Lattice) =
     MaterializedCurrents(l, zeros(length(l), length(l)))
 
+Base.convert(::Type{MaterializedCurrents}, curr::AbstractCurrents) = materialize(curr)
+Base.copy(mc::MaterializedCurrents) = MaterializedCurrents(lattice(mc), copy(mc.currents))
+Base.zero(mc::MaterializedCurrents) = MaterializedCurrents(lattice(mc), zero(mc.currents))
 lattice(mcurr::MaterializedCurrents) = mcurr.lattice
-current_lambda(mcurr::MaterializedCurrents) = (i::Int, j::Int) -> mcurr.currents[i, j]
 
-function getindex(curr::AbstractCurrents, lvm::LatticeValue{Bool})
+Base.getindex(mcurr::MaterializedCurrents, i::Int, j::Int) = mcurr.currents[i, j]
+function Base.getindex(curr::AbstractCurrents, lvm::LatticeValue{Bool})
     check_lattice_match(curr, lvm)
     indices = findall(lvm.values)
     SubCurrents(curr, indices)
 end
 
-function getindex(curr::MaterializedCurrents, lvm::LatticeValue{Bool})
+function Base.getindex(curr::MaterializedCurrents, lvm::LatticeValue{Bool})
     check_lattice_match(curr, lvm)
     indices = findall(lvm.values)
     MaterializedCurrents(curr.lattice[lvm], curr.currents[indices, indices])
 end
 
-function _get_currvars(curr::AbstractCurrents, l::Lattice, i::Int)
-    curr_fn = current_lambda(curr)
-    Float64[curr_fn(i, j) for j in 1:length(l)]
+function _site_indices(l::Lattice, l2::Lattice)
+    check_is_sublattice(l, l2)
+    [site_index(l, site) for site in l2]
 end
-_get_currvars(curr::MaterializedCurrents, ::Lattice, i::Int) =
-    vec(curr.currents[i, :])
-function getindex(curr::AbstractCurrents, site::LatticeSite)
+_site_indices(l::Lattice, site::LatticeSite) = (site_index(l, site),)
+function currents_from(curr::AbstractCurrents, src)
     l = lattice(curr)
-    i = site_index(l, site)
-    i === nothing && throw(BoundsError(curr, site))
-    curr_vars = _get_currvars(curr, l, i)
-    curr_vars[i] = NaN
-    LatticeValue(l, curr_vars)
+    is = _site_indices(l, src)
+    LatticeValue(l, Float64[j in is ? 0 : sum(curr[i, j] for i in is) for j in eachindex(l)])
+end
+function currents_from_to(curr::AbstractCurrents, src, dst=nothing)
+    l = lattice(curr)
+    is = _site_indices(l, src)
+    js = dst === nothing ? setdiff(eachindex(l), is) : _site_indices(l, dst)
+    sum(curr[i, j] for i in is, j in js)
 end
 
 for f in (:+, :-)
@@ -118,22 +116,20 @@ This can be useful to avoid exsessive calculations.
 function materialize(curr::AbstractCurrents)
     l = lattice(curr)
     m = MaterializedCurrents(l)
-    curr_fn = current_lambda(curr)
     for i in 1:length(l), j in 1:i-1
-        ij_curr = curr_fn(i, j)
+        ij_curr = curr[i, j]
         m.currents[i, j] = ij_curr
         m.currents[j, i] = -ij_curr
     end
     m
 end
 
-function materialize(f::Function, curr::AbstractCurrents)
+function materialize(selector, curr::AbstractCurrents)
     l = lattice(curr)
     m = MaterializedCurrents(l)
-    curr_fn = current_lambda(curr)
     for i in 1:length(l), j in 1:i-1
-        !f(l, l[i], l[j]) && continue
-        ij_curr = curr_fn(i, j)
+        !_get_bool_value(selector, l, l[i], l[j]) && continue
+        ij_curr = curr[i, j]
         m.currents[i, j] = ij_curr
         m.currents[j, i] = -ij_curr
     end
@@ -164,15 +160,14 @@ For example, if `aggr_fn=(x -> mean(abs.(x)))`, and `map_fn` finds the distance 
 the returned lists will store the distance between sites and the average absolute current between sites with such distance.
 - `sort`: if true, the output arrays will be sorted by mapped value.
 """
-function map_currents(f::Function, curr::AbstractCurrents; reduce_fn::Union{Nothing, Function}=nothing, sort::Bool=false)
+function map_currents(f::Function, curr::AbstractCurrents; reduce_fn::Nullable{Function}=nothing, sort::Bool=false)
     l = lattice(curr)
-    curr_fn = current_lambda(curr)
     cs = Float64[]
     ms = only(Base.return_types(f, (Lattice, LatticeSite, LatticeSite)))[]
     for (i, site1) in enumerate(l)
         for (j, site2) in enumerate(l)
             if site1 > site2
-                push!(cs, curr_fn(i, j))
+                push!(cs, curr[i, j])
                 push!(ms, f(l, site1, site2))
             else
                 break
@@ -180,46 +175,18 @@ function map_currents(f::Function, curr::AbstractCurrents; reduce_fn::Union{Noth
         end
     end
     if reduce_fn !== nothing
-        ms_set = collect(Set(ms))
+        ms_set = unique(ms)
         cs = [reduce_fn(cs[ms .== m]) for m in ms_set]
         ms = ms_set
     end
     if sort
         perm = sortperm(ms)
-        ms = ms[perm]
-        cs = cs[perm]
+        permute!(ms, perm)
+        permute!(cs, perm)
     end
     if eltype(cs) <: Vector
         ms, transpose(hcat(cs...))
     else
         ms, cs
     end
-end
-
-@recipe function f(curr::AbstractCurrents)
-    l = lattice(curr)
-    dims(l) != 2 && error("2D lattice expected")
-    Xs = Float64[]
-    Ys = Float64[]
-    Qs = NTuple{2,Float64}[]
-    curr_fn = current_lambda(curr)
-    arrows_scale --> 1
-    arrows_rtol --> 1e-2
-    seriestype := :quiver
-    for (i, site1) in enumerate(l)
-        for (j, site2) in enumerate(l)
-            j ≥ i && continue
-            ij_curr = curr_fn(i, j)::Real
-            crd = ij_curr > 0 ? site1.coords : site2.coords
-            vc = radius_vector(l, site2, site1)
-            vc_n = norm(vc)
-            if vc_n < abs(ij_curr * plotattributes[:arrows_scale] / plotattributes[:arrows_rtol])
-                push!(Xs, crd[1])
-                push!(Ys, crd[2])
-                push!(Qs, Tuple(vc * (ij_curr * plotattributes[:arrows_scale] / vc_n)))
-            end
-        end
-    end
-    quiver := Qs
-    Xs, Ys
 end
