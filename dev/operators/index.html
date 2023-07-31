@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Operators · LatticeModels.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script><link href="../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.svg" alt="LatticeModels.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../">LatticeModels.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../tutorial/">Tutorial</a></li><li><span class="tocitem">Advanced options</span><ul><li><a class="tocitem" href="../lattice/">Defining a lattice</a></li><li><a class="tocitem" href="../lattice_values/">Lattice values</a></li><li class="is-active"><a class="tocitem" href>Operators</a><ul class="internal"><li><a class="tocitem" href="#Hamiltonian-macro"><span>Hamiltonian macro</span></a></li><li><a class="tocitem" href="#Operator-spectrum-utilities"><span>Operator spectrum utilities</span></a></li></ul></li><li><a class="tocitem" href="../currents/">Currents</a></li><li><a class="tocitem" href="../evolution/">Unitary evolution</a></li></ul></li><li><a class="tocitem" href="../internals/">Internals</a></li><li><a class="tocitem" href="../library/">Library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Advanced options</a></li><li class="is-active"><a href>Operators</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Operators</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/aryavorskiy/LatticeModels.jl/blob/master/docs/src/operators.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><div class="admonition is-danger"><header class="admonition-header">Outdated docs</header><div class="admonition-body"><p>This part of the documentation is outdated and does not refer to the current functionality of the package.</p></div></div><h2 id="Hamiltonian-macro"><a class="docs-heading-anchor" href="#Hamiltonian-macro">Hamiltonian macro</a><a id="Hamiltonian-macro-1"></a><a class="docs-heading-anchor-permalink" href="#Hamiltonian-macro" title="Permalink"></a></h2><p>A hamiltonian operator usually consists of a <a href="@ref Diagonal-operators">diagonal part</a> and a <a href="@ref Hopping-operators">hopping part</a>.  Sometimes a magnetic field is applied, in which case additional phase factors emerge according to <a href="https://en.wikipedia.org/wiki/Peierls_substitution">Peierls substitution</a>. </p><p>Taking all this into account, the operator will now look something like this:</p><p class="math-container">\[\hat{H} = 
+\sum_i^\text{sites} \hat{s}_i \hat{c}^\dagger_i \hat{c}_i + \left( \sum_{i, j}^\text{adjacent} \hat{t}_{ij} \hat{c}^\dagger_j \hat{c}_i
+\cdot e^{\frac{2\pi i}{\phi_0} \int_{r_i}^{r_j} \overrightarrow{A} \cdot \overrightarrow{dl}} + h. c. \right)\]</p><p>Such an operator can be easily constructed using the <a href="@ref"><code>@hamiltonian</code></a> macro.  All you have to do is assign <code>lattice</code> and also <code>field</code> if needed, and then define the diagonal and hopping members using <code>@diag</code> and <code>@hop</code>.</p><p>Let&#39;s take a look at the example on the <a href="@ref">Usage examples</a> page:</p><p>A simple tight-binding model hamiltonian for a square lattice is defined by the formula  <span>$\hat{H} = \sum_i^\text{sites} \left( c^\dagger_{i + \hat{x}} c_i + c^\dagger_{i + \hat{y}} c_i + h. c. \right)$</span></p><p>We can create a matrix for this operator on a <code>xsize</code>×<code>ysize</code> square lattice with the following code:</p><pre><code class="language- hljs">TightBinding(xsize, ysize, field=NoField()) = @hamiltonian begin
+    lattice := SquareLattice(xsize, ysize)
+    field := field
+    @hop axis = 1   # x-bonds
+    @hop axis = 2   # y-bonds
+end
+nothing # hide</code></pre><p>Note that the keyword arguments for hopping operators are written as if they were passed to the <a href="@ref"><code>hopping</code></a> function.</p><p>For a QWZ model Chern insulator the hamiltonian looks like this:</p><p class="math-container">\[\hat{H} = 
+\sum_i^\text{sites} m_i c^\dagger_i \sigma_z c_i + 
+\sum_i^\text{sites} \left( 
+c^\dagger_{i + \hat{x}} \frac{\sigma_z - i \sigma_x}{2} c_i + 
+c^\dagger_{i + \hat{y}} \frac{\sigma_z - i \sigma_y}{2} c_i + 
+h. c. \right)\]</p><p>Here we want the <span>$m_i$</span> values to be represented by any number-typed <code>LatticeValue</code>, so the most convenient way to do it is to use tensor product notation:</p><pre><code class="language- hljs"># The Pauli matrices
+const σ = [[0 1; 1 0], [0 -im; im 0], [1 0; 0 -1]]
+
+# Initial hamiltonian: m=1 everywhere
+ChernInsulator(m::LatticeValue{&lt;:Number, :square}, field=NoField()) = @hamiltonian begin   
+    lattice := lattice(m)
+    field := field
+    dims_internal := 2
+    @diag m ⊗ σ[3]
+    @hop (σ[3] - im * σ[1]) / 2 axis = 1
+    @hop (σ[3] - im * σ[2]) / 2 axis = 2
+end
+nothing # hide</code></pre><p>Here we must explicitly set the internal phase space dimension count via <code>dims_internal := 2</code>.</p><p>Some default hamiltonian formulas are already implemented - see <a href="../library/#LatticeModels.qwz-Tuple{LatticeValue}"><code>qwz</code></a>, <a href="../library/#LatticeModels.haldane"><code>haldane</code></a> docstrings for more info.</p><div class="admonition is-success"><header class="admonition-header">Tip</header><div class="admonition-body"><p>It is possible to set the matrix type of the hamiltonian operator at the generation time - use <code>arrtype := &lt;Preferred type&gt;</code> notation, this can be used e. g to reduce memory usage by switching to sparse arrays. Note however that some array types may not support this feature, in which case use the <a href="@ref"><code>@on_lattice</code></a> macro.</p></div></div><p>Note that the <code>field</code> parameter is defaulted to <code>NoField()</code> (this is a magnetic field object representing zero field). Other available magnetic field objects are:</p><ul><li><code>LandauField(B::Real)</code> - Landau-calibrated uniform magnetic field</li><li><code>SymmetricField(B::Real)</code> - symmetrically calibrated uniform magnetic field</li><li><code>FluxField(Φ::Real, point::NTuple{2, Number})</code> - point magnetic field flux through <code>point</code>.</li></ul><p>Most of these fields are designed for 2D lattices, but may also be applied to lattices with other dimensionality. You can define your own field types, see <a href="../internals/#Custom-magnetic-fields">Custom magnetic fields</a>.</p><h2 id="Operator-spectrum-utilities"><a class="docs-heading-anchor" href="#Operator-spectrum-utilities">Operator spectrum utilities</a><a id="Operator-spectrum-utilities-1"></a><a class="docs-heading-anchor-permalink" href="#Operator-spectrum-utilities" title="Permalink"></a></h2><p>A <code>Eigensystem</code> object contains eigenvalues and eigenvectors of some hermitian operator. </p><p>It is a very convenient way to work with eigenvectors. Check this out:</p><pre><code class="language-julia-repl hljs" style="display:block;">julia&gt; dg = diagonalize(tightbinding_hamiltonian(SquareLattice(5, 5)))</code><code class="nohighlight hljs ansi" style="display:block;">Eigensystem with 25 eigenstates
+Eigenvalues in range -3.464101615137762 .. 3.464101615137755</code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; dg[1]       # Get the first eigenstate (e. g. the state with lowest energy)</code><code class="nohighlight hljs ansi" style="display:block;">Ket(dim=25)
+  basis: LatticeBasis{SquareLattice{2}}(25, SquareLattice{2}((5, 5), LatticeModels.Bravais{2, 1}([1.0 0.0; 0.0 1.0], [0.0; 0.0;;]), Bool[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]))
+ -0.08333333333333273 + 0.0im
+  0.14433756729740532 + 0.0im
+   -0.166666666666666 + 0.0im
+  0.14433756729740635 + 0.0im
+  -0.0833333333333335 + 0.0im
+  0.14433756729740532 + 0.0im
+ -0.24999999999999883 + 0.0im
+   0.2886751345948124 + 0.0im
+  -0.2500000000000006 + 0.0im
+  0.14433756729740674 + 0.0im
+                      ⋮
+  -0.2500000000000005 + 0.0im
+  0.28867513459481337 + 0.0im
+  -0.2500000000000004 + 0.0im
+  0.14433756729740657 + 0.0im
+ -0.08333333333333343 + 0.0im
+  0.14433756729740665 + 0.0im
+ -0.16666666666666702 + 0.0im
+  0.14433756729740663 + 0.0im
+ -0.08333333333333383 - 0.0im</code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; dg[3]       # Get the third eigenstate</code><code class="nohighlight hljs ansi" style="display:block;">Ket(dim=25)
+  basis: LatticeBasis{SquareLattice{2}}(25, SquareLattice{2}((5, 5), LatticeModels.Bravais{2, 1}([1.0 0.0; 0.0 1.0], [0.0; 0.0;;]), Bool[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]))
+  0.00838377320780525 + 0.0im
+ -0.08610402507740335 + 0.0im
+  0.21233567688479163 + 0.0im
+ -0.28167215554658476 + 0.0im
+  0.20395190367698648 + 0.0im
+  0.06319913071454446 + 0.0im
+  0.01452112115505348 + 0.0im
+  -0.2123356768847918 + 0.0im
+  0.35325505946893415 + 0.0im
+  -0.2755348075993364 + 0.0im
+                      ⋮
+  -0.3532550594689339 + 0.0im
+    0.212335676884792 + 0.0im
+ -0.01452112115505369 + 0.0im
+ -0.06319913071454447 + 0.0im
+ -0.20395190367698632 + 0.0im
+   0.2816721555465845 + 0.0im
+ -0.21233567688479177 + 0.0im
+   0.0861040250774035 + 0.0im
+ -0.00838377320780546 - 0.0im</code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; dg[value = 0]   # Get eigenstate with energy nearest to 0</code><code class="nohighlight hljs ansi" style="display:block;">Ket(dim=25)
+  basis: LatticeBasis{SquareLattice{2}}(25, SquareLattice{2}((5, 5), LatticeModels.Bravais{2, 1}([1.0 0.0; 0.0 1.0], [0.0; 0.0;;]), Bool[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]))
+                  0.0 + 0.0im
+  -0.1504215931772692 + 0.0im
+                  0.0 + 0.0im
+  0.40388998398800285 + 0.0im
+                  0.0 + 0.0im
+  0.15042159317726939 + 0.0im
+                  0.0 + 0.0im
+  -0.2534683908107341 + 0.0im
+                  0.0 + 0.0im
+  -0.4038899839880028 + 0.0im
+                      ⋮
+                  0.0 + 0.0im
+  -0.2534683908107337 + 0.0im
+                  0.0 + 0.0im
+  0.15042159317726914 + 0.0im
+                  0.0 + 0.0im
+  0.40388998398800274 + 0.0im
+                  0.0 + 0.0im
+ -0.15042159317726914 + 0.0im
+                  0.0 + 0.0im</code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; dg[1:3]     # Create a new Eigensystem with states from #1 to #3</code><code class="nohighlight hljs ansi" style="display:block;">Eigensystem with 3 eigenstates
+Eigenvalues in range -3.464101615137762 .. -2.732050807568879</code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; E = dg.values   # Get eigenvalues</code><code class="nohighlight hljs ansi" style="display:block;">25-element Vector{Float64}:
+ -3.464101615137762
+ -2.7320508075688816
+ -2.732050807568879
+ -2.0000000000000013
+ -1.7320508075688774
+ -1.7320508075688736
+ -1.0000000000000053
+ -0.9999999999999976
+ -0.7320508075688771
+ -0.7320508075688726
+  ⋮
+  0.7320508075688793
+  0.9999999999999983
+  1.000000000000001
+  1.732050807568877
+  1.7320508075688779
+  1.9999999999999996
+  2.7320508075688767
+  2.7320508075688776
+  3.464101615137755</code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; diag_filled = dg[E .&lt; 0]    # Create a new Eigensystem with filled bands only</code><code class="nohighlight hljs ansi" style="display:block;">Eigensystem with 11 eigenstates
+Eigenvalues in range -3.464101615137762 .. -5.995407678324529e-15</code></pre><p>You can use <a href="@ref"><code>densitymatrix</code></a> or <a href="@ref"><code>projector</code></a> (only in zero-temperature cases) functions to find a density matrix of a system.</p><pre><code class="language-julia hljs">P = projector(E -&gt; E &lt; 0, dg)
+P = projector(diag_filled)              # The same thing
+P = densitymatrix(dg, μ = 0, T = 0)     # The same thing
+P = densitymatrix(dg)                   # The same thing</code></pre><div class="admonition is-warning"><header class="admonition-header">Warning</header><div class="admonition-body"><p>The <a href="@ref"><code>diagonalize</code></a> function finds the eigenvalues and eigenvectors using <code>LinearAlgebra.eigen</code>. You will probably have to define it for array types that do not support default <code>LinearAlgebra</code> routines.</p></div></div><p>One more thing you can do with <code>Eigensystem</code>s is finding the density of states (DOS) and the local density of states (LDOS).  The DOS is the imaginary part of <span>$\text{tr}\left(\frac{1}{\hat{H} - E - i\delta}\right)$</span> operator, whereas the LDOS is its partial trace.</p><p>It&#39;s highly recommended to use the built-in <a href="@ref"><code>dos</code></a> and <a href="@ref"><code>ldos</code></a> functions, because the <code>Eigensystem</code> object stores the <span>$\hat{H}$</span> operator already diagonalized, which makes calculations much faster.</p><pre><code class="language- hljs">using Plots
+
+p = plot(layout=@layout[_ a{0.5w} _; grid(1, 2)], size=(800, 800))
+plot!(p[1], -4:0.1:4, dos(sp, 0.2), title=&quot;DOS with δ = 0.2&quot;)
+plot!(p[2], ldos(sp, 1, 0.2), title=&quot;LDOS at E = 1 with δ = 0.2&quot;)
+
+# These two lines produce exactly the same result as the previous
+ldos_fun = ldos(sp, 0.2)
+plot!(p[3], ldos_fun(1), title=&quot;LDOS at E = 1 with δ = 0.2 (via function)&quot;)</code></pre><div class="admonition is-success"><header class="admonition-header">Tip</header><div class="admonition-body"><p>If you want to find the LDOS for the same <code>spectrum</code> and <span>$\delta$</span>, but for many different energy values, consider using <code>ldos(spectrum, delta)</code>: it improves performance dramatically.</p></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../lattice_values/">« Lattice values</a><a class="docs-footer-nextpage" href="../currents/">Currents »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Monday 31 July 2023 11:49">Monday 31 July 2023</span>. Using Julia version 1.9.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
