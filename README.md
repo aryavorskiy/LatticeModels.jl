@@ -6,6 +6,8 @@
 
 This package provides a set of tools to simulate different quantum lattice systems.
 
+WARNING: This package is currently in non-stable stage. The [v0.20](https://github.com/aryavorskiy/LatticeModels.jl/releases/tag/v0.20.0) release introduces lots of breaking changes, which can be seen in [CHANGES.md](CHANGES.md).
+
 ## Installation
 
 Paste the following line into the Julia REPL:

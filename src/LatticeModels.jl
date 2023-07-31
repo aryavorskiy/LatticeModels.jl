@@ -55,7 +55,7 @@ export SquareLattice, HoneycombLattice,
 
 include("plot_recipes.jl")
 
-# include("precompile.jl")
-# _precompile_()
+include("precompile.jl")
+_precompile_()
 
 end # module LatticeModels

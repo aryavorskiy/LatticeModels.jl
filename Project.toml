@@ -1,7 +1,7 @@
 name = "LatticeModels"
 uuid = "3c3db7f8-440c-4375-905c-1a18b5307bed"
 authors = ["A. Yavorsky <iavorskii.ar@phystech.edu>"]
-version = "0.14.2"
+version = "0.20.0"
 
 [deps]
 IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"

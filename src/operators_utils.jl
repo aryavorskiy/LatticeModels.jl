@@ -8,17 +8,17 @@ function QuantumOpticsBase.diagonaloperator(f::Function, b::LatticeBasis)
 end
 
 """
-coord_operators(lb::LatticeBasis)
+coord_operators(sample::Sample)
 
 Returns a `Tuple` of coordinate `LatticeOperator`s for given basis.
 """
-coord_operators(lb::LatticeBasis) = Tuple(diagonaloperator(lb, lv.values) for lv in coord_values(lb.latt))
-function coord_operators(cb::CompositeLatticeBasis)
-    N = length(cb.bases[1])
-    lb = cb.bases[2]
-    return Tuple(diagonaloperator(cb, repeat(lv.values, inner=N)) for lv in coord_values(lb.latt))
+function coord_operators(cb::AbstractLatticeBasis)
+    N = internal_length(cb)
+    l = lattice(cb)
+    return Tuple(diagonaloperator(cb, repeat(lv.values, inner=N)) for lv in coord_values(l))
 end
-coord_operators(l::Lattice) = coord_operators(LatticeBasis(l))
+coord_operators(sample::Sample) = coord_operators(onebodybasis(sample))
+@accepts_lattice coord_operators
 coord(lb::LatticeBasis, crd) = diagonaloperator(lb, [getproperty(site, crd) for site in lb.latt])
 coord(l::Lattice, crd) = coord(LatticeBasis(l), crd)
 
