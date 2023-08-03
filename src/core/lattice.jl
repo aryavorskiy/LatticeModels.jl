@@ -34,14 +34,15 @@ Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}) where {N} =
     Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}, fill(true, prod(sz) * length(bvs)))
 
 Base.:(==)(l1::T, l2::T) where {T<:Lattice} =
-    (size(l1) == size(l2)) && (bravais(l1) == bravais(l2))
+    (macrocell_size(l1) == macrocell_size(l2)) && (bravais(l1) == bravais(l2))
 
 lattice(l::Lattice) = l
 Base.copymutable(l::Lattice{LatticeSym}) where {LatticeSym} =
-    Lattice(LatticeSym, size(l), bravais(l), copy(l.mask))
+    Lattice(LatticeSym, macrocell_size(l), bravais(l), copy(l.mask))
 Base.copy(l::Lattice) = Base.copymutable(l)
-Base.size(l::Lattice) = l.lattice_size
+macrocell_size(l::Lattice) = l.lattice_size
 Base.length(l::Lattice) = count(l.mask)
+Base.size(l::Lattice) = (count(l.mask),)
 Base.keys(l::Lattice) = Base.OneTo(length(l))
 lattice_type(::Lattice{LatticeSym}) where {LatticeSym} = LatticeSym
 dims(::Lattice{LatticeSym,N} where {LatticeSym}) where {N} = N
@@ -64,9 +65,9 @@ get_site(::Lattice, site::LatticeSite) = site
 get_site(::Lattice, ::Nothing) = nothing
 
 cartesian_indices(l::Lattice{LatticeSym,N,NB} where {LatticeSym}) where {N,NB} =
-    CartesianIndex{N + 1}(1):CartesianIndex(NB, size(l)...)
+    CartesianIndex{N + 1}(1):CartesianIndex(NB, macrocell_size(l)...)
 linear_indices(l::Lattice{LatticeSym,N,NB} where {LatticeSym,N}) where {NB} =
-    LinearIndices((NB, size(l)...))
+    LinearIndices((NB, macrocell_size(l)...))
 
 site_coords(::Lattice, site::LatticeSite) =  error("`site_coords(l, site)` is no longer available. Use `site.coords` instead")
 
@@ -90,7 +91,7 @@ function Base.getindex(l::Lattice{Sym}, is::AbstractVector{Int}) where Sym
     catch BoundsError
         throw(BoundsError(l, is))
     end
-    Lattice(Sym, size(l), bravais(l), new_mask)
+    Lattice(Sym, macrocell_size(l), bravais(l), new_mask)
 end
 
 """
@@ -139,8 +140,8 @@ Finds the vector between two sites on a lattice according to possibly periodic b
 (`site2` will be translated along the macrocell to minimize the distance between them).
 """
 function radius_vector(l::Lattice, site1::LatticeSite{N}, site2::LatticeSite{N}) where N
-    hsz = SVector{N, Int}(size(l) .÷ 2)
-    tr_unitcell = (site1.unit_cell - site2.unit_cell + hsz) .% size(l) - hsz
+    hsz = SVector{N, Int}(macrocell_size(l) .÷ 2)
+    tr_unitcell = (site1.unit_cell - site2.unit_cell + hsz) .% macrocell_size(l) - hsz
     bravais(l).basis[:, site1.basis_index] - bravais(l).basis[:, site2.basis_index] + bravais(l).translation_vectors * tr_unitcell
 end
 
@@ -179,9 +180,9 @@ end
 function Base.show(io::IO, ::MIME"text/plain", l::Lattice{LatticeSym,N}) where {N,LatticeSym}
     print(io, "$(length(l))-site ", LatticeSym)
     if N != 1
-        print(io, " lattice (", join(size(l), "×"), " macrocell")
+        print(io, " lattice (", join(macrocell_size(l), "×"), " macrocell")
     elseif !all(l.mask)
-        print(io, " chain (", size(l)[1], " unit cells")
+        print(io, " chain (", macrocell_size(l)[1], " unit cells")
     else
         print(io, " chain")
     end
@@ -199,7 +200,7 @@ The `lf` function must return a boolean value.
 function sublattice(f::Function, l::Lattice{LatticeSym}) where {LatticeSym}
     new_mask = zero(l.mask)
     new_mask[l.mask] = [f(site) for site in l]
-    Lattice(LatticeSym, size(l), bravais(l), new_mask)
+    Lattice(LatticeSym, macrocell_size(l), bravais(l), new_mask)
 end
 
 function Lattice{T,N,NB}(f::Function, sz::Vararg{Int,N}; kw...) where {T,N,NB}
@@ -233,10 +234,10 @@ Checks if `l1` and `l2` are defined on one macrocell. Throws an error if not.
 function check_macrocell_match(l1, l2)
     la1 = lattice(l1)
     la2 = lattice(l2)
-    (size(la1) != size(la2) || bravais(la1) != bravais(la2)) &&
+    (macrocell_size(la1) != macrocell_size(la2) || bravais(la1) != bravais(la2)) &&
         throw(ArgumentError("""macrocell mismatch:
-        $(size(la1))-size with $(bravais(la1))
-        $(size(la2))-size with $(bravais(la2))"""))
+        $(macrocell_size(la1))-size with $(bravais(la1))
+        $(macrocell_size(la2))-size with $(bravais(la2))"""))
 end
 
 """
@@ -269,4 +270,4 @@ function Base.setdiff!(l1::Lattice{Sym}, l2::Lattice{Sym}) where Sym
 end
 
 Base.emptymutable(l::Lattice{Sym, N}, ::Type{LatticeSite{N}}=eltype(l)) where {Sym, N} =
-    Lattice(Sym, size(l), bravais(l), zero(l.mask))
+    Lattice(Sym, macrocell_size(l), bravais(l), zero(l.mask))

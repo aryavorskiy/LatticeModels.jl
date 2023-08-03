@@ -1,6 +1,5 @@
 using SparseArrays
 import QuantumOpticsBase
-import QuantumOpticsBase: Basis, SparseOperator, SparseOpPureType, coefficient
 
 struct LatticeBasis{LT<:Lattice} <: QuantumOpticsBase.Basis
     shape::Int
@@ -9,8 +8,9 @@ struct LatticeBasis{LT<:Lattice} <: QuantumOpticsBase.Basis
 end
 Base.:(==)(lb1::LatticeBasis, lb2::LatticeBasis) = lb1.latt == lb2.latt
 
-onebodybasis(sample::Sample) = sample.internal ⊗ LatticeBasis(sample.latt)
-onebodybasis(sample::SampleWithoutInternal) = LatticeBasis(sample.latt)
+QuantumOpticsBase.basis(sample::Sample) = sample.internal ⊗ LatticeBasis(sample.latt)
+QuantumOpticsBase.basis(sample::SampleWithoutInternal) = LatticeBasis(sample.latt)
+onebodybasis(sample::Sample) = basis(sample)
 onebodybasis(sys::System) = onebodybasis(sys.sample)
 
 QuantumOpticsBase.basisstate(T::Type, b::LatticeBasis, site::LatticeSite) =

@@ -78,7 +78,7 @@ struct OperatorBuilder{SystemT, FieldT, T}
     OperatorBuilder{T}(sys::SystemT, field::FieldT=NoField(); auto_hermitian=false) where {SystemT<:System, FieldT<:AbstractField, T} =
         new{SystemT, FieldT, T}(sys, field, internal_length(sys), SparseMatrixBuilder{T}(length(onebodybasis(sys))), auto_hermitian)
 end
-@accepts_lattice OperatorBuilder
+@accepts_system OperatorBuilder
 lattice(opb::OperatorBuilder) = lattice(opb.sys)
 OperatorBuilder(args...; kw...) = OperatorBuilder{ComplexF64}(args...; kw...)
 const OpBuilderWithInternal = OperatorBuilder{<:System{<:SampleWithInternal}}
@@ -157,7 +157,7 @@ function tightbinding_hamiltonian(sys::System; t1=1, t2=0, t3=0,
     end
     return Hamiltonian(sys, manybodyoperator(sys, to_matrix(builder)))
 end
-@accepts_lattice tightbinding_hamiltonian
+@accepts_system tightbinding_hamiltonian
 
 const AbstractSiteOffset = Union{SiteOffset, SingleBond}
 function build_operator!(builder::SparseMatrixBuilder, sample::Sample, arg::Pair{<:Any, <:AbstractSiteOffset};
@@ -177,7 +177,7 @@ function build_operator!(builder::SparseMatrixBuilder, ::Sample, arg::DataOperat
 end
 
 function preprocess_argument(sample::Sample, arg::DataOperator)
-    if samebases(basis(arg), onebodybasis(sample))
+    if samebases(basis(arg), basis(sample))
         sparse(arg)
     elseif samebases(basis(arg), sample.internal)
         sparse(arg) ⊗ one(LatticeBasis(sample.latt))
@@ -234,10 +234,10 @@ function build_hamiltonian(sys::System, args...;
         build_operator!(builder, sample, preprocess_argument(sample, arg);
             field=field)
     end
-    op = Operator(onebodybasis(sample), to_matrix(builder))
+    op = Operator(basis(sample), to_matrix(builder))
     return Hamiltonian(sys, manybodyoperator(sys, op))
 end
-@accepts_lattice build_hamiltonian
+@accepts_system build_hamiltonian
 
 hoppings(adj, l::Lattice, bs::SiteOffset...; kw...) = Operator(build_hamiltonian(Sample(adj, l), bs...; kw...))
 hoppings(l::Lattice, bs::SiteOffset...; kw...) = Operator(build_hamiltonian(Sample(l), bs...; kw...))

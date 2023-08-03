@@ -1,3 +1,5 @@
+import QuantumOpticsBase: Basis, SparseOperator, SparseOpPureType, coefficient
+
 # Override this function with more performant one
 function QuantumOpticsBase.manybodyoperator_1(basis::ManyBodyBasis,
         op::Operator{<:AbstractLatticeBasis, <:AbstractLatticeBasis})
@@ -65,7 +67,7 @@ function interaction(f::Function, T::Type{<:Number}, sample::Sample)
         end
         push!(diags, int_energy)
     end
-    diagonaloperator(ManyBodyBasis(onebodybasis(sample), occups), diags)
+    diagonaloperator(ManyBodyBasis(basis(sample), occups), diags)
 end
 interaction(f::Function, sample::Sample) = interaction(f, ComplexF64, sample)
 

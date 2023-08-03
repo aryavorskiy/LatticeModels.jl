@@ -177,8 +177,8 @@ end
     seriestype --> :heatmap
     if plotattributes[:seriestype] === :heatmap
         aspect_ratio := :equal
-        axes_lims = [1:ax for ax in size(lattice(lv))]
-        heatmap_values = reshape(macro_cell_values(lv), reverse(size(lattice(lv))))'
+        axes_lims = [1:ax for ax in macrocell_size(lattice(lv))]
+        heatmap_values = reshape(macro_cell_values(lv), reverse(macrocell_size(lattice(lv))))'
         axes_lims..., heatmap_values
     else
         plot_fallback(lv)

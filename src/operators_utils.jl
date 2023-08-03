@@ -1,31 +1,34 @@
 import QuantumOpticsBase: basis, samebases, check_samebases
 
-function QuantumOpticsBase.diagonaloperator(lv::LatticeValue)
+QuantumOpticsBase.diagonaloperator(lv::LatticeValue) =
     diagonaloperator(LatticeBasis(lattice(lv)), lv.values)
+function QuantumOpticsBase.diagonaloperator(lb::AbstractLatticeBasis, lv::LatticeValue)
+    check_lattice_match(lv, lb)
+    N = internal_length(lb)
+    return diagonaloperator(lb, repeat(lv.values, inner=N))
 end
-function QuantumOpticsBase.diagonaloperator(f::Function, b::LatticeBasis)
-    diagonaloperator(b, f.(b.latt))
-end
+QuantumOpticsBase.diagonaloperator(sample::Sample, lv::LatticeValue) =
+    QuantumOpticsBase.diagonaloperator(basis(sample), lv)
+@accepts_sample QuantumOpticsBase.diagonaloperator
 
 """
 coord_operators(sample::Sample)
 
 Returns a `Tuple` of coordinate `LatticeOperator`s for given basis.
 """
-function coord_operators(cb::AbstractLatticeBasis)
-    N = internal_length(cb)
-    l = lattice(cb)
-    return Tuple(diagonaloperator(cb, repeat(lv.values, inner=N)) for lv in coord_values(l))
-end
-coord_operators(sample::Sample) = coord_operators(onebodybasis(sample))
-@accepts_lattice coord_operators
-coord(lb::LatticeBasis, crd) = diagonaloperator(lb, [getproperty(site, crd) for site in lb.latt])
-coord(l::Lattice, crd) = coord(LatticeBasis(l), crd)
+coord_operators(lb::AbstractLatticeBasis) =
+    Tuple(diagonaloperator(lb, lv) for lv in coord_values(lattice(lb)))
+coord_operators(sample::Sample) = coord_operators(basis(sample))
+@accepts_sample coord_operators
+
+coord_operator(lb::AbstractLatticeBasis, crd) =
+    diagonaloperator(lb, coord_value(lattice(lb), crd))
+coord_operator(sample::Sample, crd) = coord_operator(basis(sample), crd)
+@accepts_sample coord_operator
 
 function site_density(ket::Ket{<:LatticeBasis})
     LatticeValue(lattice(ket), map(abs2, ket.data))
 end
-
 function site_density(ket::Ket{<:CompositeLatticeBasis})
     l = lattice(ket)
     N = internal_length(ket)

@@ -19,7 +19,7 @@ function _to_index(lvw::LatticeValueWrapper, site::LatticeSite)
     i = CartesianIndex(site_index(lattice(lvw), site))
     i === nothing ? throw(BoundsError(lvw, site)) : return i
 end
-_to_index(::LatticeValueWrapper, i::CartesianIndex{1}) = i
+_to_index(::LatticeValueWrapper, i) = i
 Base.getindex(lvw::LatticeValueWrapper, i) = getindex(lvw.values, _to_index(lvw, i))
 Base.setindex!(lvw::LatticeValueWrapper, val, i) = setindex!(lvw.values, val, _to_index(lvw, i))
 Base.eltype(lvw::LatticeValueWrapper) = eltype(lvw.values)
@@ -53,6 +53,7 @@ Generates a tuple of `LatticeValue`s representing spatial coordinates.
 """
 coord_values(l::Lattice) =
     [LatticeValue(l, vec) for vec in eachrow(collect_coords(l))]
+coord_value(l::Lattice, a) = LatticeValue(l, [get_coord(site, parse_axis_sym(a)) for site in l])
 
 Base.rand(l::Lattice) = LatticeValue(l, rand(length(l)))
 Base.rand(T::Type, l::Lattice) = LatticeValue(l, rand(T, length(l)))
@@ -73,7 +74,9 @@ struct LVWStyle <: Broadcast.BroadcastStyle end
 Base.copyto!(lvw::LatticeValueWrapper, src::Broadcast.Broadcasted{LVWStyle}) = (copyto!(lvw.values, src); return lvw)
 Base.copyto!(lvw::LatticeValueWrapper, src::Broadcast.Broadcasted{Broadcast.DefaultArrayStyle{0}}) = (copyto!(lvw.values, src); return lvw)
 Base.broadcastable(lvw::LatticeValueWrapper) = lvw
+Base.broadcastable(l::Lattice) = l
 Base.BroadcastStyle(::Type{<:LatticeValueWrapper}) = LVWStyle()
+Base.BroadcastStyle(::Type{<:Lattice}) = LVWStyle()
 Base.BroadcastStyle(bs::Broadcast.BroadcastStyle, ::LVWStyle) =
     error("cannot broadcast LatticeValue along style $bs")
 Base.BroadcastStyle(::Broadcast.DefaultArrayStyle{0}, ::LVWStyle) = LVWStyle()
@@ -116,7 +119,7 @@ Base.@propagate_inbounds function Base.getindex(l::Lattice{LatticeSym,N,NB},
     @boundscheck check_is_sublattice(l, lattice(lv_mask))
     new_mask = zero(l.mask)
     new_mask[lv_mask.lattice.mask] = lv_mask.values
-    Lattice(LatticeSym, size(l), bravais(l), vec(new_mask .& l.mask))
+    Lattice(LatticeSym, macrocell_size(l), bravais(l), vec(new_mask .& l.mask))
 end
 
 Base.@propagate_inbounds function Base.getindex(lv::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
@@ -191,7 +194,7 @@ Use it to invoke the default plot recipe for `LatticeValues` when defining a cus
 """
 function plot_fallback(lv::LatticeValue)
     l = lattice(lv)
-    new_l = Lattice(:plot_fallback, size(l), bravais(l), l.mask)
+    new_l = Lattice(:plot_fallback, macrocell_size(l), bravais(l), l.mask)
     LatticeValue(new_l, lv.values)
 end
 

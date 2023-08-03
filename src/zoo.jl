@@ -136,7 +136,7 @@ qwz(sample::Sample{<:Any, <:SquareLattice}, m=1; kw...) =
     [1 0; 0 -1] => m,
     [1 -im; -im -1] / 2 => SiteOffset(axis = 1),
     [1 -1; 1 -1] / 2 => SiteOffset(axis = 2); kw...)
-@accepts_lattice qwz SpinBasis(1//2)
+@accepts_system qwz SpinBasis(1//2)
 
 @doc raw"""
     haldane(l::HoneycombLattice, t1::Real, t2::Real[, m::Real=0; field::AbstractField])
@@ -151,7 +151,7 @@ Generates a Haldane topological insulator hamiltonian operator.
 """
 haldane(sample::Sample{<:Any, <:HoneycombLattice}, t1::Real, t2::Real, m::Real=0; kw...) =
     build_hamiltonian(sample,
-    (coord(lattice(sample), :index) * 2 - one(LatticeBasis(lattice(sample)))) * m,
+    (coord_operator(lattice(sample), :index) * 2 - one(LatticeBasis(lattice(sample)))) * m,
     t1 => SiteOffset(2 => 1),
     t1 => SiteOffset(2 => 1, axis = 1),
     t1 => SiteOffset(2 => 1, axis = 2),
@@ -161,7 +161,7 @@ haldane(sample::Sample{<:Any, <:HoneycombLattice}, t1::Real, t2::Real, m::Real=0
     im * t2 => SiteOffset(2 => 2, axis = 2),
     im * t2 => SiteOffset(1 => 1, SA[-1, 1]),
     im * t2 => SiteOffset(2 => 2, SA[1, -1]); kw...)
-@accepts_lattice haldane
+@accepts_system haldane
 
 ############
 # Currents #

@@ -78,7 +78,7 @@ end
 
 struct PeriodicBoundaryConditions <: AbstractBoundaryConditions end
 function shift_site(::PeriodicBoundaryConditions, l::Lattice, site::LatticePointer)
-    new_uc = mod.(site.unit_cell .- 1, size(l)) .+ 1
+    new_uc = mod.(site.unit_cell .- 1, macrocell_size(l)) .+ 1
     1., LatticePointer(new_uc, site.basis_index)
 end
 
@@ -161,8 +161,8 @@ function occupations(ps::Particles)
     end
 end
 
-systembasis(sys::FilledZones) = onebodybasis(sys.sample)
-systembasis(sys::Particles) = ManyBodyBasis(onebodybasis(sys.sample), occupations(sys))
+systembasis(sys::FilledZones) = basis(sys.sample)
+systembasis(sys::Particles) = ManyBodyBasis(basis(sys.sample), occupations(sys))
 
 function QuantumOpticsBase.manybodyoperator(ps::Particles, op::AbstractOperator)
     check_samebases(systembasis(ps), basis(op))
@@ -173,15 +173,27 @@ function QuantumOpticsBase.manybodyoperator(ps::FilledZones, op::AbstractOperato
     return op
 end
 QuantumOpticsBase.manybodyoperator(sample, mat::AbstractMatrix) =
-    manybodyoperator(sample, Operator(onebodybasis(sample), mat))
+    manybodyoperator(sample, Operator(basis(sample), mat))
 
 shift_site(sample::Sample, site) = shift_site(sample.boundaries, sample.latt, site)
 shift_site(sys::System, site) = shift_site(sys.sample, site)
 
-macro accepts_lattice(fname, default_basis=nothing)
+macro accepts_system(fname, default_basis=nothing)
     esc(quote
         global $fname(sample::Sample, args...; kw...) =
             $fname(System(sample, μ = 0, statistics=FermiDirac), args...; kw...)
+        global $fname(selector, l::Lattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
+            $fname(Sample(selector, l, bas, boundaries=boundaries), args...; kw...)
+        global $fname(selector, l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =
+            $fname(Sample(selector, l, $default_basis, boundaries=boundaries), args...; kw...)
+        global $fname(l::Lattice, args...; kw...) = $fname(nothing, l::Lattice, args...; kw...)
+    end)
+end
+
+macro accepts_sample(fname, default_basis=nothing)
+    esc(quote
+        global $fname(system::FilledZones, args...; kw...) =
+            $fname(system.sample, args...; kw...)
         global $fname(selector, l::Lattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
             $fname(Sample(selector, l, bas, boundaries=boundaries), args...; kw...)
         global $fname(selector, l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =

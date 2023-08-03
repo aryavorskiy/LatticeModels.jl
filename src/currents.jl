@@ -35,7 +35,7 @@ struct SubCurrents{CT} <: AbstractCurrents
         new_mask = zero(l.mask)
         new_mask[l.mask] = m
         new{CT}(parent_currents,
-            Lattice(lattice_type(l), size(l), bravais(l), new_mask), indices)
+            Lattice(lattice_type(l), macrocell_size(l), bravais(l), new_mask), indices)
     end
 end
 

@@ -144,10 +144,11 @@ end
     x, y = coord_values(l)
     @test x.values == [1, 2, 1, 2]
     @test y.values == [1, 1, 2, 2]
+
     l = SquareLattice(10, 10)
-    bas = LatticeBasis(l)
-    X, Y = coord_operators(bas)
     x, y = coord_values(l)
+    x2 = coord_value(l, :x)
+    X, Y = coord_operators(l)
     xtr = diag_reduce(tr, X)
     xtr2 = site_density(X)
     xm2 = LatticeValue(l) do (x, y)
@@ -163,9 +164,12 @@ end
         site_index(l, site)
     end
     @test [idxs[s] for s in l] == 1:length(l)
+    @test x == x2
     @test x == xtr
     @test x == xtr2
     @testset "Broadcast" begin
+        x3 = l .|> (site -> site.x)
+        @test x == x3
         @test x .* y == xy
         @test x .* 2 == xm2
         @test 2 .* x == xm2
@@ -173,11 +177,11 @@ end
         y .= x .* y
         @test y == xy
         @test_throws "cannot broadcast" x .* ones(100)
-        l2 = SquareLattice(5, 20)
-        x2 = LatticeValue(l2) do (x, y)
+        l′ = SquareLattice(5, 20)
+        x′ = LatticeValue(l′) do (x, y)
             x
         end
-        @test_throws "lattice mismatch" x .* x2
+        @test_throws "lattice mismatch" x .* x′
     end
     @testset "Indexing" begin
         z = zeros(l)
@@ -337,25 +341,53 @@ end
     end
 end
 
-@testset "Hamiltonian" begin
+@testset "Operators" begin
     @testset "Operator builder" begin
         l = SquareLattice(10, 10)
         spin = SpinBasis(1//2)
         builder = OperatorBuilder(l ⊗ spin)
+        builder2 = OperatorBuilder(l ⊗ spin, auto_hermitian=true)
         @increment for site in l
-            builder[site, site] += sigmaz(spin)
-
             site_hx = site + SiteOffset(axis = 1)
+            site_hy = site + SiteOffset(axis = 2)
+
+            builder[site, site] += sigmaz(spin)
             builder[site, site_hx] += (sigmaz(spin) - im * sigmax(spin)) / 2
             builder[site_hx, site] += (sigmaz(spin) + im * sigmax(spin)) / 2
-
-            site_hy = site + SiteOffset(axis = 2)
             builder[site, site_hy] += (sigmaz(spin) - im * sigmay(spin)) / 2
             builder[site_hy, site] += (sigmaz(spin) + im * sigmay(spin)) / 2
+
+            builder2[site, site] += sigmaz(spin)
+            builder2[site, site_hx] += (sigmaz(spin) - im * sigmax(spin)) / 2
+            builder2[site, site_hy] += (sigmaz(spin) - im * sigmay(spin)) / 2
         end
+        H = qwz(l)
         H1 = to_operator(builder)
-        H2 = qwz(l)
-        @test H1 == H2
+        H2 = to_operator(builder2)
+        H3 = build_hamiltonian(l, spin, sigmaz(spin) => 1,
+            (sigmaz(spin) - im * sigmax(spin)) / 2 => SiteOffset(axis = 1),
+            (sigmaz(spin) - im * sigmay(spin)) / 2 => SiteOffset(axis = 2))
+        @test H == H1
+        @test H == H2
+        @test H == H3
+    end
+
+    @testset "Operator builtins" begin
+        l = SquareLattice(10, 10)
+        X, Y = coord_operators(l)
+        X2 = coord_operator(l, :x)
+        X3 = coord_operator(l, 1)
+        X4 = diagonaloperator(coord_value(l, :x))
+        @test X == X2
+        @test X == X3
+        @test X == X4
+
+        spin = SpinBasis(1//2)
+        Xs = one(spin) ⊗ X
+        Xs1 = coord_operator(l, spin, :x)
+        Xs2 = coord_operator(l ⊗ spin, :x)
+        @test Xs == Xs1
+        @test Xs == Xs2
     end
 
     @testset "DOS & LDOS" begin

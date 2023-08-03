@@ -7,10 +7,10 @@ using Reexport
 include("core/utils.jl")
 include("core/lattice_site.jl")
 include("core/lattice.jl")
-export Lattice, sublattice, site_index, site_distance
+export Lattice, sublattice, site_index, site_distance, macrocell_size
 
 include("core/lattice_value.jl")
-export LatticeValue, coord_values, project
+export LatticeValue, coord_value, coord_values, project
 
 include("core/field.jl")
 export @field_def, NoField, MagneticField
@@ -32,7 +32,7 @@ export hoppings, tightbinding_hamiltonian, build_hamiltonian, OperatorBuilder, t
 include("operators_manybody.jl")
 export interaction
 include("operators_utils.jl")
-export coord_operators, coord, site_density, diag_reduce, adjacency_matrix, apply_field!
+export coord_operator, coord_operators, site_density, diag_reduce, adjacency_matrix, apply_field!
 
 include("spectrum.jl")
 export Eigensystem, diagonalize, projector, densitymatrix, dos, ldos
