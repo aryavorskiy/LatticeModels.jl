@@ -126,11 +126,11 @@ end
     s_5 = hl[xh.<yh]
     @test s_3 == s_4
     @test s_4 == s_5
-    @test_throws MethodError hl[x.<y]
+    @test_throws LatticeModels.IncompatibleLattices hl[x.<y]
     @test hl[j1=3, j2=2, index=1] == LatticeModels.LatticeSite(
         LatticeModels.LatticePointer(SA[3, 2], 1), SA[4.0, 1.7320508075688772])
     xb, yb = coord_values(SquareLattice(5, 40))
-    @test_throws "macrocell mismatch" sql[xb.<yb]
+    @test_throws LatticeModels.IncompatibleLattices sql[xb.<yb]
     sql2 = sublattice(sql) do site
         site ∉ (sql[1], sql[end])
     end
@@ -181,7 +181,7 @@ end
         x′ = LatticeValue(l′) do (x, y)
             x
         end
-        @test_throws "lattice mismatch" x .* x′
+        @test_throws LatticeModels.IncompatibleLattices x .* x′
     end
     @testset "Indexing" begin
         z = zeros(l)
@@ -217,20 +217,22 @@ end
     xly = x .< y
     @test_throws "length mismatch" TimeSequence([0.5], [xy, xy])
     rec = TimeSequence{LatticeValue}()
-    insert!(rec, 0, xy)
-    insert!(rec, 1, xy)
-    insert!(rec, 2, xy)
-    @test rec[site] == TimeSequence(time_domain(rec), fill(xy[site], 3))
-    @test rec[xly] == TimeSequence(0:2, fill(xy[xly], 3))
+    rec[0] = xy
+    rec[1] = xy
+    rec[2] = xy
+    @test rec[inner=site] == TimeSequence(timestamps(rec), fill(xy[site], 3))
+    @test rec[inner=xly] == TimeSequence(0:2, fill(xy[xly], 3))
     @test collect(rec) == [0 => xy, 1 => xy, 2 => xy]
     @test differentiate(rec) == TimeSequence([0.5, 1.5], [zeros(l), zeros(l)])
-    @test differentiate(rec[site]) == TimeSequence([0.5, 1.5], [0, 0])
-    rec2 = TimeSequence(xy .* 0)
-    insert!(rec2, 1, xy .* 1)
-    insert!(rec2, 2, xy .* 2)
-    @test rec2(0.9) == xy
-    @test rec2(0.9, 2.1) == TimeSequence([1, 2], [xy, xy .* 2])
+    @test differentiate(rec[inner=site]) == TimeSequence([0.5, 1.5], [0, 0])
+    rec2 = TimeSequence(0, xy .* 0)
+    rec2[1] = xy .* 1
+    rec2[2] = xy .* 2
+    @test rec2[1e-9] == zeros(l)
+    @test rec2[1 + 1e-9] == xy
+    @test rec2[0.9..2.1] == TimeSequence([1, 2], [xy, xy .* 2])
     @test integrate(rec) == rec2
+    @test_throws KeyError rec2[0.5]
 end
 
 @testset "Bonds" begin
@@ -293,10 +295,9 @@ end
     sla = StrangeLandauField()
     sym = SymmetricField(0.1)
     flx = FluxField(0.1)
-    flx2 = FluxField(0.1, (0, 0))
-    @test flx.P == flx2.P
+    @test flx.P == (0, 0)
     emf = EmptyField()
-    fla = MagneticField() do (x,)
+    fla = MagneticField(n = 10) do (x,)
         (0, x * 0.1)
     end
     @testset "Path integral" begin

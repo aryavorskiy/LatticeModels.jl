@@ -44,7 +44,7 @@ include("currents.jl")
 export AbstractCurrents, materialize, currents_from, currents_from_to, pairs_by_distance, map_currents
 
 include("time_sequence.jl")
-export init_record, integrate, integrate!, differentiate, differentiate!, time_domain,
+export init_record, integrate, integrate!, differentiate, differentiate!, timestamps,
     TimeSequence
 
 include("zoo.jl")

@@ -66,20 +66,20 @@ lattice(mcurr::MaterializedCurrents) = mcurr.lattice
 
 Base.getindex(mcurr::MaterializedCurrents, i::Int, j::Int) = mcurr.currents[i, j]
 function Base.getindex(curr::AbstractCurrents, lvm::LatticeValue{Bool})
-    check_lattice_match(curr, lvm)
+    check_samelattice(curr, lvm)
     indices = findall(lvm.values)
     SubCurrents(curr, indices)
 end
 
 function Base.getindex(curr::MaterializedCurrents, lvm::LatticeValue{Bool})
-    check_lattice_match(curr, lvm)
+    check_samelattice(curr, lvm)
     indices = findall(lvm.values)
     MaterializedCurrents(curr.lattice[lvm], curr.currents[indices, indices])
 end
 
 function _site_indices(l::Lattice, l2::Lattice)
-    check_is_sublattice(l, l2)
-    [site_index(l, site) for site in l2]
+    check_issublattice(l2, l)
+    return [site_index(l, site) for site in l2]
 end
 _site_indices(l::Lattice, site::LatticeSite) = (site_index(l, site),)
 function currents_from(curr::AbstractCurrents, src)
@@ -96,7 +96,7 @@ end
 
 for f in (:+, :-)
     @eval function ($f)(curr::MaterializedCurrents, curr2::MaterializedCurrents)
-        check_lattice_match(curr, curr2)
+        check_samelattice(curr, curr2)
         MaterializedCurrents(lattice(curr), ($f)(curr.currents, curr2.currents))
     end
 end

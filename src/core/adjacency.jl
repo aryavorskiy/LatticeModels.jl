@@ -14,7 +14,7 @@ match(ps::AbstractGraph, ::LatticeSite, ::LatticeSite) =
 lattice(ps::AbstractGraph) = error("lattice(::$(typeof(ps))) must be explicitly implemented")
 
 check_lattice_fits(::Any, ::Lattice) = nothing
-check_lattice_fits(ps::AbstractGraph, l::Lattice) = check_is_sublattice(l, lattice(ps))
+check_lattice_fits(ps::AbstractGraph, l::Lattice) = check_issublattice(l, lattice(ps))
 
 """
     Domains(domains::LatticeValue)
@@ -85,9 +85,9 @@ lattice(bs::AdjacencyMatrix) = bs.lattice
 match(bs::AdjacencyMatrix, site1::LatticeSite, site2::LatticeSite) =
     bs.bmat[site_index(lattice(bs), site1), site_index(lattice(bs), site2)]
 
-function Base.:(|)(bss::AdjacencyMatrix...)
-    !allequal(getproperty.(bss, :lattice)) && error("lattice mismatch")
-    AdjacencyMatrix(bss[1].lattice, .|(getproperty.(bss, :bmat)...))
+function Base.:(|)(bss1::AdjacencyMatrix, bss2::AdjacencyMatrix)
+    check_samelattice(bss1, bss2)
+    AdjacencyMatrix(lattice(bss1), bss1.bmat .| bss2.bmat)
 end
 
 Base.:(^)(bs1::AdjacencyMatrix, n::Int) =

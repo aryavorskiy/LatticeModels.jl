@@ -45,8 +45,8 @@ line_integral(::NoField, p1, p2) = 0
 struct MagneticField{FuncT<:Function} <: AbstractField
     func::FuncT
     n::Int
+    MagneticField(func::FuncT; n::Int) = new{FuncT}(func, n)
 end
-MagneticField(func::FT) where FT = MagneticField(func, 10)
 vector_potential(field::MagneticField, p1::SVector) = field.func(p1)
 line_integral(field::MagneticField, p1, p2) =
     line_integral(field, p1, p2, field.n)

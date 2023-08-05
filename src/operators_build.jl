@@ -215,7 +215,7 @@ function preprocess_argument(sample::Sample, arg::Pair)
         error("Invalid Pair argument: unsupported on-site operator type")
     end
     if on_lattice isa LatticeValue
-        check_lattice_match(on_lattice, sample)
+        check_samelattice(on_lattice, sample)
         return opdata => on_lattice
     elseif on_lattice isa Number
         return preprocess_argument(sample, opdata * on_lattice)

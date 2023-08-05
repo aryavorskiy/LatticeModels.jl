@@ -97,7 +97,7 @@ end   # time: 0.0594488
     Base.precompile(Tuple{typeof(Core.kwcall),NamedTuple{(:field,), Tuple{LandauField}},typeof(build_hamiltonian),Sample{Nothing, SquareLattice{2}, Nothing, BoundaryConditions{Tuple{}}},Bonds{Nothing, 1},Bonds{Nothing, 2}})   # time: 0.0495927
     Base.precompile(Tuple{typeof(line_integral),LandauField,SVector{2, Int64},SVector{2, Int64},Int64})   # time: 0.0455025
     Base.precompile(Tuple{typeof(RecipesBase.apply_recipe),AbstractDict{Symbol, Any},AbstractCurrents})   # time: 0.045227
-    Base.precompile(Tuple{typeof(similar),Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(+), Tuple{Int64, Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(*), Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(<=), Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(sqrt), Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(+), Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(Base.literal_pow), Tuple{Base.RefValue{typeof(^)}, LatticeValue{Float64, :square}, Base.RefValue{Val{2}}}}, Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(Base.literal_pow), Tuple{Base.RefValue{typeof(^)}, LatticeValue{Float64, :square}, Base.RefValue{Val{2}}}}}}}}, Int64}}, Int64}}}},Type{Int64}})   # time: 0.0443286
+    Base.precompile(Tuple{typeof(similar),Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(+), Tuple{Int64, Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(*), Tuple{Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(<=), Tuple{Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(sqrt), Tuple{Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(+), Tuple{Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(Base.literal_pow), Tuple{Base.RefValue{typeof(^)}, LatticeValue{Float64, :square}, Base.RefValue{Val{2}}}}, Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(Base.literal_pow), Tuple{Base.RefValue{typeof(^)}, LatticeValue{Float64, :square}, Base.RefValue{Val{2}}}}}}}}, Int64}}, Int64}}}},Type{Int64}})   # time: 0.0443286
     Base.precompile(Tuple{typeof(==),Bonds{Nothing, 1},Bonds{Nothing, 1}})   # time: 0.0441518
     Base.precompile(Tuple{typeof(Core.kwcall),NamedTuple{(:x, :x2), Tuple{Int64, Int64}},typeof(getindex),LatticeValue{Float64, :square}})   # time: 0.0430959
     Base.precompile(Tuple{typeof(qwz),LatticeValue{Float64, :square}})   # time: 0.0415561
@@ -127,7 +127,7 @@ end   # time: 0.0594488
 end   # time: 0.0247594
     Base.precompile(Tuple{typeof(Core.kwcall),NamedTuple{(:field,), Tuple{NoField}},typeof(build_operator!),SparseMatrixBuilder{ComplexF64},Sample{Nothing, HoneycombLattice, Nothing, BoundaryConditions{Tuple{}}},Pair{Complex{Int64}, Bonds{Pair{Int64, Int64}, 1}}})   # time: 0.0223335
     Base.precompile(Tuple{typeof(radius_vector),SquareLattice{2},LatticeSite{2},LatticeSite{2}})   # time: 0.0221769
-    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Int64},Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(+), Tuple{Int64, Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(*), Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(<=), Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(sqrt), Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(+), Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(Base.literal_pow), Tuple{Base.RefValue{typeof(^)}, LatticeValue{Float64, :square}, Base.RefValue{Val{2}}}}, Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(Base.literal_pow), Tuple{Base.RefValue{typeof(^)}, LatticeValue{Float64, :square}, Base.RefValue{Val{2}}}}}}}}, Int64}}, Int64}}}}})   # time: 0.0210203
+    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Int64},Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(+), Tuple{Int64, Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(*), Tuple{Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(<=), Tuple{Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(sqrt), Tuple{Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(+), Tuple{Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(Base.literal_pow), Tuple{Base.RefValue{typeof(^)}, LatticeValue{Float64, :square}, Base.RefValue{Val{2}}}}, Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(Base.literal_pow), Tuple{Base.RefValue{typeof(^)}, LatticeValue{Float64, :square}, Base.RefValue{Val{2}}}}}}}}, Int64}}, Int64}}}}})   # time: 0.0210203
     Base.precompile(Tuple{typeof(coord_values),SquareLattice{2}})   # time: 0.0204903
     Base.precompile(Tuple{typeof(site_density),Operator{LatticeBasis{SquareLattice{2}}, LatticeBasis{SquareLattice{2}}, SparseMatrixCSC{Float64, Int64}}})   # time: 0.0190599
     Base.precompile(Tuple{typeof(build_hamiltonian),Sample{Nothing, SquareLattice{2}, Nothing, BoundaryConditions{Tuple{}}},Bonds{Nothing, 2}})   # time: 0.0188378
@@ -160,7 +160,7 @@ end   # time: 0.0162602
     Base.precompile(Tuple{TimeSequence{LatticeValue{Float64, :square}},Float64})   # time: 0.0107779
     Base.precompile(Tuple{typeof(get_coord),LatticeSite{2},Tuple{Symbol, Nothing}})   # time: 0.009724
     Base.precompile(Tuple{Type{MaterializedCurrents},SquareLattice{2}})   # time: 0.0096676
-    Base.precompile(Tuple{typeof(_extract_lattice),SquareLattice{2},Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(Base.literal_pow), Tuple{Base.RefValue{typeof(^)}, LatticeValue{Float64, :square}, Base.RefValue{Val{2}}}}}})   # time: 0.0096562
+    Base.precompile(Tuple{typeof(_extract_lattice),SquareLattice{2},Tuple{Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(Base.literal_pow), Tuple{Base.RefValue{typeof(^)}, LatticeValue{Float64, :square}, Base.RefValue{Val{2}}}}}})   # time: 0.0096562
     Base.precompile(Tuple{typeof(==),LatticeSite{2},LatticeSite})   # time: 0.0093994
     Base.precompile(Tuple{typeof(getindex),LatticeValue{Float64, :square},LatticeValue{Bool, :square}})   # time: 0.0091569
     Base.precompile(Tuple{typeof(differentiate),TimeSequence{LatticeValue}})   # time: 0.0090699
@@ -170,47 +170,47 @@ end   # time: 0.0162602
     Base.precompile(Tuple{typeof(==),LatticeSite{2},LatticeSite{2}})   # time: 0.008572
     isdefined(LatticeModels, Symbol("#95#96")) && Base.precompile(Tuple{getfield(LatticeModels, Symbol("#95#96")),Int64})   # time: 0.008525
     Base.precompile(Tuple{typeof(mm_assuming_zeros),SMatrix{2, 2, Float64, 4},SVector{1, Int64}})   # time: 0.0083718
-    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Bool, :honeycomb},Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(<), Tuple{LatticeValue{Float64, :honeycomb}, LatticeValue{Float64, :honeycomb}}}})   # time: 0.0082964
+    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Bool, :honeycomb},Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(<), Tuple{LatticeValue{Float64, :honeycomb}, LatticeValue{Float64, :honeycomb}}}})   # time: 0.0082964
     Base.precompile(Tuple{typeof(getindex),HoneycombLattice,LatticeValue{Bool, :honeycomb}})   # time: 0.0081744
     Base.precompile(Tuple{typeof(getindex),TimeSequence{LatticeValue},LatticeSite{2}})   # time: 0.0081623
     Base.precompile(Tuple{typeof(line_integral),FieldSum{Tuple{FluxField, SymmetricField}},SVector{2, Int64},SVector{2, Int64}})   # time: 0.0080935
-    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Bool, :square},Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(<), Tuple{LatticeValue{Float64, :square}, LatticeValue{Float64, :square}}}})   # time: 0.0080914
+    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Bool, :square},Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(<), Tuple{LatticeValue{Float64, :square}, LatticeValue{Float64, :square}}}})   # time: 0.0080914
     Base.precompile(Tuple{typeof(add_diagonal!),SparseMatrixBuilder{ComplexF64},SparseMatrixCSC{ComplexF64, Int64},Vector{Float64}})   # time: 0.0079846
-    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, :square},Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(imag), Tuple{LatticeValue{ComplexF64, :square}}}})   # time: 0.0075587
+    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, :square},Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(imag), Tuple{LatticeValue{ComplexF64, :square}}}})   # time: 0.0075587
     Base.precompile(Tuple{typeof(hoppings),Function,SquareLattice{2},Bonds{Nothing, 1}})   # time: 0.0074993
-    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, :honeycomb},Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(|>), Tuple{LatticeValue{Float64, :honeycomb}, Base.RefValue{typeof(real)}}}})   # time: 0.0073543
+    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, :honeycomb},Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(|>), Tuple{LatticeValue{Float64, :honeycomb}, Base.RefValue{typeof(real)}}}})   # time: 0.0073543
     Base.precompile(Tuple{typeof(Core.kwcall),NamedTuple{(:field,), Tuple{LandauField}},typeof(build_operator!),SparseMatrixBuilder{ComplexF64},Sample,Pair{SparseMatrixCSC{ComplexF64, Int64}, LatticeValue{Int64, :square}}})   # time: 0.0072326
     Base.precompile(Tuple{typeof(Core.kwcall),NamedTuple{(:field,), Tuple{NoField}},typeof(build_operator!),SparseMatrixBuilder{ComplexF64},Sample{Nothing, HoneycombLattice, Nothing, BoundaryConditions{Tuple{}}},Pair{Complex{Int64}, Bonds{Pair{Int64, Int64}, 2}}})   # time: 0.0071359
-    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Bool, :square},Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(>=), Tuple{LatticeValue{Float64, :square}, LatticeValue{Float64, :square}}}})   # time: 0.0071326
+    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Bool, :square},Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(>=), Tuple{LatticeValue{Float64, :square}, LatticeValue{Float64, :square}}}})   # time: 0.0071326
     Base.precompile(Tuple{typeof(Core.kwcall),NamedTuple{(:field,), Tuple{LandauField}},typeof(build_operator!),SparseMatrixBuilder{ComplexF64},Sample,Pair{<:Any, <:Union{Pair{LatticeSite{N}, LatticeSite{N}} where N, SiteOffset}}})   # time: 0.0070027
     Base.precompile(Tuple{typeof(==),TimeSequence{LatticeValue{Float64, :square}},TimeSequence{LatticeValue{Float64, :square}}})   # time: 0.0069814
     Base.precompile(Tuple{typeof(cartesian_index),LatticePointer{2}})   # time: 0.0068769
-    Base.precompile(Tuple{typeof(copyto!),LatticeValueWrapper{SubArray{Float64, 1, Vector{Float64}, Tuple{Vector{Int64}}, false}, :square},Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(+), Tuple{LatticeValue{Float64, :square}, Int64}}})   # time: 0.0068625
-    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, :square},Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(|>), Tuple{LatticeValue{Float64, :square}, Base.RefValue{typeof(real)}}}})   # time: 0.0068306
+    Base.precompile(Tuple{typeof(copyto!),LatticeValueWrapper{SubArray{Float64, 1, Vector{Float64}, Tuple{Vector{Int64}}, false}, :square},Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(+), Tuple{LatticeValue{Float64, :square}, Int64}}})   # time: 0.0068625
+    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, :square},Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(|>), Tuple{LatticeValue{Float64, :square}, Base.RefValue{typeof(real)}}}})   # time: 0.0068306
     Base.precompile(Tuple{typeof(getindex),MaterializedCurrents,LatticeValue{Bool, :square}})   # time: 0.0067118
     Base.precompile(Tuple{typeof(differentiate),TimeSequence{Float64}})   # time: 0.0066706
-    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, :square},Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(*), Tuple{LatticeValue{Float64, :square}, LatticeValue{Float64, :square}}}})   # time: 0.0064249
+    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, :square},Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(*), Tuple{LatticeValue{Float64, :square}, LatticeValue{Float64, :square}}}})   # time: 0.0064249
     Base.precompile(Tuple{Type{SiteOffset},Vector{Int64}})   # time: 0.0063515
     Base.precompile(Tuple{typeof(hoppings),PairLhsGraph,SquareLattice{2},Bonds{Nothing, 1}})   # time: 0.0062008
-    Base.precompile(Tuple{typeof(similar),Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(<), Tuple{LatticeValue{Float64, :honeycomb}, LatticeValue{Float64, :honeycomb}}},Type{Bool}})   # time: 0.0061716
-    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, :square},Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(*), Tuple{LatticeValue{Float64, :square}, Int64}}})   # time: 0.0059259
+    Base.precompile(Tuple{typeof(similar),Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(<), Tuple{LatticeValue{Float64, :honeycomb}, LatticeValue{Float64, :honeycomb}}},Type{Bool}})   # time: 0.0061716
+    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, :square},Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(*), Tuple{LatticeValue{Float64, :square}, Int64}}})   # time: 0.0059259
     Base.precompile(Tuple{typeof(Core.kwcall),NamedTuple{(:x1,), Tuple{Int64}},typeof(Base.Broadcast.dotview),LatticeValue{Float64, :square}})   # time: 0.0059145
-    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, :square},Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(*), Tuple{Int64, LatticeValue{Float64, :square}}}})   # time: 0.0058754
+    Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, :square},Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(*), Tuple{Int64, LatticeValue{Float64, :square}}}})   # time: 0.0058754
     Base.precompile(Tuple{typeof(shift_site),BoundaryConditions{Tuple{TwistedBoundary}},SquareLattice{2},LatticePointer{2}})   # time: 0.0057739
     Base.precompile(Tuple{typeof(getindex),SquareLattice{2},Int64})   # time: 0.0057392
-    Base.precompile(Tuple{typeof(check_is_sublattice),SquareLattice{2},SquareLattice{2}})   # time: 0.0056351
+    Base.precompile(Tuple{typeof(check_issublattice),SquareLattice{2},SquareLattice{2}})   # time: 0.0056351
     Base.precompile(Tuple{typeof(==),LatticeSite{2},LatticePointer{2}})   # time: 0.0053724
     Base.precompile(Tuple{typeof(get_site_periodic),SquareLattice{2},LatticePointer{2}})   # time: 0.0052379
     Base.precompile(Tuple{typeof(==),LatticeValue,LatticeValue{Float64, :square}})   # time: 0.0051372
     Base.precompile(Tuple{typeof(getproperty),LatticeSite,Symbol})   # time: 0.0051139
     Base.precompile(Tuple{typeof(==),Bonds{Nothing, 1},Bonds{Nothing, 2}})   # time: 0.0051108
-    Base.precompile(Tuple{typeof(check_is_sublattice),HoneycombLattice,HoneycombLattice})   # time: 0.0047814
+    Base.precompile(Tuple{typeof(check_issublattice),HoneycombLattice,HoneycombLattice})   # time: 0.0047814
     Base.precompile(Tuple{typeof(getproperty),LatticeSite{2},Symbol})   # time: 0.0046708
     Base.precompile(Tuple{typeof(site_distance),SquareLattice{2},LatticeSite{2},LatticeSite{2}})   # time: 0.0046205
     Base.precompile(Tuple{typeof(differentiate!),TimeSequence{LatticeValue{Float64, :square}}})   # time: 0.0045409
     Base.precompile(Tuple{typeof(add_hoppings!),SparseMatrixBuilder{ComplexF64},Nothing,SquareLattice{2},Any,Pair{LatticeSite{N}, LatticeSite{N}} where N,LandauField,BoundaryConditions{Tuple{}}})   # time: 0.0045129
     Base.precompile(Tuple{typeof(_process_increment_recursive!),Expr})   # time: 0.0044009
-    Base.precompile(Tuple{typeof(_extract_lattice),Int64,Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(*), Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(<=), Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(sqrt), Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(+), Tuple{Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(Base.literal_pow), Tuple{Base.RefValue{typeof(^)}, LatticeValue{Float64, :square}, Base.RefValue{Val{2}}}}, Base.Broadcast.Broadcasted{LVWStyle, Nothing, typeof(Base.literal_pow), Tuple{Base.RefValue{typeof(^)}, LatticeValue{Float64, :square}, Base.RefValue{Val{2}}}}}}}}, Int64}}, Int64}}}})   # time: 0.0043963
+    Base.precompile(Tuple{typeof(_extract_lattice),Int64,Tuple{Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(*), Tuple{Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(<=), Tuple{Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(sqrt), Tuple{Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(+), Tuple{Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(Base.literal_pow), Tuple{Base.RefValue{typeof(^)}, LatticeValue{Float64, :square}, Base.RefValue{Val{2}}}}, Base.Broadcast.Broadcasted{LatticeStyle, Nothing, typeof(Base.literal_pow), Tuple{Base.RefValue{typeof(^)}, LatticeValue{Float64, :square}, Base.RefValue{Val{2}}}}}}}}, Int64}}, Int64}}}})   # time: 0.0043963
     Base.precompile(Tuple{typeof(mm_assuming_zeros),SMatrix{2, 2, Float64, 4},SVector{2, Int64}})   # time: 0.0041563
     Base.precompile(Tuple{typeof(add_hoppings!),SparseMatrixBuilder{ComplexF64},Function,SquareLattice{2},Int64,Pair{LatticeSite{2}, LatticeSite{2}},NoField,BoundaryConditions{Tuple{}}})   # time: 0.0041427
     Base.precompile(Tuple{typeof(add_assuming_zeros),SVector{2, Int64},SVector{1, Int64}})   # time: 0.0041216
@@ -225,7 +225,7 @@ end   # time: 0.0038539
         precompile(fbody, (ComplexF64,typeof(increment!),SparseMatrixBuilder{ComplexF64},SparseMatrixCSC{ComplexF64, Int64},Int64,Int64,))
     end
 end   # time: 0.0036623
-    Base.precompile(Tuple{typeof(similar),Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(<), Tuple{LatticeValue{Float64, :square}, LatticeValue{Float64, :square}}},Type{Bool}})   # time: 0.0036276
+    Base.precompile(Tuple{typeof(similar),Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(<), Tuple{LatticeValue{Float64, :square}, LatticeValue{Float64, :square}}},Type{Bool}})   # time: 0.0036276
     Base.precompile(Tuple{typeof(_expr_depends_on),Expr,Symbol})   # time: 0.0034854
     Base.precompile(Tuple{typeof(integrate!),TimeSequence{LatticeValue{Float64, :square}}})   # time: 0.0032508
     Base.precompile(Tuple{typeof(insert!),TimeSequence{LatticeValue},Int64,LatticeValue{Float64, :square}})   # time: 0.0031664
@@ -255,14 +255,14 @@ end   # time: 0.0025415
     end
 end   # time: 0.0023198
     Base.precompile(Tuple{typeof(_extract_lattice_s),HoneycombLattice,HoneycombLattice,Tuple{}})   # time: 0.0022625
-    Base.precompile(Tuple{Type{Base.Broadcast.BroadcastStyle},Base.Broadcast.DefaultArrayStyle{1},LVWStyle})   # time: 0.0022219
+    Base.precompile(Tuple{Type{Base.Broadcast.BroadcastStyle},Base.Broadcast.DefaultArrayStyle{1},LatticeStyle})   # time: 0.0022219
     Base.precompile(Tuple{typeof(_extract_lattice_s),SquareLattice{2},SquareLattice{2},Tuple{}})   # time: 0.0020796
     Base.precompile(Tuple{Type{Lattice},Symbol,Tuple{Int64, Int64},Bravais{2, 1}})   # time: 0.0020776
     Base.precompile(Tuple{typeof(site_density),Operator{LatticeBasis{HoneycombLattice}, LatticeBasis{HoneycombLattice}, Matrix{ComplexF64}}})   # time: 0.0020083
     Base.precompile(Tuple{typeof(Core.kwcall),NamedTuple{(:field,), Tuple{LandauField}},typeof(build_hamiltonian),FilledZones,Vararg{Any}})   # time: 0.0019026
     Base.precompile(Tuple{typeof(Core.kwcall),NamedTuple{(:k,), Tuple{Int64}},typeof(_evolution_block),Expr,Expr})   # time: 0.0018879
     Base.precompile(Tuple{typeof(match),AdjacencyMatrix{SquareLattice{2}},LatticeSite{2},LatticeSite{2}})   # time: 0.0018631
-    Base.precompile(Tuple{typeof(similar),Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(|>), Tuple{LatticeValue{Float64, :honeycomb}, Base.RefValue{typeof(real)}}},Type{Float64}})   # time: 0.0018427
+    Base.precompile(Tuple{typeof(similar),Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(|>), Tuple{LatticeValue{Float64, :honeycomb}, Base.RefValue{typeof(real)}}},Type{Float64}})   # time: 0.0018427
     Base.precompile(Tuple{Type{Lattice},Symbol,Tuple{Int64, Int64, Int64},Bravais{3, 1}})   # time: 0.0018143
     Base.precompile(Tuple{typeof(dot_assuming_zeros),SVector{2, Float64},Tuple{Int64, Any}})   # time: 0.0017843
     Base.precompile(Tuple{Type{Lattice},Symbol,Tuple{Int64, Int64},Bravais{2, 2}})   # time: 0.0017748
@@ -281,7 +281,7 @@ end   # time: 0.0023198
         precompile(fbody, (BoundaryConditions{Tuple{}},Type{Sample},Function,SquareLattice{2},Nothing,))
     end
 end   # time: 0.0014928
-    Base.precompile(Tuple{typeof(similar),Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(|>), Tuple{LatticeValue{Float64, :square}, Base.RefValue{typeof(real)}}},Type{Float64}})   # time: 0.0014496
+    Base.precompile(Tuple{typeof(similar),Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(|>), Tuple{LatticeValue{Float64, :square}, Base.RefValue{typeof(real)}}},Type{Float64}})   # time: 0.0014496
     Base.precompile(Tuple{typeof(RecipesBase.apply_recipe),AbstractDict{Symbol, Any},Lattice})   # time: 0.0014438
     Base.precompile(Tuple{typeof(_extract_lattice),HoneycombLattice,Tuple{LatticeValue{Float64, :honeycomb}}})   # time: 0.0014372
     Base.precompile(Tuple{typeof(preprocess_argument),Sample{Nothing, HoneycombLattice, Nothing, BoundaryConditions{Tuple{}}},Pair{Int64, Bonds{Pair{Int64, Int64}, 0}}})   # time: 0.0014339
@@ -295,5 +295,5 @@ end   # time: 0.0014928
     Base.precompile(Tuple{typeof(copyto!),LatticeValueWrapper{SubArray{Float64, 1, Vector{Float64}, Tuple{Vector{Int64}}, false}, :square},Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{0}, Tuple{Base.OneTo{Int64}}, typeof(identity), Tuple{Int64}}})   # time: 0.0010434
     Base.precompile(Tuple{typeof(insert!),TimeSequence{LatticeValue{Float64, :square}},Int64,LatticeValue{Float64, :square}})   # time: 0.0010135
     Base.precompile(Tuple{typeof(zeros),SquareLattice{2}})   # time: 0.0010128
-    Base.precompile(Tuple{typeof(similar),Base.Broadcast.Broadcasted{LVWStyle, Tuple{Base.OneTo{Int64}}, typeof(*), Tuple{LatticeValue{Float64, :square}, LatticeValue{Float64, :square}}},Type{Float64}})   # time: 0.0010086
+    Base.precompile(Tuple{typeof(similar),Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(*), Tuple{LatticeValue{Float64, :square}, LatticeValue{Float64, :square}}},Type{Float64}})   # time: 0.0010086
 end

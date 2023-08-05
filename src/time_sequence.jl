@@ -4,7 +4,7 @@ Series of some data depending on time.
 """
 struct TimeSequence{ET} <: AbstractDict{Float64, ET}
     times::Vector{Float64}
-    snapshots::Vector{ET}
+    values::Vector{ET}
     function TimeSequence{ET}(ts, vs) where ET
         length(ts) != length(vs) &&
             error("Keys/values length mismatch:\n$(length(ts)) timestamps, $(length(vs)) snapshots")
@@ -16,74 +16,85 @@ end
 Constructs a TimeSequence with given timestamps and values.
 """
 TimeSequence(ts, vs::AbstractVector) = TimeSequence{eltype(vs)}(ts, vs)
-TimeSequence{ET}() where ET = TimeSequence{ET}([], [])
+TimeSequence{ET}() where ET = TimeSequence{ET}(Float64[], ET[])
 """
-    TimeSequence(value; timestamp=0)
-Constructs a TimeSequence with one single snapshot. The timestamp is zero by default but can be overriden.
+    TimeSequence(value; t=0)
+Constructs a TimeSequence with one single snapshot. The timestamp is zero by default but can be over
+riden.
 """
-TimeSequence(val; t::Real=0) = TimeSequence([t], [val])
+TimeSequence(t::Real, val) = TimeSequence(Float64[t], [val])
 
 """
-    time_domain(ts::TimeSequence)
+    timestamps(ts::TimeSequence)
 
 Returns the timestamps of the snapshots.
 """
-time_domain(tseq::TimeSequence) = tseq.times
-snapshots(tseq::TimeSequence) = tseq.snapshots
+timestamps(tseq::TimeSequence) = tseq.times
+timerange(tseq::TimeSequence) = first(tseq.times)..last(tseq.times)
+snapshots(tseq::TimeSequence) = tseq.values
 
-Base.copy(tseq::TimeSequence) = TimeSequence(copy(tseq.times), [copy(s) for s in tseq.snapshots])
+Base.copy(tseq::TimeSequence) = TimeSequence(copy(tseq.times), [copy(s) for s in tseq.values])
 Base.empty(::TimeSequence{ET}) where ET = TimeSequence{ET}()
-Base.length(tseq::TimeSequence) = length(time_domain(tseq))
+Base.length(tseq::TimeSequence) = length(timestamps(tseq))
 
 function Base.show(io::IO, ::MIME"text/plain", tseq::TimeSequence{ET}) where ET
     print(io, "AbstractTimeSequence{$ET} with $(length(tseq)) records")
-    td = time_domain(tseq)
+    td = timestamps(tseq)
     if length(td) ≥ 2
-        print(io, "\nTimestamps in range $(td[1]) .. $(td[end])")
+        print(io, "\nTimestamps in range $(timerange(tseq))")
     elseif length(td) == 1
         print(io, "\nTimestamp: $(only(td))")
     end
 end
 
 Base.:(==)(ts1::TimeSequence, ts2::TimeSequence) =
-    (ts1.times == ts2.times) && (ts1.snapshots == ts2.snapshots)
+    (ts1.times == ts2.times) && (ts1.values == ts2.values)
 
-function Base.get(tseq::TimeSequence, t::Number, default)
-    f = findfirst(==(t), tseq.times)
-    f === nothing ? default : tseq.snapshots[f]
+Base.empty(::TimeSequence, ::Type, ::VT) where VT =
+    TimeSequence(VT)()
+function Base.get(tseq::TimeSequence, t::Real, default)
+    f = findfirst(≈(t, atol=√eps()), tseq.times)
+    f === nothing ? default : tseq.values[f]
 end
-
-function Base.insert!(tseq::TimeSequence, t::Number, value)
-    td = time_domain(tseq)
-    imx = findlast(≤(t), td)
-    imx === nothing && (imx = 0)
-    if checkbounds(Bool, td, imx) && td[imx] == t
-        tseq.snapshots[imx] = value
+get_inner(val, ::Nothing) = val
+get_inner(val, tup::Tuple) = val[tup...]
+get_inner(val, ind) = val[ind]
+function Base.getindex(ts::TimeSequence, domain; inner=nothing)
+    mask = map(in(domain), ts.times)
+    return TimeSequence(ts.times[mask],
+        [get_inner(ts.values[i], inner) for i in eachindex(ts.values) if mask[i]])
+end
+function Base.getindex(ts::TimeSequence, t::Number; inner=nothing)
+    val = get(ts, t, Base.secret_table_token)
+    if val == Base.secret_table_token
+        throw(KeyError(t))
     else
-        insert!(tseq.times, imx + 1, t)
-        insert!(tseq.snapshots, imx + 1, value)
+        return get_inner(val, inner)
     end
-    tseq
 end
-
-(tseq::TimeSequence)(t::Real) =
-    tseq.snapshots[findmin(x -> abs(x - t), tseq.times)[2]]
-function (tseq::TimeSequence)(tmin::Real, tmax::Real)
-    inds = findall(time_domain(tseq)) do x
-        tmin ≤ x ≤ tmax
+Base.getindex(ts::TimeSequence; inner) = ts[timerange(ts), inner=inner]
+function Base.setindex!(tseq::TimeSequence, val, t::Real)
+    i = findfirst(≈(t, atol=√eps()), tseq.times)
+    if i === nothing
+        i = searchsortedfirst(tseq.times, t)
+        insert!(tseq.times, i, t)
+        insert!(tseq.values, i, val)
+    else
+        tseq.values[i] = val
     end
-    TimeSequence(tseq.times[inds], tseq.snapshots[inds])
+    return val
 end
-
-function Base.getindex(tseq::TimeSequence, args...)
-    length(tseq) == 0 && error("Cannot index zero-length TimeSequence")
-    TimeSequence(tseq.times, [tseq.snapshots[i][args...] for i in eachindex(tseq.snapshots)])
+function Base.delete!(tseq::TimeSequence, t)
+    f = findfirst(≈(t, atol=√eps()), tseq.times)
+    f === nothing && return
+    deleteat!(tseq.times, f)
+    deleteat!(tseq.values, f)
 end
 
 function Base.iterate(tseq::TimeSequence, state=(1, length(tseq)))
     ind, len = state
     1 ≤ ind ≤ len || return nothing
-    tseq.times[ind] => tseq.snapshots[ind], (ind + 1, len)
+    tseq.times[ind] => tseq.values[ind], (ind + 1, len)
 end
 
 _internal(op::DataOperator) = op.data
@@ -104,15 +115,15 @@ Differentiate the values stored in the `TimeSequence` object by time using the s
 """
 function differentiate!(tseq::TimeSequence)
     length(tseq) < 2 && error("Cannot differentiate TimeSequence of length $(length(tseq))")
-    td = time_domain(tseq)
+    td = timestamps(tseq)
     for i in 2:length(tseq)
         dt = td[i] - td[i-1]
-        tseq.snapshots[i-1] = _axpby!(1/dt, tseq.snapshots[i],
-                -1/dt, tseq.snapshots[i - 1])
+        tseq.values[i-1] = _axpby!(1/dt, tseq.values[i],
+                -1/dt, tseq.values[i - 1])
         td[i - 1] += dt / 2
     end
     pop!(td)
-    pop!(tseq.snapshots)
+    pop!(tseq.values)
     tseq
 end
 differentiate(tseq::TimeSequence) = differentiate!(copy(tseq))
@@ -124,15 +135,15 @@ Integrates the values stored in the `TimeSequence` object over time using the tr
 """
 function integrate!(tseq::TimeSequence)
     length(tseq) < 2 && error("Cannot integrate TimeSequence of length $(length(tseq))")
-    td = time_domain(tseq)
+    td = timestamps(tseq)
     for i in 2:length(tseq)
         dt = td[i] - td[i-1]
-        tseq.snapshots[i-1] = _axpby!(1/2dt, tseq.snapshots[i], 1/2dt, tseq.snapshots[i-1])
+        tseq.values[i-1] = _axpby!(1/2dt, tseq.values[i], 1/2dt, tseq.values[i-1])
     end
-    last = pop!(tseq.snapshots)
-    pushfirst!(tseq.snapshots, zero(last))
+    last = pop!(tseq.values)
+    pushfirst!(tseq.values, zero(last))
     for i in 2:length(tseq)
-        tseq.snapshots[i] = _axpby!(1, tseq.snapshots[i-1], 1, tseq.snapshots[i])
+        tseq.values[i] = _axpby!(1, tseq.values[i-1], 1, tseq.values[i])
     end
     tseq
 end

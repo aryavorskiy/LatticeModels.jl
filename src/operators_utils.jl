@@ -3,7 +3,7 @@ import QuantumOpticsBase: basis, samebases, check_samebases
 QuantumOpticsBase.diagonaloperator(lv::LatticeValue) =
     diagonaloperator(LatticeBasis(lattice(lv)), lv.values)
 function QuantumOpticsBase.diagonaloperator(lb::AbstractLatticeBasis, lv::LatticeValue)
-    check_lattice_match(lv, lb)
+    check_samelattice(lv, lb)
     N = internal_length(lb)
     return diagonaloperator(lb, repeat(lv.values, inner=N))
 end

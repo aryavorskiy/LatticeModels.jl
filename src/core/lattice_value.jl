@@ -70,23 +70,24 @@ Base.ones(T::Type, l::Lattice) = fill(one(T), l)
 
 Base.:(==)(lvw1::LatticeValueWrapper, lvw2::LatticeValueWrapper) = (lvw1.lattice == lvw2.lattice) && (lvw1.values == lvw2.values)
 
-struct LVWStyle <: Broadcast.BroadcastStyle end
-Base.copyto!(lvw::LatticeValueWrapper, src::Broadcast.Broadcasted{LVWStyle}) = (copyto!(lvw.values, src); return lvw)
+struct LatticeStyle <: Broadcast.BroadcastStyle end
+Base.copyto!(lvw::LatticeValueWrapper, src::Broadcast.Broadcasted{LatticeStyle}) = (copyto!(lvw.values, src); return lvw)
 Base.copyto!(lvw::LatticeValueWrapper, src::Broadcast.Broadcasted{Broadcast.DefaultArrayStyle{0}}) = (copyto!(lvw.values, src); return lvw)
 Base.broadcastable(lvw::LatticeValueWrapper) = lvw
 Base.broadcastable(l::Lattice) = l
-Base.BroadcastStyle(::Type{<:LatticeValueWrapper}) = LVWStyle()
-Base.BroadcastStyle(::Type{<:Lattice}) = LVWStyle()
-Base.BroadcastStyle(bs::Broadcast.BroadcastStyle, ::LVWStyle) =
+Base.BroadcastStyle(::Type{<:LatticeValueWrapper}) = LatticeStyle()
+Base.BroadcastStyle(::Type{<:Lattice}) = LatticeStyle()
+Base.BroadcastStyle(bs::Broadcast.BroadcastStyle, ::LatticeStyle) =
     error("cannot broadcast LatticeValue along style $bs")
-Base.BroadcastStyle(::Broadcast.DefaultArrayStyle{0}, ::LVWStyle) = LVWStyle()
+Base.BroadcastStyle(::Broadcast.DefaultArrayStyle{0}, ::LatticeStyle) = LatticeStyle()
 
-function Base.similar(bc::Broadcast.Broadcasted{LVWStyle}, ::Type{Eltype}) where {Eltype}
+function Base.similar(bc::Broadcast.Broadcasted{LatticeStyle}, ::Type{Eltype}) where {Eltype}
     l = _extract_lattice(bc)
     LatticeValue(l, similar(Vector{Eltype}, axes(bc)))
 end
 _extract_lattice(bc::Broadcast.Broadcasted) = _extract_lattice(bc.args)
 _extract_lattice(lv::LatticeValueWrapper) = lv.lattice
+_extract_lattice(ext::Broadcast.Extruded) = _extract_lattice(ext.x)
 _extract_lattice(x) = x
 _extract_lattice(::Tuple{}) = nothing
 _extract_lattice(args::Tuple) =
@@ -101,7 +102,7 @@ _extract_lattice_s(l::Lattice, ::Tuple{}) = l
 _extract_lattice_s(l::Lattice, ::Any, rem_args::Tuple) =
     _extract_lattice_s(l, rem_args)
 function _extract_lattice_s(l::Lattice, l2::Lattice, rem_args::Tuple)
-    check_lattice_match(l, l2)
+    check_samelattice(l, l2)
     _extract_lattice_s(l, rem_args)
 end
 
@@ -114,15 +115,15 @@ function Base.show(io::IO, mime::MIME"text/plain", lv::LatticeValueWrapper)
     end
 end
 
-Base.@propagate_inbounds function Base.getindex(l::Lattice{LatticeSym,N,NB},
-        lv_mask::LatticeValue{Bool,LatticeSym}) where {LatticeSym,N,NB}
-    @boundscheck check_is_sublattice(l, lattice(lv_mask))
+Base.@propagate_inbounds function Base.getindex(l::Lattice{LatticeSym}, lv_mask::LatticeValue{Bool}) where LatticeSym
+    @boundscheck check_samemacrocell(l, lattice(lv_mask))
     new_mask = zero(l.mask)
     new_mask[lv_mask.lattice.mask] = lv_mask.values
     Lattice(LatticeSym, macrocell_size(l), bravais(l), vec(new_mask .& l.mask))
 end
 
 Base.@propagate_inbounds function Base.getindex(lv::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
+    @boundscheck check_samelattice(lv, lv_mask)
     new_l  = lattice(lv)[lv_mask]
     LatticeValueWrapper(new_l, lv.values[new_l.mask[lv.lattice.mask]])
 end
@@ -135,8 +136,8 @@ Base.Broadcast.dotview(lv::LatticeValueWrapper; kw...) = Base.Broadcast.dotview(
 
 Base.@propagate_inbounds function Base.setindex!(lv::LatticeValueWrapper, lv_rhs::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
     @boundscheck begin
-        check_is_sublattice(lattice(lv), lattice(lv_mask))
-        check_is_sublattice(lattice(lv), lattice(lv_rhs))
+        check_issublattice(lattice(lv_mask), lattice(lv))
+        check_issublattice(lattice(lv_rhs), lattice(lv))
     end
     new_mask = zero(lv.lattice.mask)
     new_mask[lv_rhs.lattice.mask] = lv_mask.values

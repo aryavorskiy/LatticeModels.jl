@@ -170,7 +170,7 @@ end
 end
 
 @recipe function f(tseq::TimeSequence)
-    tseq.times, tseq.snapshots
+    tseq.times, tseq.values
 end
 
 @recipe function f(lv::PlottableLatticeValue{:square})

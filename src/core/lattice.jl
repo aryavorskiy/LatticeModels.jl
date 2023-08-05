@@ -20,7 +20,7 @@ For example, a 3×3 square lattice with its center site excluded is represented 
 To define a new type of lattice, create an alias for `Lattice{YourSym, YourN, YourNB}`.
 Refer to the docs for detailed explanation.
 """
-struct Lattice{LatticeSym,N,NB} <: AbstractSet{LatticeSite{N}}
+struct Lattice{LatticeSym,N,NB} <: AbstractVector{LatticeSite{N}}
     lattice_size::NTuple{N,Int}
     bravais::Bravais{N,NB}
     mask::Vector{Bool}
@@ -86,13 +86,17 @@ end
 Base.getindex(l::Lattice, ci::CartesianIndex{1}) = getindex(l, only(Tuple(ci)))
 function Base.getindex(l::Lattice{Sym}, is::AbstractVector{Int}) where Sym
     new_mask = zero(l.mask)
-    try
-        (@view new_mask[l.mask])[is] .= true
-    catch BoundsError
-        throw(BoundsError(l, is))
-    end
+    @boundscheck checkbounds(l, is)
+    (@view new_mask[l.mask])[is] .= true
     Lattice(Sym, macrocell_size(l), bravais(l), new_mask)
 end
+function Base.deleteat!(l::Lattice, inds)
+    @boundscheck checkbounds(l, inds)
+    view(l.mask, l.mask)[collect(inds)] .= false
+    l
+end
+Base.pop!(l::Lattice) = Base.deleteat!(l, lastindex(l))
+Base.popfirst!(l::Lattice) = Base.deleteat!(l, firstindex(l))
 
 """
     site_index(l::Lattice, site::LatticeSite; macrocell=false)
@@ -108,17 +112,6 @@ function site_index(l::Lattice, site::Union{LatticeSite, LatticePointer})
     count(@view l.mask[1:i])
 end
 site_index(::Lattice, ::Nothing) = nothing
-
-function Base.splice!(l::Lattice, is)
-    view(l.mask, l.mask)[collect(is)] .= false
-    l
-end
-Base.popat!(l::Lattice, i::Int) = splice!(l, i)
-Base.pop!(l::Lattice) = popat!(l, length(l))
-Base.popfirst!(l::Lattice) = popat!(l, 1)
-Base.lastindex(l::Lattice) = length(l)
-
-Base.eltype(::Lattice{LatticeSym,N}) where {LatticeSym,N} = LatticeSite{N}
 
 function Base.iterate(l::Lattice{Sym,N} where Sym) where N
     cinds = cartesian_indices(l)
@@ -177,6 +170,7 @@ function collect_coords(l::Lattice)
     pts
 end
 
+#TODO fix repr printing
 function Base.show(io::IO, ::MIME"text/plain", l::Lattice{LatticeSym,N}) where {N,LatticeSym}
     print(io, "$(length(l))-site ", LatticeSym)
     if N != 1
@@ -218,45 +212,55 @@ function AnyDimLattice{T,NB}(f::Function, sz::Vararg{Int,N}; kw...) where {T,N,N
     sublattice(f, l)
 end
 
+struct IncompatibleLattices <: Exception
+    header::String
+    l1::Lattice
+    l2::Lattice
+    IncompatibleLattices(header, l1, l2) = new(header, lattice(l1), lattice(l2))
+end
+IncompatibleLattices(l1, l2) = IncompatibleLattices("Matching lattices expected", l1, l2)
+
+Base.showerror(io::IO, ex::IncompatibleLattices) = print(io,
+"""$(ex.header).\nGot following:
+        #1: $(repr("text/plain", ex.l1))
+        #2: $(repr("text/plain", ex.l2))""")
+
+
 """
 Checks if `l1` and `l2` objects are defined on one lattice. Throws an error if not.
 """
-function check_lattice_match(l1, l2)
+function check_samelattice(l1, l2)
     lattice(l1) != lattice(l2) &&
-        throw(ArgumentError("""lattice mismatch:
-        $(repr("text/plain", lattice(l1)))
-        $(repr("text/plain", lattice(l2)))"""))
+        throw(IncompatibleLattices(l1, l2))
 end
 
 """
 Checks if `l1` and `l2` are defined on one macrocell. Throws an error if not.
 """
-function check_macrocell_match(l1, l2)
+function check_samemacrocell(l1, l2)
     la1 = lattice(l1)
     la2 = lattice(l2)
     (macrocell_size(la1) != macrocell_size(la2) || bravais(la1) != bravais(la2)) &&
-        throw(ArgumentError("""macrocell mismatch:
-        $(macrocell_size(la1))-size with $(bravais(la1))
-        $(macrocell_size(la2))-size with $(bravais(la2))"""))
+        throw(IncompatibleLattices("Lattices on matching macrocell expected", la1, la2))
 end
 
 """
-Checks if `l2` is sublattice of `l1`. Throws an error if not.
+Checks if `l1` is sublattice of `l2`. Throws an error if not.
 """
-function check_is_sublattice(l1::Lattice, l2::Lattice)
-    check_macrocell_match(l1, l2)
-    any(.!l1.mask .& l2.mask) &&
-        error("macrocells match but sublattice check failed")
+function check_issublattice(l1::Lattice, l2::Lattice)
+    check_samemacrocell(l1, l2)
+    any(l1.mask .& .!l2.mask) &&
+        throw(IncompatibleLattices("#1 is expected to be sublattice of #2", l1, l2))
 end
 
 function Base.union!(l1::Lattice{Sym}, l2::Lattice{Sym}) where Sym
-    check_macrocell_match(l1, l2)
+    check_samemacrocell(l1, l2)
     @. l1.mask = l1.mask | l2.mask
     l1
 end
 
 function Base.intersect!(l1::Lattice{Sym}, l2::Lattice{Sym}) where Sym
-    check_macrocell_match(l1, l2)
+    check_samemacrocell(l1, l2)
     @. l1.mask = l1.mask & l2.mask
     l1
 end
@@ -264,7 +268,7 @@ Base.intersect(l1::Lattice{Sym}, l2::Lattice{Sym}) where Sym =
     Base.intersect!(copy(l1), l2)
 
 function Base.setdiff!(l1::Lattice{Sym}, l2::Lattice{Sym}) where Sym
-    check_macrocell_match(l1, l2)
+    check_samemacrocell(l1, l2)
     @. l1.mask = l1.mask & !l2.mask
     l1
 end
