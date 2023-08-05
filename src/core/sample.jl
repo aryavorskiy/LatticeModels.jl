@@ -180,24 +180,24 @@ shift_site(sys::System, site) = shift_site(sys.sample, site)
 
 macro accepts_system(fname, default_basis=nothing)
     esc(quote
-        global $fname(sample::Sample, args...; kw...) =
+        $fname(sample::Sample, args...; kw...) =
             $fname(System(sample, μ = 0, statistics=FermiDirac), args...; kw...)
-        global $fname(selector, l::Lattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
+        $fname(selector, l::Lattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
             $fname(Sample(selector, l, bas, boundaries=boundaries), args...; kw...)
-        global $fname(selector, l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =
+        $fname(selector, l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =
             $fname(Sample(selector, l, $default_basis, boundaries=boundaries), args...; kw...)
-        global $fname(l::Lattice, args...; kw...) = $fname(nothing, l::Lattice, args...; kw...)
+        $fname(l::Lattice, args...; kw...) = $fname(nothing, l::Lattice, args...; kw...)
     end)
 end
 
 macro accepts_sample(fname, default_basis=nothing)
     esc(quote
-        global $fname(system::FilledZones, args...; kw...) =
+        $fname(system::FilledZones, args...; kw...) =
             $fname(system.sample, args...; kw...)
-        global $fname(selector, l::Lattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
+        $fname(selector, l::Lattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
             $fname(Sample(selector, l, bas, boundaries=boundaries), args...; kw...)
-        global $fname(selector, l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =
+        $fname(selector, l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =
             $fname(Sample(selector, l, $default_basis, boundaries=boundaries), args...; kw...)
-        global $fname(l::Lattice, args...; kw...) = $fname(nothing, l::Lattice, args...; kw...)
+        $fname(l::Lattice, args...; kw...) = $fname(nothing, l::Lattice, args...; kw...)
     end)
 end

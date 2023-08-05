@@ -37,15 +37,15 @@ export coord_operator, coord_operators, site_density, diag_reduce, adjacency_mat
 include("spectrum.jl")
 export Eigensystem, diagonalize, projector, densitymatrix, dos, ldos
 
-include("evolution.jl")
-export @evolution
-
 include("currents.jl")
 export AbstractCurrents, materialize, currents_from, currents_from_to, pairs_by_distance, map_currents
 
 include("time_sequence.jl")
 export init_record, integrate, integrate!, differentiate, differentiate!, timestamps,
     TimeSequence
+
+include("evolution.jl")
+    export @evolution
 
 include("zoo.jl")
 export SquareLattice, HoneycombLattice,

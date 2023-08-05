@@ -1,38 +1,45 @@
 import Base: exp
 using LinearAlgebra, ProgressMeter
 
-function taylor_exp(A::AbstractMatrix, k::Int)
-    B = one(A) + A
-    if k == 1
-        return B
-    end
-    M = copy(A)
-    for i in 2:k
-        M *= A / i
-        B += M
-    end
-    return B
-end
+function myexp(A::AbstractMatrix; threshold=1e-6, nonzero_tol=1e-14)
+    mat_norm = norm(A, Inf)
+    mat_norm ≤ 0 && return one(A)
+    scaling_factor = nextpow(2, mat_norm)
+    A /= scaling_factor
+    delta = one(mat_norm)
+    LinearAlgebra.checksquare(A)
 
-function pade_exp(A::AbstractMatrix, k::Int)
-    even_ms = one(A) * (factorial(2k) / factorial(k))
-    M = A * (factorial(2k - 1) / factorial(k - 1))
-    odd_ms = copy(M)
-    for j in 2:k
-        M *= A * ((k - j + 1) / (2k - j + 1) / j)
-        if j % 2 == 0
-            even_ms += M
+    P = one(A)
+    next_term = copy(P)
+    nt_buffer = similar(next_term)
+    n = 1
+    while delta > threshold
+        if issparse(A)
+            next_term = A * next_term
+            next_term .*= 1 / n
+            droptol!(next_term, nonzero_tol)
         else
-            odd_ms += M
+            mul!(nt_buffer, A, next_term, 1/n, 0)
+            copyto!(next_term, nt_buffer)
+        end
+
+        delta = norm(next_term, Inf)
+        P .+= next_term
+        n += 1
+    end
+    for _ in 1:log2(scaling_factor)
+        if issparse(A)
+            P = P * P
+        else
+            mul!(nt_buffer, P, P)
+            copyto!(P, nt_buffer)
         end
     end
-    (even_ms + odd_ms) * inv(even_ms - odd_ms)
+    return P
 end
 
-densemat(m::SparseMatrixCSC) = Array(m)
-
 @doc raw"""
-    evolution_operator(H, t[, k, p])
+    evolution_operator(H, t)
 
 Calculates the unitary evolution operator using the formula
 
@@ -41,15 +48,8 @@ $ \mathcal{U}(t) = e^{-\frac{1}{i\hbar} \hat{H} t} $
 # Arguments
 - `H`: the hamiltonian matrix
 - `t`: the evolution time
-- `k`: if provided, the matrix exponent will be calculated using a Taylor series expansion with order k
-- `p`: if set to `true`, the matrix exponent will be calculated using a Padé approximant, which is
-more precise than Taylor expansion but can also be slower and uses matrix inversion.
 """
-evolution_operator(H::AbstractMatrix, t::Real, ::Nothing=nothing, ::Val=Val(false)) = exp((-im * t) * densemat(H))
-evolution_operator(H::AbstractMatrix, t::Real, k::Int, ::Val{true}) =
-    pade_exp((-im * t) * densemat(H), k)
-evolution_operator(H::AbstractMatrix, t::Real, k::Int, ::Val{false}) =
-    taylor_exp((-im * t) * H, k)
+evolution_operator(H::AbstractMatrix, t::Real, ::Nothing=nothing, ::Val=Val(false)) = myexp((-im * t) * H)
 evolution_operator(op::DataOperator, args...) = Operator(basis(op), evolution_operator(op.data, args...))
 
 evolved(ket::Ket, ev) = ev * ket
@@ -73,6 +73,25 @@ function _expr_depends_on(expr::Expr, dep_var::Symbol)
     any(_expr_depends_on(e, dep_var) for e in expr.args[_begin:end])
 end
 
+function parse_timesequences!(expr, t, seqnames=[])
+    !Meta.isexpr(expr, (:if, :elseif, :for, :while, :block)) && return seqnames
+    for i in eachindex(expr.args)
+        if Meta.isexpr(expr.args[i], :call) && expr.args[i].args[1] == :<--
+            seq, val = expr.args[i].args[2:end]
+            ref = findfirst(x -> x.first == seq, seqnames)
+            if ref === nothing
+                seqbox = gensym("$(seq)_box")
+                push!(seqnames, seq => seqbox)
+            else seqbox = seqnames[ref].second
+            end
+            expr.args[i] = :($seqbox[$t] = $val)
+        else
+            parse_timesequences!(expr.args[i], t, seqnames)
+        end
+    end
+    return seqnames
+end
+
 function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true, pade=false)
     if !Meta.isexpr(loop, :for)
         error("for loop expected")
@@ -89,9 +108,8 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true
     evolutor_updates = []
     p_evolutions = []
 
-    if typeof(rules) != Expr || rules.head ∉ (:braces, :bracescat)
-        error("evolution specifier list should be a braces notation, not '$(loop.head)'")
-    end
+    !Meta.isexpr(rules, (:braces, :bracescat)) &&
+        error("evolution specifier list should be a braces notation, not '$(rules.head)'")
 
     hamiltonian_functions = []
     hamiltonian_aliases = Dict{Symbol,Int}()
@@ -129,7 +147,7 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true
             push!(evolutor_updates,
                 :(
                     if dt_changed || $h_eval != $h_eval_new
-                        $p_target_ev = evolution_operator($h_eval_new, dt, $k, Val($pade))
+                        $p_target_ev = evolution_operator($h_eval_new, dt)
                     end
                 ),
                 :($h_eval = $h_eval_new))
@@ -140,7 +158,7 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true
             push!(evolutor_updates,
                 :(
                     if dt_changed
-                        $p_target_ev = evolution_operator($h_eval, dt, $k, Val($pade))
+                        $p_target_ev = evolution_operator($h_eval, dt)
                     end
                 ))
         end
@@ -174,6 +192,14 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true
                     evolved($(esc(p_target)), $p_target_ev)))
         end
     end
+    seqs = parse_timesequences!(loop_body, loop_var)
+    afters = []
+    for (seq, seqbox) in seqs
+        push!(inits,
+        :(local $(esc(seqbox)) = TimeSequenceContainer()))
+        push!(afters,
+        :($(esc(seq)) = $(esc(seqbox)).seq))
+    end
     quote
         ProgressMeter.ijulia_behavior(:clear)
         local $(esc(loop_var)) = first($(esc(loop_range)))
@@ -201,6 +227,7 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true
                 round(100 * dt_evol / (time() - tstart), digits=1))])
             t_inner = $(esc(loop_var))
         end
+        $(afters...)
     end
 end
 
