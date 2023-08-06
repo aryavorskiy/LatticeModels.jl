@@ -68,6 +68,7 @@ function _precompile_()
     Base.precompile(Tuple{typeof(RecipesBase.apply_recipe),AbstractDict{Symbol, Any},Lattice,Any})   # time: 0.1713283
     Base.precompile(Tuple{typeof(shift_site),PeriodicBoundaryConditions,SquareLattice{2},LatticePointer{2}})   # time: 0.1625207
     Base.precompile(Tuple{typeof(pop!),SquareLattice{2}})   # time: 0.1516442
+    Base.precompile(Tuple{typeof(evolution_operator!),Matrix{ComplexF64},Matrix{ComplexF64},Int64})   # time: 0.4586844
     Base.precompile(Tuple{typeof(evolution_operator!),SparseMatrixCSC{ComplexF64, Int64},SparseMatrixCSC{ComplexF64, Int64},Float64})   # time: 0.1135576
     Base.precompile(Tuple{typeof(coord_operator),SquareLattice{2},Symbol})   # time: 0.0839081
     Base.precompile(Tuple{typeof(coord_operators),LatticeBasis{HoneycombLattice}})   # time: 0.146227

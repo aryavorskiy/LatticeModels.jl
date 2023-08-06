@@ -235,6 +235,20 @@ end
     @test_throws KeyError rec2[0.5]
 end
 
+@testset "Evolution" begin
+    l = SquareLattice(10, 10)
+    Hs = qwz(l)     # sparse
+    Hd = dense(Hs)  # dense
+
+    τ = 10
+    correct_ev = exp(-im * τ * Hd.data)
+    Evs = LatticeModels.evolution_operator!(Operator(Hs), Hs, τ)
+    Evd = Operator(basis(Hd), one(Hd.data))
+    LatticeModels.evolution_operator!(Evd, Hd, τ)
+    @test correct_ev ≈ Evs.data atol=1e-6
+    @test correct_ev ≈ Evd.data atol=1e-6
+end
+
 @testset "Bonds" begin
     @testset "Constructor" begin
         @test Bonds(axis=1) == Bonds([1])
@@ -300,7 +314,7 @@ end
     fla = MagneticField(n = 10) do (x,)
         (0, x * 0.1)
     end
-    @testset "Path integral" begin
+    @testset "Line integral" begin
         p1 = SA[1, 2]
         p2 = SA[3, 4]
         @test LatticeModels.line_integral(la, p1, p2) ≈

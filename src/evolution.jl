@@ -1,9 +1,9 @@
 import Base: exp
 using LinearAlgebra, ProgressMeter
 
-function myexp!(P::AbstractMatrix, A::AbstractMatrix, factor; threshold=1e-6, nonzero_tol=1e-14)
+function myexp!(P::AbstractMatrix, A::AbstractMatrix, factor; threshold=1e-8, nonzero_tol=1e-14)
     mat_norm = norm(A, Inf)
-    (mat_norm ≤ 0 || iszero(factor)) && return one(A)
+    (iszero(mat_norm) || iszero(factor)) && return one(A)
     scaling_factor = nextpow(2, mat_norm * abs(factor))
     A /= scaling_factor
     delta = one(mat_norm)
@@ -13,7 +13,7 @@ function myexp!(P::AbstractMatrix, A::AbstractMatrix, factor; threshold=1e-6, no
     next_term = copy(P)
     nt_buffer = similar(next_term)
     n = 1
-    while delta > threshold
+    while delta > threshold / scaling_factor
         if issparse(A)
             next_term = A * next_term
             next_term .*= factor / n
