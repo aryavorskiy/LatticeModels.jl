@@ -1,25 +1,25 @@
 import Base: exp
 using LinearAlgebra, ProgressMeter
 
-function myexp(A::AbstractMatrix; threshold=1e-6, nonzero_tol=1e-14)
+function myexp!(P::AbstractMatrix, A::AbstractMatrix, factor; threshold=1e-6, nonzero_tol=1e-14)
     mat_norm = norm(A, Inf)
-    mat_norm ≤ 0 && return one(A)
-    scaling_factor = nextpow(2, mat_norm)
+    (mat_norm ≤ 0 || iszero(factor)) && return one(A)
+    scaling_factor = nextpow(2, mat_norm * abs(factor))
     A /= scaling_factor
     delta = one(mat_norm)
     LinearAlgebra.checksquare(A)
 
-    P = one(A)
+    P .= one(A)
     next_term = copy(P)
     nt_buffer = similar(next_term)
     n = 1
     while delta > threshold
         if issparse(A)
             next_term = A * next_term
-            next_term .*= 1 / n
+            next_term .*= factor / n
             droptol!(next_term, nonzero_tol)
         else
-            mul!(nt_buffer, A, next_term, 1/n, 0)
+            mul!(nt_buffer, A, next_term, factor / n, 0)
             copyto!(next_term, nt_buffer)
         end
 
@@ -49,8 +49,8 @@ $ \mathcal{U}(t) = e^{-\frac{1}{i\hbar} \hat{H} t} $
 - `H`: the hamiltonian matrix
 - `t`: the evolution time
 """
-evolution_operator(H::AbstractMatrix, t::Real, ::Nothing=nothing, ::Val=Val(false)) = myexp((-im * t) * H)
-evolution_operator(op::DataOperator, args...) = Operator(basis(op), evolution_operator(op.data, args...))
+evolution_operator!(Ev::AbstractMatrix, H::AbstractMatrix, t::Real) = myexp!(Ev, H, -im * t)
+evolution_operator!(Ev::DataOperator, H::DataOperator, t) = Operator(basis(H), evolution_operator!(Ev.data, H.data, t))
 
 evolved(ket::Ket, ev) = ev * ket
 evolved(op::DataOperator, ev) = ev * op * ev'
@@ -91,6 +91,9 @@ function parse_timesequences!(expr, t, seqnames=[])
     end
     return seqnames
 end
+
+one_keeptype(op::DataOperator) = Operator(basis(op), one(op.data))
+one_keeptype(mat) = one(mat)
 
 function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true, pade=false)
     if !Meta.isexpr(loop, :for)
@@ -142,23 +145,23 @@ function _evolution_block(rules, loop; k=nothing, rtol=1e-12, show_progress=true
             push!(inits,
                 :(local $h_eval = $(esc(ham_expr))),
                 :(local $h_eval_new = $(esc(ham_expr))),
-                :(local $p_target_ev = one($(esc(ham_expr)))))
+                :(local $p_target_ev = (1. + 0im) * one_keeptype($(esc(ham_expr)))))
             push!(ham_evals, :($h_eval_new = $(esc(ham_expr))))
             push!(evolutor_updates,
                 :(
                     if dt_changed || $h_eval != $h_eval_new
-                        $p_target_ev = evolution_operator($h_eval_new, dt)
+                        $p_target_ev = evolution_operator!($p_target_ev, $h_eval_new, dt)
                     end
                 ),
                 :($h_eval = $h_eval_new))
         else
             push!(inits,
                 :(local $h_eval = $(esc(ham_expr))),
-                :(local $p_target_ev = one($(esc(ham_expr)))))
+                :(local $p_target_ev = (1. + 0im) * one_keeptype($(esc(ham_expr)))))
             push!(evolutor_updates,
                 :(
                     if dt_changed
-                        $p_target_ev = evolution_operator($h_eval, dt)
+                        $p_target_ev = evolution_operator!($p_target_ev, $h_eval, dt)
                     end
                 ))
         end

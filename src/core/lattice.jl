@@ -135,7 +135,7 @@ Finds the vector between two sites on a lattice according to possibly periodic b
 function radius_vector(l::Lattice, site1::LatticeSite{N}, site2::LatticeSite{N}) where N
     hsz = SVector{N, Int}(macrocell_size(l) .÷ 2)
     tr_unitcell = (site1.unit_cell - site2.unit_cell + hsz) .% macrocell_size(l) - hsz
-    bravais(l).basis[:, site1.basis_index] - bravais(l).basis[:, site2.basis_index] + bravais(l).translation_vectors * tr_unitcell
+    bravais(l).basis[:, site1.index] - bravais(l).basis[:, site2.basis_index] + bravais(l).translation_vectors * tr_unitcell
 end
 
 """
@@ -170,7 +170,7 @@ function collect_coords(l::Lattice)
     pts
 end
 
-#TODO fix repr printing
+Base.show(io::IO, l::Lattice) = Base.show_default(io, l)
 function Base.show(io::IO, ::MIME"text/plain", l::Lattice{LatticeSym,N}) where {N,LatticeSym}
     print(io, "$(length(l))-site ", LatticeSym)
     if N != 1

@@ -57,6 +57,7 @@ dims(::LatticeSite{N}) where N = N
 const AxisSpec = Tuple{Symbol, <:Any}
 function try_parse_axis_sym(sym::Symbol)
     sym === :index && return (:b, nothing)
+    sym === :basis_index && return (:b, nothing)
     sym === :x && return (:c, 1)
     sym === :y && return (:c, 2)
     sym === :z && return (:c, 3)
@@ -91,7 +92,6 @@ function get_coord(site::LatticeSite, desc::AxisSpec)
 end
 
 function Base.getproperty(site::LatticeSite{N}, sym::Symbol) where N
-    sym == :basis_index && return site.lp.basis_index
     sym == :unit_cell && return site.lp.unit_cell
     desc = try_parse_axis_sym(sym)
     if desc === nothing

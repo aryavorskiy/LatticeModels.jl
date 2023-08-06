@@ -147,16 +147,8 @@ end
 function _kws_to_mask(l, @nospecialize(kw))
     relmask = fill(true, length(l))
     for (descr, val) in kw
-        if descr === :index
-            @. relmask &= (site.basis_index in val for site in l)
-            continue
-        end
-
-        type, axis_no = try_parse_axis_sym(descr)
-        axis_no > dims(l) && error(
-            "axis number $axis_no (descriptor '$descr') exceeds lattice dimensionality $(dims(l))")
-        type === :j && (relmask .&= (site.unit_cell[axis_no] in val for site in l))
-        type === :c && (relmask .&= (site.coords[axis_no] in val for site in l))
+        axis = parse_axis_sym(descr)
+        relmask .&= (get_coord(site, axis) in val for site in l)
     end
     cnt = count(relmask)
     cnt == 1 ? CartesianIndex(findfirst(relmask)) : LatticeValue(l, relmask)

@@ -57,7 +57,6 @@ function _precompile_()
     Base.precompile(Tuple{typeof(site_distance),Lattice,LatticeSite,LatticeSite})   # time: 0.6202028
     Base.precompile(Tuple{typeof(diagonalize),Operator{LatticeBasis{SquareLattice{2}}, LatticeBasis{SquareLattice{2}}, SparseMatrixCSC{ComplexF64, Int64}}})   # time: 0.4914219
     Base.precompile(Tuple{typeof(Core.kwcall),NamedTuple{(:statistics,), Tuple{ParticleStatistics}},typeof(densitymatrix),Eigensystem{LatticeBasis{SquareLattice{2}}, Matrix{ComplexF64}}})   # time: 0.4558818
-    Base.precompile(Tuple{typeof(evolution_operator),SparseMatrixCSC{ComplexF64, Int64},Float64,Nothing,Val{false}})   # time: 0.407908
     Base.precompile(Tuple{typeof(hoppings),SquareLattice{2},Bonds{Nothing, 1}})   # time: 0.3522327
     Base.precompile(Tuple{typeof(project),LatticeValue{Float64, :square},Symbol})   # time: 0.282558
     Base.precompile(Tuple{typeof(^),AdjacencyMatrix{SquareLattice{2}},Int64})   # time: 0.2786342
@@ -69,6 +68,8 @@ function _precompile_()
     Base.precompile(Tuple{typeof(RecipesBase.apply_recipe),AbstractDict{Symbol, Any},Lattice,Any})   # time: 0.1713283
     Base.precompile(Tuple{typeof(shift_site),PeriodicBoundaryConditions,SquareLattice{2},LatticePointer{2}})   # time: 0.1625207
     Base.precompile(Tuple{typeof(pop!),SquareLattice{2}})   # time: 0.1516442
+    Base.precompile(Tuple{typeof(evolution_operator!),SparseMatrixCSC{ComplexF64, Int64},SparseMatrixCSC{ComplexF64, Int64},Float64})   # time: 0.1135576
+    Base.precompile(Tuple{typeof(coord_operator),SquareLattice{2},Symbol})   # time: 0.0839081
     Base.precompile(Tuple{typeof(coord_operators),LatticeBasis{HoneycombLattice}})   # time: 0.146227
     let fbody = try __lookup_kwbody__(which(haldane, (Nothing,HoneycombLattice,Int64,Vararg{Int64},))) catch missing end
     if !ismissing(fbody)
@@ -77,7 +78,6 @@ function _precompile_()
 end   # time: 0.1038413
     Base.precompile(Tuple{typeof(getindex),SquareLattice{2},LatticeValue{Bool, :square}})   # time: 0.0969747
     Base.precompile(Tuple{typeof(Core.kwcall),NamedTuple{(:statistics,), Tuple{ParticleStatistics}},typeof(densitymatrix),HamiltonianEigensystem{LatticeBasis{HoneycombLattice}, Matrix{ComplexF64}, FilledZones{Sample{Nothing, HoneycombLattice, Nothing, BoundaryConditions{Tuple{}}}}}})   # time: 0.0921558
-    Base.precompile(Tuple{typeof(evolution_operator),SparseMatrixCSC{ComplexF64, Int64},Float64,Int64,Val{true}})   # time: 0.0876379
     Base.precompile(Tuple{typeof(|),AdjacencyMatrix{SquareLattice{2}},AdjacencyMatrix{SquareLattice{2}}})   # time: 0.086397
     Base.precompile(Tuple{Type{AdjacencyMatrix},SquareLattice{2},Matrix{Bool}})   # time: 0.0820857
     Base.precompile(Tuple{typeof(Core.kwcall),NamedTuple{(:j1, :j2, :index), Tuple{Int64, Int64, Int64}},typeof(getindex),HoneycombLattice})   # time: 0.0763927
@@ -93,7 +93,6 @@ end   # time: 0.0594488
     Base.precompile(Tuple{typeof(Core.kwcall),NamedTuple{(:field,), Tuple{NoField}},typeof(build_operator!),SparseMatrixBuilder{ComplexF64},Sample{Nothing, HoneycombLattice, Nothing, BoundaryConditions{Tuple{}}},Pair{Int64, Bonds{Pair{Int64, Int64}, 0}}})   # time: 0.0556176
     Base.precompile(Tuple{typeof(collect_coords),SquareLattice{3}})   # time: 0.0536449
     Base.precompile(Tuple{Type{SquareLattice},Int64,Int64,Int64})   # time: 0.0523084
-    Base.precompile(Tuple{typeof(evolution_operator),SparseMatrixCSC{ComplexF64, Int64},Float64,Int64,Val{false}})   # time: 0.0505897
     Base.precompile(Tuple{typeof(Core.kwcall),NamedTuple{(:field,), Tuple{LandauField}},typeof(build_hamiltonian),Sample{Nothing, SquareLattice{2}, Nothing, BoundaryConditions{Tuple{}}},Bonds{Nothing, 1},Bonds{Nothing, 2}})   # time: 0.0495927
     Base.precompile(Tuple{typeof(line_integral),LandauField,SVector{2, Int64},SVector{2, Int64},Int64})   # time: 0.0455025
     Base.precompile(Tuple{typeof(RecipesBase.apply_recipe),AbstractDict{Symbol, Any},AbstractCurrents})   # time: 0.045227

@@ -77,9 +77,9 @@ function shift_site(bcs::BoundaryConditions, l::Lattice, site::LatticePointer)
 end
 
 struct PeriodicBoundaryConditions <: AbstractBoundaryConditions end
-function shift_site(::PeriodicBoundaryConditions, l::Lattice, site::LatticePointer)
-    new_uc = mod.(site.unit_cell .- 1, macrocell_size(l)) .+ 1
-    1., LatticePointer(new_uc, site.basis_index)
+function shift_site(::PeriodicBoundaryConditions, l::Lattice, lp::LatticePointer)
+    new_uc = mod.(lp.unit_cell .- 1, macrocell_size(l)) .+ 1
+    1., LatticePointer(new_uc, lp.basis_index)
 end
 
 struct MagneticBoundaryConditions <: AbstractBoundaryConditions end
