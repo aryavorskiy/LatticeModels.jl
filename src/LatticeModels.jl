@@ -7,7 +7,7 @@ using Reexport
 include("core/utils.jl")
 include("core/lattice_site.jl")
 include("core/lattice.jl")
-export Lattice, sublattice, site_index, site_distance, macrocell_size
+export Lattice, lattice, sublattice, site_index, site_distance, macrocell_size
 
 include("core/lattice_value.jl")
 export LatticeValue, coord_value, coord_values, project
@@ -16,8 +16,8 @@ include("core/field.jl")
 export @field_def, NoField, MagneticField
 
 include("core/sample.jl")
-export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions, System,
-    FermiDirac, BoseEinstein, @increment
+export  Sample, System, FermiDirac, BoseEinstein, PeriodicBoundary, TwistedBoundary, FunctionBoundary,
+    BoundaryConditions, PeriodicBoundaryConditions
 
 include("core/bonds.jl")
 export SiteOffset, Bonds
@@ -26,7 +26,7 @@ include("core/adjacency.jl")
 export Domains, PairLhsGraph, PairRhsGraph
 
 include("operators_core.jl")
-export LatticeBasis
+export LatticeBasis, @increment
 include("operators_build.jl")
 export hoppings, tightbinding_hamiltonian, build_hamiltonian, OperatorBuilder, to_operator
 include("operators_manybody.jl")

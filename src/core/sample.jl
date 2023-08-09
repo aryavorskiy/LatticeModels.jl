@@ -117,6 +117,7 @@ end
 
 abstract type System{SampleT} end
 Base.length(system::System) = length(system.sample)
+sample(sys::System) = sys.sample
 
 struct FilledZones{SampleT} <: System{SampleT}
     sample::SampleT

@@ -23,22 +23,17 @@ const LatticeOperator = DataOperator{BT, BT} where BT<:LatticeBasis
 const CompositeLatticeOperator = DataOperator{BT, BT} where BT<:CompositeLatticeBasis
 const AbstractLatticeOperator = DataOperator{BT, BT} where BT<:AbstractLatticeBasis
 
-lattice(lb::LatticeBasis) = lb.latt
-lattice(b::CompositeLatticeBasis) = lattice(b.bases[2])
-lattice(b::Basis) = throw(MethodError(lattice, (b,)))
-lattice(any) = lattice(basis(any))
-internal_basis(::LatticeBasis) = throw(ArgumentError("Lattice basis has no internal"))
-internal_basis(b::CompositeLatticeBasis) = b.bases[1]
-internal_basis(b::Basis) = throw(MethodError(internal_basis, (b,)))
-internal_basis(any) = internal_basis(basis(any))
-internal_basis(sample::Sample) = sample.internal
-internal_basis(sys::System) = sys.sample.internal
-internal_length(any) = internal_length(basis(any))
-internal_length(::LatticeBasis) = 1
-internal_length(b::Basis) = length(internal_basis(b))
+sample(lb::LatticeBasis) = Sample(lb.latt)
+sample(b::CompositeLatticeBasis) = Sample(b.bases[2].latt, b.bases[1])
+sample(b::Basis) = throw(MethodError(sample, (b,)))
+sample(any) = sample(basis(any))
+lattice(any) = lattice(sample(any))
+internal_basis(sample::SampleWithInternal) = sample.internal
+internal_basis(::SampleWithoutInternal) = throw(ArgumentError("Sample has no internal basis"))
+internal_basis(any) = internal_basis(sample(any))
 internal_length(sample::SampleWithInternal) = length(sample.internal)
 internal_length(sample::SampleWithoutInternal) = 1
-internal_length(sys::System) = internal_length(sys.sample)
+internal_length(any) = internal_length(sample(any))
 
 function add_diagonal!(builder, op, diag)
     for i in 1:length(diag)
@@ -53,7 +48,7 @@ end
     match(g, site1, site2)
 
 function add_hoppings!(builder, selector, l::Lattice, op, bond::SiteOffset,
-        field::AbstractField, boundaries::BoundaryConditions)
+        field::AbstractField, boundaries::AbstractBoundaryConditions)
     dims(bond) > dims(l) && error("Incompatible dims")
     trv = radius_vector(l, bond)
     for site1 in l
@@ -64,7 +59,7 @@ function add_hoppings!(builder, selector, l::Lattice, op, bond::SiteOffset,
 end
 
 function add_hoppings!(builder, selector, l::Lattice, op, bond::SingleBond,
-        field::AbstractField, boundaries::BoundaryConditions)
+        field::AbstractField, boundaries::AbstractBoundaryConditions)
     site1, site2 = bond
     p1 = site1.coords
     p2 = site2.coords
