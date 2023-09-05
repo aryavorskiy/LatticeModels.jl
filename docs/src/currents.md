@@ -13,7 +13,7 @@ H = tightbinding_hamiltonian(l, field = FluxField(1, (5.5, 5.5)))
 P = densitymatrix(diagonalize(H), μ = -0.5)
 
 curr = DensityCurrents(H, P)                    # Create Currents object
-heatmap(site_density(P))
+heatmap(lattice_density(P))
 plot!(curr, arrows_scale=25, arrows_rtol=0.1, color=:blue)    # Quiver-plot the currents
 ```
 

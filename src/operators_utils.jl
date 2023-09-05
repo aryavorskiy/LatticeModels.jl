@@ -1,7 +1,7 @@
 import QuantumOpticsBase: basis, samebases, check_samebases
 
 QuantumOpticsBase.diagonaloperator(lv::LatticeValue) =
-    diagonaloperator(LatticeBasis(lattice(lv)), lv.values)
+    QuantumOpticsBase.diagonaloperator(LatticeBasis(lattice(lv)), lv.values)
 function QuantumOpticsBase.diagonaloperator(lb::AbstractLatticeBasis, lv::LatticeValue)
     check_samelattice(lv, lb)
     N = internal_length(lb)
@@ -26,22 +26,22 @@ coord_operator(lb::AbstractLatticeBasis, crd) =
 coord_operator(sample::Sample, crd) = coord_operator(basis(sample), crd)
 @accepts_sample coord_operator
 
-function site_density(ket::Ket{<:LatticeBasis})
+function lattice_density(ket::Ket{<:LatticeBasis})
     LatticeValue(lattice(ket), map(abs2, ket.data))
 end
-function site_density(ket::Ket{<:CompositeLatticeBasis})
+function lattice_density(ket::Ket{<:CompositeLatticeBasis})
     l = lattice(ket)
     N = internal_length(ket)
     LatticeValue(l, [sum(abs2, @view(ket.data[(i - 1) * N + 1: i * N])) for i in 1:length(l)])
 end
 
-site_density(bra::Bra) = site_density(dagger(bra))
+lattice_density(bra::Bra) = lattice_density(dagger(bra))
 
-function site_density(op::LatticeOperator)
+function lattice_density(op::LatticeOperator)
     LatticeValue(lattice(op), real.(diag(op.data)))
 end
 
-function site_density(op::CompositeLatticeOperator)
+function lattice_density(op::CompositeLatticeOperator)
     l = lattice(op)
     N = internal_length(op)
     dg = diag(op.data)
@@ -54,6 +54,17 @@ function diag_reduce(f, op::AbstractLatticeOperator)
     LatticeValue(l,
         [f(@view op.data[(i - 1) * N + 1: i * N, (i - 1) * N + 1: i * N]
         ) for i in 1:length(l)])
+end
+
+function QuantumOpticsBase.ptrace(op::LatticeModels.CompositeLatticeOperator, sym::Symbol)
+    bs = length(basis(op).bases)
+    if sym === :lattice
+        return ptrace(op, bs)
+    elseif sym === :internal
+        return ptrace(op, Tuple(1:bs-1))
+    else
+        throw(ArgumentError("Invalid subspace symbol ':$sym'; ':lattice' or ':internal' expected"))
+    end
 end
 
 """

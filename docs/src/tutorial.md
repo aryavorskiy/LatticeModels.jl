@@ -27,7 +27,7 @@ clims = (0, 0.0045)
 p = plot(layout = @layout[ grid(n, n) a{0.1w}], size=(1000, 850))
 for i in 1:n^2
     E_rounded = round(diag.values[i], sigdigits=4)
-    plot!(p[i], site_density(diag[i]), title="\$E_{$i} = $E_rounded\$", clims=clims, cbar=:none)
+    plot!(p[i], lattice_density(diag[i]), title="\$E_{$i} = $E_rounded\$", clims=clims, cbar=:none)
 end
 
 # The following 2 lines are kinda hacky; they draw one colorbar for all heatmaps
@@ -63,7 +63,7 @@ a = Animation()
     P_0 --> H --> P
 } for t in 0:0.1:2τ
     # Find the partial trace and plot it
-    plot(site_density(P), clims=(0,1))
+    plot(lattice_density(P), clims=(0,1))
 
     # Show currents on the plot
     plot!(DensityCurrents(H, P), arrows_scale=7, arrows_rtol=0.1)
@@ -118,7 +118,7 @@ a = Animation()
 
     # Local Chern marker heatmap
     lcm_operator = 4pi * im * P * X * P * Y * P
-    chern_marker = site_density(lcm_operator)
+    chern_marker = lattice_density(lcm_operator)
     plot!(p[1], chern_marker, clims=(-2, 2))
 
     # Select sites on y=6 line

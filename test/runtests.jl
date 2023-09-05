@@ -28,7 +28,7 @@ end
         H = haldane(l, 1, 1, 1)
         P = densitymatrix(diagonalize(H), statistics=FermiDirac)
         X, Y = coord_operators(basis(H))
-        d = site_density(4π * im * P * X * (one(P) - P) * Y * P)
+        d = lattice_density(4π * im * P * X * (one(P) - P) * Y * P)
         rd = d .|> real
         true
     end
@@ -57,7 +57,7 @@ end
         P0 = densitymatrix(diagonalize(H0), statistics=FermiDirac)
         X, Y = coord_operators(basis(H0))
         @evolution {H := h(t), P0 --> H --> P} for t in 0:0.1:10
-            d = site_density(4π * im * P * X * (one(P) - P) * Y * P)
+            d = lattice_density(4π * im * P * X * (one(P) - P) * Y * P)
             ch = materialize(DensityCurrents(H, P))
             rd = d .|> real
         end
@@ -150,7 +150,7 @@ end
     x2 = coord_value(l, :x)
     X, Y = coord_operators(l)
     xtr = diag_reduce(tr, X)
-    xtr2 = site_density(X)
+    xtr2 = lattice_density(X)
     xm2 = LatticeValue(l) do (x, y)
         2x
     end

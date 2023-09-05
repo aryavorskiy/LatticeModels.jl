@@ -44,7 +44,7 @@ P0 = densitymatrix(diagonalize(qwz(l, 0)))
     P0 --> H --> P
 } for t in 0:0.1:2τ
     cur = DensityCurrents(H, P)
-    heatmap(site_density(P), title="Local density, t = $t", clims=(0.9, 1.1))
+    heatmap(lattice_density(P), title="Local density, t = $t", clims=(0.9, 1.1))
     plot!(cur, arrows_scale=20, color=:blue)
     frame(a)
 end
@@ -113,8 +113,8 @@ deriv_rec = TimeSequence()
     H := Chern(l, B * min(t, τ) / τ),
     P0 --> H --> P
 } for t in 0:0.1:2τ
-    insert!(density_rec, t, site_density(P))
-    insert!(deriv_rec, t, site_density(-im * (H * P - P * H)))
+    insert!(density_rec, t, lattice_density(P))
+    insert!(deriv_rec, t, lattice_density(-im * (H * P - P * H)))
 end
 
 site = l[50]

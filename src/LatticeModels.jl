@@ -35,7 +35,7 @@ export hoppings, tightbinding_hamiltonian, build_hamiltonian
 include("operators_manybody.jl")
 export interaction
 include("operators_utils.jl")
-export coord_operator, coord_operators, site_density, diag_reduce, adjacency_matrix, apply_field!
+export coord_operator, coord_operators, lattice_density, diag_reduce, adjacency_matrix, apply_field!
 
 include("spectrum.jl")
 export Eigensystem, diagonalize, projector, densitymatrix, dos, ldos

@@ -96,7 +96,7 @@ end   # time: 0.0703386
     Base.precompile(Tuple{typeof(one_hot),Int64,Val{1}})   # time: 0.0463551
     Base.precompile(Tuple{typeof(line_integral),LandauField,SVector{2, Int64},SVector{2, Int64},Int64})   # time: 0.0462783
     Base.precompile(Tuple{typeof(diag_reduce),typeof(tr),Operator{LatticeBasis{SquareLattice{2}}, LatticeBasis{SquareLattice{2}}, SparseMatrixCSC{Float64, Int64}}})   # time: 0.0440815
-    Base.precompile(Tuple{typeof(site_density),Operator{LatticeBasis{SquareLattice{2}}, LatticeBasis{SquareLattice{2}}, SparseMatrixCSC{Float64, Int64}}})   # time: 0.0429766
+    Base.precompile(Tuple{typeof(lattice_density),Operator{LatticeBasis{SquareLattice{2}}, LatticeBasis{SquareLattice{2}}, SparseMatrixCSC{Float64, Int64}}})   # time: 0.0429766
     Base.precompile(Tuple{typeof(Core.kwcall),NamedTuple{(:j1, :j2, :index), Tuple{Int64, Int64, Int64}},typeof(getindex),HoneycombLattice})   # time: 0.0423387
     Base.precompile(Tuple{Type{SiteOffset},Nothing,SVector{1, Int64}})   # time: 0.0421869
     Base.precompile(Tuple{typeof(-),MaterializedCurrents,MaterializedCurrents})   # time: 0.0405042
@@ -256,7 +256,7 @@ end   # time: 0.0024086
 end   # time: 0.0021877
     Base.precompile(Tuple{Type{SiteOffset},Pair{Int64, Int64},Vector{Int64}})   # time: 0.0021677
     Base.precompile(Tuple{Type{Lattice},Symbol,Tuple{Int64, Int64, Int64},Bravais{3, 1}})   # time: 0.0021363
-    Base.precompile(Tuple{typeof(site_density),Operator{LatticeBasis{HoneycombLattice}, LatticeBasis{HoneycombLattice}, Matrix{ComplexF64}}})   # time: 0.0021046
+    Base.precompile(Tuple{typeof(lattice_density),Operator{LatticeBasis{HoneycombLattice}, LatticeBasis{HoneycombLattice}, Matrix{ComplexF64}}})   # time: 0.0021046
     Base.precompile(Tuple{Type{Lattice},Symbol,Tuple{Int64, Int64},Bravais{2, 1}})   # time: 0.0020588
     Base.precompile(Tuple{typeof(Core.kwcall),NamedTuple{(:field,), Tuple{LandauField}},typeof(build_hamiltonian),FilledZones,Vararg{Any}})   # time: 0.0020512
     Base.precompile(Tuple{Type{SquareLattice},Int64,Int64})   # time: 0.002001
