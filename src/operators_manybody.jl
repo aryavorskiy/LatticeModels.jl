@@ -1,3 +1,5 @@
+import QuantumOpticsBase: Basis, SparseOperator, SparseOpPureType
+
 # Override this function with more performant one
 function QuantumOpticsBase.manybodyoperator_1(basis::ManyBodyBasis,
         op::Operator{<:AbstractLatticeBasis, <:AbstractLatticeBasis})
@@ -7,7 +9,7 @@ function QuantumOpticsBase.manybodyoperator_1(basis::ManyBodyBasis,
     M = op.data
     @inbounds for m=1:N, n=1:N
         # This code is horrific, but 10x more performant. DO NOT TOUCH!!!
-        # Wait until general optimization
+        # Wait until my pull request is accepted, then we can get rid of this
         diffcount = 0
         occ_m = basis.occupations[m]
         occ_n = basis.occupations[n]
@@ -65,7 +67,7 @@ function interaction(f::Function, T::Type{<:Number}, sample::Sample)
         end
         push!(diags, int_energy)
     end
-    diagonaloperator(ManyBodyBasis(onebodybasis(sample), occups), diags)
+    diagonaloperator(ManyBodyBasis(basis(sample), occups), diags)
 end
 interaction(f::Function, sample::Sample) = interaction(f, ComplexF64, sample)
 

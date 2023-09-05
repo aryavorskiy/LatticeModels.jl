@@ -1,3 +1,6 @@
+!!! danger "Outdated docs"
+    This part of the documentation is outdated and does not refer to the current functionality of the package.
+
 We often  want to study the behavior of some quantum system in time-dependent conditions. We can use the unitary evolution operator to describe how the density matrix depends on time:
 
 $$\mathcal{U}(t) = T\left\{ e^{\frac{1}{i\hbar} \int_{t_0}^t \hat{H}(\tau) d\tau} \right\},\hspace{0.5cm}
@@ -5,7 +8,7 @@ $$\mathcal{U}(t) = T\left\{ e^{\frac{1}{i\hbar} \int_{t_0}^t \hat{H}(\tau) d\tau
 
 ## The evolution macro
 
-This macro can be quite useful if your hamiltonian depends on time or if there are multiple hamiltonians in your experiment.
+This macro can be quite useful if your hamiltonian depends on time or if there are multiple Hamiltonians in your experiment.
 It avoids excessive computation in several cases automatically:
 - If the hamiltonian does not change, the $\mathcal{U}(t, dt)$ operator will not be re-evaluated.
 - If several wavefunctions or density matrices evolve using the same hamiltonian, neither the hamiltonian nor the evolution operator matrix will be re-evaluated.

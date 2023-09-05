@@ -77,9 +77,9 @@ function shift_site(bcs::BoundaryConditions, l::Lattice, site::LatticePointer)
 end
 
 struct PeriodicBoundaryConditions <: AbstractBoundaryConditions end
-function shift_site(::PeriodicBoundaryConditions, l::Lattice, site::LatticePointer)
-    new_uc = mod.(site.unit_cell .- 1, size(l)) .+ 1
-    1., LatticePointer(new_uc, site.basis_index)
+function shift_site(::PeriodicBoundaryConditions, l::Lattice, lp::LatticePointer)
+    new_uc = mod.(lp.unit_cell .- 1, macrocell_size(l)) .+ 1
+    1., LatticePointer(new_uc, lp.basis_index)
 end
 
 struct MagneticBoundaryConditions <: AbstractBoundaryConditions end
@@ -103,11 +103,12 @@ Sample(latt::Lattice, internal=nothing; kw...) =
 Base.length(sample::Sample) = length(sample.latt) * length(sample.internal)
 Base.length(sample::SampleWithoutInternal) = length(sample.latt)
 lattice(sample::Sample) = sample.latt
-default_bonds(sample::Sample) = default_bonds(lattice(sample))
+default_bonds(sample::Sample, arg=Val(1)) = default_bonds(lattice(sample), arg)
 internal_one(sample::Sample) = one(sample.internal)
 internal_one(sample::SampleWithoutInternal) = 1
-QuantumOpticsBase.:(⊗)(l::Lattice, b::Basis) = Sample(l, b)
-QuantumOpticsBase.:(⊗)(b::Basis, l::Lattice) = l ⊗ b
+QuantumOpticsBase.tensor(l::Lattice, b::Basis) = Sample(l, b)
+QuantumOpticsBase.tensor(b::Basis, l::Lattice) = l ⊗ b
+
 
 @enum ParticleStatistics begin
     OneParticle = 0
@@ -117,6 +118,7 @@ end
 
 abstract type System{SampleT} end
 Base.length(system::System) = length(system.sample)
+sample(sys::System) = sys.sample
 
 struct FilledZones{SampleT} <: System{SampleT}
     sample::SampleT
@@ -161,8 +163,8 @@ function occupations(ps::Particles)
     end
 end
 
-systembasis(sys::FilledZones) = onebodybasis(sys.sample)
-systembasis(sys::Particles) = ManyBodyBasis(onebodybasis(sys.sample), occupations(sys))
+systembasis(sys::FilledZones) = basis(sys.sample)
+systembasis(sys::Particles) = ManyBodyBasis(basis(sys.sample), occupations(sys))
 
 function QuantumOpticsBase.manybodyoperator(ps::Particles, op::AbstractOperator)
     check_samebases(systembasis(ps), basis(op))
@@ -173,19 +175,48 @@ function QuantumOpticsBase.manybodyoperator(ps::FilledZones, op::AbstractOperato
     return op
 end
 QuantumOpticsBase.manybodyoperator(sample, mat::AbstractMatrix) =
-    manybodyoperator(sample, Operator(onebodybasis(sample), mat))
+    manybodyoperator(sample, Operator(basis(sample), mat))
 
 shift_site(sample::Sample, site) = shift_site(sample.boundaries, sample.latt, site)
 shift_site(sys::System, site) = shift_site(sys.sample, site)
 
-macro accepts_lattice(fname, default_basis=nothing)
+sample(lb::LatticeBasis) = Sample(lb.latt)
+sample(b::CompositeLatticeBasis) = Sample(b.bases[2].latt, b.bases[1])
+sample(b::Basis) = throw(MethodError(sample, (b,)))
+sample(any) = sample(basis(any))
+lattice(any) = lattice(sample(any))
+internal_basis(sample::SampleWithInternal) = sample.internal
+internal_basis(::SampleWithoutInternal) = throw(ArgumentError("Sample has no internal basis"))
+internal_basis(any) = internal_basis(sample(any))
+internal_length(sample::SampleWithInternal) = length(sample.internal)
+internal_length(sample::SampleWithoutInternal) = 1
+internal_length(any) = internal_length(sample(any))
+
+QuantumOpticsBase.basis(sample::Sample) = sample.internal ⊗ LatticeBasis(sample.latt)
+QuantumOpticsBase.basis(sample::SampleWithoutInternal) = LatticeBasis(sample.latt)
+onebodybasis(sample::Sample) = basis(sample)
+onebodybasis(sys::System) = onebodybasis(sys.sample)
+
+macro accepts_system(fname, default_basis=nothing)
     esc(quote
-        global $fname(sample::Sample, args...; kw...) =
+        $fname(sample::Sample, args...; kw...) =
             $fname(System(sample, μ = 0, statistics=FermiDirac), args...; kw...)
-        global $fname(selector, l::Lattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
+        $fname(selector, l::Lattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
             $fname(Sample(selector, l, bas, boundaries=boundaries), args...; kw...)
-        global $fname(selector, l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =
+        $fname(selector, l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =
             $fname(Sample(selector, l, $default_basis, boundaries=boundaries), args...; kw...)
-        global $fname(l::Lattice, args...; kw...) = $fname(nothing, l::Lattice, args...; kw...)
+        $fname(l::Lattice, args...; kw...) = $fname(nothing, l::Lattice, args...; kw...)
+    end)
+end
+
+macro accepts_sample(fname, default_basis=nothing)
+    esc(quote
+        $fname(system::FilledZones, args...; kw...) =
+            $fname(system.sample, args...; kw...)
+        $fname(selector, l::Lattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
+            $fname(Sample(selector, l, bas, boundaries=boundaries), args...; kw...)
+        $fname(selector, l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =
+            $fname(Sample(selector, l, $default_basis, boundaries=boundaries), args...; kw...)
+        $fname(l::Lattice, args...; kw...) = $fname(nothing, l::Lattice, args...; kw...)
     end)
 end

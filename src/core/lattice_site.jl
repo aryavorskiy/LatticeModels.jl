@@ -54,10 +54,10 @@ struct LatticeSite{N}
 end
 dims(::LatticeSite{N}) where N = N
 
-axis_parse_error(sym::Symbol) = error("Symbol :$sym does not correspond to any of lattice axes")
-axis_parse_error(i::Int) = error("Integer $i does not correspond to any of lattice axes")
+const AxisSpec = Tuple{Symbol, <:Any}
 function try_parse_axis_sym(sym::Symbol)
     sym === :index && return (:b, nothing)
+    sym === :basis_index && return (:b, nothing)
     sym === :x && return (:c, 1)
     sym === :y && return (:c, 2)
     sym === :z && return (:c, 3)
@@ -69,31 +69,36 @@ function try_parse_axis_sym(sym::Symbol)
     end
     return nothing
 end
-function try_parse_axis_sym(i::Int)
-    i ≤ 0 && nothing
-    (:c, i)
+try_parse_axis_sym(i::Int) = i > 0 ? (:c, i) : nothing
+function parse_axis_sym(sym)
+    desc = try_parse_axis_sym(sym)
+    desc === nothing && throw(ArgumentError("Invalid axis specifier '$sym'"))
+    return desc
 end
 
-function get_coord(site::LatticeSite, desc)
+function get_coord(site::LatticeSite, desc::AxisSpec)
     axtype, index = desc
     if axtype == :c && index ≤ dims(site)
         return site.coords[index]
     elseif axtype == :j && index ≤ dims(site)
         return site.lp.unit_cell[index]
-    elseif axtype == :b
+    elseif axtype == :b && index === nothing
         return site.lp.basis_index
+    elseif index ≤ dims(site)
+        throw(DimensionMismatch("$N-dimensional site does not have axis #$index"))
     else
-        return nothing
+        error("Invalid coord specifier")
     end
 end
 
 function Base.getproperty(site::LatticeSite{N}, sym::Symbol) where N
-    sym === :basis_index && return site.lp.basis_index
-    sym === :unit_cell && return site.lp.unit_cell
+    sym == :unit_cell && return site.lp.unit_cell
     desc = try_parse_axis_sym(sym)
-    desc === nothing && return getfield(site, sym)
-    val = get_coord(site, desc)
-    val === nothing ? getfield(site, sym) : val
+    if desc === nothing
+        return getfield(site, sym)
+    else
+        return get_coord(site, desc)
+    end
 end
 
 Base.iterate(site::LatticeSite{N}, i=1) where N = i > N ? nothing : (site.coords[i], i + 1)
