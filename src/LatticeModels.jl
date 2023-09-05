@@ -41,7 +41,7 @@ include("spectrum.jl")
 export Eigensystem, diagonalize, projector, densitymatrix, dos, ldos
 
 include("currents.jl")
-export AbstractCurrents, materialize, currents_from, currents_from_to, pairs_by_distance, map_currents
+export materialize, currents_from, currents_from_to, pairs_by_distance, map_currents
 
 include("time_sequence.jl")
 export init_record, integrate, integrate!, differentiate, differentiate!, timestamps,
@@ -58,7 +58,7 @@ export SquareLattice, HoneycombLattice,
 
 include("plot_recipes.jl")
 
-# include("precompile.jl")
-# _precompile_()
+include("precompile.jl")
+_precompile_()
 
 end # module LatticeModels
