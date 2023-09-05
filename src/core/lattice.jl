@@ -56,9 +56,8 @@ site_coords(l::Lattice{Sym,N,1} where {Sym,N}, lp::LatticePointer) =
     bravais(l).translation_vectors * lp.unit_cell
 site_coords(::Lattice{:square,N,1} where {N}, lp::LatticePointer) = Float64.(lp.unit_cell)
 
-default_bonds(::Lattice) = ()
-default_nnbonds(::Lattice) = ()
-default_nnnbonds(::Lattice) = ()
+default_bonds(::Lattice, ::Val) = ()
+default_bonds(l::Lattice) = default_bonds(l, Val(1))
 
 get_site(l::Lattice, lp::LatticePointer) = LatticeSite(lp, site_coords(l, lp))
 get_site(::Lattice, site::LatticeSite) = site

@@ -9,6 +9,9 @@ include("core/lattice_site.jl")
 include("core/lattice.jl")
 export Lattice, lattice, sublattice, site_index, site_distance, macrocell_size
 
+include("core/bases.jl")
+export LatticeBasis, @increment, ketstate, brastate
+
 include("core/lattice_value.jl")
 export LatticeValue, coord_value, coord_values, project
 
@@ -25,10 +28,10 @@ export SiteOffset, Bonds
 include("core/adjacency.jl")
 export Domains, PairLhsGraph, PairRhsGraph
 
-include("operators_core.jl")
-export LatticeBasis, @increment
+include("operator_builder.jl")
+export OperatorBuilder, to_operator
 include("operators_build.jl")
-export hoppings, tightbinding_hamiltonian, build_hamiltonian, OperatorBuilder, to_operator
+export hoppings, tightbinding_hamiltonian, build_hamiltonian
 include("operators_manybody.jl")
 export interaction
 include("operators_utils.jl")
@@ -50,12 +53,12 @@ include("evolution.jl")
 include("zoo.jl")
 export SquareLattice, HoneycombLattice,
     LandauField, SymmetricField, FluxField,
-    qwz, haldane,
+    qwz, haldane, kanemele,
     DensityCurrents
 
 include("plot_recipes.jl")
 
-include("precompile.jl")
-_precompile_()
+# include("precompile.jl")
+# _precompile_()
 
 end # module LatticeModels

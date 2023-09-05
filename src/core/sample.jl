@@ -103,11 +103,12 @@ Sample(latt::Lattice, internal=nothing; kw...) =
 Base.length(sample::Sample) = length(sample.latt) * length(sample.internal)
 Base.length(sample::SampleWithoutInternal) = length(sample.latt)
 lattice(sample::Sample) = sample.latt
-default_bonds(sample::Sample) = default_bonds(lattice(sample))
+default_bonds(sample::Sample, arg=Val(1)) = default_bonds(lattice(sample), arg)
 internal_one(sample::Sample) = one(sample.internal)
 internal_one(sample::SampleWithoutInternal) = 1
-QuantumOpticsBase.:(⊗)(l::Lattice, b::Basis) = Sample(l, b)
-QuantumOpticsBase.:(⊗)(b::Basis, l::Lattice) = l ⊗ b
+QuantumOpticsBase.tensor(l::Lattice, b::Basis) = Sample(l, b)
+QuantumOpticsBase.tensor(b::Basis, l::Lattice) = l ⊗ b
+
 
 @enum ParticleStatistics begin
     OneParticle = 0
@@ -178,6 +179,23 @@ QuantumOpticsBase.manybodyoperator(sample, mat::AbstractMatrix) =
 
 shift_site(sample::Sample, site) = shift_site(sample.boundaries, sample.latt, site)
 shift_site(sys::System, site) = shift_site(sys.sample, site)
+
+sample(lb::LatticeBasis) = Sample(lb.latt)
+sample(b::CompositeLatticeBasis) = Sample(b.bases[2].latt, b.bases[1])
+sample(b::Basis) = throw(MethodError(sample, (b,)))
+sample(any) = sample(basis(any))
+lattice(any) = lattice(sample(any))
+internal_basis(sample::SampleWithInternal) = sample.internal
+internal_basis(::SampleWithoutInternal) = throw(ArgumentError("Sample has no internal basis"))
+internal_basis(any) = internal_basis(sample(any))
+internal_length(sample::SampleWithInternal) = length(sample.internal)
+internal_length(sample::SampleWithoutInternal) = 1
+internal_length(any) = internal_length(sample(any))
+
+QuantumOpticsBase.basis(sample::Sample) = sample.internal ⊗ LatticeBasis(sample.latt)
+QuantumOpticsBase.basis(sample::SampleWithoutInternal) = LatticeBasis(sample.latt)
+onebodybasis(sample::Sample) = basis(sample)
+onebodybasis(sys::System) = onebodybasis(sys.sample)
 
 macro accepts_system(fname, default_basis=nothing)
     esc(quote

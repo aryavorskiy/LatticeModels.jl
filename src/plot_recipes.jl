@@ -50,14 +50,14 @@ end
         linestyle := :dash
         linealpha := 0.8
         label := ""
-        l, default_nnbonds(l)
+        l, default_bonds(l, Val(2))
     end
     @series begin   # The nnnbonds
         seriestype := :path
         linestyle := :dot
         linealpha := 0.5
         label := ""
-        l, default_nnnbonds(l)
+        l, default_bonds(l, Val(3))
     end
 end
 
@@ -95,7 +95,7 @@ end
     end
 end
 
-@recipe function f(lv::PlottableLatticeValue)
+@recipe function f(lv::LatticeValue{<:Number})
     lv.lattice, lv.values
 end
 
@@ -172,6 +172,42 @@ end
 @recipe function f(tseq::TimeSequence)
     tseq.times, tseq.values
 end
+
+raw"""
+    macro_cell_values(lv::LatticeValue)
+
+Returng an array of the values of `lv` on its macrocell.
+The $i$-th element of the array corresponds to the $i$-th site of the macrocell.
+If the element is `NaN`, it means that the corresponding site is not present in the `lv`'s lattice.
+
+This function might be quite useful in custom plot recipes.
+"""
+function macro_cell_values(lv::LatticeValue{<:Number})
+    i = 1
+    len = length(lv.lattice.mask)
+    newvals = fill(NaN, len)
+    @inbounds for j in 1:len
+        if lv.lattice.mask[j]
+            newvals[j] = lv.values[i]
+            i += 1
+        end
+    end
+    newvals
+end
+
+"""
+    plot_fallback(lv::LatticeValue)
+
+Creates a copy of `lv` lattice value with its `LatticeSym` overwritten to `:plot_fallback`.
+Use it to invoke the default plot recipe for `LatticeValues` when defining a custom one.
+"""
+function plot_fallback(lv::LatticeValue)
+    l = lattice(lv)
+    new_l = Lattice(:plot_fallback, macrocell_size(l), bravais(l), l.mask)
+    LatticeValue(new_l, lv.values)
+end
+
+const PlottableLatticeValue{LatticeSym} = LatticeValue{<:Number, <:Lattice{LatticeSym}}
 
 @recipe function f(lv::PlottableLatticeValue{:square})
     seriestype --> :heatmap

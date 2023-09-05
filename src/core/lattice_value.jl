@@ -1,12 +1,12 @@
-using LinearAlgebra, Logging
+using LinearAlgebra, Logging, QuantumOpticsBase
 
-struct LatticeValueWrapper{VT<:AbstractVector,LatticeSym}
-    lattice::Lattice{LatticeSym}
+struct LatticeValueWrapper{LT<:Lattice, VT<:AbstractVector}
+    lattice::LT
     values::VT
-    function LatticeValueWrapper(lattice::Lattice{LatticeSym}, values::VT) where {VT,LatticeSym}
+    function LatticeValueWrapper(lattice::LT, values::VT) where {LT,VT}
         length(lattice) != length(values) &&
             throw(DimensionMismatch("vector has length $(length(values)), lattice has length $(length(lattice))"))
-        new{VT,LatticeSym}(lattice, values)
+        new{LT,VT}(lattice, values)
     end
 end
 
@@ -28,7 +28,7 @@ Base.iterate(lvw::LatticeValueWrapper, s...) = iterate(lvw.values, s...)
 Base.pairs(lvw::LatticeValueWrapper) = Iterators.map(=>, lvw.lattice, lvw.values)
 
 """
-    LatticeValue{T, LatticeSym}
+    LatticeValue{T, LT}
 
 Represents a value of type `T` on a `Lattice{LatticeSym}` lattice.
 
@@ -36,7 +36,7 @@ Fields:
 - lattice: the `Lattice` object the value is defined on
 - values: the values on different sites
 """
-const LatticeValue{T, LT} = LatticeValueWrapper{Vector{T}, LT}
+const LatticeValue{T, LT} = LatticeValueWrapper{LT, Vector{T}}
 
 """
     LatticeValue(l::Lattice, v::AbstractVector)
@@ -157,42 +157,6 @@ Base.getindex(lvw::LatticeValueWrapper; kw...) = getindex(lvw, _kws_to_mask(latt
 Base.getindex(l::Lattice; kw...) = getindex(l, _kws_to_mask(l, kw))
 Base.setindex!(lvw::LatticeValueWrapper, rhs; kw...) = setindex!x(lvw, rhs, _kws_to_mask(lattice(lvw), kw))
 
-raw"""
-    macro_cell_values(lv::LatticeValue)
-
-Returng an array of the values of `lv` on its macrocell.
-The $i$-th element of the array corresponds to the $i$-th site of the macrocell.
-If the element is `NaN`, it means that the corresponding site is not present in the `lv`'s lattice.
-
-This function might be quite useful in custom plot recipes.
-"""
-function macro_cell_values(lv::LatticeValue{<:Number})
-    i = 1
-    len = length(lv.lattice.mask)
-    newvals = fill(NaN, len)
-    @inbounds for j in 1:len
-        if lv.lattice.mask[j]
-            newvals[j] = lv.values[i]
-            i += 1
-        end
-    end
-    newvals
-end
-
-"""
-    plot_fallback(lv::LatticeValue)
-
-Creates a copy of `lv` lattice value with its `LatticeSym` overwritten to `:plot_fallback`.
-Use it to invoke the default plot recipe for `LatticeValues` when defining a custom one.
-"""
-function plot_fallback(lv::LatticeValue)
-    l = lattice(lv)
-    new_l = Lattice(:plot_fallback, macrocell_size(l), bravais(l), l.mask)
-    LatticeValue(new_l, lv.values)
-end
-
-const PlottableLatticeValue{LT} = LatticeValue{<:Number, LT}
-
 """
     project(lv::LatticeValue, axis)
 
@@ -200,10 +164,10 @@ Creates a mapping from site coordinates to values of `lv`.
 The coordinate axis to project the sites onto can be set with the `axis` argument -
 it can be either an integer from 1 to 3 or an axis descriptor `Symbol`.
 """
-function project(lv::PlottableLatticeValue, axis)
-    type, axis_no = try_parse_axis_sym(axis)
+function project(lv::LatticeValue, axis)
+    type, axis_no = parse_axis_sym(axis)
     l = lattice(lv)
-    axis_no > dims(lattice(lv)) && error(
+    axis_no > dims(l) && error(
         "axis number $axis_no (descriptor '$axis') exceeds lattice dimensionality $(dims(l))")
     crds = collect_coords(l)
     pr_crds = type === :c ? pr_crds = crds[axis_no, :] :
@@ -211,3 +175,9 @@ function project(lv::PlottableLatticeValue, axis)
     perm = sortperm(pr_crds)
     pr_crds[perm], lv.values[perm]
 end
+
+ketstate(lv::LatticeValue) = Ket(LatticeBasis(lattice(lv)), lv.values)
+brastate(lv::LatticeValue) = Bra(LatticeBasis(lattice(lv)), lv.values)
+QuantumOpticsBase.tensor(ket::Ket, lv::LatticeValue) = ket ⊗ ketstate(lv)
+QuantumOpticsBase.tensor(bra::Bra, lv::LatticeValue) = bra ⊗ brastate(lv)
+QuantumOpticsBase.tensor(lv::LatticeValue, state::QuantumOpticsBase.StateVector) = state ⊗ lv
