@@ -29,8 +29,8 @@ function add_hoppings!(builder, selector, l::Lattice, op, bond::SingleBond,
     p1 = site1.coords
     p2 = site2.coords
     factor, site2 = shift_site(boundaries, l, site2)
-    i = @inline site_index(l, site1)
-    j = @inline site_index(l, site2)
+    i = site_index(l, site1)
+    j = site_index(l, site2)
     i === nothing && return
     j === nothing && return
     !_get_bool_value(selector, l, site1, site2) && return
