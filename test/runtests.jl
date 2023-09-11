@@ -15,8 +15,8 @@ end
         end
         b = LatticeBasis(l)
         d = identityoperator(b)
-        hx = hoppings(l, Bonds(axis=1))
-        hy = hoppings(l, Bonds(axis=2))
+        hx = build_operator(l, Bonds(axis=1))
+        hy = build_operator(l, Bonds(axis=2))
         H = d + hx + hy
         eig = diagonalize(H)
         P = densitymatrix(eig, statistics=FermiDirac)
@@ -286,8 +286,8 @@ end
         abs(x + y) < 2.5
     end
     x, y = coord_values(l)
-    op1 = hoppings(PairLhsGraph(x .< y), l, Bonds(axis=1))
-    op2 = hoppings(l, Bonds(axis=1)) do l, site1, site2
+    op1 = build_operator(PairLhsGraph(x .< y), l, Bonds(axis=1))
+    op2 = build_operator(l, Bonds(axis=1)) do l, site1, site2
         local (x, y) = site1.coords
         x < y
     end
@@ -344,9 +344,9 @@ end
     end
 
     @testset "Field application" begin
-        H1 = hoppings(l, Bonds(axis=1), Bonds(axis = 2), field = la)
-        H2 = hoppings(l, Bonds(axis=1), Bonds(axis=2), field = lla)
-        H3 = hoppings(l, Bonds(axis=1), Bonds(axis=2))
+        H1 = build_operator(l, Bonds(axis=1), Bonds(axis = 2), field = la)
+        H2 = build_operator(l, Bonds(axis=1), Bonds(axis=2), field = lla)
+        H3 = build_operator(l, Bonds(axis=1), Bonds(axis=2))
         H4 = copy(H3)
         apply_field!(H3, la)
         apply_field!(H4, lla)
@@ -377,8 +377,8 @@ end
             builder2[site, site_hy] += (sigmaz(spin) - im * sigmay(spin)) / 2
         end
         H = qwz(l)
-        H1 = to_operator(builder)
-        H2 = to_operator(builder2)
+        H1 = Operator(builder)
+        H2 = Operator(builder2)
         H3 = build_hamiltonian(l, spin, sigmaz(spin) => 1,
             (sigmaz(spin) - im * sigmax(spin)) / 2 => SiteOffset(axis = 1),
             (sigmaz(spin) - im * sigmay(spin)) / 2 => SiteOffset(axis = 2))

@@ -146,7 +146,7 @@ function System(sample::Sample; μ = nothing, N = nothing, statistics=FermiDirac
     elseif N !== nothing && μ === nothing
         return Particles(sample, N, statistics=statistics)
     else
-        error("Please define the chemical potential `μ` or the particle number `N` (not both)")
+        error("Please define the chemical potential `μ` or the particle number `N` (but not both)")
     end
 end
 System(args...; μ = nothing, N = nothing, statistics=FermiDirac, kw...) =

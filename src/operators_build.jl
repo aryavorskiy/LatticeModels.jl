@@ -57,27 +57,14 @@ Base.:(*)(ham::Hamiltonian{Sys, B2}, op::Operator{B1, B2}) where{Sys, B1, B2} = 
 Base.:(+)(op::Operator{B, B}, ham::Hamiltonian{Sys, B}) where{Sys, B} = op + Operator(ham)
 Base.:(+)(ham::Hamiltonian{Sys, B}, op::Operator{B, B}) where{Sys, B} = Operator(ham) + op
 
-function tightbinding_hamiltonian(sys::System; t1=1, t2=0, t3=0,
-    field=NoField(), boundaries=BoundaryConditions())
-    sample = sys.sample
-    l = lattice(sys)
-    builder = SparseMatrixBuilder{ComplexF64}(length(sys), length(sys))
-    internal_eye = internal_one(sample)
-    for bond in default_bonds(l)
-        add_hoppings!(builder, nothing, l, t1 * internal_eye, bond, field, boundaries)
-    end
-    if t2 != 0
-        for bond in default_bonds(l, Val(2))
-            add_hoppings!(builder, nothing, l, t2 * internal_eye, bond, field, boundaries)
-        end
-    end
-    if t3 != 0
-        for bond in default_bonds(l, Val(3))
-            add_hoppings!(builder, nothing, l, t3 * internal_eye, bond, field, boundaries)
-        end
-    end
-    return Hamiltonian(sys, manybodyoperator(sys, to_matrix(builder)))
-end
+Hamiltonian(opb::OperatorBuilder; kw...) = Hamiltonian(opb.sys, Operator(opb; kw...))
+
+tightbinding_hamiltonian(sys::System; t1=1, t2=0, t3=0, field=NoField()) =
+    build_hamiltonian(sys,
+    t1 => default_bonds(sys.sample),
+    t2 => default_bonds(sys.sample, Val(2)),
+    t3 => default_bonds(sys.sample, Val(3)),
+    field=field)
 @accepts_system tightbinding_hamiltonian
 
 const AbstractSiteOffset = Union{SiteOffset, SingleBond}
@@ -153,8 +140,7 @@ function preprocess_argument(sample::Sample, arg::Pair)
     end
 end
 
-function build_hamiltonian(sys::System, args...;
-        field=NoField())
+function build_operator(sys::System, args...; field=NoField())
     sample = sys.sample
     builder = SparseMatrixBuilder{ComplexF64}(length(sample), length(sample))
     for arg in args
@@ -162,9 +148,8 @@ function build_hamiltonian(sys::System, args...;
             field=field)
     end
     op = Operator(basis(sample), to_matrix(builder))
-    return Hamiltonian(sys, manybodyoperator(sys, op))
+    return manybodyoperator(sys, op)
 end
+@accepts_system build_operator
+build_hamiltonian(sys::System, args...; field=NoField()) = Hamiltonian(sys, build_operator(sys, args...; field=field))
 @accepts_system build_hamiltonian
-
-hoppings(adj, l::Lattice, bs::SiteOffset...; kw...) = Operator(build_hamiltonian(Sample(adj, l), bs...; kw...))
-hoppings(l::Lattice, bs::SiteOffset...; kw...) = Operator(build_hamiltonian(Sample(l), bs...; kw...))
