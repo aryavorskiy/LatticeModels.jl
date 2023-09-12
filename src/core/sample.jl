@@ -43,9 +43,9 @@ function shift_site(bc::FunctionBoundary, l::Lattice, site::LatticePointer{N}) w
     for _ in 1:abs(offset)
         if offset > 0
             site = shift_site(-dv * lspan, l, site)
-            factor *= bc.condition(ls)
+            factor *= bc.condition(site)
         else
-            factor *= bc.condition(ls)'
+            factor /= bc.condition(site)
             site = shift_site(dv * lspan, l, site)
         end
     end
@@ -61,6 +61,7 @@ struct BoundaryConditions{CondsTuple} <: AbstractBoundaryConditions
 end
 
 _extract_boundary_conditions(b::Boundary) = b
+_extract_boundary_conditions(fb::Pair{Int, <:Function}) = FunctionBoundary(fb[2], fb[1])
 function _extract_boundary_conditions(pb::Pair{Int, Bool})
     !pb.second && return missing
     PeriodicBoundary(pb.first)

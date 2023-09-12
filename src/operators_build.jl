@@ -69,6 +69,7 @@ tightbinding_hamiltonian(sys::System; t1=1, t2=0, t3=0, field=NoField()) =
 
 const AbstractSiteOffset = Union{SiteOffset, SingleBond}
 function build_operator!(builder::SparseMatrixBuilder, sample::Sample, arg::Pair{<:Any, <:Tuple}; kw...)
+    # Several entries
     opdata, bonds = arg
     for bond in bonds
         build_operator!(builder, sample, opdata => bond; kw...)
@@ -133,7 +134,7 @@ function preprocess_argument(sample::Sample, arg::Pair)
         return opdata => on_lattice
     elseif on_lattice isa Number
         return preprocess_argument(sample, opdata * on_lattice)
-    elseif on_lattice isa AbstractSiteOffset
+    elseif on_lattice isa AbstractSiteOffset || on_lattice isa Tuple
         return opdata => on_lattice
     else
         error("Invalid Pair argument: unsupported on-lattice operator type")
