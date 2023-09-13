@@ -1,6 +1,6 @@
-We will begin the tutorial by defining teh quantum system we are working with. This package introduces several abstractions to describe various quantum lattices. Let us observe them.
+We will begin the tutorial by defining the quantum system we are working with. This package introduces several abstractions to describe various quantum lattices. Let us observe them.
 
-## Create a lattice
+## Creating a lattice
 
 The `Lattice` type is the base type for defining Bravais lattices. A Bravais lattice is by definition one or more sites forming a *unit cell* translated periodically by a set of vectors. The default lattice geometry in this package is a Bravais lattice with finite number of translations. This type of lattices will be further referred to as a *macrocell*.
 
@@ -12,12 +12,12 @@ l1 = SquareLattice(10, 5)                           # A 10x5 square lattice
 l2 = HoneycombLattice(10, 5)                        # A 10x5 honeycomb lattice macrocell
 
 p = plot(layout=2, size=(800, 350))                 # Create a plot with 2 subplots
-plot!(p[1], l1, :pretty, tit = "Square lattice")    # 'Pretty' lattice plot
-plot!(p[2], l2, tit = "Honeycomb lattice")          # Simple lattice plot
+plot!(p[1], l1, :pretty, title = "Square lattice")  # 'Pretty' lattice plot
+plot!(p[2], l2, title = "Honeycomb lattice")        # Simple lattice plot
 ```
 
 The positional arguments in the lattice constructors stand for number of translations along every lattice axis.
-Note that `SquareLattice(5, 5, 5)` will generate a 3D lattice, but `HoneycombLattice(5, 5, 5)` will throw an error, because a honeycomb lattice is 2D by its definition.
+Note that `SquareLattice(5, 5, 5)` will generate a `5x5x5` 3D lattice, but `HoneycombLattice(5, 5, 5)` will throw an error, because a honeycomb lattice is 2D by its definition.
 
 To achieve less trivial lattice geometry, you can exclude some sites from the lattice:
 ```@example env
@@ -90,7 +90,6 @@ plot!(l12, lab = "our lattice")
 ```
 
 The function written using the do-syntax must return `true` if the site must be contained in the resulting lattice.
-
 This syntax is more powerful, because it allows writing arbitrary code in the function body, which might be crucial in non-trivial cases.
 
 ## The `Sample`
