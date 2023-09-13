@@ -257,20 +257,31 @@ function Base.union!(l1::Lattice{Sym}, l2::Lattice{Sym}) where Sym
     @. l1.mask = l1.mask | l2.mask
     l1
 end
+function Base.union!(l1::Lattice{Sym}, l2::Lattice{Sym}, ls::Lattice{Sym}...) where Sym
+    Base.union!(Base.union!(l1, l2), ls...)
+end
 
 function Base.intersect!(l1::Lattice{Sym}, l2::Lattice{Sym}) where Sym
     check_samemacrocell(l1, l2)
     @. l1.mask = l1.mask & l2.mask
     l1
 end
-Base.intersect(l1::Lattice{Sym}, l2::Lattice{Sym}) where Sym =
-    Base.intersect!(copy(l1), l2)
+function Base.intersect!(l1::Lattice{Sym}, l2::Lattice{Sym}, ls::Lattice{Sym}...) where Sym
+    Base.intersect!(Base.intersect!(l1, l2), ls...)
+end
+Base.intersect(l1::Lattice{Sym}, ls::Lattice{Sym}...) where Sym =
+    Base.intersect!(copy(l1), ls...)
 
 function Base.setdiff!(l1::Lattice{Sym}, l2::Lattice{Sym}) where Sym
     check_samemacrocell(l1, l2)
     @. l1.mask = l1.mask & !l2.mask
     l1
 end
+function Base.setdiff!(l1::Lattice{Sym}, l2::Lattice{Sym}, ls::Lattice{Sym}...) where Sym
+    Base.setdiff!(Base.setdiff!(l1, l2), ls...)
+end
+Base.setdiff(l1::Lattice{Sym}, ls::Lattice{Sym}...) where Sym =
+    Base.setdiff!(copy(l1), ls...)
 
 Base.emptymutable(l::Lattice{Sym, N}, ::Type{LatticeSite{N}}=eltype(l)) where {Sym, N} =
     Lattice(Sym, macrocell_size(l), bravais(l), zero(l.mask))

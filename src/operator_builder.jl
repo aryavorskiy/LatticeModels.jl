@@ -1,9 +1,10 @@
+import QuantumOpticsBase: Operator
 struct SparseMatrixBuilder{T} <: AbstractMatrix{T}
     size::Tuple{Int,Int}
     Is::Vector{Int}
     Js::Vector{Int}
     Vs::Vector{T}
-    SparseMatrixBuilder{T}(sz) where T = new{T}(sz, [], [], [])
+    SparseMatrixBuilder{T}(sz) where T = new{T}(sz, Int[], Int[], T[])
 end
 SparseMatrixBuilder{T}(sz...) where T = SparseMatrixBuilder{T}(sz)
 SparseMatrixBuilder{T}(size_x::Int) where T = SparseMatrixBuilder{T}(size_x, size_x)
@@ -19,6 +20,15 @@ Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::
     push!(builder.Vs, rhs * factor)
 end
 
+Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::SparseMatrixCSC; factor=1)
+    @boundscheck @assert size(rhs) == size(builder)
+    nis, njs, nvs = findnz(rhs)
+    append!(builder.Is, nis)
+    append!(builder.Js, njs)
+    append!(builder.Vs, nvs * factor)
+    nothing
+end
+
 Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::AbstractMatrix, i1::Int, i2::Int; factor=1)
     N = size(rhs)[1]
     for i in 1:N, j in 1:N
@@ -28,15 +38,6 @@ Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::
 end
 Base.@propagate_inbounds increment!(builder::SparseMatrixBuilder, rhs::DataOperator, i1, i2) =
     increment!(builder, rhs.data, i1, i2)
-
-Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::SparseMatrixCSC; factor=1)
-    @boundscheck @assert size(rhs) == size(builder)
-    nis, njs, nvs = findnz(rhs)
-    append!(builder.Is, nis)
-    append!(builder.Js, njs)
-    append!(builder.Vs, nvs * factor)
-    nothing
-end
 
 function _process_increment(expr::Expr)
     !Meta.isexpr(expr, :(+=)) && error("+= increment expected")
@@ -73,7 +74,7 @@ struct OperatorBuilder{SystemT, FieldT, T}
     internal_length::Int
     builder::SparseMatrixBuilder{T}
     auto_hermitian::Bool
-    OperatorBuilder{T}(sys::SystemT, field::FieldT=NoField(); auto_hermitian=false) where {SystemT<:System, FieldT<:AbstractField, T} =
+    OperatorBuilder{T}(sys::SystemT; field::FieldT=NoField(), auto_hermitian=false) where {SystemT<:System, FieldT<:AbstractField, T} =
         new{SystemT, FieldT, T}(sys, field, internal_length(sys), SparseMatrixBuilder{T}(length(onebodybasis(sys))), auto_hermitian)
 end
 @accepts_system OperatorBuilder
@@ -113,7 +114,7 @@ Base.@propagate_inbounds function increment!(opbuilder::OperatorBuilder, rhs, lp
     end
 end
 
-function to_operator(opb::OperatorBuilder; warning=true)
+function QuantumOpticsBase.Operator(opb::OperatorBuilder; warning=true)
     op = Operator(onebodybasis(opb.sys), to_matrix(opb.builder))
     if warning && !opb.auto_hermitian && !ishermitian(op)
         @warn "The resulting operator is not hermitian. Set `warning=false` to hide this message or add `auto_hermitian=true` to the `OperatorBuilder` constructor."

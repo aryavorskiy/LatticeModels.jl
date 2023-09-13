@@ -12,9 +12,13 @@ QuantumOpticsBase.diagonaloperator(sample::Sample, lv::LatticeValue) =
 @accepts_sample QuantumOpticsBase.diagonaloperator
 
 """
-coord_operators(sample::Sample)
+    coord_operators(sample::Sample)
+    coord_operators(l::Lattice[, ib::Basis])
+    coord_operators(lb::AbstractLatticeBasis)
 
-Returns a `Tuple` of coordinate `LatticeOperator`s for given basis.
+Generate a `Tuple` of coordinate operators for given `sample`.
+
+Standard rules for functions accepting `Sample`s apply.
 """
 coord_operators(lb::AbstractLatticeBasis) =
     Tuple(diagonaloperator(lb, lv) for lv in coord_values(lattice(lb)))
@@ -26,6 +30,31 @@ coord_operator(lb::AbstractLatticeBasis, crd) =
 coord_operator(sample::Sample, crd) = coord_operator(basis(sample), crd)
 @accepts_sample coord_operator
 
+"""
+    QuantumOpticsBase.transition(sys::System, site1::LatticeSite, site2::LatticeSite[, op; field])
+    QuantumOpticsBase.transition(sys::System, i1::Int, i2::Int[, op; field])
+
+Generate a transition operator between two local states in lattice space.
+States can be defined by `LatticeSite`s or integers.
+
+Standard rules for functions accepting `System`s apply.
+"""
+function QuantumOpticsBase.transition(sys::System, site1::LatticeSite, site2::LatticeSite, op=internal_one(sample); field=NoField())
+    return build_operator(sys, op => site1 => site2, field=field)
+end
+QuantumOpticsBase.transition(sys::System, i1::Int, i2::Int, op=internal_one(sample); field=NoField()) =
+    build_operator(sys, op => lattice(sample)[i1] => lattice(sample)[i2], field=field)
+@accepts_system QuantumOpticsBase.transition
+
+"""
+    lattice_density(ket::Ket)
+    lattice_density(bra::Bra)
+    lattice_density(densitymat::Operator)
+
+Calculate local density of given state.
+The state can be expressed as a ket/bra vector or a density matrix.
+The output of this function is a `LatticeValue`.
+"""
 function lattice_density(ket::Ket{<:LatticeBasis})
     LatticeValue(lattice(ket), map(abs2, ket.data))
 end
@@ -85,6 +114,7 @@ function adjacency_matrix(op::CompositeLatticeOperator)
     return AdjacencyMatrix(lattice(op), matrix)
 end
 
+get_site_periodic(::Lattice, ::Nothing) = nothing
 function get_site_periodic(l::Lattice, site::LatticePointer)
     new_site = get_site(l, site)
     new_site === nothing ? nothing : shift_site(PeriodicBoundaryConditions(), l, new_site)[2]

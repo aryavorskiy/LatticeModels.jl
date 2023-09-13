@@ -29,9 +29,9 @@ include("core/adjacency.jl")
 export Domains, PairLhsGraph, PairRhsGraph
 
 include("operator_builder.jl")
-export OperatorBuilder, to_operator
+export OperatorBuilder, Hamiltonian
 include("operators_build.jl")
-export hoppings, tightbinding_hamiltonian, build_hamiltonian
+export tightbinding_hamiltonian, build_operator, build_hamiltonian
 include("operators_manybody.jl")
 export interaction
 include("operators_utils.jl")
@@ -58,7 +58,13 @@ export SquareLattice, HoneycombLattice,
 
 include("plot_recipes.jl")
 
-include("precompile.jl")
-_precompile_()
+using Logging
+try
+    include("precompile.jl")
+    _precompile_()
+    error("AAA")
+catch e
+    @warn "Failed to precompile package due to unhandled exception:" e
+end
 
 end # module LatticeModels

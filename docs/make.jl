@@ -15,10 +15,10 @@ makedocs(
     pages = [
         "Home" => "index.md",
         "Tutorial" => "tutorial.md",
-        "Advanced options" => [
-            "Defining a lattice" => "lattice.md",
-            "Lattice values" => "lattice_values.md",
+        "Step-by-step tutorial" => [
+            "Defining the system" => "system.md",
             "Operators" => "operators.md",
+            "Wavefunctions and density matrices" => "lattice_values.md",
             "Currents" => "currents.md",
             "Unitary evolution" => "evolution.md"
         ],

@@ -1,44 +1,83 @@
-!!! danger "Outdated docs"
-    This part of the documentation is outdated and does not refer to the current functionality of the package.
+In this chapter we will learn how to create Hamiltonians and other operators. There are several ways to do this in this package
+ - from simple `tightbinding_hamiltonian`s to the flexible `build_operator` function to `OperatorBuilder`s.
 
-## Hamiltonian macro
+## Simple tight-binding Hamiltonians
 
-A hamiltonian operator usually consists of a [diagonal part](@ref Diagonal-operators) and a [hopping part](@ref Hopping-operators). 
-Sometimes a magnetic field is applied, in which case additional phase factors emerge according to [Peierls substitution](https://en.wikipedia.org/wiki/Peierls_substitution). 
-
-Taking all this into account, the operator will now look something like this:
+The simplest tight-binding Hamiltonian of possible is described by this formula:
 
 $$\hat{H} = 
-\sum_i^\text{sites} \hat{s}_i \hat{c}^\dagger_i \hat{c}_i + \left( \sum_{i, j}^\text{adjacent} \hat{t}_{ij} \hat{c}^\dagger_j \hat{c}_i
-\cdot e^{\frac{2\pi i}{\phi_0} \int_{r_i}^{r_j} \overrightarrow{A} \cdot \overrightarrow{dl}} + h. c. \right)$$
+t \sum_{i, j}^\text{adjacent} \hat{b}^\dagger_j \hat{b}_i + 
+t' \sum_{i, j}^\text{second adjacent} \hat{b}^\dagger_j \hat{b}_i + 
+t'' \sum_{i, j}^\text{third adjacent} \hat{b}^\dagger_j \hat{b}_i + \ldots$$
 
-Such an operator can be easily constructed using the [`@hamiltonian`](@ref) macro. 
-All you have to do is assign `lattice` and also `field` if needed, and then define the diagonal and hopping members using `@diag` and `@hop`.
+Usually `t` is equal to `1`, while all other factors are zero.
+Sometimes magnetic field is applied, in which case additional factors emerge according to [Peierls substitution](https://en.wikipedia.org/wiki/Peierls_substitution). 
+This adds $\frac{2\pi}{\phi_0} \int_{r_i}^{r_j} \overrightarrow{A} \cdot \overrightarrow{dl}$ phase to every hopping.
 
-Let's take a look at the example on the [Usage examples](@ref) page:
+To generate the Hamiltonian operator, use the [`tightbinding_hamiltonian`](@ref) function:
 
-A simple tight-binding model hamiltonian for a square lattice is defined by the formula 
-$$\hat{H} = \sum_i^\text{sites} \left( c^\dagger_{i + \hat{x}} c_i + c^\dagger_{i + \hat{y}} c_i + h. c. \right)$$
+```julia
+l = SquareLattice(10, 10)
+H = tightbinding_hamiltonian(l)     # Yes, it is that simple
+# t1 stands for t, t2 - for t', etc.
+H2 = tightbinding_hamiltonian(l, t1 = 2, t2 = 1, t3 = 0)
 
-We can create a matrix for this operator on a `xsize`×`ysize` square lattice with the following code:
-
-```@setup env
-using LatticeModels
+s = Sample(l, boundaries = BoundaryConditions(1 => true, 2 => true))
+H3 = tightbinding_hamiltonian(s)    # You can use a `Sample` or a `System` as well
 ```
 
-```@example env
-TightBinding(xsize, ysize, field=NoField()) = @hamiltonian begin
-    lattice := SquareLattice(xsize, ysize)
-    field := field
-    @hop axis = 1   # x-bonds
-    @hop axis = 2   # y-bonds
+Applying magnetic field is a bit more complicated. You can use a pre-defined magnetic field from the library or define your own. In the latter case 
+you must provide the number of integration steps to calculate the phase in the Peierls substitution.
+
+```julia
+# 0.1 flux quantum per 1x1 plaquette, Landau gauge
+H4 = tightbinding_hamiltonian(l, field=LandauField(0.1))
+
+# Define the very same magnetic field
+landau_field = MagneticField(n = 100) do crd
+    x, y = crd
+    # The function must return the vector potential as a `Tuple`
+    return (0, 0.1 * x)
 end
-nothing # hide
+H5 = tightbinding_hamiltonian(l, field=landau_field)
+```
+The pre-defined magnetic field types include:
+- `LandauField(B::Real)` - Landau gauge uniform magnetic field
+- `SymmetricField(B::Real)` - symmetric gauge uniform magnetic field
+- `FluxField(Φ::Real, point::Tuple{Number, Number})` - point magnetic field flux through `point`.
+  
+Note that using a user-defined `MagneticField` will most probably result in slower operator generation. See [Custom magnetic fields](@ref) for more info.
+
+## Other basic operators
+
+To create spatial coordinate operators, use the [`coord_operators`](@ref) function. If you want one specific coordinate operator, use [`coord_operator`](@ref). These functions accept a `Sample` as first argument.
+
+```julia
+X = coord_operator(s, :x)   # X spatial coordinate operator
+J1 = coord_operator(s, :j1) # Unit cell coordinate operator
+X, Y = coord_operators(s)   # Shorthand for generating both coordinate operators
+X, Y = coord_operators(l)   # Also accepts a `Lattice` and optional internal basis
 ```
 
-Note that the keyword arguments for hopping operators are written as if they were passed to the [`hopping`](@ref) function.
+If more fine-grained control over the hoppings is required, you can make use of transition operators:
 
-For a QWZ model Chern insulator the hamiltonian looks like this:
+```julia
+site1 = l[x = 2, y = 3]
+site2 = l[x = 3, y = 2]
+t12 = transition(s, site1, site2)
+t34 = transition(s, 3, 4)           # 3 and 4 are integer indices of sites
+H6 = H3 + t12 + t12' + t34 + t34'
+```
+
+## Builder function
+
+The `build_hamiltonian` function allows to created a complicated hamiltonian in one function call. Let's get to know how it works.
+
+Like `tightbinding_hamiltonian`, this function accepts a `System` (and all following default behavior) as first positional argument 
+and magnetic field via `field` keyword. All other positional arguments describe different terms of the resulting hamiltonian. Each term is a `A => B` pair, where `A` describes an operator acting on the internal space, and `B` acts on the lattice space. The term is thus a tensor product of these operators.
+
+Let's take a look at an example. We want to add spin-orbital interaction to our Hamiltonian. One way is to use
+the QWZ model, whose Hamiltonian like this:
 
 $$\hat{H} = 
 \sum_i^\text{sites} m_i c^\dagger_i \sigma_z c_i + 
@@ -47,41 +86,66 @@ c^\dagger_{i + \hat{x}} \frac{\sigma_z - i \sigma_x}{2} c_i +
 c^\dagger_{i + \hat{y}} \frac{\sigma_z - i \sigma_y}{2} c_i + 
 h. c. \right)$$
 
-Here we want the $m_i$ values to be represented by any number-typed `LatticeValue`, so the most convenient way to do it is to use tensor product notation:
+And this is how we can write a function that creates a hamiltonian in such a model.
+
+```@setup env
+using LatticeModels
+```
 
 ```@example env
-# The Pauli matrices
 const σ = [[0 1; 1 0], [0 -im; im 0], [1 0; 0 -1]]
 
-# Initial hamiltonian: m=1 everywhere
-ChernInsulator(m::LatticeValue{<:Number, :square}, field=NoField()) = @hamiltonian begin   
-    lattice := lattice(m)
-    field := field
-    dims_internal := 2
-    @diag m ⊗ σ[3]
-    @hop (σ[3] - im * σ[1]) / 2 axis = 1
-    @hop (σ[3] - im * σ[2]) / 2 axis = 2
-end
+qwzmodel(m::LatticeValue{<:Number, <:SquareLattice}; field=NoField()) = 
+build_hamiltonian(lattice(m), SpinBasis(1//2), field=field,
+    σ[3] => m,
+    (σ[3] - im * σ[1]) / 2 => Bonds(axis = 1),
+    (σ[3] - im * σ[2]) / 2 => Bonds(axis = 2))
 nothing # hide
 ```
 
-Here we must explicitly set the internal phase space dimension count via `dims_internal := 2`.
+Let's explain what happens here line-by-line. 
+Firstly, the parameter `m` is a `LatticeValue` - a struct which contains some value defined on the lattice's sites.
+This is a very powerful tool, but all that we need now is that `LatticeValue{<:Number, <:SquareLattice}` stores numeric values on a square lattice.
+We use implicit `Sample` construction here by passing the lattice `m` is defined on and a `SpinBasis(1//2)` (one half spin, obviously) as the internal 
+dergee of freedom.
 
-Some default hamiltonian formulas are already implemented - see [`qwz`](@ref), [`haldane`](@ref) docstrings for more info.
+The `σ[3] => m` line describes the $\sum_i^\text{sites} m_i c^\dagger_i \sigma_z c_i$ term. $m_i$ values are defined by the `LatticeValue` provided.
 
-!!! tip
-    It is possible to set the matrix type of the hamiltonian operator at the generation time - use `arrtype := <Preferred type>` notation, this can be used e. g to reduce memory usage by switching to sparse arrays.
-    Note however that some array types may not support this feature, in which case use the [`@on_lattice`](@ref) macro.
+The next two lines describe the hopping terms in x- and y-direction. Take a closer look: `(σ[3] - im * σ[1]) / 2` on the left-hand side of the pair 
+is the $\frac{\sigma_z - i \sigma_x}{2}$ operator acting on the spin of the particle. And `Bonds(axis = 1)` can be read as "hop from site to its neighbor along lattice axis #1". In context of a square lattice it is the same as the `x` coordinate axis.
 
-Note that the `field` parameter is defaulted to `NoField()` (this is a magnetic field object representing zero field). Other available magnetic field objects are:
+We can use this function to find the ground state density matrix and plot the local Chern marker. Here we will also showcase 
+part of the functionality `LatticeValue`s provide, see more in [Processing results](@ref).
 
-- `LandauField(B::Real)` - Landau-calibrated uniform magnetic field
-- `SymmetricField(B::Real)` - symmetrically calibrated uniform magnetic field
-- `FluxField(Φ::Real, point::NTuple{2, Number})` - point magnetic field flux through `point`.
+```@example env
+l = SquareLattice(10, 10)
+m = ones(l)         # m_i will be equal to one everywhere...
+m[x = 4..7] .= -1   # Except this ribbon
+H = qwzmodel(m)
 
-Most of these fields are designed for 2D lattices, but may also be applied to lattices with other dimensionality. You can define your own field types, see [Custom magnetic fields](@ref Custom-magnetic-fields).
+X, Y = coord_operators(l, SpinBasis(1//2))  # Coordinate operators
+P = densitymatrix(H)                        # Density matrix
+C = 4pi * im * P * X * P * Y * P
+lcm = lattice_density(C)                    # Local Chern marker
 
-## Operator spectrum utilities
+using Plots
+plot(lcm)
+```
+
+!!! note
+    [`build_operator`](@ref) is actually the same function as [`build_hamiltonian`](@ref), but its output is an `Operator` rather than a `Hamiltonian`. 
+    The only difference is that a `Hamiltonian` stores information about the `System` it is defined on. It is used to build a
+    density matrix in a more convenient way. 
+
+## The `OperatorBuilder`
+
+!!! info "Docs under construction"
+    This manual page is not written yet. I'm working on that. You can watch [a video on YouTube](https://www.youtube.com/watch?v=dQw4w9WgXcQ) meanwhile.
+
+## Diagonalizing operators
+
+!!! danger "Outdated docs"
+    All information below is outdated and does not refer to the current functionality of the package.
 
 A `Eigensystem` object contains eigenvalues and eigenvectors of some hermitian operator. 
 
