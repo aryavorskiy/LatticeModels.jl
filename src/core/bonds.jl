@@ -1,6 +1,6 @@
 using StaticArrays
 
-const SingleBond{N} = Pair{LatticeSite{N}, LatticeSite{N}}
+const SingleBond{N, B} = Pair{LatticeSite{N, B}, LatticeSite{N, B}}
 
 """
     SiteOffset{T, N}
@@ -86,4 +86,4 @@ end
 @inline Base.:(+)(lp::LatticePointer, bs::SiteOffset{<:Nothing}) =
     return LatticePointer(add_assuming_zeros(lp.unit_cell, bs.translate_uc), lp.basis_index)
 
-@inline Base.:(+)(site::LatticeSite, bs) = site.lp + bs
+@inline Base.:(+)(site::LatticeSite, bs) = LatticeSite(site.lp + bs, site.bravais)

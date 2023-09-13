@@ -28,16 +28,12 @@ end
 end
 
 @recipe function f(l::Lattice, ::Val{:pretty})
-    l_outp = copy(l)
-    fill!(l_outp.mask, true)
     label --> ""
     @series begin   # The sites
         seriestype := :scatter
-        annotations = repeat(Any[""], length(l_outp))
-        annotations[l.mask] .= ((" " * string(i), :left, :top, :grey, 6) for i in 1:length(l))
+        annotations = [(" " * string(i), :left, :top, :grey, 6) for i in 1:length(l)]
         series_annotations := annotations
-        seriesalpha := l.mask .* 0.9 .+ 0.1
-        l_outp, nothing
+        l, nothing
     end
 
     @series begin   # The bonds
@@ -65,33 +61,26 @@ end
     aspect_ratio := :equal
     marker_z := v
     pts = collect_coords(l)
-    if dims(l) == 3
-        X, Y, Z = eachrow(pts)
-        Xr, Yr, Zr = eachrow(round.(pts, digits=3))
-        seriestype := :scatter3d
-        if v !== nothing && RecipesBase.is_key_supported(:hover)
-            hover := string.(round.(v, digits=3), " @ (", Xr, ", ", Yr, ", ", Zr, ")")
-        end
-        X, Y, Z
-    else
-        if dims(l) == 1
-            X = vec(pts)
-            Y = zero(X)
-        else
-            X, Y = eachrow(pts[1:2, :])
-        end
+    if v !== nothing && RecipesBase.is_key_supported(:hover)
+        crd_markers = [join(round.(crds[:, i], digits=3), ", ") for i in 1:size(pts, 2)]
+        hover := string.(round.(v, digits=3), " @ (", crd_markers, ")")
+    end
+    if dims(l) == 1
+        seriestype := :scatter
+        @series vec(pts), zeros(vec(pts))
+    elseif dims(l) == 2
         seriestype --> :scatter
-        if v !== nothing && RecipesBase.is_key_supported(:hover)
-            Xr, Yr = eachrow(round.(pts, digits=3))
-            hover := string.(round.(v, digits=3), " @ (", Xr, ", ", Yr, ")")
-        end
+        X, Y = eachrow(pts)
         if plotattributes[:seriestype] == :scatter
-            X, Y
+            @series X, Y
         elseif plotattributes[:seriestype] == :surface
-            X, Y, v
+            @series X, Y, v
         else
-            throw(ArgumentError("unsupported series type $(plotattributes[:seriestype])"))
+            throw(ArgumentError("series type $(plotattributes[:seriestype]) not supported for 2D lattices"))
         end
+    elseif dims == 3
+        seriestype := :scatter3d
+        @series Tuple(eachrow(pts))
     end
 end
 
@@ -122,7 +111,7 @@ end
     pts
 end
 
-@recipe function f(l::Lattice{Sym, N}, bss::NTuple{M, SiteOffset} where M) where {Sym, N}
+@recipe function f(l::Lattice{N, B}, bss::NTuple{M, SiteOffset} where M) where {N, B}
     aspect_ratio := :equal
     pts = NTuple{N, Float64}[]
     br_pt = fill(NaN, dims(l)) |> Tuple
@@ -133,9 +122,9 @@ end
             site2 = displace_site(l, site1, bs)
             site2 === nothing && continue
 
-            A = site1.coords
-            B = site2.coords
-            push!(pts, Tuple(A), Tuple(A + T / 2), br_pt, Tuple(B), Tuple(B - T / 2), br_pt)
+            a = site1.coords
+            b = site2.coords
+            push!(pts, Tuple(a), Tuple(a + T / 2), br_pt, Tuple(b), Tuple(b - T / 2), br_pt)
         end
     end
     label := nothing
@@ -174,7 +163,7 @@ end
 end
 
 raw"""
-    macro_cell_values(lv::LatticeValue)
+    rectified_values(lv::LatticeValue)
 
 Returng an array of the values of `lv` on its macrocell.
 The $i$-th element of the array corresponds to the $i$-th site of the macrocell.
@@ -182,15 +171,18 @@ If the element is `NaN`, it means that the corresponding site is not present in 
 
 This function might be quite useful in custom plot recipes.
 """
-function macro_cell_values(lv::LatticeValue{<:Number})
-    i = 1
-    len = length(lv.lattice.mask)
-    newvals = fill(NaN, len)
-    @inbounds for j in 1:len
-        if lv.lattice.mask[j]
-            newvals[j] = lv.values[i]
-            i += 1
-        end
+function macro_cell_values(lv::LatticeValue{<:Number, <:Lattice{<:Bravais{Sym,N,1}, N} where Sym}) where N
+    l = lattice(lv)
+    mins = Vector(l[1].unit_cell)
+    maxs = Vector(l[1].unit_cell)
+    for lp in l.pointers
+        @. mins = min(mins, lp.unit_cell)
+        @. maxs = max(maxs, lp.unit_cell)
+    end
+    newvals = fill(NaN, Tuple(@. maxs - mins + 1))
+    smins = SVector{N}(mins) .- 1
+    for (i, lp) in enumerate(l.pointers)
+        newvals[(lp.unit_cell - smins)...] = lv.values[i]
     end
     newvals
 end
@@ -203,11 +195,12 @@ Use it to invoke the default plot recipe for `LatticeValues` when defining a cus
 """
 function plot_fallback(lv::LatticeValue)
     l = lattice(lv)
-    new_l = Lattice(:plot_fallback, macrocell_size(l), bravais(l), l.mask)
+    new_l = Lattice(Bravais(:plot_fallback)(l.bravais.translation_vectors, l.bravais.basis),
+        l.pointers)
     LatticeValue(new_l, lv.values)
 end
 
-const PlottableLatticeValue{LatticeSym} = LatticeValue{<:Number, <:Lattice{LatticeSym}}
+const PlottableLatticeValue{Sym} = LatticeValue{<:Number, <:Lattice{N, Bravais{Sym, N}} where N}
 
 @recipe function f(lv::PlottableLatticeValue{:square})
     seriestype --> :heatmap

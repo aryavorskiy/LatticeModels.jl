@@ -15,11 +15,10 @@ end
 function add_hoppings!(builder, selector, l::Lattice, op, bond::SiteOffset,
         field::AbstractField, boundaries::AbstractBoundaryConditions)
     dims(bond) > dims(l) && error("Incompatible dims")
-    trv = radius_vector(l, bond)
     for site1 in l
-        lp = site1 + bond
-        lp === nothing && continue
-        add_hoppings!(builder, selector, l, op, site1 => LatticeSite(lp, site1.coords + trv), field, boundaries)
+        site2 = site1 + bond
+        site2 === nothing && continue
+        add_hoppings!(builder, selector, l, op, site1 => site2, field, boundaries)
     end
 end
 

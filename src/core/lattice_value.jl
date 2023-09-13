@@ -115,22 +115,25 @@ function Base.show(io::IO, mime::MIME"text/plain", lv::LatticeValueWrapper)
     end
 end
 
-Base.@propagate_inbounds function Base.getindex(l::Lattice{LatticeSym}, lv_mask::LatticeValue{Bool}) where LatticeSym
-    @boundscheck check_samemacrocell(l, lattice(lv_mask))
-    new_mask = zero(l.mask)
-    new_mask[lv_mask.lattice.mask] = lv_mask.values
-    Lattice(LatticeSym, macrocell_size(l), bravais(l), vec(new_mask .& l.mask))
+pointer_inds(l::LT, lv_mask::LatticeValue{Bool, LT}) where LT<:Lattice =
+    Int[site_index(l, lattice(lv_mask).pointers[i])
+        for i in eachindex(lv_mask.values) if lv_mask.values[i]]
+Base.@propagate_inbounds function Base.getindex(l::Lattice, lv_mask::LatticeValue{Bool})
+    @boundscheck check_issublattice(lattice(lv_mask), l)
+    inds = pointer_inds(l, lv_mask)
+    Lattice(l.bravais, l.pointers[inds])
 end
 
 Base.@propagate_inbounds function Base.getindex(lv::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
     @boundscheck check_samelattice(lv, lv_mask)
-    new_l  = lattice(lv)[lv_mask]
-    LatticeValueWrapper(new_l, lv.values[new_l.mask[lv.lattice.mask]])
+    inds = pointer_inds(lattice(lv), lv_mask)
+    LatticeValueWrapper(lattice(lv)[inds], lv.values[inds])
 end
 
 Base.@propagate_inbounds function Base.Broadcast.dotview(lv::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
-    new_l  = lattice(lv)[lv_mask]
-    LatticeValueWrapper(new_l, view(lv.values, new_l.mask[lv.lattice.mask]))
+    @boundscheck check_samelattice(lv, lv_mask)
+    inds = pointer_inds(lattice(lv), lv_mask)
+    LatticeValueWrapper(lattice(lv)[inds], @view lv.values[inds])
 end
 Base.Broadcast.dotview(lv::LatticeValueWrapper; kw...) = Base.Broadcast.dotview(lv, _kws_to_mask(lattice(lv), kw))
 
@@ -139,9 +142,9 @@ Base.@propagate_inbounds function Base.setindex!(lv::LatticeValueWrapper, lv_rhs
         check_issublattice(lattice(lv_mask), lattice(lv))
         check_issublattice(lattice(lv_rhs), lattice(lv))
     end
-    new_mask = zero(lv.lattice.mask)
-    new_mask[lv_rhs.lattice.mask] = lv_mask.values
-    lv.values[new_mask[lv.lattice.mask]] = lv_rhs.values[new_mask[lv_rhs.lattice.mask]]
+    inds_l = pointer_inds(lattice(lv), lv_mask)
+    inds_r = pointer_inds(lattice(lv_rhs), lv_mask)
+    lv.values[inds_l] = lv_rhs.values[inds_r]
 end
 
 function _kws_to_mask(l, @nospecialize(kw))

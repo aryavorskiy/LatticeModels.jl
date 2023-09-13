@@ -30,12 +30,7 @@ struct SubCurrents{CT} <: AbstractCurrents
     indices::Vector{Int}
     function SubCurrents(parent_currents::CT, indices::Vector{Int}) where {CT<:AbstractCurrents}
         l = lattice(parent_currents)
-        m = zeros(Bool, length(l))
-        m[indices] .= true
-        new_mask = zero(l.mask)
-        new_mask[l.mask] = m
-        new{CT}(parent_currents,
-            Lattice(lattice_type(l), macrocell_size(l), bravais(l), new_mask), indices)
+        new{CT}(parent_currents, l[indices], indices)
     end
 end
 
