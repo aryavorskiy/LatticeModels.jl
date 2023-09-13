@@ -93,7 +93,7 @@ function displace_site(l::Lattice, site::LatticeSite, bs::SiteOffset)
     new_site in l ? new_site : nothing
 end
 
-@recipe function f(ag::AbstractGraph)
+@recipe function f(ag::AdjacencyMatrix)
     aspect_ratio := :equal
     l = lattice(ag)
     pts = NTuple{dims(l), Float64}[]
@@ -104,19 +104,25 @@ end
         !match(ag, site1, site2) && continue
         A = site1.coords
         B = site2.coords
-        T = radius_vector(l, site1, site2)
-        push!(pts, Tuple(A), Tuple(A + T / 2), br_pt, Tuple(B), Tuple(B - T / 2), br_pt)
+        push!(pts, Tuple(A), Tuple(B), br_pt)
     end
     label := nothing
     pts
 end
 
+function tr_vector(l::Lattice, hop::SiteOffset{<:Pair})
+    i, j = hop.site_indices
+    return bravais(l).basis[:, j] - bravais(l).basis[:, i] +
+     mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
+end
+tr_vector(l::Lattice, hop::SiteOffset{Nothing}) =
+    mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
 @recipe function f(l::Lattice{N, B}, bss::NTuple{M, SiteOffset} where M) where {N, B}
     aspect_ratio := :equal
     pts = NTuple{N, Float64}[]
     br_pt = fill(NaN, dims(l)) |> Tuple
     for bs in bss
-        T = radius_vector(l, bs)
+        T = tr_vector(l, bs)
         for i in 1:length(l)
             site1 = l[i]
             site2 = displace_site(l, site1, bs)
@@ -145,7 +151,7 @@ end
             j ≥ i && continue
             ij_curr = curr[i, j]::Real
             crd = ij_curr > 0 ? site1.coords : site2.coords
-            vc = radius_vector(l, site2, site1)
+            vc = site2.coords - site1.coords
             vc_n = norm(vc)
             if vc_n < abs(ij_curr * plotattributes[:arrows_scale] / plotattributes[:arrows_rtol])
                 push!(Xs, crd[1])

@@ -18,16 +18,16 @@ one site located in the bottom-left corner of the unit cell.
 `translation_vectors` argument must be an `AbstractMatrix{<:Real}` of size `N×N`,
 while `basis` must also be an  abstract matrix of size `N×NB`.
 """
-struct Bravais{Sym,N,NB}
-    translation_vectors::SMatrix{N,N,Float64}
-    basis::SMatrix{N,NB,Float64}
+struct Bravais{Sym,N,NB,NN,NNB}
+    translation_vectors::SMatrix{N,N,Float64,NN}
+    basis::SMatrix{N,NB,Float64,NNB}
     function Bravais{Sym}(translation_vectors::AbstractMatrix{<:Real},
         basis::AbstractMatrix{<:Real}=zeros((size(translation_vectors, 1), 1)),
         origin::AbstractVector{<:Real}=zeros(size(basis)[1])) where Sym
         (size(translation_vectors)[1] != size(basis)[1]) &&
             error("inconsistent dimension count (got $(size(translation_vectors)[1]), $(size(basis)[1]))")
         N, NB = size(basis)
-        new{Sym,N,NB}(translation_vectors, basis .+ origin)
+        new{Sym,N,NB,N*N,N*NB}(translation_vectors, basis .+ origin)
     end
 end
 
@@ -75,22 +75,28 @@ struct LatticeSite{N, B}
 end
 dims(::LatticeSite{N}) where N = N
 
-const AxisSpec = Tuple{Symbol, Nullable{Int}}
-function try_parse_axis_sym(sym::Symbol)
-    sym === :index && return (:b, nothing)
-    sym === :basis_index && return (:b, nothing)
-    sym === :x && return (:c, 1)
-    sym === :y && return (:c, 2)
-    sym === :z && return (:c, 3)
-    axis_s = string(sym)
+@enum AxisSpecType begin
+    Coord
+    LatticeAxis
+    Index
+end
+
+const AxisSpec = Tuple{AxisSpecType, Nullable{Int}}
+Base.@pure function try_parse_axis_sym(sym::Symbol)
+    sym === :index && return (Index, nothing)
+    sym === :basis_index && return (Index, nothing)
+    sym === :x && return (Coord, 1)
+    sym === :y && return (Coord, 2)
+    sym === :z && return (Coord, 3)
+    axis_s = String(sym)
     axis = tryparse(Int, axis_s[2:end])
     if axis isa Int && axis > 0
-        axis_s[1] == 'x' && return (:c, axis)
-        axis_s[1] == 'j' && return (:j, axis)
+        axis_s[1] == 'x' && return (Coord, axis)
+        axis_s[1] == 'j' && return (LatticeAxis, axis)
     end
     return nothing
 end
-try_parse_axis_sym(i::Int) = i > 0 ? (:c, i) : nothing
+try_parse_axis_sym(i::Int) = i > 0 ? (Coord, i) : nothing
 function parse_axis_sym(sym)
     desc = try_parse_axis_sym(sym)
     desc === nothing && throw(ArgumentError("Invalid axis specifier '$sym'"))
@@ -99,11 +105,11 @@ end
 
 function get_coord(site::LatticeSite, desc::AxisSpec)
     axtype, index = desc
-    if axtype == :c && index ≤ dims(site)
+    if axtype == Coord && index ≤ dims(site)
         return site.coords[index]
-    elseif axtype == :j && index ≤ dims(site)
+    elseif axtype == LatticeAxis && index ≤ dims(site)
         return site.lp.unit_cell[index]
-    elseif axtype == :b && index === nothing
+    elseif axtype == Index && index === nothing
         return site.lp.basis_index
     elseif index > dims(site)
         throw(DimensionMismatch("$N-dimensional site does not have axis #$index"))

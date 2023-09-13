@@ -7,7 +7,7 @@ using Reexport
 include("core/utils.jl")
 include("core/lattice_site.jl")
 include("core/lattice.jl")
-export Lattice, lattice, sublattice, site_index, site_distance, macrocell_size
+export Lattice, lattice, sublattice, site_index, site_distance
 
 include("core/bases.jl")
 export LatticeBasis, @increment, ketstate, brastate
@@ -41,7 +41,7 @@ include("spectrum.jl")
 export Eigensystem, diagonalize, projector, densitymatrix, dos, ldos
 
 include("currents.jl")
-export materialize, currents_from, currents_from_to, pairs_by_distance, map_currents
+export materialize, currents_from, currents_from_to, map_currents
 
 include("time_sequence.jl")
 export init_record, integrate, integrate!, differentiate, differentiate!, timestamps,

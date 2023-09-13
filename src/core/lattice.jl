@@ -88,17 +88,6 @@ function Base.iterate(l::Lattice, state = (1, length(l)))
 end
 
 """
-    radius_vector(l::Lattice, site1::LatticeSite, site2::LatticeSite) -> vector
-Finds the vector between two sites on a lattice according to possibly periodic boundary conditions
-(`site2` will be translated along the macrocell to minimize the distance between them).
-"""
-function radius_vector(l::Lattice, site1::LatticeSite{N}, site2::LatticeSite{N}) where N
-    hsz = SVector{N, Int}(macrocell_size(l) .÷ 2)
-    tr_unitcell = (site1.unit_cell - site2.unit_cell + hsz) .% macrocell_size(l) - hsz
-    bravais(l).basis[:, site1.index] - bravais(l).basis[:, site2.basis_index] + bravais(l).translation_vectors * tr_unitcell
-end
-
-"""
     site_distance(l::Lattice, site1::LatticeSite, site2::LatticeSite[; pbc=false])
 Returns the distance between two sites on the `l` lattice.
 
@@ -106,12 +95,8 @@ Returns the distance between two sites on the `l` lattice.
 - `pbc`: if `true`, the boundary conditions will be considered periodic and
 the distance will be measured on the shortest path.
 """
-function site_distance(l::Lattice, site1::LatticeSite, site2::LatticeSite; pbc=false)
-    if pbc
-        norm(radius_vector(l, site1, site2))
-    else
-        norm(site1.coords - site2.coords)
-    end
+function site_distance(site1::LatticeSite, site2::LatticeSite)
+    norm(site1.coords - site2.coords)
 end
 
 """
@@ -119,7 +104,7 @@ end
 Generates a function that finds the distance between sites (see `site_distance(::Lattice, ::LatticeSite, ::LatticeSite)`).
 This notation can be handy when passing this function as an argument.
 """
-site_distance(;pbc) = (l, site1, site2) -> site_distance(l, site1, site2, pbc=pbc)
+site_distance() = (site1, site2) -> site_distance(site1, site2)
 
 function collect_coords(l::Lattice)
     d = dims(l)
@@ -168,9 +153,10 @@ function Lattice(bvs::Bravais{Sym,N,NB}, sz::NTuple{N,Int}) where {Sym,N,NB}
     Lattice(bvs, ptrs)
 end
 
-const AnyDimLattice{Sym,NB} = Lattice{N, Bravais{Sym,N,NB}} where N
-function Lattice{N, B}(sz::Vararg{Int,N}) where {N,B<:Bravais{Sym,N} where Sym}
-    return Lattice(B(), sz)
+const InfDimLattice{Sym,N,NB} = Lattice{N, <:Bravais{Sym,N,NB}}
+const AnyDimLattice{Sym,NB} = Lattice{N, <:Bravais{Sym,N,NB}} where N
+function InfDimLattice{Sym,N,NB}(sz::Vararg{Int,N}) where {Sym,N,NB}
+    return Lattice(Bravais{Sym,N,NB}(), sz)
 end
 function AnyDimLattice{Sym,NB}(sz::Vararg{Int,N}) where {Sym,N,NB}
     return Lattice(Bravais{Sym,N,NB}(), sz)
@@ -190,7 +176,6 @@ Base.showerror(io::IO, ex::IncompatibleLattices) = print(io,
 """$(ex.header).\nGot following:
         #1: $(repr("text/plain", ex.l1))
         #2: $(repr("text/plain", ex.l2))""")
-
 
 """
 Checks if `l1` and `l2` objects are defined on one lattice. Throws an error if not.

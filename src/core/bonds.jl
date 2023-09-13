@@ -66,19 +66,6 @@ function Base.show(io::IO, ::MIME"text/plain", hop::SiteOffset{<:Nothing})
 end
 dims(::SiteOffset{T, N} where T) where N = N
 
-"""
-    radius_vector(l::Lattice, hop::SiteOffset)
-Finds the vector between two sites on a lattice according to possibly periodic boundary conditions
-(`site2` will be translated along the macrocell to minimize the distance between them).
-"""
-function radius_vector(l::Lattice, hop::SiteOffset{<:Pair})
-    i, j = hop.site_indices
-    return bravais(l).basis[:, j] - bravais(l).basis[:, i] +
-     mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
-end
-radius_vector(l::Lattice, hop::SiteOffset{Nothing}) =
-    mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
-
 @inline function Base.:(+)(lp::LatticePointer, bs::SiteOffset{<:Pair})
     bs.site_indices[1] != lp.basis_index && return nothing
     return LatticePointer(add_assuming_zeros(lp.unit_cell, bs.translate_uc), bs.site_indices[2])

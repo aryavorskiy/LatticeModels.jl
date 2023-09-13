@@ -1,35 +1,24 @@
 import QuantumOpticsBase: Basis, AbstractOperator, basis, check_samebases
-abstract type Boundary end
-abstract type AbstractBoundaryConditions end
+abstract type Boundary{N} end
 
-shift_site(js::SVector{N}, ::Lattice, lp::LatticePointer{N}) where N =
+shift_site(js::SVector{N}, lp::LatticePointer{N}) where N =
     LatticePointer(lp.unit_cell + js, lp.basis_index)
-shift_site(js::SVector{N}, l::Lattice, site::LatticeSite{N}) where N =
-    LatticePointer(shift_site(js, l, site.lp), site.coords + bravais(l).translation_vectors * js)
-function shift_site(any::Union{Boundary, AbstractBoundaryConditions}, l::Lattice, site::LatticeSite)
-    factor, new_lp = shift_site(any, l, site.lp)
-    return factor, get_site(l, new_lp)
-end
+shift_site(js::SVector{N}, site::LatticeSite{N}) where N =
+    LatticeSite(shift_site(js, site.lp), site.bravais)
 
-struct TwistedBoundary <: Boundary
-    i::Int
+struct TwistedBoundary{N} <: Boundary{N}
+    R::SVector{Int, N}
     Θ::Float64
 end
-PeriodicBoundary(i) = TwistedBoundary(i, 0)
-function shift_site(bc::TwistedBoundary, l::Lattice, site::LatticePointer{N}) where N
-    ret = 1., site
-    bc.i > dims(l) && return ret
-    lspan = l.lattice_size[bc.i]
-    offset = div(site.unit_cell[bc.i] - 1, lspan, RoundDown)
-    offset == 0 && return ret
-    dv = one_hot(bc.i, Val(N))
-    site = shift_site(-dv * offset * lspan, l, site)
-    exp(im * bc.Θ * offset), site
+PeriodicBoundary(svec) = TwistedBoundary(svec, 0)
+function shift_site(bc::TwistedBoundary{N}, i::Int, site) where N
+    i == 0 && return 1., site
+    return exp(im * i * bc.Θ), shift_site(bc.R, site)
 end
 
-struct FunctionBoundary{F<:Function} <: Boundary
+struct FunctionBoundary{N, F<:Function} <: Boundary{N}
     condition::F
-    i::Int
+    R::SVector{Int, N}
 end
 
 function shift_site(bc::FunctionBoundary, l::Lattice, site::LatticePointer{N}) where N
@@ -52,7 +41,7 @@ function shift_site(bc::FunctionBoundary, l::Lattice, site::LatticePointer{N}) w
     factor, site
 end
 
-struct BoundaryConditions{CondsTuple} <: AbstractBoundaryConditions
+struct BoundaryConditions{CondsTuple}
     bcs::CondsTuple
     function BoundaryConditions(bcs::CondsTuple) where CondsTuple<:NTuple{N, <:Boundary} where N
         @assert allunique(bc.i for bc in bcs)
@@ -68,7 +57,7 @@ function _extract_boundary_conditions(pb::Pair{Int, Bool})
 end
 _extract_boundary_conditions(pb::Pair{Int, <:Real}) = TwistedBoundary(pb...)
 BoundaryConditions(args...) = BoundaryConditions(Tuple(skipmissing(_extract_boundary_conditions.(args))))
-function shift_site(bcs::BoundaryConditions, l::Lattice, site::LatticePointer)
+function shift_site(bcs::BoundaryConditions, l::Lattice, site)
     factor = 1.
     for bc in bcs.bcs
         new_factor, site = shift_site(bc, l, site)
@@ -77,29 +66,20 @@ function shift_site(bcs::BoundaryConditions, l::Lattice, site::LatticePointer)
     factor, site
 end
 
-struct PeriodicBoundaryConditions <: AbstractBoundaryConditions end
-function shift_site(::PeriodicBoundaryConditions, l::Lattice, lp::LatticePointer)
-    new_uc = mod.(lp.unit_cell .- 1, macrocell_size(l)) .+ 1
-    1., LatticePointer(new_uc, lp.basis_index)
-end
+struct MagneticBoundaryConditions end
 
-struct MagneticBoundaryConditions <: AbstractBoundaryConditions end
-
-struct Sample{AdjMatT, LT, BasisT, BoundaryT}
-    adjacency_matrix::AdjMatT
+struct Sample{LT, BasisT, BoundaryT}
     latt::LT
     boundaries::BoundaryT
     internal::BasisT
 end
-const SampleWithoutInternal{AdjMatT, LT, BoundaryT} = Sample{AdjMatT, LT, Nothing, BoundaryT}
-const SampleWithInternal{AdjMatT, LT, BoundaryT} = Sample{AdjMatT, LT, <:Basis, BoundaryT}
+const SampleWithoutInternal{LT, BoundaryT} = Sample{LT, Nothing, BoundaryT}
+const SampleWithInternal{LT, BoundaryT} = Sample{LT, <:Basis, BoundaryT}
 
-function Sample(adjacency_matrix, latt::LT, internal::BT=nothing;
+function Sample(latt::LT, internal::BT=nothing;
         boundaries=BoundaryConditions()) where {LT<:Lattice, BT<:Nullable{Basis}}
-    return Sample(adjacency_matrix, latt, boundaries, internal)
+    return Sample(latt, boundaries, internal)
 end
-Sample(latt::Lattice, internal=nothing; kw...) =
-    Sample(nothing, latt, internal; kw...)
 
 Base.length(sample::Sample) = length(sample.latt) * length(sample.internal)
 Base.length(sample::SampleWithoutInternal) = length(sample.latt)
@@ -120,6 +100,7 @@ end
 abstract type System{SampleT} end
 Base.length(system::System) = length(system.sample)
 sample(sys::System) = sys.sample
+default_bonds(sys::System) = default_bonds(sys.sample)
 
 struct FilledZones{SampleT} <: System{SampleT}
     sample::SampleT
@@ -158,9 +139,9 @@ Base.zero(sys::System) = zero(systembasis(sys))
 
 function occupations(ps::Particles)
     if ps.statistics == FermiDirac
-        fermionstates(length(sample), sample.nparticles)
+        fermionstates(length(ps.sample), ps.sample.nparticles)
     elseif ps.statistics == BoseEinstein
-        bosonstates(length(sample), sample.nparticles)
+        bosonstates(length(ps.sample), ps.sample.nparticles)
     end
 end
 
@@ -201,12 +182,11 @@ onebodybasis(sys::System) = onebodybasis(sys.sample)
 macro accepts_system(fname, default_basis=nothing)
     esc(quote
         $fname(sample::Sample, args...; kw...) =
-            $fname(System(sample, μ = 0, statistics=FermiDirac), args...; kw...)
-        $fname(selector, l::Lattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
-            $fname(Sample(selector, l, bas, boundaries=boundaries), args...; kw...)
-        $fname(selector, l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =
-            $fname(Sample(selector, l, $default_basis, boundaries=boundaries), args...; kw...)
-        $fname(l::Lattice, args...; kw...) = $fname(nothing, l::Lattice, args...; kw...)
+            $fname(FilledZones(sample, 0, statistics=FermiDirac), args...; kw...)
+        $fname(l::Lattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
+            $fname(Sample(l, boundaries, bas), args...; kw...)
+        $fname(l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =
+            $fname(Sample(l, boundaries, $default_basis), args...; kw...)
     end)
 end
 
@@ -214,10 +194,9 @@ macro accepts_sample(fname, default_basis=nothing)
     esc(quote
         $fname(system::FilledZones, args...; kw...) =
             $fname(system.sample, args...; kw...)
-        $fname(selector, l::Lattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
-            $fname(Sample(selector, l, bas, boundaries=boundaries), args...; kw...)
-        $fname(selector, l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =
-            $fname(Sample(selector, l, $default_basis, boundaries=boundaries), args...; kw...)
-        $fname(l::Lattice, args...; kw...) = $fname(nothing, l::Lattice, args...; kw...)
+        $fname(l::Lattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
+            $fname(Sample(l, boundaries, bas), args...; kw...)
+        $fname(l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =
+            $fname(Sample(l, boundaries, $default_basis), args...; kw...)
     end)
 end

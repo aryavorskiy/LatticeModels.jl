@@ -6,24 +6,18 @@ function add_diagonal!(builder, op, diag)
     end
 end
 
-@inline _get_bool_value(::Nothing, ::Lattice, ::LatticeSite, ::LatticeSite) = true
-@inline _get_bool_value(f::Function, l::Lattice, site1::LatticeSite, site2::LatticeSite) =
-    f(l, site1, site2)
-@inline _get_bool_value(g::AbstractGraph, ::Lattice, site1::LatticeSite, site2::LatticeSite) =
-    match(g, site1, site2)
-
-function add_hoppings!(builder, selector, l::Lattice, op, bond::SiteOffset,
-        field::AbstractField, boundaries::AbstractBoundaryConditions)
+function add_hoppings!(builder, l::Lattice, op, bond::SiteOffset,
+        field::AbstractField, boundaries::BoundaryConditions)
     dims(bond) > dims(l) && error("Incompatible dims")
     for site1 in l
         site2 = site1 + bond
         site2 === nothing && continue
-        add_hoppings!(builder, selector, l, op, site1 => site2, field, boundaries)
+        add_hoppings!(builder, l, op, site1 => site2, field, boundaries)
     end
 end
 
-function add_hoppings!(builder, selector, l::Lattice, op, bond::SingleBond,
-        field::AbstractField, boundaries::AbstractBoundaryConditions)
+function add_hoppings!(builder, l::Lattice, op, bond::SingleBond,
+        field::AbstractField, boundaries::BoundaryConditions)
     site1, site2 = bond
     p1 = site1.coords
     p2 = site2.coords
@@ -32,7 +26,6 @@ function add_hoppings!(builder, selector, l::Lattice, op, bond::SingleBond,
     j = site_index(l, site2)
     i === nothing && return
     j === nothing && return
-    !_get_bool_value(selector, l, site1, site2) && return
     total_factor = exp(-2π * im * line_integral(field, p1, p2)) * factor
     !isfinite(total_factor) && error("got NaN or Inf when finding the phase factor")
     increment!(builder, op, i, j, factor=total_factor)
@@ -78,7 +71,7 @@ function build_operator!(builder::SparseMatrixBuilder, sample::Sample, arg::Pair
         field=NoField())
     # Hopping operator
     opdata, bond = arg
-    add_hoppings!(builder, sample.adjacency_matrix, sample.latt, opdata, bond, field, sample.boundaries)
+    add_hoppings!(builder, sample.latt, opdata, bond, field, sample.boundaries)
 end
 function build_operator!(builder::SparseMatrixBuilder, sample::Sample, arg::Pair{<:Any, <:LatticeValue}; kw...)
     # Diagonal operator

@@ -173,7 +173,7 @@ function project(lv::LatticeValue, axis)
     axis_no > dims(l) && error(
         "axis number $axis_no (descriptor '$axis') exceeds lattice dimensionality $(dims(l))")
     crds = collect_coords(l)
-    pr_crds = type === :c ? pr_crds = crds[axis_no, :] :
+    pr_crds = type === Coord ? pr_crds = crds[axis_no, :] :
         crds' * normalize(bravais(l).translation_vectors[:, axis_no])
     perm = sortperm(pr_crds)
     pr_crds[perm], lv.values[perm]

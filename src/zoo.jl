@@ -13,7 +13,7 @@ Type alias for `Lattice{:square,N,1}`.
 
 Constructs a square lattice of size `sz`.
 """
-const SquareLattice{N} = Lattice{N, Bravais{:square,N,1}}
+const SquareLattice{N} = Lattice{N, <:Bravais{:square,N,1}}
 Bravais{:square,N,1}() where N = Bravais{:square}(SMatrix{N,N}(I))
 default_bonds(::SquareLattice{N}, ::Val{1}) where {N} = Tuple(SiteOffset(axis=i) for i in 1:N)
 default_bonds(::SquareLattice{N}, ::Val{2}) where {N} = Tuple(SiteOffset(one_hot(i, Val(N)) + k * one_hot(j, Val(N))) for i in 1:N for j in 1:i-1 for k in (-1, 1))
@@ -30,7 +30,7 @@ Type alias for `Lattice{:honeycomb,2,2}`.
 
 Constructs a honeycomb lattice with a `sz`-size macrocell.
 """
-const HoneycombLattice = Lattice{2, Bravais{:honeycomb,2,2}}
+const HoneycombLattice = Lattice{2, <:Bravais{:honeycomb,2,2}}
 Bravais{:honeycomb,2,2}() = Bravais{:honeycomb}([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])
 default_bonds(::HoneycombLattice, ::Val{1}) = (SiteOffset(2 => 1), SiteOffset(2 => 1, axis=1), SiteOffset(2 => 1, axis=2))
 default_bonds(::HoneycombLattice, ::Val{2}) = (
@@ -127,8 +127,8 @@ Otherwise they will all be set to `m`.
 `f` here must be a function or a `PairSelector` describing which hoppings will be excluded.
 """
 qwz(m::LatticeValue; kw...) = qwz(lattice(m), m; kw...)
-qwz(sample::Sample{<:Any, <:SquareLattice}, m=1; kw...) =
-    build_hamiltonian(sample,
+qwz(sys::System{<:Sample{<:SquareLattice}}, m=1; kw...) =
+    build_hamiltonian(sys,
     [1 0; 0 -1] => m,
     [1 -im; -im -1] / 2 => SiteOffset(axis = 1),
     [1 -1; 1 -1] / 2 => SiteOffset(axis = 2); kw...)
@@ -145,24 +145,17 @@ $$\hat{H} =
 
 Generates a Haldane topological insulator hamiltonian operator.
 """
-haldane(sample::Sample{<:Any, <:HoneycombLattice}, t1::Real, t2::Real, m::Real=0; kw...) =
-    build_hamiltonian(sample,
-    lattice(sample) .|> (site -> site.index == 1 ? m : -m),
-    t1 => SiteOffset(2 => 1),
-    t1 => SiteOffset(2 => 1, axis = 1),
-    t1 => SiteOffset(2 => 1, axis = 2),
-    im * t2 => SiteOffset(1 => 1, axis = 1),
-    im * t2 => SiteOffset(2 => 2, SA[-1, 0]),
-    im * t2 => SiteOffset(1 => 1, SA[0, -1]),
-    im * t2 => SiteOffset(2 => 2, axis = 2),
-    im * t2 => SiteOffset(1 => 1, SA[-1, 1]),
-    im * t2 => SiteOffset(2 => 2, SA[1, -1]); kw...)
+haldane(sys::System{<:Sample{<:HoneycombLattice}}, t1::Real, t2::Real, m::Real=0; kw...) =
+    build_hamiltonian(sys,
+    lattice(sys) .|> (site -> site.index == 1 ? m : -m),
+    t1 => default_bonds(sys),
+    im * t2 => default_bonds(sys, Val(2)); kw...)
 @accepts_system haldane
 
-kanemele(sample::Sample{<:Any, <:HoneycombLattice}, t1::Real, t2::Real; kw...) =
-    build_hamiltonian(sample,
-        t1 => default_bonds(sample),
-        im * t2 * sigmaz(internal_basis) => default_bonds(sample, Val(2)))
+kanemele(sys::System{<:Sample{<:HoneycombLattice}}, t1::Real, t2::Real; kw...) =
+    build_hamiltonian(sys,
+        t1 => default_bonds(sys),
+        im * t2 * sigmaz(internal_basis) => default_bonds(sys, Val(2)))
 @accepts_system kanemele SpinBasis(1//2)
 
 ############

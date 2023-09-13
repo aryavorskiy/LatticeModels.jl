@@ -103,7 +103,6 @@ end   # time: 0.0703386
     isdefined(LatticeModels, Symbol("#117#118")) && Base.precompile(Tuple{getfield(LatticeModels, Symbol("#117#118")),Int64})   # time: 0.0354442
     Base.precompile(Tuple{typeof(build_hamiltonian),Sample{PairLhsGraph, SquareLattice{2}, Nothing, BoundaryConditions{Tuple{}}},Bonds{Nothing, 1}})   # time: 0.0346874
     Base.precompile(Tuple{typeof(setindex!),LatticeValue{Float64, SquareLattice{2}},LatticeValue{Float64, SquareLattice{2}},LatticeValue{Bool, SquareLattice{2}}})   # time: 0.0344494
-    Base.precompile(Tuple{typeof(radius_vector),SquareLattice{2},LatticeSite{2},LatticeSite{2}})   # time: 0.0339233
     Base.precompile(Tuple{Type{SiteOffset},Nothing,SVector{2, Int64}})   # time: 0.0311749
     Base.precompile(Tuple{typeof(site_index),SquareLattice{2},LatticeSite{2}})   # time: 0.0305971
     Base.precompile(Tuple{typeof(getindex),SquareLattice{2},LatticeValue{Bool, SquareLattice{2}}})   # time: 0.0304483
@@ -139,7 +138,6 @@ end   # time: 0.0174606
     Base.precompile(Tuple{typeof(basis),Sample})   # time: 0.0137924
     Base.precompile(Tuple{typeof(line_integral),FieldSum{Tuple{FluxField, SymmetricField}},SVector{2, Int64},SVector{2, Int64},Int64})   # time: 0.0126127
     Base.precompile(Tuple{Type{HoneycombLattice},Int64,Int64})   # time: 0.0125443
-    Base.precompile(Tuple{typeof(RecipesBase.apply_recipe),AbstractDict{Symbol, Any},AbstractGraph})   # time: 0.0113806
     Base.precompile(Tuple{typeof(getproperty),LatticeSite{2},Symbol})   # time: 0.0110878
     Base.precompile(Tuple{typeof(mm_assuming_zeros),SMatrix{2, 2, Float64, 4},SVector{1, Int64}})   # time: 0.0108318
     Base.precompile(Tuple{typeof(getindex),TimeSequence{LatticeValue{Float64, SquareLattice{2}}},Float64})   # time: 0.0106733

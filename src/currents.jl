@@ -119,30 +119,6 @@ function materialize(curr::AbstractCurrents)
     m
 end
 
-function materialize(selector, curr::AbstractCurrents)
-    l = lattice(curr)
-    m = MaterializedCurrents(l)
-    for i in 1:length(l), j in 1:i-1
-        !_get_bool_value(selector, l, l[i], l[j]) && continue
-        ij_curr = curr[i, j]
-        m.currents[i, j] = ij_curr
-        m.currents[j, i] = -ij_curr
-    end
-    m
-end
-
-"""
-    pairs_by_distance(f)
-
-A selector function used for hopping operator definition or currents materialization.
-
-Takes a function and generates a lambda which accepts a lattice and two `LatticeSite`s,
-returning whether `f` applied to distance between the two sites returned `true`.
-"""
-pairs_by_distance(f) =
-    (l::Lattice, site1::LatticeSite, site2::LatticeSite) ->
-        f(norm(radius_vector(l, site1, site2)))::Bool
-
 """
     map_currents(map_fn, currs::AnstractCurrents[; reduce_fn, sort=false])
 
