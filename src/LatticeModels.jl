@@ -5,9 +5,10 @@ using Reexport
 @reexport using IntervalSets
 
 include("core/utils.jl")
+include("core/abstract_lattice.jl")
 include("core/lattice_site.jl")
 include("core/lattice.jl")
-export Lattice, lattice, sublattice, site_index, site_distance
+export BravaisLattice, lattice, sublattice, site_index, site_distance
 
 include("core/bases.jl")
 export LatticeBasis, @increment, ketstate, brastate

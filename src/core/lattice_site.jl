@@ -18,10 +18,10 @@ one site located in the bottom-left corner of the unit cell.
 `translation_vectors` argument must be an `AbstractMatrix{<:Real}` of size `N×N`,
 while `basis` must also be an  abstract matrix of size `N×NB`.
 """
-struct Bravais{Sym,N,NB,NN,NNB}
+struct UnitCell{Sym,N,NB,NN,NNB}
     translation_vectors::SMatrix{N,N,Float64,NN}
     basis::SMatrix{N,NB,Float64,NNB}
-    function Bravais{Sym}(translation_vectors::AbstractMatrix{<:Real},
+    function UnitCell{Sym}(translation_vectors::AbstractMatrix{<:Real},
         basis::AbstractMatrix{<:Real}=zeros((size(translation_vectors, 1), 1)),
         origin::AbstractVector{<:Real}=zeros(size(basis)[1])) where Sym
         (size(translation_vectors)[1] != size(basis)[1]) &&
@@ -31,23 +31,25 @@ struct Bravais{Sym,N,NB,NN,NNB}
     end
 end
 
-dims(@nospecialize _::Bravais{Sym, N} where Sym) where {N} = N
-Base.:(==)(b1::BT, b2::BT) where BT<:Bravais =
+dims(@nospecialize _::UnitCell{Sym, N} where Sym) where {N} = N
+Base.:(==)(b1::BT, b2::BT) where BT<:UnitCell =
     b1.translation_vectors == b2.translation_vectors && b1.basis == b2.basis
-Base.length(::Bravais{Sym,N,NB} where {Sym,N}) where {NB} = NB
+Base.length(::UnitCell{Sym,N,NB} where {Sym,N}) where {NB} = NB
 
-struct LatticePointer{N}
+struct BravaisPointer{N}
     unit_cell::SVector{N,Int}
     basis_index::Int
 end
-dims(::LatticePointer{N}) where N = N
+dims(::BravaisPointer{N}) where N = N
 
-site_coords(b::Bravais, lp::LatticePointer) =
+site_coords(b::UnitCell, lp::BravaisPointer) =
     b.basis[:, lp.basis_index] + b.translation_vectors * lp.unit_cell
-site_coords(b::Bravais{Sym,N,1} where {Sym}, lp::LatticePointer{N}) where {N} =
+site_coords(b::UnitCell{Sym,N,1} where {Sym}, lp::BravaisPointer{N}) where {N} =
     vec(b.basis) + b.translation_vectors * lp.unit_cell
 
-function Base.isless(site1::LatticePointer, site2::LatticePointer)
+Base.:(==)(lp1::BravaisPointer, lp2::BravaisPointer) =
+    lp1.basis_index == lp2.basis_index && lp1.unit_cell == lp2.unit_cell
+function Base.isless(site1::BravaisPointer, site2::BravaisPointer)
     if site1.unit_cell == site2.unit_cell
         return isless(site1.basis_index, site2.basis_index)
     else
@@ -66,71 +68,39 @@ Fields:
 This type is used to iterate over all sites of a `Lattice{LatticeSym, N, NB}`.
 The exact location of a `LatticeSite` can be found using the `site.coords` function.
 """
-struct LatticeSite{N, B}
-    lp::LatticePointer{N}
+struct BravaisSite{N, B} <: AbstractSite{N}
+    lp::BravaisPointer{N}
     bravais::B
     coords::SVector{N,Float64}
-    LatticeSite(lp::LatticePointer{N}, b::B) where {N, B<:Bravais} =
+    BravaisSite(lp::BravaisPointer{N}, b::B) where {N, B<:UnitCell} =
         new{N, B}(lp, b, site_coords(b, lp))
 end
-dims(::LatticeSite{N}) where N = N
 
-@enum AxisSpecType begin
-    Coord
-    LatticeAxis
-    Index
-end
-
-const AxisSpec = Tuple{AxisSpecType, Nullable{Int}}
-Base.@pure function try_parse_axis_sym(sym::Symbol)
-    sym === :index && return (Index, nothing)
-    sym === :basis_index && return (Index, nothing)
-    sym === :x && return (Coord, 1)
-    sym === :y && return (Coord, 2)
-    sym === :z && return (Coord, 3)
-    axis_s = String(sym)
-    axis = tryparse(Int, axis_s[2:end])
-    if axis isa Int && axis > 0
-        axis_s[1] == 'x' && return (Coord, axis)
-        axis_s[1] == 'j' && return (LatticeAxis, axis)
+@generated function coord(site::BravaisSite{N}, sym::Symbol) where N
+    code = quote
+        if sym in (:index, :basis_index)
+            return site.lp.basis_index
+        elseif sym === :unit_cell
+            return site.lp.unit_cell
+        end
+        return coord_default(site, sym)
     end
-    return nothing
-end
-try_parse_axis_sym(i::Int) = i > 0 ? (Coord, i) : nothing
-function parse_axis_sym(sym)
-    desc = try_parse_axis_sym(sym)
-    desc === nothing && throw(ArgumentError("Invalid axis specifier '$sym'"))
-    return desc
-end
-
-function get_coord(site::LatticeSite, desc::AxisSpec)
-    axtype, index = desc
-    if axtype == Coord && index ≤ dims(site)
-        return site.coords[index]
-    elseif axtype == LatticeAxis && index ≤ dims(site)
-        return site.lp.unit_cell[index]
-    elseif axtype == Index && index === nothing
-        return site.lp.basis_index
-    elseif index > dims(site)
-        throw(DimensionMismatch("$N-dimensional site does not have axis #$index"))
-    else
-        error("Invalid coord specifier $desc")
+    for i in 1:N
+        pushfirst!(code.args, :(if sym === Symbol("j" * string($i));
+            return site.unit_cell[$(i)]
+        end))
     end
+    return code
 end
 
-function Base.getproperty(site::LatticeSite{N}, sym::Symbol) where N
-    sym == :unit_cell && return site.lp.unit_cell
-    desc = try_parse_axis_sym(sym)
-    if desc === nothing
-        return getfield(site, sym)
-    else
-        return get_coord(site, desc)
+@generated function coordnames(T::Type{<:BravaisSite{N}}) where N
+    pnames = :((coordnames_default(T)...,))
+    for i in 1:N
+        push!(pnames.args, Symbol("j$i"))
     end
+    push!(pnames.args, :index, :basis_index, :unit_cell)
+    return pnames
 end
 
-Base.iterate(site::LatticeSite{N}, i=1) where N = i > N ? nothing : (site.coords[i], i + 1)
-
-Base.:(==)(lp1::LatticePointer, lp2::LatticePointer) =
-    lp1.basis_index == lp2.basis_index && lp1.unit_cell == lp2.unit_cell
-Base.:(==)(site1::LatticeSite, site2::LatticeSite) =
+Base.:(==)(site1::BravaisSite, site2::BravaisSite) =
     site1.lp == site2.lp && site1.coords == site2.coords

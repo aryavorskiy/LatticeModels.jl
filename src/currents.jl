@@ -16,7 +16,7 @@ Gets the lattice where the given `AbstractCurrents` object is defined.
 """
 lattice(curr::AbstractCurrents) = error("lattice(::$(typeof(curr))) must be explicitly implemented")
 
-Base.getindex(curr::AbstractCurrents, s1::LatticeSite, s2::LatticeSite) =
+Base.getindex(curr::AbstractCurrents, s1::BravaisSite, s2::BravaisSite) =
     curr[site_index(lattice(curr), s1), site_index(lattice(curr), s2)]
 
 """
@@ -26,7 +26,7 @@ A lazy wrapper for a `Currents` object representing the same currents but on a s
 """
 struct SubCurrents{CT} <: AbstractCurrents
     parent_currents::CT
-    lattice::Lattice
+    lattice::BravaisLattice
     indices::Vector{Int}
     function SubCurrents(parent_currents::CT, indices::Vector{Int}) where {CT<:AbstractCurrents}
         l = lattice(parent_currents)
@@ -43,15 +43,15 @@ lattice(scurr::SubCurrents) = scurr.lattice
 A `AbstractCurrents` instance that stores values for all currents explicitly.
 """
 struct MaterializedCurrents <: AbstractCurrents
-    lattice::Lattice
+    lattice::BravaisLattice
     currents::Matrix{Float64}
-    function MaterializedCurrents(l::Lattice, curs::Matrix{Float64})
+    function MaterializedCurrents(l::BravaisLattice, curs::Matrix{Float64})
         !all(length(l) .== size(curs)) && error("dimension mismatch")
         new(l, curs)
     end
 end
 
-MaterializedCurrents(l::Lattice) =
+MaterializedCurrents(l::BravaisLattice) =
     MaterializedCurrents(l, zeros(length(l), length(l)))
 
 Base.convert(::Type{MaterializedCurrents}, curr::AbstractCurrents) = materialize(curr)
@@ -72,11 +72,11 @@ function Base.getindex(curr::MaterializedCurrents, lvm::LatticeValue{Bool})
     MaterializedCurrents(curr.lattice[lvm], curr.currents[indices, indices])
 end
 
-function _site_indices(l::Lattice, l2::Lattice)
+function _site_indices(l::BravaisLattice, l2::BravaisLattice)
     check_issublattice(l2, l)
     return [site_index(l, site) for site in l2]
 end
-_site_indices(l::Lattice, site::LatticeSite) = (site_index(l, site),)
+_site_indices(l::BravaisLattice, site::BravaisSite) = (site_index(l, site),)
 function currents_from(curr::AbstractCurrents, src)
     l = lattice(curr)
     is = _site_indices(l, src)
@@ -134,7 +134,7 @@ the returned lists will store the distance between sites and the average absolut
 function map_currents(f::Function, curr::AbstractCurrents; reduce_fn::Nullable{Function}=nothing, sort::Bool=false)
     l = lattice(curr)
     cs = Float64[]
-    ms = only(Base.return_types(f, (Lattice, LatticeSite, LatticeSite)))[]
+    ms = only(Base.return_types(f, (BravaisLattice, BravaisSite, BravaisSite)))[]
     for (i, site1) in enumerate(l)
         for (j, site2) in enumerate(l)
             if site1 > site2

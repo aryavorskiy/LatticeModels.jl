@@ -1,14 +1,14 @@
 using SparseArrays
 import QuantumOpticsBase
 
-struct LatticeBasis{LT<:Lattice} <: QuantumOpticsBase.Basis
+struct LatticeBasis{LT<:BravaisLattice} <: QuantumOpticsBase.Basis
     shape::Int
     latt::LT
-    LatticeBasis(l::LT) where LT<:Lattice = new{LT}(length(l), l)
+    LatticeBasis(l::LT) where LT<:BravaisLattice = new{LT}(length(l), l)
 end
 Base.:(==)(lb1::LatticeBasis, lb2::LatticeBasis) = lb1.latt == lb2.latt
 
-QuantumOpticsBase.basisstate(T::Type, b::LatticeBasis, site::LatticeSite) =
+QuantumOpticsBase.basisstate(T::Type, b::LatticeBasis, site::BravaisSite) =
     basisstate(T, b, site_index(b.latt, site))
 
 const CompositeLatticeBasis{S, BT, LT} = CompositeBasis{S, Tuple{BT, LatticeBasis{LT}}}

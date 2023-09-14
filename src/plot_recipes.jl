@@ -1,23 +1,23 @@
 using RecipesBase
 
-@recipe function f(site::LatticeSite)
+@recipe function f(site::BravaisSite)
     seriestype := :scatter
     [Tuple(site.coords),]
 end
 
-@recipe function f(l::Lattice, style::Symbol=:plain)
+@recipe function f(l::BravaisLattice, style::Symbol=:plain)
     l, Val(style)
 end
 
-@recipe function f(::Lattice, ::Val{StyleT}) where StyleT
+@recipe function f(::BravaisLattice, ::Val{StyleT}) where StyleT
     error("Unsupported lattice plot style $StyleT")
 end
 
-@recipe function f(l::Lattice, ::Val{:plain})
+@recipe function f(l::BravaisLattice, ::Val{:plain})
     l, nothing
 end
 
-@recipe function f(l::Lattice, ::Val{:high_contrast})
+@recipe function f(l::BravaisLattice, ::Val{:high_contrast})
     markersize := 4
     markercolor := :black
     markerstrokealpha := 1
@@ -27,7 +27,7 @@ end
     l, nothing
 end
 
-@recipe function f(l::Lattice, ::Val{:pretty})
+@recipe function f(l::BravaisLattice, ::Val{:pretty})
     label --> ""
     @series begin   # The sites
         seriestype := :scatter
@@ -57,7 +57,7 @@ end
     end
 end
 
-@recipe function f(l::Lattice, v)
+@recipe function f(l::BravaisLattice, v)
     aspect_ratio := :equal
     marker_z := v
     pts = collect_coords(l)
@@ -88,7 +88,7 @@ end
     lv.lattice, lv.values
 end
 
-function displace_site(l::Lattice, site::LatticeSite, bs::SiteOffset)
+function displace_site(l::BravaisLattice, site::BravaisSite, bs::SiteOffset)
     new_site = get_site_periodic(l, site + bs)
     new_site in l ? new_site : nothing
 end
@@ -110,14 +110,14 @@ end
     pts
 end
 
-function tr_vector(l::Lattice, hop::SiteOffset{<:Pair})
+function tr_vector(l::BravaisLattice, hop::SiteOffset{<:Pair})
     i, j = hop.site_indices
     return bravais(l).basis[:, j] - bravais(l).basis[:, i] +
      mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
 end
-tr_vector(l::Lattice, hop::SiteOffset{Nothing}) =
+tr_vector(l::BravaisLattice, hop::SiteOffset{Nothing}) =
     mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
-@recipe function f(l::Lattice{N, B}, bss::NTuple{M, SiteOffset} where M) where {N, B}
+@recipe function f(l::BravaisLattice{N, B}, bss::NTuple{M, SiteOffset} where M) where {N, B}
     aspect_ratio := :equal
     pts = NTuple{N, Float64}[]
     br_pt = fill(NaN, dims(l)) |> Tuple
@@ -177,7 +177,7 @@ If the element is `NaN`, it means that the corresponding site is not present in 
 
 This function might be quite useful in custom plot recipes.
 """
-function macro_cell_values(lv::LatticeValue{<:Number, <:Lattice{<:Bravais{Sym,N,1}, N} where Sym}) where N
+function macro_cell_values(lv::LatticeValue{<:Number, <:BravaisLattice{<:UnitCell{Sym,N,1}, N} where Sym}) where N
     l = lattice(lv)
     mins = Vector(l[1].unit_cell)
     maxs = Vector(l[1].unit_cell)
@@ -201,12 +201,12 @@ Use it to invoke the default plot recipe for `LatticeValues` when defining a cus
 """
 function plot_fallback(lv::LatticeValue)
     l = lattice(lv)
-    new_l = Lattice(Bravais(:plot_fallback)(l.bravais.translation_vectors, l.bravais.basis),
+    new_l = BravaisLattice(UnitCell(:plot_fallback)(l.bravais.translation_vectors, l.bravais.basis),
         l.pointers)
     LatticeValue(new_l, lv.values)
 end
 
-const PlottableLatticeValue{Sym} = LatticeValue{<:Number, <:Lattice{N, Bravais{Sym, N}} where N}
+const PlottableLatticeValue{Sym} = LatticeValue{<:Number, <:BravaisLattice{N, UnitCell{Sym, N}} where N}
 
 @recipe function f(lv::PlottableLatticeValue{:square})
     seriestype --> :heatmap

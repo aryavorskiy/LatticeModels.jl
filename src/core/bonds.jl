@@ -1,6 +1,6 @@
 using StaticArrays
 
-const SingleBond{N, B} = Pair{LatticeSite{N, B}, LatticeSite{N, B}}
+const SingleBond{N, B} = Pair{BravaisSite{N, B}, BravaisSite{N, B}}
 
 """
     SiteOffset{T, N}
@@ -66,11 +66,11 @@ function Base.show(io::IO, ::MIME"text/plain", hop::SiteOffset{<:Nothing})
 end
 dims(::SiteOffset{T, N} where T) where N = N
 
-@inline function Base.:(+)(lp::LatticePointer, bs::SiteOffset{<:Pair})
+@inline function Base.:(+)(lp::BravaisPointer, bs::SiteOffset{<:Pair})
     bs.site_indices[1] != lp.basis_index && return nothing
-    return LatticePointer(add_assuming_zeros(lp.unit_cell, bs.translate_uc), bs.site_indices[2])
+    return BravaisPointer(add_assuming_zeros(lp.unit_cell, bs.translate_uc), bs.site_indices[2])
 end
-@inline Base.:(+)(lp::LatticePointer, bs::SiteOffset{<:Nothing}) =
-    return LatticePointer(add_assuming_zeros(lp.unit_cell, bs.translate_uc), lp.basis_index)
+@inline Base.:(+)(lp::BravaisPointer, bs::SiteOffset{<:Nothing}) =
+    return BravaisPointer(add_assuming_zeros(lp.unit_cell, bs.translate_uc), lp.basis_index)
 
-@inline Base.:(+)(site::LatticeSite, bs) = LatticeSite(site.lp + bs, site.bravais)
+@inline Base.:(+)(site::BravaisSite, bs) = BravaisSite(site.lp + bs, site.bravais)

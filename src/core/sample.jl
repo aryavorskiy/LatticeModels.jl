@@ -1,37 +1,31 @@
 import QuantumOpticsBase: Basis, AbstractOperator, basis, check_samebases
 abstract type Boundary{N} end
 
-shift_site(js::SVector{N}, lp::LatticePointer{N}) where N =
-    LatticePointer(lp.unit_cell + js, lp.basis_index)
-shift_site(js::SVector{N}, site::LatticeSite{N}) where N =
-    LatticeSite(shift_site(js, site.lp), site.bravais)
+shift_site(js::SVector{N, Int}, lp::BravaisPointer{N}) where N =
+    BravaisPointer(lp.unit_cell + js, lp.basis_index)
+shift_site(js::SVector{N}, site::BravaisSite{N}) where N =
+    BravaisSite(shift_site(js, site.lp), site.bravais)
 
 struct TwistedBoundary{N} <: Boundary{N}
-    R::SVector{Int, N}
+    R::SVector{N, Int}
     Θ::Float64
 end
 PeriodicBoundary(svec) = TwistedBoundary(svec, 0)
 function shift_site(bc::TwistedBoundary{N}, i::Int, site) where N
     i == 0 && return 1., site
-    return exp(im * i * bc.Θ), shift_site(bc.R, site)
+    return exp(im * i * bc.Θ), shift_site(-bc.R * i, site)
 end
 
 struct FunctionBoundary{N, F<:Function} <: Boundary{N}
     condition::F
-    R::SVector{Int, N}
+    R::SVector{N, Int}
 end
 
-function shift_site(bc::FunctionBoundary, l::Lattice, site::LatticePointer{N}) where N
-    ret = 1., site
-    bc.i > dims(l) && return ret
-    lspan = l.lattice_size[bc.i]
-    offset = div(site.unit_cell[bc.i] - 1, lspan, RoundDown)
-    offset == 0 && return ret
-    dv = one_hot(bc.i, Val(N))
-    factor = 1.
-    for _ in 1:abs(offset)
-        if offset > 0
-            site = shift_site(-dv * lspan, l, site)
+function shift_site(bc::FunctionBoundary{N}, i::Int, site::BravaisSite{N}) where N
+    i == 0 && return 1., site
+    for _ in 1:abs(i)
+        if i > 0
+            site = shift_site(-bc.R, site)
             factor *= bc.condition(site)
         else
             factor /= bc.condition(site)
@@ -43,27 +37,35 @@ end
 
 struct BoundaryConditions{CondsTuple}
     bcs::CondsTuple
-    function BoundaryConditions(bcs::CondsTuple) where CondsTuple<:NTuple{N, <:Boundary} where N
-        @assert allunique(bc.i for bc in bcs)
+    function BoundaryConditions(bcs::CondsTuple) where CondsTuple<:NTuple{M, <:Boundary{N}} where {M, N}
         new{CondsTuple}(bcs)
     end
 end
+BoundaryConditions(args::BoundaryConditions...) = BoundaryConditions(args)
 
-_extract_boundary_conditions(b::Boundary) = b
-_extract_boundary_conditions(fb::Pair{Int, <:Function}) = FunctionBoundary(fb[2], fb[1])
-function _extract_boundary_conditions(pb::Pair{Int, Bool})
-    !pb.second && return missing
-    PeriodicBoundary(pb.first)
+@generated cartesian_indices(depth::Int, ::Val{M}) where M = quote
+    CartesianIndex($((:(-depth) for _ in 1:M)...)):CartesianIndex($((:depth for _ in 1:M)...))
 end
-_extract_boundary_conditions(pb::Pair{Int, <:Real}) = TwistedBoundary(pb...)
-BoundaryConditions(args...) = BoundaryConditions(Tuple(skipmissing(_extract_boundary_conditions.(args))))
-function shift_site(bcs::BoundaryConditions, l::Lattice, site)
+function route(bcs::BoundaryConditions{<:NTuple{M}}, l::BravaisLattice, lp::BravaisPointer{N}, depth=1) where {M, N}
+    for cind in cartesian_indices(depth, Val(M))
+        tup = Tuple(cind)
+        tr_vec = @SVector zeros(Int, N)
+        for i in 1:M
+            tr_vec += tup[i] * bcs.bcs[i].R
+        end
+        new_lp = shift_site(-tr_vec, lp)
+        new_lp in l && return tr_vec
+    end
+    return @SVector zeros(M)
+end
+function shift_site(bcs::BoundaryConditions, l::BravaisLattice, site)
     factor = 1.
-    for bc in bcs.bcs
-        new_factor, site = shift_site(bc, l, site)
+    tr_vec = route(bcs, l, site.lp)
+    for i in eachindex(tr_vec)
+        new_factor, site = shift_site(bcs.bcs[i], i, site)
         factor *= new_factor
     end
-    factor, site
+    return factor, site
 end
 
 struct MagneticBoundaryConditions end
@@ -77,7 +79,7 @@ const SampleWithoutInternal{LT, BoundaryT} = Sample{LT, Nothing, BoundaryT}
 const SampleWithInternal{LT, BoundaryT} = Sample{LT, <:Basis, BoundaryT}
 
 function Sample(latt::LT, internal::BT=nothing;
-        boundaries=BoundaryConditions()) where {LT<:Lattice, BT<:Nullable{Basis}}
+        boundaries=BoundaryConditions()) where {LT<:BravaisLattice, BT<:Nullable{Basis}}
     return Sample(latt, boundaries, internal)
 end
 
@@ -87,9 +89,10 @@ lattice(sample::Sample) = sample.latt
 default_bonds(sample::Sample, arg=Val(1)) = default_bonds(lattice(sample), arg)
 internal_one(sample::Sample) = one(sample.internal)
 internal_one(sample::SampleWithoutInternal) = 1
-QuantumOpticsBase.tensor(l::Lattice, b::Basis) = Sample(l, b)
-QuantumOpticsBase.tensor(b::Basis, l::Lattice) = l ⊗ b
-
+QuantumOpticsBase.tensor(l::BravaisLattice, b::Basis) = Sample(l, b)
+QuantumOpticsBase.tensor(b::Basis, l::BravaisLattice) = Sample(l, b)
+QuantumOpticsBase.tensor(b::Basis, s::SampleWithoutInternal) = Sample(s.latt, s.boundaries, b)
+QuantumOpticsBase.tensor(s::SampleWithoutInternal, b::Basis) = Sample(s.latt, s.boundaries, b)
 
 @enum ParticleStatistics begin
     OneParticle = 0
@@ -183,9 +186,9 @@ macro accepts_system(fname, default_basis=nothing)
     esc(quote
         $fname(sample::Sample, args...; kw...) =
             $fname(FilledZones(sample, 0, statistics=FermiDirac), args...; kw...)
-        $fname(l::Lattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
+        $fname(l::BravaisLattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
             $fname(Sample(l, boundaries, bas), args...; kw...)
-        $fname(l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =
+        $fname(l::BravaisLattice, args...; boundaries=BoundaryConditions(), kw...) =
             $fname(Sample(l, boundaries, $default_basis), args...; kw...)
     end)
 end
@@ -194,9 +197,9 @@ macro accepts_sample(fname, default_basis=nothing)
     esc(quote
         $fname(system::FilledZones, args...; kw...) =
             $fname(system.sample, args...; kw...)
-        $fname(l::Lattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
+        $fname(l::BravaisLattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
             $fname(Sample(l, boundaries, bas), args...; kw...)
-        $fname(l::Lattice, args...; boundaries=BoundaryConditions(), kw...) =
+        $fname(l::BravaisLattice, args...; boundaries=BoundaryConditions(), kw...) =
             $fname(Sample(l, boundaries, $default_basis), args...; kw...)
     end)
 end

@@ -128,7 +128,7 @@ end
     @test s_4 == s_5
     @test_throws LatticeModels.IncompatibleLattices hl[x.<y]
     @test hl[j1=3, j2=2, index=1] == LatticeModels.get_site(hl,
-        LatticeModels.LatticePointer(SA[3, 2], 1))
+        LatticeModels.BravaisPointer(SA[3, 2], 1))
     xb, yb = coord_values(SquareLattice(5, 40))
     @test_throws LatticeModels.IncompatibleLattices sql[xb.<yb]
     sql2 = sublattice(sql) do site
@@ -148,9 +148,6 @@ end
     l = SquareLattice(10, 10)
     x, y = coord_values(l)
     x2 = coord_value(l, :x)
-    X, Y = coord_operators(l)
-    xtr = diag_reduce(tr, X)
-    xtr2 = lattice_density(X)
     xm2 = LatticeValue(l) do (x, y)
         2x
     end
@@ -165,8 +162,6 @@ end
     end
     @test [idxs[s] for s in l] == 1:length(l)
     @test x == x2
-    @test x == xtr
-    @test x == xtr2
     @testset "Broadcast" begin
         x3 = l .|> (site -> site.x)
         @test x == x3

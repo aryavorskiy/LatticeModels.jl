@@ -160,4 +160,5 @@ function Base.setindex!(tsc::TimeSequenceContainer, val::T, t::Real) where T
     else
         tsc.seq[t] = val
     end
+    return val
 end

@@ -17,53 +17,71 @@ For example, a 3×3 square lattice with its center site excluded is represented 
 To define a new type of lattice, create an alias for `Lattice{YourSym, YourN, YourNB}`.
 Refer to the docs for detailed explanation.
 """
-struct Lattice{N, B<:Bravais{Sym, N} where Sym} <: AbstractVector{LatticeSite{N, B}}
+struct BravaisLattice{N, B<:UnitCell{Sym, N} where Sym, BS} <: AbstractLattice{BravaisSite{N, B}}
     bravais::B
-    pointers::Vector{LatticePointer{N}}
+    pointers::Vector{BravaisPointer{N}}
+    boundaries::BS
+    function BravaisLattice(bravais::B, pointers::Vector{BravaisPointer{N}}, boundaries::BS) where {N,B,BS}
+        new{N,B,BS}(bravais, sort!(pointers), boundaries)
+    end
+end
+BravaisLattice(bravais, pointers) = BravaisLattice(bravais, pointers, ())
+
+Base.:(==)(l1::BravaisLattice, l2::BravaisLattice) = (l1.pointers == l2.pointers) && (l1.bravais == l2.bravais)
+
+Base.emptymutable(l::BravaisLattice{B, N}, ::Type{BravaisSite{N}}=eltype(l)) where {B, N} =
+    BravaisLattice(l.bravais, [])
+Base.copymutable(l::BravaisLattice) = BravaisLattice(l.bravais, copy(l.pointers))
+Base.length(l::BravaisLattice) = length(l.pointers)
+lattice_type(::BravaisLattice{<:UnitCell{Sym}}) where {Sym} = Sym
+basis_length(l::BravaisLattice) = length(l.bravais)
+check_bravais(l::BravaisLattice, site::BravaisSite) =
+    @assert l.bravais == site.bravais
+
+default_bonds(::BravaisLattice, ::Val) = ()
+default_bonds(l::BravaisLattice) = default_bonds(l, Val(1))
+default_bonds(l::BravaisLattice, i::Int) = default_bonds(l, Val(i))
+
+get_site(l::BravaisLattice, lp::BravaisPointer) = BravaisSite(lp, l.bravais)
+get_site(::BravaisLattice, site::BravaisSite) = site
+get_site(::BravaisLattice, ::Nothing) = nothing
+
+Base.in(l::BravaisLattice, lp::BravaisPointer) = insorted(lp, l.pointers)
+function Base.in(l::BravaisLattice{N, B}, site::BravaisSite{N, B}) where {N, B}
+    @boundscheck check_samebravais(l, site)
+    in(l, site.lp)
 end
 
-Base.:(==)(l1::Lattice, l2::Lattice) = (l1.pointers == l2.pointers) && (l1.bravais == l2.bravais)
-
-lattice(l::Lattice) = l
-Base.copymutable(l::Lattice) = Lattice(l.bravais, copy(l.pointers))
-Base.copy(l::Lattice) = Base.copymutable(l)
-macrocell_size(::Lattice) = error("This function is discontinued")
-Base.length(l::Lattice) = length(l.pointers)
-Base.size(l::Lattice) = (length(l),)
-Base.keys(l::Lattice) = Base.OneTo(length(l))
-lattice_type(::Lattice{<:Bravais{Sym}}) where {Sym} = Sym
-dims(::Lattice{N,B} where B) where {N} = N
-dims(l) = dims(lattice(l))
-basis_length(l::Lattice) = length(l.bravais)
-bravais(l::Lattice) = l.bravais
-
-default_bonds(::Lattice, ::Val) = ()
-default_bonds(l::Lattice) = default_bonds(l, Val(1))
-default_bonds(l::Lattice, i::Int) = default_bonds(l, Val(i))
-
-get_site(l::Lattice, lp::LatticePointer) = LatticeSite(lp, l.bravais)
-get_site(::Lattice, site::LatticeSite) = site
-get_site(::Lattice, ::Nothing) = nothing
-
-Base.in(l::Lattice, lp::LatticePointer) = insorted(lp, l.pointers)
-Base.in(l::Lattice, site::LatticeSite) = in(l, site.lp)
-
-function Base.getindex(l::Lattice, i::Int)
+Base.@propagate_inbounds function Base.getindex(l::BravaisLattice, i::Int)
     @boundscheck checkbounds(l, i)
     return get_site(l, l.pointers[i])
 end
-Base.getindex(l::Lattice, ci::CartesianIndex{1}) = getindex(l, only(Tuple(ci)))
-function Base.getindex(l::Lattice, is::AbstractVector{Int})
+Base.@propagate_inbounds function Base.getindex(l::BravaisLattice, is::AbstractVector{Int})
     @boundscheck checkbounds(l, is)
-    return Lattice(l.bravais, l.pointers[sort(is)])
+    return BravaisLattice(l.bravais, l.pointers[sort(is)])
 end
-function Base.deleteat!(l::Lattice, inds)
+function Base.delete!(l::BravaisLattice, lp::BravaisPointer)
+    i = site_index(l, lp)
+    i !== nothing && deleteat!(l.pointers, i)
+    l
+end
+function Base.delete!(l::BravaisLattice{N, B}, site::BravaisSite{N, B}) where {N, B}
+    check_samebravais(l, site)
+    Base.delete!(l, site.lp)
+end
+function Base.deleteat!(l::BravaisLattice, inds)
     @boundscheck checkbounds(l, inds)
     deleteat!(l.pointers, inds)
     l
 end
-Base.pop!(l::Lattice) = Base.deleteat!(l, lastindex(l))
-Base.popfirst!(l::Lattice) = Base.deleteat!(l, firstindex(l))
+
+function Base.push!(l::BravaisLattice, lp::BravaisPointer)
+    @assert 1 ≤ lp.basis_index ≤ basis_length(lp) "invalid basis index $(lp.basis_index)"
+    i = searchsortedfirst(l.pointers, lp)
+    i < length(l) && l.pointers[i] != lp && insert(l.pointers, i, lp)
+end
+Base.push!(l::BravaisLattice{N, B}, site::BravaisSite{N, B}) where {N, B} =
+    push!(l, site.lp)
 
 """
     site_index(l::Lattice, site::LatticeSite; macrocell=false)
@@ -71,155 +89,48 @@ Base.popfirst!(l::Lattice) = Base.deleteat!(l, firstindex(l))
 Returns the integer index for given `site` in `lattice`.
 Returns `nothing` if the site is not present in the lattice.
 """
-Base.@propagate_inbounds function site_index(l::Lattice, lp::LatticePointer)
+Base.@propagate_inbounds function site_index(l::BravaisLattice, lp::BravaisPointer)
     i = searchsortedfirst(l.pointers, lp)
     i > length(l) && return nothing
     return l.pointers[i] == lp ? i : nothing
 end
-Base.@propagate_inbounds function site_index(l::Lattice, site::LatticeSite)
+Base.@propagate_inbounds function site_index(l::BravaisLattice, site::BravaisSite)
     @boundscheck l.bravais == site.bravais
     site_index(l, site.lp)
 end
-site_index(::Lattice, ::Nothing) = nothing
 
-function Base.iterate(l::Lattice, state = (1, length(l)))
+function Base.iterate(l::BravaisLattice, state = (1, length(l)))
     i, len = state
     return i > len ? nothing : (l[i], (i+1, len))
 end
 
-"""
-    site_distance(l::Lattice, site1::LatticeSite, site2::LatticeSite[; pbc=false])
-Returns the distance between two sites on the `l` lattice.
-
-**Keyword arguments:**
-- `pbc`: if `true`, the boundary conditions will be considered periodic and
-the distance will be measured on the shortest path.
-"""
-function site_distance(site1::LatticeSite, site2::LatticeSite)
-    norm(site1.coords - site2.coords)
-end
-
-"""
-    site_distance(; pbc)
-Generates a function that finds the distance between sites (see `site_distance(::Lattice, ::LatticeSite, ::LatticeSite)`).
-This notation can be handy when passing this function as an argument.
-"""
-site_distance() = (site1, site2) -> site_distance(site1, site2)
-
-function collect_coords(l::Lattice)
-    d = dims(l)
-    pts = zeros(d, length(l))
-    for (i, site) in enumerate(l)
-        pts[:, i] = site.coords
-    end
-    pts
-end
-
-Base.show(io::IO, l::Lattice) = Base.show_default(io, l)
-function Base.show(io::IO, ::MIME"text/plain", l::Lattice{N, <:Bravais{Sym}}) where {N,Sym}
+function Base.show(io::IO, ::MIME"text/plain", l::BravaisLattice{N, <:UnitCell{Sym}}) where {N,Sym}
     print(io, length(l), "-site ", N, "-dimensional ", Sym, " lattice")
     if basis_length(l) > 1
         print(io, " (", basis_length(l), "-site basis)")
     end
 end
 
-"""
-    sublattice(lf::Function, l::Lattice) -> Lattice
-Generates a a subset of lattice `l` by applying the `lf` function to its sites.
-The `lf` function must return a boolean value.
-"""
-function sublattice(f::Function, l::Lattice)
-    inds = [f(site) for site in l]
-    return Lattice(l.bravais, l.pointers[inds])
-end
-
-function Lattice(bvs::Bravais{Sym,N,NB}, sz::NTuple{N,Int}) where {Sym,N,NB}
-    unit_cell = ones(Int, N)
-    ptrs = LatticePointer{N}[]
-    for unitcell_j in 1:prod(sz)
-        svec = SVector{N}(unit_cell)
+function BravaisLattice(bvs::UnitCell{Sym,N,NB}, sz::NTuple{N,Int}) where {Sym,N,NB}
+    ptrs = BravaisPointer{N}[]
+    for unit_cell in CartesianIndex{N}():CartesianIndex(reverse(sz))
+        svec = reverse(SVector{N}(Tuple(unit_cell)))
         for i in 1:NB
-            push!(ptrs, LatticePointer(svec, i))
+            push!(ptrs, BravaisPointer(svec, i))
         end
-        unitcell_j == prod(sz) && break
-        incr_j = N
-        while unit_cell[incr_j] == sz[incr_j]
-            incr_j -= 1
-            incr_j == 0 && break
-        end
-        unit_cell[incr_j] += 1
-        unit_cell[incr_j + 1:end] .= 1
     end
-    Lattice(bvs, ptrs)
+    BravaisLattice(bvs, ptrs)
 end
 
-const InfDimLattice{Sym,N,NB} = Lattice{N, <:Bravais{Sym,N,NB}}
-const AnyDimLattice{Sym,NB} = Lattice{N, <:Bravais{Sym,N,NB}} where N
+const InfDimLattice{Sym,N,NB} = BravaisLattice{N, <:UnitCell{Sym,N,NB}}
+const AnyDimLattice{Sym,NB} = BravaisLattice{N, <:UnitCell{Sym,N,NB}} where N
 function InfDimLattice{Sym,N,NB}(sz::Vararg{Int,N}) where {Sym,N,NB}
-    return Lattice(Bravais{Sym,N,NB}(), sz)
+    return BravaisLattice(UnitCell{Sym,N,NB}(), sz)
 end
 function AnyDimLattice{Sym,NB}(sz::Vararg{Int,N}) where {Sym,N,NB}
-    return Lattice(Bravais{Sym,N,NB}(), sz)
+    return BravaisLattice(UnitCell{Sym,N,NB}(), sz)
 end
-(::Type{T})(f::Function, sz::Vararg{Int}) where T<:Lattice =
+(::Type{T})(f::Function, sz::Vararg{Int}) where T<:BravaisLattice =
     sublattice(f, T(sz...))
 
-struct IncompatibleLattices <: Exception
-    header::String
-    l1::Lattice
-    l2::Lattice
-    IncompatibleLattices(header, l1, l2) = new(header, lattice(l1), lattice(l2))
-end
-IncompatibleLattices(l1, l2) = IncompatibleLattices("Matching lattices expected", l1, l2)
-
-Base.showerror(io::IO, ex::IncompatibleLattices) = print(io,
-"""$(ex.header).\nGot following:
-        #1: $(repr("text/plain", ex.l1))
-        #2: $(repr("text/plain", ex.l2))""")
-
-"""
-Checks if `l1` and `l2` objects are defined on one lattice. Throws an error if not.
-"""
-function check_samelattice(l1, l2)
-    lattice(l1) != lattice(l2) &&
-        throw(IncompatibleLattices(l1, l2))
-end
-
-"""
-Checks if `l1` and `l2` are defined on one macrocell. Throws an error if not.
-"""
-function check_samebravais(l1, l2)
-    la1 = lattice(l1)
-    la2 = lattice(l2)
-    (la1.bravais != la2.bravais) &&
-        throw(IncompatibleLattices("Same lattice type expected", la1, la2))
-end
-
-"""
-Checks if `l1` is sublattice of `l2`. Throws an error if not.
-"""
-function check_issublattice(l1::Lattice, l2::Lattice)
-    check_samebravais(l1, l2)
-    !issubset(l1.pointers, l2.pointers) &&
-        throw(IncompatibleLattices("#1 is expected to be sublattice of #2", l1, l2))
-end
-
-function Base.union!(l1::Lattice{B, N}, ls::Lattice{B, N}...) where {B, N}
-    Base.union!(l1.pointers, (l.pointers for l in ls)...)
-    sort!(l1.pointers)
-end
-
-function Base.intersect!(l1::Lattice{B, N}, ls::Lattice{B, N}...) where {B, N}
-    Base.intersect!(l1.pointers, (l.pointers for l in ls)...)
-    sort!(l1.pointers)
-end
-Base.intersect(l1::Lattice, ls::Lattice...) = Base.intersect!(copy(l1), ls...)
-
-function Base.setdiff!(l1::Lattice{B, N}, ls::Lattice{B, N}...) where {B, N}
-    Base.setdiff!(l1.pointers, (l.pointers for l in ls)...)
-    sort!(l1.pointers)
-end
-Base.setdiff(l1::Lattice, ls::Lattice...) = Base.setdiff!(copy(l1), ls...)
-
-Base.emptymutable(l::Lattice{B, N}, ::Type{LatticeSite{N}}=eltype(l)) where {B, N} =
-    Lattice(l.bravais, [])
+macrocell_size(::BravaisLattice) = error("This function is discontinued")
