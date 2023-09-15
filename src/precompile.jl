@@ -257,7 +257,7 @@ end   # time: 0.0018299
     Base.precompile(Tuple{Type{TimeSequence{LatticeValue}}})   # time: 0.0017146
     isdefined(LatticeModels, Symbol("#130#131")) && Base.precompile(Tuple{getfield(LatticeModels, Symbol("#130#131")),Float64})   # time: 0.0016448
     Base.precompile(Tuple{Type{TimeSequence},Int64,LatticeValue{Float64, SquareLattice{2}}})   # time: 0.0016245
-    Base.precompile(Tuple{typeof(macro_cell_values),LatticeValue{Float64, SquareLattice{2}}})   # time: 0.0016069
+    Base.precompile(Tuple{typeof(rectified_values),LatticeValue{Float64, SquareLattice{2}}})   # time: 0.0016069
     Base.precompile(Tuple{typeof(similar),Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(*), Tuple{LatticeValue{Float64, SquareLattice{2}}, LatticeValue{Float64, SquareLattice{2}}}},Type{Float64}})   # time: 0.0015952
     Base.precompile(Tuple{typeof(iterate),SquareLattice{2},Tuple{CartesianIndices{3, Tuple{UnitRange{Int64}, UnitRange{Int64}, UnitRange{Int64}}}, Int64}})   # time: 0.0015297
     Base.precompile(Tuple{typeof(RecipesBase.apply_recipe),AbstractDict{Symbol, Any},BravaisLattice})   # time: 0.0015174

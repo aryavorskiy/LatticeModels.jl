@@ -110,8 +110,8 @@ function Base.similar(bc::Broadcast.Broadcasted{LatticeStyle}, ::Type{Eltype}) w
     LatticeValue(l, similar(Vector{Eltype}, axes(bc)))
 end
 _extract_lattice(bc::Broadcast.Broadcasted) = _extract_lattice(bc.args)
-_extract_lattice(lv::LatticeValueWrapper) = lv.lattice
 _extract_lattice(ext::Broadcast.Extruded) = _extract_lattice(ext.x)
+_extract_lattice(lv::LatticeValueWrapper) = lv.lattice
 _extract_lattice(x) = x
 _extract_lattice(::Tuple{}) = nothing
 _extract_lattice(args::Tuple) =

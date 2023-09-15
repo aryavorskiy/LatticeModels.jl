@@ -1,23 +1,23 @@
 using RecipesBase
 
-@recipe function f(site::BravaisSite)
+@recipe function f(site::AbstractSite)
     seriestype := :scatter
     [Tuple(site.coords),]
 end
 
-@recipe function f(l::BravaisLattice, style::Symbol=:plain)
+@recipe function f(l::AbstractLattice, style::Symbol=:plain)
     l, Val(style)
 end
 
-@recipe function f(::BravaisLattice, ::Val{StyleT}) where StyleT
+@recipe function f(::AbstractLattice, ::Val{StyleT}) where StyleT
     error("Unsupported lattice plot style $StyleT")
 end
 
-@recipe function f(l::BravaisLattice, ::Val{:plain})
+@recipe function f(l::AbstractLattice, ::Val{:plain})
     l, nothing
 end
 
-@recipe function f(l::BravaisLattice, ::Val{:high_contrast})
+@recipe function f(l::AbstractLattice, ::Val{:high_contrast})
     markersize := 4
     markercolor := :black
     markerstrokealpha := 1
@@ -27,7 +27,7 @@ end
     l, nothing
 end
 
-@recipe function f(l::BravaisLattice, ::Val{:pretty})
+@recipe function f(l::AbstractLattice, ::Val{:markers})
     label --> ""
     @series begin   # The sites
         seriestype := :scatter
@@ -35,7 +35,10 @@ end
         series_annotations := annotations
         l, nothing
     end
+end
 
+@recipe function f(l::BravaisLattice, ::Val{:bonds})
+    label := ""
     @series begin   # The bonds
         seriestype := :path
         label := ""
@@ -57,7 +60,12 @@ end
     end
 end
 
-@recipe function f(l::BravaisLattice, v)
+@recipe function f(l::BravaisLattice, ::Val{:pretty})
+    @series l, Val(:markers)
+    @series l, Val(:bonds)
+end
+
+@recipe function f(l::AbstractLattice, v)
     aspect_ratio := :equal
     marker_z := v
     pts = collect_coords(l)
@@ -116,7 +124,7 @@ function tr_vector(l::BravaisLattice, hop::SiteOffset{<:Pair})
      mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
 end
 tr_vector(l::BravaisLattice, hop::SiteOffset{Nothing}) =
-    mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
+    mm_assuming_zeros(l.bravais.translation_vectors, hop.translate_uc)
 @recipe function f(l::BravaisLattice{N, B}, bss::NTuple{M, SiteOffset} where M) where {N, B}
     aspect_ratio := :equal
     pts = NTuple{N, Float64}[]
@@ -168,6 +176,7 @@ end
     tseq.times, tseq.values
 end
 
+const BravaisLatticeValue{Sym, N} = LatticeValue{<:Number, <:BravaisLattice{N, <:UnitCell{Sym, N}}}
 raw"""
     rectified_values(lv::LatticeValue)
 
@@ -177,7 +186,7 @@ If the element is `NaN`, it means that the corresponding site is not present in 
 
 This function might be quite useful in custom plot recipes.
 """
-function macro_cell_values(lv::LatticeValue{<:Number, <:BravaisLattice{<:UnitCell{Sym,N,1}, N} where Sym}) where N
+function rectified_values(lv::BravaisLatticeValue{Sym, N} where Sym) where N
     l = lattice(lv)
     mins = Vector(l[1].unit_cell)
     maxs = Vector(l[1].unit_cell)
@@ -190,31 +199,29 @@ function macro_cell_values(lv::LatticeValue{<:Number, <:BravaisLattice{<:UnitCel
     for (i, lp) in enumerate(l.pointers)
         newvals[(lp.unit_cell - smins)...] = lv.values[i]
     end
-    newvals
+    Tuple(mins[i]:maxs[i] for i in 1:N), newvals
 end
 
 """
-    plot_fallback(lv::LatticeValue)
+    plot_fallback(lv::BravaisLatticeValue)
 
-Creates a copy of `lv` lattice value with its `LatticeSym` overwritten to `:plot_fallback`.
+Creates a copy of `lv` lattice value with the underlying `LatticeSym` overwritten to `:plot_fallback`.
 Use it to invoke the default plot recipe for `LatticeValues` when defining a custom one.
 """
-function plot_fallback(lv::LatticeValue)
+function plot_fallback(lv::BravaisLatticeValue)
     l = lattice(lv)
     new_l = BravaisLattice(UnitCell(:plot_fallback)(l.bravais.translation_vectors, l.bravais.basis),
         l.pointers)
     LatticeValue(new_l, lv.values)
 end
 
-const PlottableLatticeValue{Sym} = LatticeValue{<:Number, <:BravaisLattice{N, UnitCell{Sym, N}} where N}
-
-@recipe function f(lv::PlottableLatticeValue{:square})
-    seriestype --> :heatmap
+@recipe function f(lv::BravaisLatticeValue{:square, N}) where N
+    N < 3 && (seriestype --> :heatmap)
     if plotattributes[:seriestype] === :heatmap
+        axes, heatmap_values = rectified_values(lv)
+        c_axes = Tuple(axes[i] .+ lattice(lv).bravais.basis[i, 1] for i in 1:N)
         aspect_ratio := :equal
-        axes_lims = [1:ax for ax in macrocell_size(lattice(lv))]
-        heatmap_values = reshape(macro_cell_values(lv), reverse(macrocell_size(lattice(lv))))'
-        axes_lims..., heatmap_values
+        c_axes..., transpose(heatmap_values)
     else
         plot_fallback(lv)
     end
