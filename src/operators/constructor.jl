@@ -1,4 +1,4 @@
-import QuantumOpticsBase: Operator
+import QuantumOpticsBase: Operator, check_samebases
 struct SparseMatrixBuilder{T} <: AbstractMatrix{T}
     size::Tuple{Int,Int}
     Is::Vector{Int}

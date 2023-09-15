@@ -1,3 +1,4 @@
+using QuantumOpticsBase: check_samebases
 struct Sample{LT, BasisT, BoundaryT}
     latt::LT
     boundaries::BoundaryT

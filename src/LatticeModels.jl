@@ -8,59 +8,56 @@ using Reexport
     allequal(seq) = all(==(first(seq)), seq)
 end
 
-include("core/utils.jl")
-include("core/abstract_lattice.jl")
+include("core/sarrayutils.jl")
+include("core/lattice.jl")
+include("core/latticevalue.jl")
+export LatticeValue, param_value, coord_values, project, @p_str
 include("core/adjacency.jl")
-include("core/lattice_value.jl")
-export LatticeValue, param_value, coord_values, project
-include("core/plot_recipes.jl")
+include("core/recipes.jl")
 
-include("core/lattice_site.jl")
-include("core/boundaries.jl")
+include("lattices/bravais/site.jl")
+include("lattices/bravais/boundaries.jl")
 export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions,
     PeriodicBoundaryConditions
-include("core/lattice.jl")
+include("lattices/bravais/lattice.jl")
 export lattice, sublattice, site_index, site_distance
-include("core/bonds.jl")
+include("lattices/bravais/bonds.jl")
 export SiteOffset, Bonds
-include("core/bravais_plot_recipes.jl")
+include("lattices/bravais/recipes.jl")
 
-include("core/bases.jl")
+include("operators/bases.jl")
 export LatticeBasis, @increment, ketstate, brastate
-
-include("core/field.jl")
-export @field_def, NoField, MagneticField
-
-include("core/sample.jl")
+include("operators/system.jl")
 export  Sample, System, FermiDirac, BoseEinstein
-
-include("operator_builder.jl")
+include("operators/magneticfield.jl")
+export NoField, MagneticField
+include("operators/constructor.jl")
 export OperatorBuilder, Hamiltonian
-include("operators_build.jl")
+include("operators/buildoperator.jl")
 export tightbinding_hamiltonian, build_operator, build_hamiltonian
-include("operators_manybody.jl")
+include("operators/manybody.jl")
 export interaction
-include("operators_utils.jl")
-export coord_operator, coord_operators, lattice_density, diag_reduce, adjacency_matrix, apply_field!
+include("operators/latticedensity.jl")
+export coord_operator, coord_operators, lattice_density, diag_reduce, adjacency_matrix
 
 include("spectrum.jl")
 export Eigensystem, diagonalize, projector, densitymatrix, dos, ldos
-
 include("currents.jl")
 export materialize, currents_from, currents_from_to, map_currents
-
-include("time_sequence.jl")
+include("timesequence.jl")
 export init_record, integrate, integrate!, differentiate, differentiate!, timestamps,
     TimeSequence
-
 include("evolution.jl")
-    export @evolution
+export @evolution
 
-include("zoo.jl")
-export SquareLattice, HoneycombLattice,
-    LandauField, SymmetricField, FluxField,
-    qwz, haldane, kanemele,
-    DensityCurrents
+include("zoo/lattices.jl")
+export SquareLattice, HoneycombLattice
+include("zoo/magneticfields.jl")
+export LandauField, SymmetricField, FluxField
+include("zoo/models.jl")
+export qwz, haldane, kanemele
+include("zoo/currents.jl")
+export DensityCurrents
 
 using Logging
 try
