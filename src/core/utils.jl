@@ -1,7 +1,4 @@
 using SparseArrays, StaticArrays
-@static if VERSION < v"1.8"
-    allequal(seq) = all(==(first(seq)), seq)
-end
 
 @generated function one_hot(indices, ::Val{N}) where N
     Expr(:call, :(SVector{N}), (:(Int($v in indices)) for v in 1:N)...)
@@ -24,8 +21,5 @@ end
         Expr(:call, :+, [:(m[:, $i] * v[$i]) for i in 1:N]...)
     end
 end
-
-function dims end
-function lattice end
 
 const Nullable{T} = Union{Nothing,T}

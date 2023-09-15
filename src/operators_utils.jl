@@ -39,7 +39,7 @@ States can be defined by `LatticeSite`s or integers.
 
 Standard rules for functions accepting `System`s apply.
 """
-function QuantumOpticsBase.transition(sys::System, site1::BravaisSite, site2::BravaisSite, op=internal_one(sample); field=NoField())
+function QuantumOpticsBase.transition(sys::System, site1::AbstractLattice, site2::AbstractLattice, op=internal_one(sample); field=NoField())
     return build_operator(sys, op => site1 => site2, field=field)
 end
 QuantumOpticsBase.transition(sys::System, i1::Int, i2::Int, op=internal_one(sample); field=NoField()) =
@@ -119,7 +119,7 @@ function get_site_periodic(l::BravaisLattice, site::BravaisPointer)
     new_site = get_site(l, site)
     new_site === nothing ? nothing : shift_site(PeriodicBoundaryConditions(), l, new_site)[2]
 end
-function adjacency_matrix(l::BravaisLattice, bss::SiteOffset...)
+function adjacency_matrix(l::AbstractLattice, bss::SiteOffset...)
     matrix = zeros(Bool, length(l), length(l))
     for bs in bss
         for (i, site) in enumerate(l)

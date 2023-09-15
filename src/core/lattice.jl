@@ -25,7 +25,7 @@ struct BravaisLattice{N, B<:UnitCell{Sym, N} where Sym, BS} <: AbstractLattice{B
         new{N,B,BS}(bravais, sort!(pointers), boundaries)
     end
 end
-BravaisLattice(bravais, pointers) = BravaisLattice(bravais, pointers, ())
+BravaisLattice(bravais, pointers) = BravaisLattice(bravais, pointers, BoundaryConditions())
 
 Base.:(==)(l1::BravaisLattice, l2::BravaisLattice) = (l1.pointers == l2.pointers) && (l1.bravais == l2.bravais)
 
@@ -35,7 +35,7 @@ Base.copymutable(l::BravaisLattice) = BravaisLattice(l.bravais, copy(l.pointers)
 Base.length(l::BravaisLattice) = length(l.pointers)
 lattice_type(::BravaisLattice{<:UnitCell{Sym}}) where {Sym} = Sym
 basis_length(l::BravaisLattice) = length(l.bravais)
-check_bravais(l::BravaisLattice, site::BravaisSite) =
+check_samebravais(l::BravaisLattice, site::BravaisSite) =
     @assert l.bravais == site.bravais
 
 default_bonds(::BravaisLattice, ::Val) = ()

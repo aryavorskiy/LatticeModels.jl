@@ -6,7 +6,7 @@ function add_diagonal!(builder, op, diag)
     end
 end
 
-function add_hoppings!(builder, l::BravaisLattice, op, bond::SiteOffset,
+function add_hoppings!(builder, l::AbstractLattice, op, bond::SiteOffset,
         field::AbstractField, boundaries::BoundaryConditions)
     dims(bond) > dims(l) && error("Incompatible dims")
     for site1 in l
@@ -16,7 +16,7 @@ function add_hoppings!(builder, l::BravaisLattice, op, bond::SiteOffset,
     end
 end
 
-function add_hoppings!(builder, l::BravaisLattice, op, bond::SingleBond,
+function add_hoppings!(builder, l::AbstractLattice, op, bond::SingleBond,
         field::AbstractField, boundaries::BoundaryConditions)
     site1, site2 = bond
     p1 = site1.coords

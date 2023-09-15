@@ -37,6 +37,7 @@ Base.hasfastin(::Type{<:AbstractLattice}) = true
 # Indexing
 Base.firstindex(::AbstractLattice) = 1
 Base.lastindex(l::AbstractLattice) = length(l)
+Base.eachindex(l::AbstractLattice) = firstindex(l):lastindex(l)
 Base.checkbounds(::Type{Bool}, l::AbstractLattice, is) = all(1 .≤ is .≤ length(l))
 Base.checkbounds(l::AbstractLattice, is) =
     !Base.checkbounds(Bool, l, is) && throw(BoundsError(l, is))
@@ -98,21 +99,10 @@ function check_samelattice(l1, l2)
 end
 
 """
-Checks if `l1` and `l2` are defined on one macrocell. Throws an error if not.
-"""
-function check_samebravais(l1, l2)
-    la1 = lattice(l1)
-    la2 = lattice(l2)
-    (la1.bravais != la2.bravais) &&
-        throw(IncompatibleLattices("Same lattice type expected", la1, la2))
-end
-
-"""
 Checks if `l1` is sublattice of `l2`. Throws an error if not.
 """
 function check_issublattice(l1::AbstractLattice, l2::AbstractLattice)
-    check_samebravais(l1, l2)
-    !issubset(l1.pointers, l2.pointers) &&
+    !issubset(l1, l2) &&
         throw(IncompatibleLattices("#1 is expected to be sublattice of #2", l1, l2))
 end
 

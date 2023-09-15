@@ -161,3 +161,30 @@ function map_currents(f::Function, curr::AbstractCurrents; reduce_fn::Nullable{F
         ms, cs
     end
 end
+
+@recipe function f(curr::AbstractCurrents)
+    l = lattice(curr)
+    dims(l) != 2 && error("2D lattice expected")
+    Xs = Float64[]
+    Ys = Float64[]
+    Qs = NTuple{2,Float64}[]
+    arrows_scale --> 1
+    arrows_rtol --> 1e-2
+    seriestype := :quiver
+    for (i, site1) in enumerate(l)
+        for (j, site2) in enumerate(l)
+            j ≥ i && continue
+            ij_curr = curr[i, j]::Real
+            crd = ij_curr > 0 ? site1.coords : site2.coords
+            vc = site2.coords - site1.coords
+            vc_n = norm(vc)
+            if vc_n < abs(ij_curr * plotattributes[:arrows_scale] / plotattributes[:arrows_rtol])
+                push!(Xs, crd[1])
+                push!(Ys, crd[2])
+                push!(Qs, Tuple(vc * (ij_curr * plotattributes[:arrows_scale] / vc_n)))
+            end
+        end
+    end
+    quiver := Qs
+    Xs, Ys
+end

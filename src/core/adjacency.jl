@@ -7,20 +7,20 @@ Represents the bonds on some lattice.
 Also you can create a `AdjacencyMatrix` which connects sites that were connected by `≤n` bonds of the previous `AdjacencyMatrix`
 by taking its power: `bs2 = bs1 ^ n`.
 """
-struct AdjacencyMatrix{LT<:BravaisLattice}
+struct AdjacencyMatrix{LT<:AbstractLattice}
     lattice::LT
     bmat::Matrix{Bool}
-    function AdjacencyMatrix(l::LT, bmat) where {LT<:BravaisLattice}
+    function AdjacencyMatrix(l::LT, bmat) where {LT<:AbstractLattice}
         !all(size(bmat) .== length(l)) && error("inconsistent connectivity matrix size")
         new{LT}(l, bmat .| bmat' .| Matrix(I, length(l), length(l)))
     end
-    function AdjacencyMatrix(l::BravaisLattice)
+    function AdjacencyMatrix(l::AbstractLattice)
         AdjacencyMatrix(l, Matrix(I, length(l), length(l)))
     end
 end
 
 lattice(bs::AdjacencyMatrix) = bs.lattice
-match(bs::AdjacencyMatrix, site1::BravaisSite, site2::BravaisSite) =
+match(bs::AdjacencyMatrix, site1::AbstractSite, site2::AbstractSite) =
     bs.bmat[site_index(lattice(bs), site1), site_index(lattice(bs), site2)]
 
 function Base.:(|)(bss1::AdjacencyMatrix, bss2::AdjacencyMatrix)
