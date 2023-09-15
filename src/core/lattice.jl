@@ -30,7 +30,7 @@ site_index(::AbstractLattice, ::Nothing) = nothing
 
 # Set functions
 Base.copy(l::AbstractLattice) = Base.copymutable(l)
-Base.in(l::AbstractLattice{SiteT}, site::SiteT) where {SiteT} =
+Base.in(site::SiteT, l::AbstractLattice{SiteT}) where {SiteT} =
     site_index(l, site) !== nothing
 Base.hasfastin(::Type{<:AbstractLattice}) = true
 
@@ -124,3 +124,6 @@ Generates a function that finds the distance between sites (see `site_distance(:
 This notation can be handy when passing this function as an argument.
 """
 site_distance() = (site1, site2) -> site_distance(site1, site2)
+
+shift_site(::AbstractLattice, site::AbstractSite) = (1, site)
+const SingleBond{LT<:AbstractSite} = Pair{LT, LT}

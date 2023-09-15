@@ -254,13 +254,14 @@ end
         l = SquareLattice(6, 5)
         hx = Bonds(axis=1)
         hxmy = Bonds([1, -1])
-        pbc = BoundaryConditions(1 => true)
+        pbc = BoundaryConditions([6, 0] => true)
         for site in l
             ucx, ucy = site.unit_cell
             dst_dx = LatticeModels.shift_site(BoundaryConditions(), l, site + hx)[2]
             dst_dxmy = LatticeModels.shift_site(pbc, l, site + hxmy)[2]
             @test !(dst_dx in l) == (ucx == 6)
             @test !(dst_dxmy in l) == (ucy == 1)
+            !(dst_dxmy in l) != (ucy == 1) && @show site, dst_dxmy
         end
     end
     @testset "Bonds" begin
@@ -276,17 +277,6 @@ end
         @test LatticeModels.match(bs2, ls1, ls3)
         @test LatticeModels.match(bs2, ls1, ls4)
     end
-    l = SquareLattice(5, 5) do site
-        local (x, y) = site.coords
-        abs(x + y) < 2.5
-    end
-    x, y = coord_values(l)
-    op1 = build_operator(PairLhsGraph(x .< y), l, Bonds(axis=1))
-    op2 = build_operator(l, Bonds(axis=1)) do l, site1, site2
-        local (x, y) = site1.coords
-        x < y
-    end
-    @test op1 == op2
 end
 
 @testset "Field" begin

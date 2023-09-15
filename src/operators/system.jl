@@ -1,103 +1,23 @@
-using QuantumOpticsBase: check_samebases
-struct Sample{LT, BasisT, BoundaryT}
+using QuantumOpticsBase: basis, check_samebases
+struct Sample{LT, BasisT}
     latt::LT
-    boundaries::BoundaryT
     internal::BasisT
 end
-const SampleWithoutInternal{LT, BoundaryT} = Sample{LT, Nothing, BoundaryT}
-const SampleWithInternal{LT, BoundaryT} = Sample{LT, <:Basis, BoundaryT}
-
-function Sample(latt::LT, internal::BT=nothing;
-        boundaries=BoundaryConditions()) where {LT<:BravaisLattice, BT<:Nullable{Basis}}
-    return Sample(latt, boundaries, internal)
-end
+Sample(l::BravaisLattice, internal, bs) = Sample(add_boundaries(l, bs), internal)
+const SampleWithoutInternal{LT} = Sample{LT, Nothing}
+const SampleWithInternal{LT} = Sample{LT, <:Basis}
 
 Base.length(sample::Sample) = length(sample.latt) * length(sample.internal)
 Base.length(sample::SampleWithoutInternal) = length(sample.latt)
-lattice(sample::Sample) = sample.latt
 default_bonds(sample::Sample, arg=Val(1)) = default_bonds(lattice(sample), arg)
-internal_one(sample::Sample) = one(sample.internal)
-internal_one(sample::SampleWithoutInternal) = 1
-QuantumOpticsBase.tensor(l::BravaisLattice, b::Basis) = Sample(l, b)
-QuantumOpticsBase.tensor(b::Basis, l::BravaisLattice) = Sample(l, b)
-QuantumOpticsBase.tensor(b::Basis, s::SampleWithoutInternal) = Sample(s.latt, s.boundaries, b)
-QuantumOpticsBase.tensor(s::SampleWithoutInternal, b::Basis) = Sample(s.latt, s.boundaries, b)
-
-@enum ParticleStatistics begin
-    OneParticle = 0
-    FermiDirac = 1
-    BoseEinstein = -1
-end
-
-abstract type System{SampleT} end
-Base.length(system::System) = length(system.sample)
-sample(sys::System) = sys.sample
-default_bonds(sys::System) = default_bonds(sys.sample)
-
-struct FilledZones{SampleT} <: System{SampleT}
-    sample::SampleT
-    chempotential::Float64
-    statistics::ParticleStatistics
-    function FilledZones(sample::SampleT, μ; statistics=FermiDirac) where SampleT
-        statistics == OneParticle && μ != 0 && error("OneParticle statistics cannot be present in systems with non-zero chemical potential")
-        new{SampleT}(sample, μ, statistics)
-    end
-end
-
-struct Particles{SampleT} <: System{SampleT}
-    sample::SampleT
-    nparticles::Int
-    statistics::ParticleStatistics
-    function Particles(sample::SampleT, nparticles; statistics=FermiDirac) where SampleT
-        statistics == OneParticle && nparticles> 1 && error("OneParticle statistics not supported for multi-particle systems")
-        new{SampleT}(sample, nparticles, statistics)
-    end
-end
-
-function System(sample::Sample; μ = nothing, N = nothing, statistics=FermiDirac)
-    if μ !== nothing && N === nothing
-        return FilledZones(sample, μ, statistics=statistics)
-    elseif N !== nothing && μ === nothing
-        return Particles(sample, N, statistics=statistics)
-    else
-        error("Please define the chemical potential `μ` or the particle number `N` (but not both)")
-    end
-end
-System(args...; μ = nothing, N = nothing, statistics=FermiDirac, kw...) =
-    System(Sample(args...; kw...), μ=μ, N=N, statistics=statistics)
-
-lattice(sys::System) = lattice(sys.sample)
-Base.zero(sys::System) = zero(systembasis(sys))
-
-function occupations(ps::Particles)
-    if ps.statistics == FermiDirac
-        fermionstates(length(ps.sample), ps.sample.nparticles)
-    elseif ps.statistics == BoseEinstein
-        bosonstates(length(ps.sample), ps.sample.nparticles)
-    end
-end
-
-systembasis(sys::FilledZones) = basis(sys.sample)
-systembasis(sys::Particles) = ManyBodyBasis(basis(sys.sample), occupations(sys))
-
-function QuantumOpticsBase.manybodyoperator(ps::Particles, op::AbstractOperator)
-    check_samebases(systembasis(ps), basis(op))
-    return manybodyoperator(ManyBodyBasis(bas, occupations(ps)), oper)
-end
-function QuantumOpticsBase.manybodyoperator(ps::FilledZones, op::AbstractOperator)
-    check_samebases(systembasis(ps), basis(op))
-    return op
-end
-QuantumOpticsBase.manybodyoperator(sample, mat::AbstractMatrix) =
-    manybodyoperator(sample, Operator(basis(sample), mat))
-
-shift_site(sample::Sample, site) = shift_site(sample.boundaries, sample.latt, site)
-shift_site(sys::System, site) = shift_site(sys.sample, site)
+QuantumOpticsBase.basis(sample::SampleWithInternal) = sample.internal ⊗ LatticeBasis(sample.latt)
+QuantumOpticsBase.basis(sample::SampleWithoutInternal) = LatticeBasis(sample.latt)
 
 sample(lb::LatticeBasis) = Sample(lb.latt)
 sample(b::CompositeLatticeBasis) = Sample(b.bases[2].latt, b.bases[1])
 sample(b::Basis) = throw(MethodError(sample, (b,)))
 sample(any) = sample(basis(any))
+lattice(sample::Sample) = sample.latt
 lattice(any) = lattice(sample(any))
 internal_basis(sample::SampleWithInternal) = sample.internal
 internal_basis(::SampleWithoutInternal) = throw(ArgumentError("Sample has no internal basis"))
@@ -105,30 +25,108 @@ internal_basis(any) = internal_basis(sample(any))
 internal_length(sample::SampleWithInternal) = length(sample.internal)
 internal_length(sample::SampleWithoutInternal) = 1
 internal_length(any) = internal_length(sample(any))
+internal_one(sample::SampleWithInternal) = one(sample.internal)
+internal_one(sample::SampleWithoutInternal) = 1
+internal_one(any) = internal_one(sample(any))
+hasinternal(::SampleWithInternal) = true
+hasinternal(::SampleWithoutInternal) = false
+hasinternal(any) = hasinternal(sample(any))
 
-QuantumOpticsBase.basis(sample::Sample) = sample.internal ⊗ LatticeBasis(sample.latt)
-QuantumOpticsBase.basis(sample::SampleWithoutInternal) = LatticeBasis(sample.latt)
-onebodybasis(sample::Sample) = basis(sample)
-onebodybasis(sys::System) = onebodybasis(sys.sample)
+abstract type System{SampleT} end
+abstract type OneParticleBasisSystem{SampleT} <: System{SampleT} end
+sample(sys::System) = sys.sample
+default_bonds(sys::System) = default_bonds(sys.sample)
+struct OneParticleSystem{SampleT} <: OneParticleBasisSystem{SampleT}
+    sample::SampleT
+    T::Float64
+    OneParticleSystem(sample::SampleT, T) where SampleT = new{SampleT}(sample, T)
+end
+OneParticleSystem(l::AbstractLattice, b::Nullable{Basis}=nothing; T=0) = OneParticleSystem(Sample(l, b), T)
+
+QuantumOpticsBase.tensor(l::AbstractLattice, b::Basis) = OneParticleSystem(l, b)
+QuantumOpticsBase.tensor(b::Basis, l::AbstractLattice) = OneParticleSystem(l, b)
+
+@enum ParticleStatistics begin
+    FermiDirac = 1
+    BoseEinstein = -1
+end
+
+struct FixedMu{SampleT} <: OneParticleBasisSystem{SampleT}
+    sample::SampleT
+    chempotential::Float64
+    statistics::ParticleStatistics
+    T::Float64
+    function FixedMu(sample::SampleT, μ; statistics=FermiDirac, T = 0) where SampleT
+        new{SampleT}(sample, μ, statistics, T)
+    end
+end
+
+struct FixedN{SampleT} <: OneParticleBasisSystem{SampleT}
+    sample::SampleT
+    nparticles::Int
+    statistics::ParticleStatistics
+    T::Float64
+    function FixedN(sample::SampleT, N; statistics=FermiDirac, T = 0) where SampleT
+        new{SampleT}(sample, μ, statistics, T)
+    end
+end
+
+struct NParticles{SampleT} <: System{SampleT}
+    sample::SampleT
+    nparticles::Int
+    statistics::ParticleStatistics
+    T::Float64
+    function NParticles(sample::SampleT, nparticles; statistics=FermiDirac, T = 0) where SampleT
+        new{SampleT}(sample, nparticles, statistics)
+    end
+end
+
+function System(sample::Sample; μ = nothing, N = nothing, statistics=FermiDirac)
+    if μ !== nothing && N === nothing
+        return FixedMu(sample, μ, statistics=statistics)
+    elseif N !== nothing && μ === nothing
+        return FixedN(sample, N, statistics=statistics)
+    else
+        error("Please define the chemical potential `μ` or the particle number `N` (but not both)")
+    end
+end
+System(args...; μ = nothing, N = nothing, statistics=FermiDirac, kw...) =
+    System(Sample(args...; kw...), μ=μ, N=N, statistics=statistics)
+
+function occupations(np::NParticles)
+    if np.statistics == FermiDirac
+        fermionstates(length(np.sample), np.nparticles)
+    elseif np.statistics == BoseEinstein
+        bosonstates(length(np.sample), np.nparticles)
+    end
+end
+
+onebodybasis(sys::System) = basis(sys.sample)
+QuantumOpticsBase.basis(sys::OneParticleBasisSystem) = onebodybasis(sys)
+QuantumOpticsBase.basis(sys::NParticles) = ManyBodyBasis(basis(sys.sample), occupations(sys))
+
+Base.zero(sys::System) = zero(basis(sys))
+
+function QuantumOpticsBase.manybodyoperator(ps::NParticles, op::AbstractOperator)
+    check_samebases(onebodybasis(ps), basis(op))
+    return manybodyoperator(ManyBodyBasis(bas, occupations(ps)), oper)
+end
+function QuantumOpticsBase.manybodyoperator(sys::OneParticleBasisSystem, op::AbstractOperator)
+    check_samebases(onebodybasis(sys), basis(op))
+    return op
+end
+QuantumOpticsBase.manybodyoperator(sys::System, mat::AbstractMatrix) =
+    manybodyoperator(sys::System, Operator(onebodybasis(sys), mat))
+
+shift_site(sys::System, site) = shift_site(lattice(sys), site)
 
 macro accepts_system(fname, default_basis=nothing)
     esc(quote
-        $fname(sample::Sample, args...; kw...) =
-            $fname(FilledZones(sample, 0, statistics=FermiDirac), args...; kw...)
+        $fname(sample::Sample, args...; T = 0, kw...) =
+            $fname(OneParticleSystem(sample, T), args...; kw...)
         $fname(l::BravaisLattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
-            $fname(Sample(l, boundaries, bas), args...; kw...)
+            $fname(Sample(l, bas, boundaries), args...; kw...)
         $fname(l::BravaisLattice, args...; boundaries=BoundaryConditions(), kw...) =
-            $fname(Sample(l, boundaries, $default_basis), args...; kw...)
-    end)
-end
-
-macro accepts_sample(fname, default_basis=nothing)
-    esc(quote
-        $fname(system::FilledZones, args...; kw...) =
-            $fname(system.sample, args...; kw...)
-        $fname(l::BravaisLattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
-            $fname(Sample(l, boundaries, bas), args...; kw...)
-        $fname(l::BravaisLattice, args...; boundaries=BoundaryConditions(), kw...) =
-            $fname(Sample(l, boundaries, $default_basis), args...; kw...)
+            $fname(Sample(l, $default_basis, boundaries), args...; kw...)
     end)
 end

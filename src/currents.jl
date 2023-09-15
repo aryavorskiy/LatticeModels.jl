@@ -111,7 +111,7 @@ This can be useful to avoid exsessive calculations.
 function materialize(curr::AbstractCurrents)
     l = lattice(curr)
     m = MaterializedCurrents(l)
-    for i in 1:length(l), j in 1:i-1
+    for i in eachindex(l), j in 1:i-1
         ij_curr = curr[i, j]
         m.currents[i, j] = ij_curr
         m.currents[j, i] = -ij_curr

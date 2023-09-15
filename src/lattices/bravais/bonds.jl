@@ -1,7 +1,5 @@
 using StaticArrays
 
-const SingleBond{N, B} = Pair{BravaisSite{N, B}, BravaisSite{N, B}}
-
 """
     SiteOffset{T, N}
 
@@ -75,16 +73,12 @@ end
 
 @inline Base.:(+)(site::BravaisSite, bs) = BravaisSite(site.lp + bs, site.bravais)
 
-get_site_periodic(::BravaisLattice, ::Nothing) = nothing
-function get_site_periodic(l::BravaisLattice, site::BravaisPointer)
-    new_site = get_site(l, site)
-    new_site === nothing ? nothing : shift_site(PeriodicBoundaryConditions(), l, new_site)[2]
-end
 function adjacency_matrix(l::AbstractLattice, bss::SiteOffset...)
     matrix = zeros(Bool, length(l), length(l))
     for bs in bss
         for (i, site) in enumerate(l)
-            new_site = get_site_periodic(l, site + bs)
+            offset_site = site + bs
+            _, new_site = shift_site(l, offset_site)
             j = site_index(l, new_site)
             j === nothing && continue
             matrix[i, j] = matrix[j, i] = true

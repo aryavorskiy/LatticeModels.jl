@@ -44,13 +44,11 @@ function QuantumOpticsBase.manybodyoperator_1(basis::ManyBodyBasis,
     return SparseOperator(basis, to_matrix(builder))
 end
 
-function interaction(f::Function, T::Type{<:Number}, sample::Sample)
-    l = lattice(sample)
-    !ismanybody(sample) &&
-        throw(ArgumentError("Cannot define interaction on one-particle sample"))
-    occups = occupations(sample)
+function interaction(f::Function, T::Type{<:Number}, sys::NParticles)
+    l = lattice(sys)
+    occups = occupations(sys)
     diags = T[]
-    N = length(sample.internal)
+    N = length(sys.internal)
     for occ in occups
         int_energy = 0.
         for i in eachindex(l)
@@ -67,6 +65,6 @@ function interaction(f::Function, T::Type{<:Number}, sample::Sample)
         end
         push!(diags, int_energy)
     end
-    diagonaloperator(ManyBodyBasis(basis(sample), occups), diags)
+    diagonaloperator(basis(sys), diags)
 end
-interaction(f::Function, sample::Sample) = interaction(f, ComplexF64, sample)
+interaction(f::Function, sample::NParticles) = interaction(f, ComplexF64, sample)

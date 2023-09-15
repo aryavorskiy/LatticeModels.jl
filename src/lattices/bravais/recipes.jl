@@ -40,7 +40,7 @@ tr_vector(l::BravaisLattice, hop::SiteOffset{Nothing}) =
     br_pt = fill(NaN, dims(l)) |> Tuple
     for bs in bss
         T = tr_vector(l, bs)
-        for i in 1:length(l)
+        for i in eachindex(l)
             site1 = l[i]
             site2 = displace_site(l, site1, bs)
             site2 === nothing && continue

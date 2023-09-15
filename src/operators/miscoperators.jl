@@ -5,12 +5,11 @@ function QuantumOpticsBase.diagonaloperator(lb::AbstractLatticeBasis, lv::Lattic
     N = internal_length(lb)
     return diagonaloperator(lb, repeat(lv.values, inner=N))
 end
-QuantumOpticsBase.diagonaloperator(sample::Sample, lv::LatticeValue) =
-    QuantumOpticsBase.diagonaloperator(basis(sample), lv)
-@accepts_sample QuantumOpticsBase.diagonaloperator
+QuantumOpticsBase.diagonaloperator(sys::OneParticleBasisSystem, lv::LatticeValue) =
+    QuantumOpticsBase.diagonaloperator(basis(sys), lv)
+@accepts_system QuantumOpticsBase.diagonaloperator
 
 """
-    coord_operators(sample::Sample)
     coord_operators(l::Lattice[, ib::Basis])
     coord_operators(lb::AbstractLatticeBasis)
 
@@ -20,13 +19,13 @@ Standard rules for functions accepting `Sample`s apply.
 """
 coord_operators(lb::AbstractLatticeBasis) =
     Tuple(diagonaloperator(lb, lv) for lv in coord_values(lattice(lb)))
-coord_operators(sample::Sample) = coord_operators(basis(sample))
-@accepts_sample coord_operators
+coord_operators(sample::OneParticleBasisSystem) = coord_operators(basis(sample))
+@accepts_system coord_operators
 
 param_operator(lb::AbstractLatticeBasis, crd) =
     diagonaloperator(lb, param_value(lattice(lb), crd))
-param_operator(sample::Sample, crd) = param_operator(basis(sample), crd)
-@accepts_sample param_operator
+param_operator(sample::OneParticleBasisSystem, crd) = param_operator(basis(sample), crd)
+@accepts_system param_operator
 
 """
     QuantumOpticsBase.transition(sys::System, site1::LatticeSite, site2::LatticeSite[, op; field])
@@ -37,9 +36,9 @@ States can be defined by `LatticeSite`s or integers.
 
 Standard rules for functions accepting `System`s apply.
 """
-function QuantumOpticsBase.transition(sys::System, site1::AbstractLattice, site2::AbstractLattice, op=internal_one(sample); field=NoField())
+function QuantumOpticsBase.transition(sys::System, site1::AbstractSite, site2::AbstractSite, op=internal_one(sample); field=NoField())
     return build_operator(sys, op => site1 => site2, field=field)
 end
-QuantumOpticsBase.transition(sys::System, i1::Int, i2::Int, op=internal_one(sample); field=NoField()) =
-    build_operator(sys, op => lattice(sample)[i1] => lattice(sample)[i2], field=field)
+QuantumOpticsBase.transition(sys::System, i1::Int, i2::Int, op=internal_one(sys); field=NoField()) =
+    build_operator(sys, op => lattice(sys)[i1] => lattice(sample)[i2], field=field)
 @accepts_system QuantumOpticsBase.transition

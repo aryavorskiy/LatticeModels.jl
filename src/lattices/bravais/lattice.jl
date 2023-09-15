@@ -1,22 +1,5 @@
 using LinearAlgebra, Logging, StaticArrays
 
-"""
-    Lattice{N,B}
-A finite subset of a `B` bravais lattice.
-
----
-    Lattice(sym, sz, bvs[, mask])
-Constructs a finite `Lattice{sym, N, NB}` as a subset of the `bvs` Bravais lattice.
-`sz` is a `NTuple{N, Int}` which represents how many times the unit cell of `bvs` was translated by each axis - these sites form a *macrocell*.
-`mask`, if defined, is a `Vector{Bool}` storing information about which of the sites from the macrocell
-are actually included in the lattice, and which are not.
-
-For example, a 3×3 square lattice with its center site excluded is represented as
-`Lattice(:square, (3, 3), Bravais([1 0; 0 1]), Bool[1, 1, 1, 1, 0, 1, 1, 1, 1])`
-
-To define a new type of lattice, create an alias for `Lattice{YourSym, YourN, YourNB}`.
-Refer to the docs for detailed explanation.
-"""
 struct BravaisLattice{N, B<:UnitCell{Sym, N} where Sym, BS} <: AbstractLattice{BravaisSite{N, B}}
     bravais::B
     pointers::Vector{BravaisPointer{N}}
@@ -25,7 +8,6 @@ struct BravaisLattice{N, B<:UnitCell{Sym, N} where Sym, BS} <: AbstractLattice{B
         new{N,B,BS}(bravais, sort!(pointers), boundaries)
     end
 end
-BravaisLattice(bravais, pointers) = BravaisLattice(bravais, pointers, BoundaryConditions())
 
 Base.:(==)(l1::BravaisLattice, l2::BravaisLattice) = (l1.pointers == l2.pointers) && (l1.bravais == l2.bravais)
 
@@ -46,10 +28,10 @@ get_site(l::BravaisLattice, lp::BravaisPointer) = BravaisSite(lp, l.bravais)
 get_site(::BravaisLattice, site::BravaisSite) = site
 get_site(::BravaisLattice, ::Nothing) = nothing
 
-Base.in(l::BravaisLattice, lp::BravaisPointer) = insorted(lp, l.pointers)
-function Base.in(l::BravaisLattice{N, B}, site::BravaisSite{N, B}) where {N, B}
+Base.in(lp::BravaisPointer, l::BravaisLattice) = insorted(lp, l.pointers)
+function Base.in(site::BravaisSite{N, B}, l::BravaisLattice{N, B}) where {N, B}
     @boundscheck check_samebravais(l, site)
-    in(l, site.lp)
+    in(site.lp, l)
 end
 
 Base.@propagate_inbounds function Base.getindex(l::BravaisLattice, i::Int)
@@ -130,7 +112,7 @@ end
 function AnyDimLattice{Sym,NB}(sz::Vararg{Int,N}) where {Sym,N,NB}
     return BravaisLattice(UnitCell{Sym,N,NB}(), sz)
 end
-(::Type{T})(f::Function, sz::Vararg{Int}) where T<:BravaisLattice =
-    sublattice(f, T(sz...))
+(::Type{T})(f::Function, args...; kw...) where T<:BravaisLattice =
+    sublattice(f, T(args...; kw...))
 
 macrocell_size(::BravaisLattice) = error("This function is discontinued")

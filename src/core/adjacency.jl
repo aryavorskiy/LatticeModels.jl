@@ -30,3 +30,5 @@ end
 
 Base.:(^)(bs1::AdjacencyMatrix, n::Int) =
     AdjacencyMatrix(bs1.lattice, bs1.bmat^n .!= 0)
+
+Base.:(!)(bs::AdjacencyMatrix) = AdjacencyMatrix(bs.lattice, .!bs.bmat)

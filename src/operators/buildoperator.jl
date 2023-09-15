@@ -1,27 +1,27 @@
 import QuantumOpticsBase: DataOperator
 
 function add_diagonal!(builder, op, diag)
-    for i in 1:length(diag)
+    for i in eachindex(diag)
         increment!(builder, op, i, i, factor=diag[CartesianIndex(i)])
     end
 end
 
 function add_hoppings!(builder, l::AbstractLattice, op, bond::SiteOffset,
-        field::AbstractField, boundaries::BoundaryConditions)
+        field::AbstractField)
     dims(bond) > dims(l) && error("Incompatible dims")
     for site1 in l
         site2 = site1 + bond
         site2 === nothing && continue
-        add_hoppings!(builder, l, op, site1 => site2, field, boundaries)
+        add_hoppings!(builder, l, op, site1 => site2, field)
     end
 end
 
 function add_hoppings!(builder, l::AbstractLattice, op, bond::SingleBond,
-        field::AbstractField, boundaries::BoundaryConditions)
+        field::AbstractField)
     site1, site2 = bond
     p1 = site1.coords
     p2 = site2.coords
-    factor, site2 = shift_site(boundaries, l, site2)
+    factor, site2 = shift_site(l, site2)
     i = site_index(l, site1)
     j = site_index(l, site2)
     i === nothing && return
@@ -71,7 +71,7 @@ function build_operator!(builder::SparseMatrixBuilder, sample::Sample, arg::Pair
         field=NoField())
     # Hopping operator
     opdata, bond = arg
-    add_hoppings!(builder, sample.latt, opdata, bond, field, sample.boundaries)
+    add_hoppings!(builder, sample.latt, opdata, bond, field)
 end
 function build_operator!(builder::SparseMatrixBuilder, sample::Sample, arg::Pair{<:Any, <:LatticeValue}; kw...)
     # Diagonal operator
@@ -89,7 +89,11 @@ function preprocess_argument(sample::Sample, arg::DataOperator)
     elseif samebases(basis(arg), sample.internal)
         sparse(arg) ⊗ one(LatticeBasis(sample.latt))
     elseif samebases(basis(arg), LatticeBasis(sample.latt))
-        internal_one(sample) ⊗ sparse(arg)
+        if hasinternal(sample)
+            sparse(arg)
+        else
+            internal_one(sample) ⊗ sparse(arg)
+        end
     else
         error("Invalid Operator argument: basis does not match neither lattice nor internal phase space")
     end

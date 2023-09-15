@@ -124,7 +124,7 @@ function ldos(eig::AbstractEigensystem{<:AbstractLatticeBasis}, E::Real, δ::Rea
     l = lattice(eig.basis)
     N = length(internal_basis(eig.basis))
     inves = imag.(1 ./ (Es .- (E + im * δ)))'
-    LatticeValue(l, [sum(abs2.(Vs[(i-1)*N+1:i*N, :]) .* inves) for i in 1:length(l)])
+    LatticeValue(l, [sum(abs2.(Vs[(i-1)*N+1:i*N, :]) .* inves) for i in eachindex(l)])
 end
 
 """

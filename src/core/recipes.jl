@@ -31,7 +31,7 @@ end
     label --> ""
     @series begin   # The sites
         seriestype := :scatter
-        annotations = [(" " * string(i), :left, :top, :grey, 6) for i in 1:length(l)]
+        annotations = [(" " * string(i), :left, :top, :grey, 6) for i in eachindex(l)]
         series_annotations := annotations
         l, nothing
     end

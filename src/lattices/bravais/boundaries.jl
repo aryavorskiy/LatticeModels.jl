@@ -10,6 +10,7 @@ struct TwistedBoundary{N} <: Boundary{N}
     R::SVector{N, Int}
     Θ::Float64
 end
+TwistedBoundary(svec::AbstractArray, Θ::Real) = TwistedBoundary{length(svec)}(svec, Θ)
 PeriodicBoundary(svec) = TwistedBoundary(svec, 0)
 function shift_site(bc::TwistedBoundary{N}, i::Int, site) where N
     i == 0 && return 1., site
@@ -29,7 +30,7 @@ function shift_site(bc::FunctionBoundary{N}, i::Int, site::BravaisSite{N}) where
             factor *= bc.condition(site)
         else
             factor /= bc.condition(site)
-            site = shift_site(dv * lspan, l, site)
+            site = shift_site(bc.R, l, site)
         end
     end
     factor, site
@@ -41,7 +42,18 @@ struct BoundaryConditions{CondsTuple}
         new{CondsTuple}(bcs)
     end
 end
-BoundaryConditions(args::BoundaryConditions...) = BoundaryConditions(args)
+BoundaryConditions(::NTuple{M, <:Boundary} where M) =
+    throw(ArgumentError("Dimension inconsistency. Check that cimension count for all boundaries is the same"))
+BoundaryConditions(args...) =
+    BoundaryConditions(Tuple(skipmissing(to_boundary.(args))))
+to_boundary(p::Pair{<:AbstractVector, Bool}) =
+    p[2] ? PeriodicBoundary(p[1]) : missing
+to_boundary(p::Pair{<:AbstractVector, <:Real}) =
+    TwistedBoundary(p[1], p[2])
+to_boundary(p::Pair{<:AbstractVector, <:Function}) =
+    FunctionBoundary(p[2], p[1])
+to_boundary(b::Boundary) = b
+to_boundary(b) = throw(ArgumentError("Could not convert `$b` to Boundary"))
 
 @generated cartesian_indices(depth::Int, ::Val{M}) where M = quote
     CartesianIndex($((:(-depth) for _ in 1:M)...)):CartesianIndex($((:depth for _ in 1:M)...))
@@ -54,18 +66,22 @@ function route(bcs::BoundaryConditions{<:NTuple{M}}, l::AbstractLattice, lp::Bra
             tr_vec += tup[i] * bcs.bcs[i].R
         end
         new_lp = shift_site(-tr_vec, lp)
-        new_lp in l && return tr_vec
+        new_lp in l && return tup
     end
-    return @SVector zeros(M)
+    return Tuple(@SVector zeros(Int, M))
 end
 function shift_site(bcs::BoundaryConditions, l::AbstractLattice, site)
     factor = 1.
-    tr_vec = route(bcs, l, site.lp)
-    for i in eachindex(tr_vec)
-        new_factor, site = shift_site(bcs.bcs[i], i, site)
+    tup = route(bcs, l, site.lp)
+    for i in 1:length(bcs.bcs)
+        new_factor, site = shift_site(bcs.bcs[i], tup[i], site)
         factor *= new_factor
     end
     return factor, site
 end
 
 struct MagneticBoundaryConditions end
+
+BravaisLattice(bravais, pointers) = BravaisLattice(bravais, pointers, BoundaryConditions())
+add_boundaries(l::BravaisLattice, bs) = BravaisLattice(l.bravais, l.pointers, bs)
+shift_site(l::AbstractLattice, site) = shift_site(l.boundaries, l, site)
