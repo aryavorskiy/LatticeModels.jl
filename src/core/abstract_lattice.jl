@@ -2,43 +2,24 @@ abstract type AbstractSite{N} end
 
 dims(::AbstractSite{N}) where N = N
 Base.iterate(site::AbstractSite{N}, i=1) where N = i > N ? nothing : (site.coords[i], i + 1)
-@generated function coord_default(site::AbstractSite{N}, sym::Symbol) where N
-    code = quote
-        if sym === :x && N ≥ 1
-            return site.coords[1]
-        elseif sym === :y && N ≥ 2
-            return site.coords[2]
-        elseif sym === :z && N ≥ 3
-            return site.coords[3]
-        end
+@inline function Base.getproperty(site::AbstractSite{N}, sym::Symbol) where N
+    if sym === :x && N ≥ 1
+        return site.coords[1]
+    elseif sym === :y && N ≥ 2
+        return site.coords[2]
+    elseif sym === :z && N ≥ 3
+        return site.coords[3]
     end
-    for i in 1:N
-        push!(code.args, :(if sym === Symbol("x" * string($i))
-            return site.coords[$i]
-        end))
-    end
-    return code
+    Base.getfield(site, sym)
 end
-coord(site::AbstractSite, sym::Symbol) = coord_default(site, sym)
-function coord_check(site::AbstractSite, sym::Symbol)
-    coord(site, sym) === nothing && error("site has no coordinate '$sym'")
+
+abstract type SiteParameter end
+get_param(::AbstractSite, p::SiteParameter) = error("Site does not accept param $p")
+struct Coord <: SiteParameter axis::Int end
+function get_param(site::AbstractSite, c::Coord)
+    @assert 1 ≤ c.axis ≤ dims(site)
+    return site.coords[c.axis]
 end
-function Base.getproperty(site::AbstractSite, sym::Symbol)
-    crd = coord(site, sym)
-    return crd !== nothing ? crd : return Base.getfield(site, sym)
-end
-@generated function coordnames_default(::Type{<:AbstractSite{N}}) where N
-    pnames = :(())
-    for i in 1:N
-        push!(pnames.args, Symbol("x$i"))
-    end
-    N ≥ 1 && push!(pnames.args, :x)
-    N ≥ 2 && push!(pnames.args, :y)
-    N ≥ 3 && push!(pnames.args, :z)
-    return pnames
-end
-coordnames(T::Type{<:AbstractSite}) = coordnames_default(T::Type{<:AbstractSite})
-Base.propertynames(T::Type{<:AbstractSite}) = (fieldnames(T)..., coordnames(T)...)
 
 abstract type AbstractLattice{SiteT} <: AbstractSet{SiteT} end
 lattice(l::AbstractLattice) = l
@@ -65,7 +46,7 @@ Base.popfirst!(l::AbstractLattice) = Base.deleteat!(l, firstindex(l))
 function kws_to_inds(l::AbstractLattice; kw...)
     inds = Int[]
     for (i, site) in enumerate(l)
-        if all(coord(site, axis) in val for (axis, val) in kw)
+        if all(get_param(site, SiteParameter(axis)) in val for (axis, val) in kw)
             push!(inds, i)
         end
     end

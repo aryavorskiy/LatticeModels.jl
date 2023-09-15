@@ -56,7 +56,25 @@ Generates a tuple of `LatticeValue`s representing spatial coordinates.
 """
 coord_values(l::AbstractLattice) =
     [LatticeValue(l, vec) for vec in eachrow(collect_coords(l))]
-coord_value(l::AbstractLattice, a) = LatticeValue(l, [coord(site, a) for site in l])
+macro p_str(e::String)
+    e === "index" && return :(UnitcellIndex())
+    e === "x" && return :(Coord(1))
+    e === "y" && return :(Coord(2))
+    e === "z" && return :(Coord(3))
+    length(e) < 2 && error("Cannot parse site parameter `$e`")
+    typ = e[1]
+    ind = tryparse(Int, e[2:end])
+    ind === nothing && error("Cannot parse site parameter `$e`")
+    if typ == 'x'
+        return :(Coord($ind))
+    elseif typ == 'j'
+        return :(UnitcellAxis($ind))
+    end
+    error("Cannot parse site parameter `$e`")
+end
+Base.@pure SiteParameter(sym::Symbol) = @eval @p_str $("$sym") # looks hacky
+param_value(l::AbstractLattice, a::SiteParameter) = LatticeValue(l, [get_param(site, a) for site in l])
+param_value(l::AbstractLattice, a::Symbol) = param_value(l, SiteParameter(a))
 
 Base.rand(l::AbstractLattice) = LatticeValue(l, rand(length(l)))
 Base.rand(T::Type, l::AbstractLattice) = LatticeValue(l, rand(T, length(l)))
@@ -174,8 +192,8 @@ end
 Creates a mapping from site coordinates to values of `lv`.
 The coordinate axis to project the sites onto can be set with the `axis` argument.
 """
-function project(lv::LatticeValue, axis)
-    pr_crds = [coord(site, axis) for site in lattice(lv)]
+function project(lv::LatticeValue, param::SiteParameter)
+    pr_crds = [get_param(site, param) for site in lattice(lv)]
     perm = sortperm(pr_crds)
     pr_crds[perm], lv.values[perm]
 end

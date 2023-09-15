@@ -26,7 +26,7 @@ coord_operators(sample::Sample) = coord_operators(basis(sample))
 @accepts_sample coord_operators
 
 coord_operator(lb::AbstractLatticeBasis, crd) =
-    diagonaloperator(lb, coord_value(lattice(lb), crd))
+    diagonaloperator(lb, param_value(lattice(lb), crd))
 coord_operator(sample::Sample, crd) = coord_operator(basis(sample), crd)
 @accepts_sample coord_operator
 

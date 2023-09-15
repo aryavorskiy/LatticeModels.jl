@@ -183,7 +183,7 @@ end   # time: 0.0174606
     Base.precompile(Tuple{typeof(mm_assuming_zeros),SMatrix{2, 2, Float64, 4},SVector{2, Int64}})   # time: 0.0051898
     Base.precompile(Tuple{typeof(==),Bonds{Nothing, 1},Bonds{Nothing, 2}})   # time: 0.0051664
     Base.precompile(Tuple{typeof(Base.Broadcast.dotview),LatticeValue{Float64, SquareLattice{2}},LatticeValue{Bool, SquareLattice{2}}})   # time: 0.0050896
-    Base.precompile(Tuple{typeof(coord_value),SquareLattice{2},Symbol})   # time: 0.004931
+    Base.precompile(Tuple{typeof(param_value),SquareLattice{2},Symbol})   # time: 0.004931
     Base.precompile(Tuple{typeof(site_distance),SquareLattice{2},BravaisSite{2},BravaisSite{2}})   # time: 0.0045203
     let fbody = try __lookup_kwbody__(which(increment!, (SparseMatrixBuilder{ComplexF64},SparseMatrixCSC{Float64, Int64},Int64,Int64,))) catch missing end
     if !ismissing(fbody)

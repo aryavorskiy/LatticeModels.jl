@@ -14,7 +14,7 @@ include("core/bases.jl")
 export LatticeBasis, @increment, ketstate, brastate
 
 include("core/lattice_value.jl")
-export LatticeValue, coord_value, coord_values, project
+export LatticeValue, param_value, coord_values, project
 
 include("core/field.jl")
 export @field_def, NoField, MagneticField

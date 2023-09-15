@@ -58,8 +58,8 @@ function Base.isless(site1::BravaisPointer, site2::BravaisPointer)
 end
 
 """
-    LatticeSite{N}
-A site of a `Lattice{LatticeSym, N, NB}` lattice.
+    BravaisSite{N, B}
+A site of a `BravaisLattice{N, B}` lattice.
 
 Fields:
 - `unit_cell`: a set of translations along all axes representing the unit cell the site is located in.
@@ -76,31 +76,28 @@ struct BravaisSite{N, B} <: AbstractSite{N}
         new{N, B}(lp, b, site_coords(b, lp))
 end
 
-@generated function coord(site::BravaisSite{N}, sym::Symbol) where N
-    code = quote
-        if sym in (:index, :basis_index)
-            return site.lp.basis_index
-        elseif sym === :unit_cell
-            return site.lp.unit_cell
-        end
-        return coord_default(site, sym)
+@inline function Base.getproperty(site::BravaisSite{N}, sym::Symbol) where N
+    if sym === :index
+        return site.lp.basis_index
+    elseif sym === :unit_cell
+        return site.lp.unit_cell
+    elseif sym === :x && N ≥ 1
+        return site.coords[1]
+    elseif sym === :y && N ≥ 2
+        return site.coords[2]
+    elseif sym === :z && N ≥ 3
+        return site.coords[3]
     end
-    for i in 1:N
-        pushfirst!(code.args, :(if sym === Symbol("j" * string($i));
-            return site.unit_cell[$(i)]
-        end))
-    end
-    return code
+    Base.getfield(site, sym)
 end
 
-@generated function coordnames(T::Type{<:BravaisSite{N}}) where N
-    pnames = :((coordnames_default(T)...,))
-    for i in 1:N
-        push!(pnames.args, Symbol("j$i"))
-    end
-    push!(pnames.args, :index, :basis_index, :unit_cell)
-    return pnames
+struct UnitcellAxis <: SiteParameter axis::Int end
+struct UnitcellIndex <: SiteParameter end
+function get_param(site::BravaisSite, c::UnitcellAxis)
+    @assert 1 ≤ c.axis ≤ dims(site)
+    return site.unit_cell[c.axis]
 end
+get_param(site::BravaisSite, ::UnitcellIndex) = site.lp.basis_index
 
 Base.:(==)(site1::BravaisSite, site2::BravaisSite) =
     site1.lp == site2.lp && site1.coords == site2.coords

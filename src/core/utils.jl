@@ -1,6 +1,6 @@
 using SparseArrays, StaticArrays
 @static if VERSION < v"1.8"
-    allequal(seq) = all(s == first(seq) for s in seq)
+    allequal(seq) = all(==(first(seq)), seq)
 end
 
 @generated function one_hot(indices, ::Val{N}) where N

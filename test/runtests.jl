@@ -147,7 +147,7 @@ end
 
     l = SquareLattice(10, 10)
     x, y = coord_values(l)
-    x2 = coord_value(l, :x)
+    x2 = param_value(l, :x)
     xm2 = LatticeValue(l) do (x, y)
         2x
     end
