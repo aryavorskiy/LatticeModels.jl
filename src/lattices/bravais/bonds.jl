@@ -74,3 +74,21 @@ end
     return BravaisPointer(add_assuming_zeros(lp.unit_cell, bs.translate_uc), lp.basis_index)
 
 @inline Base.:(+)(site::BravaisSite, bs) = BravaisSite(site.lp + bs, site.bravais)
+
+get_site_periodic(::BravaisLattice, ::Nothing) = nothing
+function get_site_periodic(l::BravaisLattice, site::BravaisPointer)
+    new_site = get_site(l, site)
+    new_site === nothing ? nothing : shift_site(PeriodicBoundaryConditions(), l, new_site)[2]
+end
+function adjacency_matrix(l::AbstractLattice, bss::SiteOffset...)
+    matrix = zeros(Bool, length(l), length(l))
+    for bs in bss
+        for (i, site) in enumerate(l)
+            new_site = get_site_periodic(l, site + bs)
+            j = site_index(l, new_site)
+            j === nothing && continue
+            matrix[i, j] = matrix[j, i] = true
+        end
+    end
+    return AdjacencyMatrix(l, matrix)
+end

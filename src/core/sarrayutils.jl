@@ -21,5 +21,3 @@ end
         Expr(:call, :+, [:(m[:, $i] * v[$i]) for i in 1:N]...)
     end
 end
-
-const Nullable{T} = Union{Nothing,T}

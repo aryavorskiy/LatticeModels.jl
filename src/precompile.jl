@@ -71,7 +71,7 @@ function _precompile_()
     Base.precompile(Tuple{typeof(haldane),HoneycombLattice,Int64,Int64,Int64})   # time: 0.1377649
     Base.precompile(Tuple{typeof(|),AdjacencyMatrix{SquareLattice{2}},AdjacencyMatrix{SquareLattice{2}}})   # time: 0.1369989
     Base.precompile(Tuple{typeof(qwz),SquareLattice{2}})   # time: 0.0983236
-    Base.precompile(Tuple{typeof(coord_operator),SquareLattice{2},Symbol})   # time: 0.0940104
+    Base.precompile(Tuple{typeof(param_operator),SquareLattice{2},Symbol})   # time: 0.0940104
     Base.precompile(Tuple{typeof(RecipesBase.apply_recipe),AbstractDict{Symbol, Any},AbstractCurrents})   # time: 0.0891704
     let fbody = try __lookup_kwbody__(which(qwz, (Nothing,SquareLattice{2},))) catch missing end
     if !ismissing(fbody)
@@ -160,7 +160,7 @@ end   # time: 0.0174606
     Base.precompile(Tuple{typeof(copyto!),LatticeValueWrapper{SquareLattice{2}, SubArray{Float64, 1, Vector{Float64}, Tuple{Vector{Int64}}, false}},Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(+), Tuple{LatticeValue{Float64, SquareLattice{2}}, Int64}}})   # time: 0.0079097
     Base.precompile(Tuple{typeof(add_diagonal!),SparseMatrixBuilder{ComplexF64},SparseMatrixCSC{Int64, Int64},Vector{Float64}})   # time: 0.0078389
     Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, SquareLattice{2}},Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(imag), Tuple{LatticeValue{ComplexF64, SquareLattice{2}}}}})   # time: 0.0076357
-    Base.precompile(Tuple{typeof(coord_operator),SquareLattice{2},Int64})   # time: 0.0076221
+    Base.precompile(Tuple{typeof(param_operator),SquareLattice{2},Int64})   # time: 0.0076221
     Base.precompile(Tuple{typeof(==),TimeSequence{LatticeValue{Float64, SquareLattice{2}}},TimeSequence{LatticeValue{Float64, SquareLattice{2}}}})   # time: 0.0076047
     Base.precompile(Tuple{typeof(getindex),LatticeValue{Float64, SquareLattice{2}},LatticeValue{Bool, SquareLattice{2}}})   # time: 0.0072366
     Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, SquareLattice{2}},Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(*), Tuple{LatticeValue{Float64, SquareLattice{2}}, LatticeValue{Float64, SquareLattice{2}}}}})   # time: 0.0070367
@@ -222,9 +222,9 @@ end   # time: 0.0026153
         precompile(fbody, (ComplexF64,typeof(increment!),SparseMatrixBuilder{ComplexF64},Adjoint{Float64, SparseMatrixCSC{Float64, Int64}},Int64,Int64,))
     end
 end   # time: 0.0024822
-    let fbody = try __lookup_kwbody__(which(coord_operator, (Nothing,SquareLattice{2},Int64,))) catch missing end
+    let fbody = try __lookup_kwbody__(which(param_operator, (Nothing,SquareLattice{2},Int64,))) catch missing end
     if !ismissing(fbody)
-        precompile(fbody, (BoundaryConditions{Tuple{}},Base.Iterators.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}},typeof(coord_operator),Nothing,SquareLattice{2},Int64,))
+        precompile(fbody, (BoundaryConditions{Tuple{}},Base.Iterators.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}},typeof(param_operator),Nothing,SquareLattice{2},Int64,))
     end
 end   # time: 0.0024086
     Base.precompile(Tuple{typeof(preprocess_argument),Sample,SparseMatrixCSC{ComplexF64, Int64}})   # time: 0.0023461
@@ -245,9 +245,9 @@ end   # time: 0.0021877
     Base.precompile(Tuple{typeof(setindex!),LatticeValueWrapper{SquareLattice{2}},Any,Int64})   # time: 0.0019259
     Base.precompile(Tuple{typeof(plot_fallback),LatticeValue{Float64, SquareLattice{2}}})   # time: 0.0018477
     Base.precompile(Tuple{typeof(line_integral),SymmetricField,SVector{2, Int64},SVector{2, Int64},Int64})   # time: 0.0018468
-    let fbody = try __lookup_kwbody__(which(coord_operator, (Nothing,SquareLattice{2},Symbol,))) catch missing end
+    let fbody = try __lookup_kwbody__(which(param_operator, (Nothing,SquareLattice{2},Symbol,))) catch missing end
     if !ismissing(fbody)
-        precompile(fbody, (BoundaryConditions{Tuple{}},Base.Iterators.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}},typeof(coord_operator),Nothing,SquareLattice{2},Symbol,))
+        precompile(fbody, (BoundaryConditions{Tuple{}},Base.Iterators.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}},typeof(param_operator),Nothing,SquareLattice{2},Symbol,))
     end
 end   # time: 0.0018299
     Base.precompile(Tuple{typeof(+),BravaisPointer{2},Bonds{Pair{Int64, Int64}, 0}})   # time: 0.0018145

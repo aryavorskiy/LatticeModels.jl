@@ -53,7 +53,7 @@ function interaction(f::Function, T::Type{<:Number}, sample::Sample)
     N = length(sample.internal)
     for occ in occups
         int_energy = 0.
-        for i in 1:length(l)
+        for i in eachindex(l)
             occi = sum(@view occ[(i - 1) * N + 1: i * N])
             occi == 0 && continue
             site1 = l[i]
@@ -70,26 +70,3 @@ function interaction(f::Function, T::Type{<:Number}, sample::Sample)
     diagonaloperator(ManyBodyBasis(basis(sample), occups), diags)
 end
 interaction(f::Function, sample::Sample) = interaction(f, ComplexF64, sample)
-
-function lattice_density(ket::Ket{<:ManyBodyBasis{<:Any,<:AbstractLatticeBasis}})
-    vs = zeros(length(basis(ket).onebodybasis))
-    for i in 1:length(ket)
-        occ = basis(ket).occupations[i]
-        @. vs += occ * abs2(ket.data[i])
-    end
-    N = internal_length(ket)
-    l = lattice(ket)
-    LatticeValue(l, [@view(vs[(i - 1) * N + 1: i * N]) for i in 1:length(l)])
-end
-
-function lattice_density(op::DataOperator{BT, BT} where BT<:ManyBodyBasis{<:Any, <:AbstractLatticeBasis})
-    vs = zeros(length(basis(op).onebodybasis))
-    ds = diag(op.data)
-    for i in 1:length(ds)
-        occ = basis(op).occupations[i]
-        @. vs += occ * ds[i]
-    end
-    N = internal_length(op)
-    l = lattice(op)
-    LatticeValue(l, [@view(vs[(i - 1) * N + 1: i * N]) for i in 1:length(l)])
-end

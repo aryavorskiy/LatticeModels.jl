@@ -8,19 +8,21 @@ using Reexport
     allequal(seq) = all(==(first(seq)), seq)
 end
 
+const Nullable{T} = Union{Nothing,T}
+
 include("core/sarrayutils.jl")
 include("core/lattice.jl")
+export lattice, sublattice, site_index, site_distance
 include("core/latticevalue.jl")
 export LatticeValue, param_value, coord_values, project, @p_str
 include("core/adjacency.jl")
 include("core/recipes.jl")
 
-include("lattices/bravais/site.jl")
+include("lattices/bravais/unitcell.jl")
 include("lattices/bravais/boundaries.jl")
-export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions,
-    PeriodicBoundaryConditions
+export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions
 include("lattices/bravais/lattice.jl")
-export lattice, sublattice, site_index, site_distance
+export adjacency_matrix
 include("lattices/bravais/bonds.jl")
 export SiteOffset, Bonds
 include("lattices/bravais/recipes.jl")
@@ -28,17 +30,19 @@ include("lattices/bravais/recipes.jl")
 include("operators/bases.jl")
 export LatticeBasis, @increment, ketstate, brastate
 include("operators/system.jl")
-export  Sample, System, FermiDirac, BoseEinstein
+export System, FermiDirac, BoseEinstein
 include("operators/magneticfield.jl")
-export NoField, MagneticField
+export MagneticField
 include("operators/constructor.jl")
-export OperatorBuilder, Hamiltonian
+export OperatorBuilder
 include("operators/buildoperator.jl")
 export tightbinding_hamiltonian, build_operator, build_hamiltonian
 include("operators/manybody.jl")
 export interaction
-include("operators/latticedensity.jl")
-export coord_operator, coord_operators, lattice_density, diag_reduce, adjacency_matrix
+include("operators/miscoperators.jl")
+export param_operator, coord_operators
+include("operators/latticeutils.jl")
+export lattice_density, diag_reduce
 
 include("spectrum.jl")
 export Eigensystem, diagonalize, projector, densitymatrix, dos, ldos
