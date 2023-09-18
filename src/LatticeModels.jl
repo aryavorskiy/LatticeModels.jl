@@ -19,10 +19,10 @@ include("core/adjacency.jl")
 include("core/recipes.jl")
 
 include("lattices/bravais/unitcell.jl")
-include("lattices/bravais/lattice.jl")
-export adjacency_matrix
 include("lattices/bravais/boundaries.jl")
-export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions, add_boundaries
+export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions
+include("lattices/bravais/lattice.jl")
+export adjacency_matrix, add_boundaries
 include("lattices/bravais/bonds.jl")
 export SiteOffset, Bonds
 include("lattices/bravais/recipes.jl")

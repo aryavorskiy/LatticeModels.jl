@@ -81,7 +81,3 @@ function shift_site(bcs::BoundaryConditions, l::AbstractLattice, site)
 end
 
 struct MagneticBoundaryConditions end
-
-BravaisLattice(bravais, pointers) = BravaisLattice(bravais, pointers, BoundaryConditions())
-add_boundaries(l::BravaisLattice, bs) = BravaisLattice(l.bravais, l.pointers, bs)
-shift_site(l::AbstractLattice, site) = shift_site(l.boundaries, l, site)

@@ -4,10 +4,12 @@ struct BravaisLattice{N, B<:UnitCell{Sym, N} where Sym, BS} <: AbstractLattice{B
     bravais::B
     pointers::Vector{BravaisPointer{N}}
     boundaries::BS
-    function BravaisLattice(bravais::B, pointers::Vector{BravaisPointer{N}}, boundaries::BS) where {N,B,BS}
+    function BravaisLattice(bravais::B, pointers::Vector{BravaisPointer{N}}, boundaries::BS) where {N,B,BS<:BoundaryConditions}
         new{N,B,BS}(bravais, sort!(pointers), boundaries)
     end
 end
+BravaisLattice(bravais, pointers) = BravaisLattice(bravais, pointers, BoundaryConditions())
+add_boundaries(l::BravaisLattice, bs) = BravaisLattice(l.bravais, l.pointers, bs)
 
 Base.:(==)(l1::BravaisLattice, l2::BravaisLattice) = (l1.pointers == l2.pointers) && (l1.bravais == l2.bravais)
 
@@ -27,6 +29,8 @@ default_bonds(l::BravaisLattice, i::Int) = default_bonds(l, Val(i))
 get_site(l::BravaisLattice, lp::BravaisPointer) = BravaisSite(lp, l.bravais)
 get_site(::BravaisLattice, site::BravaisSite) = site
 get_site(::BravaisLattice, ::Nothing) = nothing
+
+shift_site(l::AbstractLattice, site) = shift_site(l.boundaries, l, site)
 
 Base.in(lp::BravaisPointer, l::BravaisLattice) = insorted(lp, l.pointers)
 function Base.in(site::BravaisSite{N, B}, l::BravaisLattice{N, B}) where {N, B}
@@ -65,12 +69,6 @@ end
 Base.push!(l::BravaisLattice{N, B}, site::BravaisSite{N, B}) where {N, B} =
     push!(l, site.lp)
 
-"""
-    site_index(l::Lattice, site::LatticeSite; macrocell=false)
-
-Returns the integer index for given `site` in `lattice`.
-Returns `nothing` if the site is not present in the lattice.
-"""
 Base.@propagate_inbounds function site_index(l::BravaisLattice, lp::BravaisPointer)
     i = searchsortedfirst(l.pointers, lp)
     i > length(l) && return nothing
@@ -93,7 +91,9 @@ function Base.show(io::IO, ::MIME"text/plain", l::BravaisLattice{N, <:UnitCell{S
     end
 end
 
-function BravaisLattice(bvs::UnitCell{Sym,N,NB}, sz::NTuple{N,Int}) where {Sym,N,NB}
+function BravaisLattice(uc::UnitCell{Sym,N,NB}, sz::NTuple{N,Int};
+        boundaries=BoundaryConditions(),
+        offset = @SVector zeros(N)) where {Sym,N,NB}
     ptrs = BravaisPointer{N}[]
     for unit_cell in CartesianIndex{N}():CartesianIndex(reverse(sz))
         svec = reverse(SVector{N}(Tuple(unit_cell)))
@@ -101,18 +101,34 @@ function BravaisLattice(bvs::UnitCell{Sym,N,NB}, sz::NTuple{N,Int}) where {Sym,N
             push!(ptrs, BravaisPointer(svec, i))
         end
     end
-    BravaisLattice(bvs, ptrs)
+    if boundaries isa Tuple
+        boundaries = BoundaryConditions(boundaries...)
+    elseif boundaries isa Boundary
+        boundaries = BoundaryConditions(boundaries)
+    elseif !(boundaries isa BoundaryConditions)
+        throw(ArgumentError("invalid `boundaries` keyword argument"))
+    end
+    if offset === :center
+        basis_com = vec(sum(uc.basis, dims=2) / NB)
+        center_offset = uc.translation_vectors * SVector{N}(@. (sz + 1) / 2) + basis_com
+        BravaisLattice(UnitCell(uc, -center_offset), ptrs, boundaries)
+    elseif offset isa AbstractVector{<:Number}
+        BravaisLattice(UnitCell(uc, offset), ptrs, boundaries)
+    else
+        throw(ArgumentError("invalid `offset` keyword argument"))
+    end
 end
 
 const InfDimLattice{Sym,N,NB} = BravaisLattice{N, <:UnitCell{Sym,N,NB}}
 const AnyDimLattice{Sym,NB} = BravaisLattice{N, <:UnitCell{Sym,N,NB}} where N
-function InfDimLattice{Sym,N,NB}(sz::Vararg{Int,N}) where {Sym,N,NB}
-    return BravaisLattice(UnitCell{Sym,N,NB}(), sz)
+function InfDimLattice{Sym,N,NB}(sz::Vararg{Int,N}; kw...) where {Sym,N,NB}
+    return BravaisLattice(UnitCell{Sym,N,NB}(), sz; kw...)
 end
-function AnyDimLattice{Sym,NB}(sz::Vararg{Int,N}) where {Sym,N,NB}
-    return BravaisLattice(UnitCell{Sym,N,NB}(), sz)
+function AnyDimLattice{Sym,NB}(sz::Vararg{Int,N}; kw...) where {Sym,N,NB}
+    return BravaisLattice(UnitCell{Sym,N,NB}(), sz; kw...)
 end
-(::Type{T})(f::Function, args...; kw...) where T<:BravaisLattice =
+function (::Type{T})(f::Function, args...; kw...) where T<:BravaisLattice
     sublattice(f, T(args...; kw...))
+end
 
 macrocell_size(::BravaisLattice) = error("This function is discontinued")

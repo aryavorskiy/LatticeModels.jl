@@ -9,7 +9,7 @@ This makes `Bravais` object behavior known at compile-time,
 which allows to introduce various optimizations or define specific plot recipes.
 
 ---
-    Bravais(translation_vectors[, basis, origin])
+    Bravais(translation_vectors[, basis, offset])
 Constructs a Bravais lattice with given translation vectors and locations of basis sites
 relative to some unit cell.
 The `basis` argument can be omitted, in which case the lattice basis will consist of
@@ -23,13 +23,16 @@ struct UnitCell{Sym,N,NB,NN,NNB}
     basis::SMatrix{N,NB,Float64,NNB}
     function UnitCell{Sym}(translation_vectors::AbstractMatrix{<:Real},
         basis::AbstractMatrix{<:Real}=zeros((size(translation_vectors, 1), 1)),
-        origin::AbstractVector{<:Real}=zeros(size(basis)[1])) where Sym
-        (size(translation_vectors)[1] != size(basis)[1]) &&
-            error("inconsistent dimension count (got $(size(translation_vectors)[1]), $(size(basis)[1]))")
+        offset::AbstractVector{<:Real}=zeros(size(basis)[1])) where Sym
         N, NB = size(basis)
-        new{Sym,N,NB,N*N,N*NB}(translation_vectors, basis .+ origin)
+        size(translation_vectors)[1] != N &&
+            error("inconsistent dimension `tr_vectors` count")
+        length(offset) != N && error("inconsistent `offset` dimension count")
+        new{Sym,N,NB,N*N,N*NB}(translation_vectors, basis .+ offset)
     end
 end
+UnitCell(uc::UnitCell{Sym, N}, offset::SVector{N}) where {Sym, N} =
+    UnitCell{Sym}(uc.translation_vectors, uc.basis, offset)
 
 dims(@nospecialize _::UnitCell{Sym, N} where Sym) where {N} = N
 Base.:(==)(b1::BT, b2::BT) where BT<:UnitCell =
@@ -42,8 +45,8 @@ struct BravaisPointer{N}
 end
 dims(::BravaisPointer{N}) where N = N
 
-site_coords(b::UnitCell, lp::BravaisPointer) =
-    b.basis[:, lp.basis_index] + b.translation_vectors * lp.unit_cell
+site_coords(uc::UnitCell, lp::BravaisPointer) =
+    uc.basis[:, lp.basis_index] + uc.translation_vectors * lp.unit_cell
 site_coords(b::UnitCell{Sym,N,1} where {Sym}, lp::BravaisPointer{N}) where {N} =
     vec(b.basis) + b.translation_vectors * lp.unit_cell
 
