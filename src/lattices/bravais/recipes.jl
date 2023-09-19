@@ -88,7 +88,7 @@ Use it to invoke the default plot recipe for `LatticeValues` when defining a cus
 """
 function plot_fallback(lv::BravaisLatticeValue)
     l = lattice(lv)
-    new_l = BravaisLattice(UnitCell(:plot_fallback)(l.bravais.translation_vectors, l.bravais.basis),
+    new_l = BravaisLattice(UnitCell{:plot_fallback}(l.bravais.translation_vectors, l.bravais.basis),
         l.pointers)
     LatticeValue(new_l, lv.values)
 end

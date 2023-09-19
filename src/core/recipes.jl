@@ -81,7 +81,7 @@ end
     for i in eachindex(l), j in eachindex(l)
         site1 = l[i]
         site2 = l[j]
-        !match(ag, site1, site2) && continue
+        !ag[site1, site2] && continue
         A = site1.coords
         B = site2.coords
         push!(pts, Tuple(A), Tuple(B), br_pt)

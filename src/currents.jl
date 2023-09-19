@@ -101,23 +101,25 @@ end
 *(num::Number, curr::MaterializedCurrents) = curr * num
 
 """
-    materialize([function, ]currents)
+    materialize([adjacency_matrix, ]currents)
 
 Creates a `MaterializedCurrents` instance for `currents`.
 
 If `function` is provided, it must accept a `Lattice` and two `LatticeSite`s and return if the current between this site must be calculated or not.
 This can be useful to avoid exsessive calculations.
 """
-function materialize(curr::AbstractCurrents)
+function materialize(am::Nullable{AdjacencyMatrix}, curr::AbstractCurrents)
     l = lattice(curr)
     m = MaterializedCurrents(l)
     for i in eachindex(l), j in 1:i-1
+        am !== nothing && !am[l[i], l[j]] && continue
         ij_curr = curr[i, j]
         m.currents[i, j] = ij_curr
         m.currents[j, i] = -ij_curr
     end
     m
 end
+materialize(curr::AbstractCurrents) = materialize(nothing, curr)
 
 """
     map_currents(map_fn, currs::AnstractCurrents[; reduce_fn, sort=false])
@@ -134,12 +136,12 @@ the returned lists will store the distance between sites and the average absolut
 function map_currents(f::Function, curr::AbstractCurrents; reduce_fn::Nullable{Function}=nothing, sort::Bool=false)
     l = lattice(curr)
     cs = Float64[]
-    ms = only(Base.return_types(f, (BravaisLattice, BravaisSite, BravaisSite)))[]
+    ms = only(Base.return_types(f, (BravaisSite, BravaisSite)))[]
     for (i, site1) in enumerate(l)
         for (j, site2) in enumerate(l)
             if site1 > site2
                 push!(cs, curr[i, j])
-                push!(ms, f(l, site1, site2))
+                push!(ms, f(site1, site2))
             else
                 break
             end

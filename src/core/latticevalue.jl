@@ -197,6 +197,7 @@ function project(lv::LatticeValue, param::SiteParameter)
     perm = sortperm(pr_crds)
     pr_crds[perm], lv.values[perm]
 end
+project(any, param::Symbol) = project(any, SiteParameter(param))
 
 ketstate(lv::LatticeValue) = Ket(LatticeBasis(lattice(lv)), lv.values)
 brastate(lv::LatticeValue) = Bra(LatticeBasis(lattice(lv)), lv.values)

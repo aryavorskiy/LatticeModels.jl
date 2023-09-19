@@ -78,6 +78,7 @@ struct BravaisSite{N, B} <: AbstractSite{N}
     BravaisSite(lp::BravaisPointer{N}, b::B) where {N, B<:UnitCell} =
         new{N, B}(lp, b, site_coords(b, lp))
 end
+BravaisSite(::Nothing, ::Any) = nothing
 
 @inline function Base.getproperty(site::BravaisSite{N}, sym::Symbol) where N
     if sym === :index
@@ -104,3 +105,5 @@ get_param(site::BravaisSite, ::UnitcellIndex) = site.lp.basis_index
 
 Base.:(==)(site1::BravaisSite, site2::BravaisSite) =
     site1.lp == site2.lp && site1.coords == site2.coords
+Base.isless(site1::BravaisSite, site2::BravaisSite) =
+    isless(site1.lp, site2.lp)

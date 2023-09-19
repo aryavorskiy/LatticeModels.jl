@@ -20,7 +20,7 @@ struct AdjacencyMatrix{LT<:AbstractLattice}
 end
 
 lattice(bs::AdjacencyMatrix) = bs.lattice
-match(bs::AdjacencyMatrix, site1::AbstractSite, site2::AbstractSite) =
+Base.getindex(bs::AdjacencyMatrix, site1::AbstractSite, site2::AbstractSite) =
     bs.bmat[site_index(lattice(bs), site1), site_index(lattice(bs), site2)]
 
 function Base.:(|)(bss1::AdjacencyMatrix, bss2::AdjacencyMatrix)

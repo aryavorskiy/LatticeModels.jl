@@ -42,7 +42,7 @@ export interaction
 include("operators/miscoperators.jl")
 export param_operator, coord_operators
 include("operators/latticeutils.jl")
-export lattice_density, diag_reduce
+export lattice_density, diag_reduce, apply_field!
 
 include("spectrum.jl")
 export Eigensystem, diagonalize, projector, densitymatrix, dos, ldos
