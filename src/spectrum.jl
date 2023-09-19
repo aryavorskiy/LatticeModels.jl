@@ -14,22 +14,24 @@ struct Eigensystem{BT<:Basis,MT<:AbstractMatrix} <: AbstractEigensystem{BT}
     function Eigensystem(basis::BT, states::MT, values::AbstractVector) where {BT,MT}
         length(basis) != size(states)[1] && error("inconsistent basis dimensionality")
         length(values) != size(states)[2] && error("inconsistent energies list length")
-        new{BT,MT}(basis, states, values)
+        sp = sortperm(real.(values))
+        new{BT,MT}(basis, states[:, sp], values[sp])
     end
 end
-struct HamiltonianEigensystem{BT<:Basis,MT<:AbstractMatrix,ST<:System} <: AbstractEigensystem{BT}
+struct HamiltonianEigensystem{ST<:System,BT<:Basis,MT<:AbstractMatrix} <: AbstractEigensystem{BT}
+    sys::ST
     basis::BT
     states::MT
     values::Vector{Float64}
-    sys::ST
-    function HamiltonianEigensystem(basis::BT, states::MT, values::AbstractVector, sys::ST) where {BT,MT,ST}
+    function HamiltonianEigensystem(sys::ST, basis::BT, states::MT, values::AbstractVector) where {ST,BT,MT}
         length(basis) != size(states)[1] && error("inconsistent basis dimensionality")
         length(values) != size(states)[2] && error("inconsistent energies list length")
-        new{BT,MT,ST}(basis, states, values, sys)
+        sp = sortperm(real.(values))
+        new{ST,BT,MT}(sys, basis, states[:, sp], values[sp])
     end
 end
-HamiltonianEigensystem(eig::Eigensystem, sys::System) =
-    HamiltonianEigensystem(eig.basis, eig.states, eig.values, sys)
+HamiltonianEigensystem(eig::AbstractEigensystem, sys::System) =
+    HamiltonianEigensystem(sys, eig.basis, eig.states, eig.values)
 Eigensystem(ham_eig::HamiltonianEigensystem) =
     Eigensystem(ham_eig.basis, ham_eig.states, ham_eig.values)
 QuantumOpticsBase.basis(eig::AbstractEigensystem) = eig.basis
@@ -46,7 +48,7 @@ function diagonalize(op::DataOperator)
 end
 function diagonalize(ham::Hamiltonian)
     eig = diagonalize(Operator(ham))
-    HamiltonianEigensystem(eig.basis, eig.states, eig.values, ham.sys)
+    HamiltonianEigensystem(ham.sys, eig.basis, eig.states, eig.values)
 end
 
 Base.length(eig::AbstractEigensystem) = length(eig.values)
@@ -55,11 +57,14 @@ Base.getindex(eig::AbstractEigensystem; value::Number) =
     Ket(eig.basis, eig.states[:, argmin(@. abs(value - eig.values))])
 Base.getindex(eig::AbstractEigensystem, mask) =
     Eigensystem(eig.basis, eig.states[:, mask], eig.values[mask])
+sample(eig::AbstractEigensystem) = sample(eig.basis)
 
 function Base.show(io::IO, ::MIME"text/plain", eig::AbstractEigensystem)
     println(io, "Eigensystem with $(length(eig)) eigenstates")
     println(io, "Eigenvalues in range $(minimum(eig.values)) .. $(maximum(eig.values))")
 end
+
+groundstate(eig::HamiltonianEigensystem) = eig[1]
 
 @doc raw"""
     projector(eig::Eigensystem)
@@ -81,6 +86,50 @@ function projector(f, eig::AbstractEigensystem)
     Operator(eig.basis, eig.states * (f.(eig.values) .* eig.states'))
 end
 
+@inline function densfun(T, mu, statistics::ParticleStatistics)
+    return E -> (E - mu == T == 0) ? 1. : 1 / (exp((E - mu) / T) + Int(statistics))
+end
+@inline function ddensfun(T, mu, statistics::ParticleStatistics)
+    return E -> -exp((E - mu) / T) / T / (exp((E - mu) / T) + Int(statistics))^2
+end
+
+function groundstate_densitymatrix(eig::AbstractEigensystem)
+    ψ = groundstate(eig)
+    return (ψ ⊗ ψ')
+end
+function gibbs_densitymatrix(eig::AbstractEigensystem; T::Real=0)
+    if T == 0
+        return groundstate_densitymatrix(eig)
+    else
+        Z = sum(E -> exp(-E / T), eig.values)
+        return projector(E -> exp(-E / T) / Z, eig)
+    end
+end
+function ensemble_densitymatrix(eig::AbstractEigensystem;
+        μ::Real=0, mu::Real=μ, T::Real=0, statistics::ParticleStatistics=FermiDirac)
+    return projector(densfun(T, mu, statistics), eig)
+end
+function fermisphere_densitymatrix(eig::AbstractEigensystem; N::Int)
+    length(Es) < N && error("overfilled Fermi sphere")
+    length(Es) == N && return projector(ham_eig)
+    Es[N] ≈ Es[N+1] && @warn "degenerate levels on the Fermi sphere"
+    return projector(eig[1:N])
+end
+function fixn_densitymatrix(eig::AbstractEigensystem;
+        T::Real=0, N::Int, statistics::ParticleStatistics=FermiDirac, maxiter=1000, atol=eps())
+    Es = eig.values
+    T ≈ 0 && @warn "chempotential detection may fail on low temperatures"
+    newmu = 0.
+    for _ in 1:maxiter
+        N_ev = sum(densfun(T, newmu, statistics), Es)
+        dN_ev = sum(ddensfun(T, newmu, statistics), Es)
+        dMu = (N_ev - N) / dN_ev
+        dMu < atol && return ensemble_densitymatrix(eig; T=T, statistics=statistics, mu=newmu)
+        newmu -= dMu
+    end
+    error("did not converge")
+end
+
 """
     densitymatrix(eig::Eigensystem[; T=0, μ=0, statistics=OneParticle])
 
@@ -93,15 +142,42 @@ The `statistics` Keyword sets the probability distribution .`OneParticle` means 
 
 Note that if `eig` is a diagonalized `Hamiltonian`, the `μ` and `statistics` parameters are inserted automatically.
 """
-function densitymatrix(eig::Eigensystem; μ::Real=0, T::Real=0, statistics::ParticleStatistics=FermiDirac)
-    projector(eig) do E
-        (E - μ == T == 0) ? 1. : 1 / (exp((E - μ) / T) + Int(statistics))
+densitymatrix(ham_eig::HamiltonianEigensystem{<:FixedMu}; kw...) =
+    ensemble_densitymatrix(Eigensystem(ham_eig);
+        T=ham_eig.sys.T, statistics=statistics, mu=ham_eig.sys.chempotential, kw...)
+function densitymatrix(ham_eig::HamiltonianEigensystem{<:FixedN}; kw...)
+    N = get(kw, :N, ham_eig.sys.N)
+    T = get(kw, :T, ham_eig.sys.T)
+    statistics = get(kw, :statistics, ham_eig.sys.statistics)
+    if T ≈ 0
+        if statistics == BoseEinstein
+            # condensate
+            return groundstate_densitymatrix(ham_eig) * N
+        else
+            # Fermi sphere
+            return fermisphere_densitymatrix(ham_eig; N=N)
+        end
+    else
+        # Newton's method
+        return fixn_densitymatrix(ham_eig; N=N, T=T, statistics=statistics, kw...)
     end
 end
-densitymatrix(ham_eig::HamiltonianEigensystem;
-    μ::Real=ham_eig.sys.chempotential, T::Real=0, statistics=ham_eig.sys.statistics) =
-    densitymatrix(Eigensystem(ham_eig); T=T, statistics=statistics, μ=μ)
-densitymatrix(ham::Hamiltonian; kw...) = densitymatrix(diagonalize(ham); kw...)
+function densitymatrix(ham_eig::HamiltonianEigensystem{<:OneParticleSystem}; kw...)
+    if :N in keys(kw)
+        return fixn_densitymatrix(ham_eig; T = ham_eig.sys.T, kw...)
+    elseif :μ in keys(kw) || :mu in keys(kw) || :statistics in keys(kw)
+        return ensemble_densitymatrix(ham_eig; T = ham_eig.sys.T, kw...)
+    else
+        return gibbs_densitymatrix(ham_eig; T = ham_eig.sys.T, kw...)
+    end
+end
+function densitymatrix(ham_eig::HamiltonianEigensystem{<:NParticles}; kw...)
+    return gibbs_densitymatrix(ham_eig; T = ham_eig.sys.T, kw...)
+end
+densitymatrix(eig::Eigensystem{<:AbstractLatticeBasis}; kw...) =
+    densitymatrix(HamiltonianEigensystem(eig, OneParticleSystem(sample(eig))); kw...)
+densitymatrix(eig::Eigensystem; T::Real = 0) = gibbs_densitymatrix(eig; T = T)
+densitymatrix(ham::DataOperator; kw...) = densitymatrix(diagonalize(ham); kw...)
 
 @doc raw"""
     dos(eig::Eigensystem, δ)

@@ -3,7 +3,9 @@ struct Sample{LT, BasisT}
     latt::LT
     internal::BasisT
 end
-Sample(l::BravaisLattice, internal, bs) = Sample(add_boundaries(l, bs), internal)
+Sample(l::AbstractLattice) = Sample(l, nothing)
+Sample(l::BravaisLattice, internal::Nullable{Basis}, bs::BoundaryConditions) =
+    Sample(add_boundaries(l, bs), internal)
 const SampleWithoutInternal{LT} = Sample{LT, Nothing}
 const SampleWithInternal{LT} = Sample{LT, <:Basis}
 
@@ -35,11 +37,11 @@ hasinternal(any) = hasinternal(sample(any))
 abstract type System{SampleT} end
 abstract type OneParticleBasisSystem{SampleT} <: System{SampleT} end
 sample(sys::System) = sys.sample
-default_bonds(sys::System) = default_bonds(sys.sample)
+default_bonds(sys::System, arg=Val(1)) = default_bonds(lattice(sys.sample), arg)
 struct OneParticleSystem{SampleT} <: OneParticleBasisSystem{SampleT}
     sample::SampleT
     T::Float64
-    OneParticleSystem(sample::SampleT, T) where SampleT = new{SampleT}(sample, T)
+    OneParticleSystem(sample::SampleT, T::Real=0) where SampleT = new{SampleT}(sample, Float64(T))
 end
 OneParticleSystem(l::AbstractLattice, b::Nullable{Basis}=nothing; T=0) = OneParticleSystem(Sample(l, b), T)
 
@@ -56,9 +58,9 @@ struct FixedMu{SampleT} <: OneParticleBasisSystem{SampleT}
     chempotential::Float64
     statistics::ParticleStatistics
     T::Float64
-    function FixedMu(sample::SampleT, μ; statistics=FermiDirac, T = 0) where SampleT
-        new{SampleT}(sample, μ, statistics, T)
-    end
+end
+function FixedMu(sample::SampleT, μ; statistics=FermiDirac, T = 0) where SampleT
+    new{SampleT}(sample, μ, statistics, T)
 end
 
 struct FixedN{SampleT} <: OneParticleBasisSystem{SampleT}
@@ -66,9 +68,9 @@ struct FixedN{SampleT} <: OneParticleBasisSystem{SampleT}
     nparticles::Int
     statistics::ParticleStatistics
     T::Float64
-    function FixedN(sample::SampleT, N; statistics=FermiDirac, T = 0) where SampleT
-        new{SampleT}(sample, μ, statistics, T)
-    end
+end
+function FixedN(sample::SampleT, N; statistics=FermiDirac, T = 0) where SampleT
+    new{SampleT}(sample, μ, statistics, T)
 end
 
 struct NParticles{SampleT} <: System{SampleT}
@@ -76,9 +78,9 @@ struct NParticles{SampleT} <: System{SampleT}
     nparticles::Int
     statistics::ParticleStatistics
     T::Float64
-    function NParticles(sample::SampleT, nparticles; statistics=FermiDirac, T = 0) where SampleT
-        new{SampleT}(sample, nparticles, statistics)
-    end
+end
+function NParticles(sample::SampleT, nparticles; statistics=FermiDirac, T = 0) where SampleT
+    new{SampleT}(sample, nparticles, statistics)
 end
 
 function System(sample::Sample; μ = nothing, N = nothing, statistics=FermiDirac)
