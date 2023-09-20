@@ -25,13 +25,14 @@ FunctionBoundary(f::F, svec::AbstractArray) where F<:Function = FunctionBoundary
 
 function shift_site(bc::FunctionBoundary{N}, i::Int, site::BravaisSite{N}) where N
     i == 0 && return 1., site
+    factor = 1.
     for _ in 1:abs(i)
         if i > 0
             site = shift_site(-bc.R, site)
             factor *= bc.condition(site)
         else
             factor /= bc.condition(site)
-            site = shift_site(bc.R, l, site)
+            site = shift_site(bc.R, site)
         end
     end
     factor, site

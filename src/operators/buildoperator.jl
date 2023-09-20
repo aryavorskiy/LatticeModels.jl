@@ -42,8 +42,7 @@ function Hamiltonian(sys::System, op::Operator)
     return Hamiltonian(sys, basis(op), basis(op), op.data)
 end
 QuantumOpticsBase.Operator(ham::Hamiltonian) = Operator(ham.basis_l, ham.data)
-system(::DataOperator) = nothing
-system(ham::Hamiltonian) = ham.sys
+sample(ham::Hamiltonian) = sample(ham.sys)
 Base.:(*)(op::Operator{B1, B2}, ham::Hamiltonian{Sys, B2}) where{Sys, B1, B2} = op * Operator(ham)
 Base.:(*)(ham::Hamiltonian{Sys, B2}, op::Operator{B1, B2}) where{Sys, B1, B2} = Operator(ham) * op
 Base.:(+)(op::Operator{B, B}, ham::Hamiltonian{Sys, B}) where{Sys, B} = Hamiltonian(ham.sys, op + Operator(ham))
