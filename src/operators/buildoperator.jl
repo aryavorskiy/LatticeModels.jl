@@ -46,8 +46,8 @@ system(::DataOperator) = nothing
 system(ham::Hamiltonian) = ham.sys
 Base.:(*)(op::Operator{B1, B2}, ham::Hamiltonian{Sys, B2}) where{Sys, B1, B2} = op * Operator(ham)
 Base.:(*)(ham::Hamiltonian{Sys, B2}, op::Operator{B1, B2}) where{Sys, B1, B2} = Operator(ham) * op
-Base.:(+)(op::Operator{B, B}, ham::Hamiltonian{Sys, B}) where{Sys, B} = op + Operator(ham)
-Base.:(+)(ham::Hamiltonian{Sys, B}, op::Operator{B, B}) where{Sys, B} = Operator(ham) + op
+Base.:(+)(op::Operator{B, B}, ham::Hamiltonian{Sys, B}) where{Sys, B} = Hamiltonian(ham.sys, op + Operator(ham))
+Base.:(+)(ham::Hamiltonian{Sys, B}, op::Operator{B, B}) where{Sys, B} = Hamiltonian(ham.sys, Operator(ham) + op)
 
 Hamiltonian(opb::OperatorBuilder; kw...) = Hamiltonian(opb.sys, Operator(opb; kw...))
 

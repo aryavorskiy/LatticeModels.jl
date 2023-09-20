@@ -116,7 +116,7 @@ function fermisphere_densitymatrix(eig::AbstractEigensystem; N::Int)
     return projector(eig[1:N])
 end
 function fixn_densitymatrix(eig::AbstractEigensystem;
-        T::Real=0, N::Int, statistics::ParticleStatistics=FermiDirac, maxiter=1000, atol=eps())
+        T::Real=0, N::Int, statistics::ParticleStatistics=FermiDirac, maxiter=1000, atol=√eps())
     Es = eig.values
     T ≈ 0 && @warn "chempotential detection may fail on low temperatures"
     newmu = 0.
@@ -124,8 +124,8 @@ function fixn_densitymatrix(eig::AbstractEigensystem;
         N_ev = sum(densfun(T, newmu, statistics), Es)
         dN_ev = sum(ddensfun(T, newmu, statistics), Es)
         dMu = (N_ev - N) / dN_ev
-        dMu < atol && return ensemble_densitymatrix(eig; T=T, statistics=statistics, mu=newmu)
-        newmu -= dMu
+        abs(dMu) < atol && return ensemble_densitymatrix(eig; T=T, statistics=statistics, mu=newmu)
+        newmu += dMu
     end
     error("did not converge")
 end
@@ -146,7 +146,7 @@ densitymatrix(ham_eig::HamiltonianEigensystem{<:FixedMu}; kw...) =
     ensemble_densitymatrix(Eigensystem(ham_eig);
         T=ham_eig.sys.T, statistics=statistics, mu=ham_eig.sys.chempotential, kw...)
 function densitymatrix(ham_eig::HamiltonianEigensystem{<:FixedN}; kw...)
-    N = get(kw, :N, ham_eig.sys.N)
+    N = get(kw, :N, ham_eig.sys.nparticles)
     T = get(kw, :T, ham_eig.sys.T)
     statistics = get(kw, :statistics, ham_eig.sys.statistics)
     if T ≈ 0

@@ -8,8 +8,9 @@ struct BravaisLattice{N, B<:UnitCell{Sym, N} where Sym, BS} <: AbstractLattice{B
         new{N,B,BS}(bravais, sort!(pointers), boundaries)
     end
 end
+
 BravaisLattice(bravais, pointers) = BravaisLattice(bravais, pointers, BoundaryConditions())
-add_boundaries(l::BravaisLattice, bs) = BravaisLattice(l.bravais, l.pointers, bs)
+add_boundaries(l::BravaisLattice, bs) = BravaisLattice(l.bravais, l.pointers, to_boundaries(bs))
 
 Base.:(==)(l1::BravaisLattice, l2::BravaisLattice) = (l1.pointers == l2.pointers) && (l1.bravais == l2.bravais)
 
@@ -100,13 +101,6 @@ function BravaisLattice(uc::UnitCell{Sym,N,NB}, sz::NTuple{N,Int};
         for i in 1:NB
             push!(ptrs, BravaisPointer(svec, i))
         end
-    end
-    if boundaries isa Tuple
-        boundaries = BoundaryConditions(boundaries...)
-    elseif boundaries isa Boundary
-        boundaries = BoundaryConditions(boundaries)
-    elseif !(boundaries isa BoundaryConditions)
-        throw(ArgumentError("invalid `boundaries` keyword argument"))
     end
     if offset === :center
         basis_com = vec(sum(uc.basis, dims=2) / NB)

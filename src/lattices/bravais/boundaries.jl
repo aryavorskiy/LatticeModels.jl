@@ -21,6 +21,7 @@ struct FunctionBoundary{N, F<:Function} <: Boundary{N}
     condition::F
     R::SVector{N, Int}
 end
+FunctionBoundary(f::F, svec::AbstractArray) where F<:Function = FunctionBoundary{length(svec), F}(f, svec)
 
 function shift_site(bc::FunctionBoundary{N}, i::Int, site::BravaisSite{N}) where N
     i == 0 && return 1., site
@@ -54,6 +55,17 @@ to_boundary(p::Pair{<:AbstractVector, <:Function}) =
     FunctionBoundary(p[2], p[1])
 to_boundary(b::Boundary) = b
 to_boundary(b) = throw(ArgumentError("Could not convert `$b` to Boundary"))
+
+function to_boundaries(arg)
+    if arg isa Tuple
+        return BoundaryConditions(arg...)
+    elseif arg isa Boundary
+        return BoundaryConditions(arg)
+    elseif !(arg isa BoundaryConditions)
+        return BoundaryConditions(to_boundary(arg))
+    else return arg
+    end
+end
 
 @generated cartesian_indices(depth::Int, ::Val{M}) where M = quote
     CartesianIndex($((:(-depth) for _ in 1:M)...)):CartesianIndex($((:depth for _ in 1:M)...))
