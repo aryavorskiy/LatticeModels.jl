@@ -24,7 +24,7 @@ Base.getindex(bs::AdjacencyMatrix, site1::AbstractSite, site2::AbstractSite) =
     bs.bmat[site_index(lattice(bs), site1), site_index(lattice(bs), site2)]
 
 function Base.:(|)(bss1::AdjacencyMatrix, bss2::AdjacencyMatrix)
-    check_samelattice(bss1, bss2)
+    check_samesites(bss1, bss2)
     AdjacencyMatrix(lattice(bss1), bss1.bmat .| bss2.bmat)
 end
 

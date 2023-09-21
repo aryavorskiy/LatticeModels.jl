@@ -94,7 +94,7 @@ end
         surface!(p[2], xy)
         scatter!(p[3], SquareLattice(3, 4, 5))
         plot!(p[4], project(xy, :x))
-        plot!(p[4], project(xy, :j1))
+        plot!(p[4], project(xy, p"j1"))
         mpcs = map_currents(site_distance, dc, reduce_fn=sum, sort=true)
         plot!(p[4], mpcs)
         true
@@ -127,7 +127,7 @@ end
     @test s_3 == s_4
     @test s_4 == s_5
     @test_throws LatticeModels.IncompatibleLattices hl[x.<y]
-    @test hl[j1=3, j2=2, index=1] == LatticeModels.get_site(hl,
+    @test hl[p"j1" => 3, p"j2 "=> 2, p"index" => 1] == LatticeModels.get_site(hl,
         LatticeModels.BravaisPointer(SA[3, 2], 1))
     xb, yb = coord_values(SquareLattice(5, 40))
     @test_throws LatticeModels.IncompatibleLattices sql[xb.<yb]
@@ -186,10 +186,10 @@ end
         z2[x.<y] = ones(l)
         @test z == ones(l)
         @test z2 == ones(l)
-        @test z[x=1, x2=1] == 1
+        @test z[x=1, y=1] == 1
         z3 = ones(l)
         for i in 2:10
-            z3[x1=i] .= i
+            z3[x=i] .= i
         end
         @test z3 == x
     end

@@ -37,6 +37,11 @@ Base.copy(l::AbstractLattice) = Base.copymutable(l)
 Base.in(site::SiteT, l::AbstractLattice{SiteT}) where {SiteT} =
     site_index(l, site) !== nothing
 Base.hasfastin(::Type{<:AbstractLattice}) = true
+function Base.delete!(l::AbstractLattice{ST}, site::ST) where ST<:AbstractSite
+    i = site_index(l, site)
+    i !== nothing && Base.deleteat!(l, i)
+    return l
+end
 
 # Indexing
 Base.firstindex(::AbstractLattice) = 1
@@ -100,8 +105,8 @@ Base.showerror(io::IO, ex::IncompatibleLattices) = print(io,
 """
 Checks if `l1` and `l2` objects are defined on one lattice. Throws an error if not.
 """
-function check_samelattice(l1, l2)
-    lattice(l1) != lattice(l2) &&
+function check_samesites(l1, l2)
+    sites(lattice(l1)) != sites(lattice(l2)) &&
         throw(IncompatibleLattices("Matching lattices expected", l1, l2))
 end
 

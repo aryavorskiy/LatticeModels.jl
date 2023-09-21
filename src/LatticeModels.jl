@@ -13,6 +13,7 @@ const Nullable{T} = Union{Nothing,T}
 include("core/sarrayutils.jl")
 include("core/lattice.jl")
 export lattice, sublattice, site_index, site_distance
+include("core/sites.jl")
 include("core/latticevalue.jl")
 export LatticeValue, param_value, coord_values, project, @p_str
 include("core/adjacency.jl")

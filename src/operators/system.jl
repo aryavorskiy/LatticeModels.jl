@@ -18,8 +18,8 @@ default_bonds(sample::Sample, arg=Val(1)) = default_bonds(lattice(sample), arg)
 QuantumOpticsBase.basis(sample::SampleWithInternal) = sample.internal ⊗ LatticeBasis(sample.latt)
 QuantumOpticsBase.basis(sample::SampleWithoutInternal) = LatticeBasis(sample.latt)
 
-sample(lb::LatticeBasis) = Sample(lb.latt)
-sample(b::CompositeLatticeBasis) = Sample(b.bases[2].latt, b.bases[1])
+sample(lb::LatticeBasis) = Sample(lb.sites)
+sample(b::CompositeLatticeBasis) = Sample(b.bases[2].sites, b.bases[1])
 sample(b::Basis) = throw(MethodError(sample, (b,)))
 lattice(sample::Sample) = sample.latt
 lattice(any) = lattice(sample(any))

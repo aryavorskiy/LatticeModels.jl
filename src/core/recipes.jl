@@ -70,7 +70,7 @@ end
 end
 
 @recipe function f(lv::LatticeValue{<:Number})
-    lv.lattice, lv.values
+    lv.sites, lv.values
 end
 
 @recipe function f(ag::AdjacencyMatrix)

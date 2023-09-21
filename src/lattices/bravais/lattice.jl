@@ -1,16 +1,17 @@
 using LinearAlgebra, Logging, StaticArrays
 
-struct BravaisLattice{N, B<:UnitCell{Sym, N} where Sym, BS} <: AbstractLattice{BravaisSite{N, B}}
+struct BravaisLattice{N, B<:UnitCell{Sym, N} where Sym, BS<:BoundaryConditions} <: AbstractLattice{BravaisSite{N, B}}
     bravais::B
     pointers::Vector{BravaisPointer{N}}
     boundaries::BS
-    function BravaisLattice(bravais::B, pointers::Vector{BravaisPointer{N}}, boundaries::BS) where {N,B,BS<:BoundaryConditions}
+    function BravaisLattice(bravais::B, pointers::Vector{BravaisPointer{N}}, boundaries::BS) where {N,B,BS}
         new{N,B,BS}(bravais, sort!(pointers), boundaries)
     end
 end
 
 BravaisLattice(bravais, pointers) = BravaisLattice(bravais, pointers, BoundaryConditions())
 add_boundaries(l::BravaisLattice, bs) = BravaisLattice(l.bravais, l.pointers, to_boundaries(bs))
+sites(l::BravaisLattice) = Sites(add_boundaries(l, BoundaryConditions()))
 
 Base.:(==)(l1::BravaisLattice, l2::BravaisLattice) = (l1.pointers == l2.pointers) && (l1.bravais == l2.bravais)
 
@@ -36,7 +37,7 @@ shift_site(l::BravaisLattice, site::AbstractSite) = shift_site(l.boundaries, l, 
 Base.in(lp::BravaisPointer, l::BravaisLattice) = insorted(lp, l.pointers)
 function Base.in(site::BravaisSite{N, B}, l::BravaisLattice{N, B}) where {N, B}
     @boundscheck check_samebravais(l, site)
-    in(site.lp, l)
+    return in(site.lp, l)
 end
 
 Base.@propagate_inbounds function Base.getindex(l::BravaisLattice, i::Int)
@@ -47,19 +48,15 @@ Base.@propagate_inbounds function Base.getindex(l::BravaisLattice, is::AbstractV
     @boundscheck checkbounds(l, is)
     return BravaisLattice(l.bravais, l.pointers[sort(is)])
 end
-function Base.delete!(l::BravaisLattice, lp::BravaisPointer)
+Base.@propagate_inbounds function Base.delete!(l::BravaisLattice, lp::BravaisPointer)
     i = site_index(l, lp)
     i !== nothing && deleteat!(l.pointers, i)
-    l
+    return l
 end
-function Base.delete!(l::BravaisLattice{N, B}, site::BravaisSite{N, B}) where {N, B}
-    check_samebravais(l, site)
-    Base.delete!(l, site.lp)
-end
-function Base.deleteat!(l::BravaisLattice, inds)
+Base.@propagate_inbounds function Base.deleteat!(l::BravaisLattice, inds)
     @boundscheck checkbounds(l, inds)
     deleteat!(l.pointers, inds)
-    l
+    return l
 end
 
 function Base.push!(l::BravaisLattice, lp::BravaisPointer)
@@ -76,7 +73,7 @@ Base.@propagate_inbounds function site_index(l::BravaisLattice, lp::BravaisPoint
     return l.pointers[i] == lp ? i : nothing
 end
 Base.@propagate_inbounds function site_index(l::BravaisLattice, site::BravaisSite)
-    @boundscheck l.bravais == site.bravais
+    @boundscheck check_samebravais(l, site)
     site_index(l, site.lp)
 end
 
@@ -105,9 +102,9 @@ function BravaisLattice(uc::UnitCell{Sym,N,NB}, sz::NTuple{N,Int};
     if offset === :center
         basis_com = vec(sum(uc.basis, dims=2) / NB)
         center_offset = uc.translation_vectors * SVector{N}(@. (sz + 1) / 2) + basis_com
-        BravaisLattice(UnitCell(uc, -center_offset), ptrs, boundaries)
+        BravaisLattice(UnitCell(uc, -center_offset), ptrs, to_boundaries(boundaries))
     elseif offset isa AbstractVector{<:Number}
-        BravaisLattice(UnitCell(uc, offset), ptrs, boundaries)
+        BravaisLattice(UnitCell(uc, offset), ptrs, to_boundaries(boundaries))
     else
         throw(ArgumentError("invalid `offset` keyword argument"))
     end

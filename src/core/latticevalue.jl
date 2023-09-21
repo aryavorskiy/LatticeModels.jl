@@ -1,34 +1,36 @@
 using LinearAlgebra, Logging, QuantumOpticsBase
 
-struct LatticeValueWrapper{LT<:AbstractLattice, VT<:AbstractVector}
-    lattice::LT
+struct LatticeValueWrapper{ST<:Sites, VT<:AbstractVector}
+    sites::ST
     values::VT
     function LatticeValueWrapper(lattice::LT, values::VT) where {LT,VT}
         length(lattice) != length(values) &&
             throw(DimensionMismatch("vector has length $(length(values)), lattice has length $(length(lattice))"))
-        new{LT,VT}(lattice, values)
+        l_sites = sites(lattice)
+        new{typeof(l_sites),VT}(l_sites, values)
     end
 end
 
-lattice(lvw::LatticeValueWrapper) = lvw.lattice
+sites(lvw::LatticeValueWrapper) = lvw.sites
+lattice(lvw::LatticeValueWrapper) = lattice(lvw.sites)
 
-Base.copy(lvw::LatticeValueWrapper) = LatticeValueWrapper(lattice(lvw), copy(lvw.values))
+Base.copy(lvw::LatticeValueWrapper) = LatticeValueWrapper(lvw.sites, copy(lvw.values))
 Base.length(lvw::LatticeValueWrapper) = length(lvw.values)
 Base.size(lvw::LatticeValueWrapper) = size(lvw.values)
 function Base.getindex(lvw::LatticeValueWrapper, site::AbstractSite)
-    i = site_index(lattice(lvw), site)
+    i = site_index(sites(lvw), site)
     i === nothing && throw(BoundsError(lvw, site))
     return lvw.values[i]
 end
 function Base.setindex!(lvw::LatticeValueWrapper, rhs, site::AbstractSite)
-    i = site_index(lattice(lvw), site)
+    i = site_index(sites(lvw), site)
     i === nothing && throw(BoundsError(lvw, site))
     lvw.values[i] = rhs
 end
 Base.eltype(lvw::LatticeValueWrapper) = eltype(lvw.values)
-Base.eachindex(lvw::LatticeValueWrapper) = lattice(lvw)
+Base.eachindex(lvw::LatticeValueWrapper) = sites(lvw)
 Base.iterate(lvw::LatticeValueWrapper, s...) = iterate(lvw.values, s...)
-Base.pairs(lvw::LatticeValueWrapper) = Iterators.map(=>, lvw.lattice, lvw.values)
+Base.pairs(lvw::LatticeValueWrapper) = Iterators.map(=>, lvw.sites, lvw.values)
 
 """
     LatticeValue{T, LT}
@@ -73,6 +75,7 @@ macro p_str(e::String)
     error("Cannot parse site parameter `$e`")
 end
 param_value(l::AbstractLattice, a::SiteParameter) = LatticeValue(l, [get_param(site, a) for site in l])
+param_value(l::AbstractLattice, a::Symbol) = param_value(l, SiteParameter(a))
 
 Base.rand(l::AbstractLattice) = LatticeValue(l, rand(length(l)))
 Base.rand(T::Type, l::AbstractLattice) = LatticeValue(l, rand(T, length(l)))
@@ -80,14 +83,14 @@ Base.randn(l::AbstractLattice) = LatticeValue(l, randn(length(l)))
 Base.randn(T::Type, l::AbstractLattice) = LatticeValue(l, randn(T, length(l)))
 Base.fill(value, l::AbstractLattice) = LatticeValue(l, fill(value, length(l)))
 Base.fill!(lv::LatticeValue, value) = (fill!(lv.values, value); lv)
-Base.zero(lvw::LatticeValueWrapper) = LatticeValueWrapper(lattice(lvw), zero(lvw.values))
+Base.zero(lvw::LatticeValueWrapper) = LatticeValueWrapper(sites(lvw), zero(lvw.values))
 Base.zeros(T::Type, l::AbstractLattice) = fill(zero(T), l)
 Base.zeros(l::AbstractLattice) = zeros(Float64, l)
-Base.one(lvw::LatticeValueWrapper) = LatticeValueWrapper(lattice(lvw), one(lvw.values))
+Base.one(lvw::LatticeValueWrapper) = LatticeValueWrapper(sites(lvw), one(lvw.values))
 Base.ones(T::Type, l::AbstractLattice) = fill(one(T), l)
 Base.ones(l::AbstractLattice) = ones(Float64, l)
 
-Base.:(==)(lvw1::LatticeValueWrapper, lvw2::LatticeValueWrapper) = (lvw1.lattice == lvw2.lattice) && (lvw1.values == lvw2.values)
+Base.:(==)(lvw1::LatticeValueWrapper, lvw2::LatticeValueWrapper) = (lvw1.sites == lvw2.sites) && (lvw1.values == lvw2.values)
 
 struct LatticeStyle <: Broadcast.BroadcastStyle end
 Base.copyto!(lvw::LatticeValueWrapper, src::Broadcast.Broadcasted{LatticeStyle}) = (copyto!(lvw.values, src); return lvw)
@@ -109,7 +112,7 @@ function Base.similar(bc::Broadcast.Broadcasted{LatticeStyle}, ::Type{Eltype}) w
 end
 _extract_lattice(bc::Broadcast.Broadcasted) = _extract_lattice(bc.args)
 _extract_lattice(ext::Broadcast.Extruded) = _extract_lattice(ext.x)
-_extract_lattice(lv::LatticeValueWrapper) = lv.lattice
+_extract_lattice(lv::LatticeValueWrapper) = lv.sites
 _extract_lattice(x) = x
 _extract_lattice(::Tuple{}) = nothing
 _extract_lattice(args::Tuple) =
@@ -124,7 +127,7 @@ _extract_lattice_s(l::AbstractLattice, ::Tuple{}) = l
 _extract_lattice_s(l::AbstractLattice, ::Any, rem_args::Tuple) =
     _extract_lattice_s(l, rem_args)
 function _extract_lattice_s(l::AbstractLattice, l2::AbstractLattice, rem_args::Tuple)
-    check_samelattice(l, l2)
+    check_samesites(l, l2)
     _extract_lattice_s(l, rem_args)
 end
 
@@ -137,30 +140,30 @@ function Base.show(io::IO, mime::MIME"text/plain", lv::LatticeValueWrapper)
     end
 end
 
-site_inds(l::LT, lv_mask::LatticeValue{Bool, LT}) where LT<:AbstractLattice =
-    Int[site_index(l, lattice(lv_mask)[i])
+site_inds(l::AbstractLattice{SiteT}, lv_mask::LatticeValue{Bool, <:AbstractLattice{SiteT}}) where SiteT<:AbstractSite =
+    Int[site_index(l, sites(lv_mask)[i])
         for i in eachindex(lv_mask.values) if lv_mask.values[i]]
-Base.@propagate_inbounds function Base.getindex(l::LT, lv_mask::LatticeValue{Bool, LT}) where LT<:AbstractLattice
-    @boundscheck check_issublattice(lattice(lv_mask), l)
+Base.@propagate_inbounds function Base.getindex(l::AbstractLattice{SiteT}, lv_mask::LatticeValue{Bool, <:AbstractLattice{SiteT}}) where SiteT<:AbstractSite
+    @boundscheck check_issublattice(sites(lv_mask), l)
     inds = site_inds(l, lv_mask)
     l[inds]
 end
 Base.getindex(l::AbstractLattice, lv::LatticeValue{Bool}) = throw(IncompatibleLattices(l, lattice(lv)))
 
 Base.@propagate_inbounds function Base.getindex(lv::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
-    @boundscheck check_samelattice(lv, lv_mask)
-    inds = site_inds(lattice(lv), lv_mask)
-    LatticeValueWrapper(lattice(lv)[inds], lv.values[inds])
+    @boundscheck check_samesites(lv, lv_mask)
+    inds = site_inds(sites(lv), lv_mask)
+    LatticeValueWrapper(sites(lv)[inds], lv.values[inds])
 end
 
 Base.@propagate_inbounds function Base.Broadcast.dotview(lv::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
-    @boundscheck check_samelattice(lv, lv_mask)
-    inds = site_inds(lattice(lv), lv_mask)
-    LatticeValueWrapper(lattice(lv)[inds], @view lv.values[inds])
+    @boundscheck check_samesites(lv, lv_mask)
+    inds = site_inds(sites(lv), lv_mask)
+    LatticeValueWrapper(sites(lv)[inds], @view lv.values[inds])
 end
 function Base.Broadcast.dotview(lv::LatticeValueWrapper, pairs::Pair{<:SiteParameter}...)
-    inds = pairs_to_inds(lattice(lv), pairs...)
-    return LatticeValueWrapper(lattice(lv)[inds], @view lv.values[inds])
+    inds = pairs_to_inds(sites(lv), pairs...)
+    return LatticeValueWrapper(sites(lv)[inds], @view lv.values[inds])
 end
 function Base.Broadcast.dotview(lv::LatticeValueWrapper; kw...)
     return Base.Broadcast.dotview(lv, (SiteParameter(crd) => val for (crd, val) in kw)...)
@@ -168,25 +171,25 @@ end
 
 Base.@propagate_inbounds function Base.setindex!(lv::LatticeValueWrapper, lv_rhs::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
     @boundscheck begin
-        check_issublattice(lattice(lv_mask), lattice(lv))
-        check_issublattice(lattice(lv_rhs), lattice(lv))
+        check_issublattice(sites(lv_mask), sites(lv))
+        check_issublattice(sites(lv_rhs), sites(lv))
     end
-    inds_l = site_inds(lattice(lv), lv_mask)
-    inds_r = site_inds(lattice(lv_rhs), lv_mask)
+    inds_l = site_inds(sites(lv), lv_mask)
+    inds_r = site_inds(sites(lv_rhs), lv_mask)
     lv.values[inds_l] = lv_rhs.values[inds_r]
     return lv_rhs
 end
 
 function Base.getindex(lvw::LatticeValueWrapper, pairs::Pair{<:SiteParameter}...)
-    inds = pairs_to_inds(lattice(lvw), pairs...)
+    inds = pairs_to_inds(sites(lvw), pairs...)
     return length(inds) == 1 ? lvw.values[only(inds)] :
-        LatticeValueWrapper(lattice(lvw)[inds], lvw.values[inds])
+        LatticeValueWrapper(sites(lvw)[inds], lvw.values[inds])
 end
 function Base.getindex(lvw::LatticeValueWrapper; kw...)
     lvw[(SiteParameter(crd) => val for (crd, val) in kw)...]
 end
 function Base.setindex!(lvw::LatticeValueWrapper, rhs, pairs::Pair{<:SiteParameter}...)
-    inds = pairs_to_inds(lattice(lvw), pairs...)
+    inds = pairs_to_inds(sites(lvw), pairs...)
     setindex!(lvw.values, rhs, inds)
 end
 function Base.setindex!(lvw::LatticeValueWrapper, rhs; kw...)
@@ -200,14 +203,14 @@ Creates a mapping from site coordinates to values of `lv`.
 The coordinate axis to project the sites onto can be set with the `axis` argument.
 """
 function project(lv::LatticeValue, param::SiteParameter)
-    pr_crds = [get_param(site, param) for site in lattice(lv)]
+    pr_crds = [get_param(site, param) for site in sites(lv)]
     perm = sortperm(pr_crds)
     pr_crds[perm], lv.values[perm]
 end
 project(any, param::Symbol) = project(any, SiteParameter(param))
 
-ketstate(lv::LatticeValue) = Ket(LatticeBasis(lattice(lv)), lv.values)
-brastate(lv::LatticeValue) = Bra(LatticeBasis(lattice(lv)), lv.values)
+ketstate(lv::LatticeValue) = Ket(LatticeBasis(sites(lv)), lv.values)
+brastate(lv::LatticeValue) = Bra(LatticeBasis(sites(lv)), lv.values)
 QuantumOpticsBase.tensor(ket::Ket, lv::LatticeValue) = ket ⊗ ketstate(lv)
 QuantumOpticsBase.tensor(bra::Bra, lv::LatticeValue) = bra ⊗ brastate(lv)
 QuantumOpticsBase.tensor(lv::LatticeValue, state::QuantumOpticsBase.StateVector) = state ⊗ lv

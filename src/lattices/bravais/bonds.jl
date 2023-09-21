@@ -73,7 +73,7 @@ end
 
 @inline Base.:(+)(site::BravaisSite, bs) = BravaisSite(site.lp + bs, site.bravais)
 
-function adjacency_matrix(l::AbstractLattice, bss::SiteOffset...)
+function adjacency_matrix(l::AbstractLattice{<:BravaisSite}, bss::SiteOffset...)
     matrix = zeros(Bool, length(l), length(l))
     for bs in bss
         for (i, site) in enumerate(l)
