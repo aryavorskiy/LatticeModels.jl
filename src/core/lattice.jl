@@ -103,11 +103,19 @@ Base.showerror(io::IO, ex::IncompatibleLattices) = print(io,
         #2: $(repr("text/plain", ex.l2))""")
 
 """
-Checks if `l1` and `l2` objects are defined on one lattice. Throws an error if not.
+Checks if `l1` and `l2` objects are defined on the same lattice. Throws an error if not.
+"""
+function check_samelattice(l1, l2)
+    lattice(l1) != lattice(l2) &&
+        throw(IncompatibleLattices("Matching lattices expected", l1, l2))
+end
+
+"""
+Checks if `l1` and `l2` objects are defined on the same sites. Throws an error if not.
 """
 function check_samesites(l1, l2)
-    sites(lattice(l1)) != sites(lattice(l2)) &&
-        throw(IncompatibleLattices("Matching lattices expected", l1, l2))
+    sites(l1) != sites(l2) &&
+        throw(IncompatibleLattices("Matching sets of sites expected", l1, l2))
 end
 
 """

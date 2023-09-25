@@ -4,7 +4,7 @@ struct Sites{SiteT,LT<:AbstractLattice{SiteT}}<:AbstractLattice{SiteT}
 end
 sites(s::Sites) = s
 sites(l::AbstractLattice) = Sites(l)
-lattice(s::Sites) = s.latt
+sites(any) = sites(lattice(any))
 Base.:(==)(s1::Sites, s2::Sites) = s1.latt == s2.latt
 Base.:(==)(s::Sites, l::AbstractLattice) = s.latt == l
 Base.:(==)(l::AbstractLattice, s::Sites) = s.latt == l

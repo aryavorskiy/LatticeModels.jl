@@ -70,12 +70,12 @@ end
 end
 
 @recipe function f(lv::LatticeValue{<:Number})
-    lv.sites, lv.values
+    lv.latt, lv.values
 end
 
 @recipe function f(ag::AdjacencyMatrix)
     aspect_ratio := :equal
-    l = lattice(ag)
+    l = sites(ag)
     pts = NTuple{dims(l), Float64}[]
     br_pt = fill(NaN, dims(l)) |> Tuple
     for i in eachindex(l), j in eachindex(l)

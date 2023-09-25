@@ -54,7 +54,7 @@ tr_vector(l::BravaisLattice, hop::SiteOffset{Nothing}) =
     pts
 end
 
-const BravaisLatticeValue{Sym, N} = LatticeValue{<:Number, <:BravaisLattice{N, <:UnitCell{Sym, N}}}
+const BravaisLatticeValue{Sym, N} = LatticeValue{<:Number, <:Sites{<:BravaisSite{N, <:UnitCell{Sym, N}}, <:BravaisLattice{N, <:UnitCell{Sym, N}}}}
 raw"""
     rectified_values(lv::LatticeValue)
 
@@ -65,16 +65,16 @@ If the element is `NaN`, it means that the corresponding site is not present in 
 This function might be quite useful in custom plot recipes.
 """
 function rectified_values(lv::BravaisLatticeValue{Sym, N} where Sym) where N
-    l = lattice(lv)
-    mins = Vector(l[1].unit_cell)
-    maxs = Vector(l[1].unit_cell)
-    for lp in l.pointers
+    s = sites(lv)
+    mins = Vector(s[1].unit_cell)
+    maxs = Vector(s[1].unit_cell)
+    for lp in s.latt.pointers
         @. mins = min(mins, lp.unit_cell)
         @. maxs = max(maxs, lp.unit_cell)
     end
     newvals = fill(NaN, Tuple(@. maxs - mins + 1))
     smins = SVector{N}(mins) .- 1
-    for (i, lp) in enumerate(l.pointers)
+    for (i, lp) in enumerate(s.latt.pointers)
         newvals[(lp.unit_cell - smins)...] = lv.values[i]
     end
     Tuple(mins[i]:maxs[i] for i in 1:N), newvals
@@ -87,7 +87,7 @@ Creates a copy of `lv` lattice value with the underlying `LatticeSym` overwritte
 Use it to invoke the default plot recipe for `LatticeValues` when defining a custom one.
 """
 function plot_fallback(lv::BravaisLatticeValue)
-    l = lattice(lv)
+    l = sites(lv).latt
     new_l = BravaisLattice(UnitCell{:plot_fallback}(l.bravais.translation_vectors, l.bravais.basis),
         l.pointers)
     LatticeValue(new_l, lv.values)
@@ -95,9 +95,10 @@ end
 
 @recipe function f(lv::BravaisLatticeValue{:square, N}) where N
     N < 3 && (seriestype --> :heatmap)
+    unitcell = sites(lv).latt.bravais
     if plotattributes[:seriestype] === :heatmap
         axes, heatmap_values = rectified_values(lv)
-        c_axes = Tuple(axes[i] .+ lattice(lv).bravais.basis[i, 1] for i in 1:N)
+        c_axes = Tuple(axes[i] .+ unitcell.basis[i, 1] for i in 1:N)
         aspect_ratio := :equal
         c_axes..., transpose(heatmap_values)
     else
