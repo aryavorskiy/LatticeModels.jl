@@ -148,6 +148,7 @@ end
     l = SquareLattice(10, 10)
     x, y = coord_values(l)
     x2 = param_value(l, :x)
+    x3 = param_value(l, p"x1")
     xm2 = LatticeValue(l) do (x, y)
         2x
     end
@@ -162,9 +163,10 @@ end
     end
     @test [idxs[s] for s in l] == 1:length(l)
     @test x == x2
+    @test x == x3
     @testset "Broadcast" begin
-        x3 = l .|> (site -> site.x)
-        @test x == x3
+        x4 = l .|> (site -> site.x)
+        @test x == x4
         @test x .* y == xy
         @test x .* 2 == xm2
         @test 2 .* x == xm2

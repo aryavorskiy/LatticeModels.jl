@@ -72,8 +72,7 @@ macro p_str(e::String)
     end
     error("Cannot parse site parameter `$e`")
 end
-param_value(l::AbstractLattice, a::SiteParameter) = LatticeValue(l, [get_param(site, a) for site in l])
-param_value(l::AbstractLattice, a::Symbol) = param_value(l, SiteParameter(a))
+param_value(l::AbstractLattice, a::AbstractSiteParameter) = LatticeValue(l, [get_param(site, a) for site in l])
 
 Base.rand(l::AbstractLattice) = LatticeValue(l, rand(length(l)))
 Base.rand(T::Type, l::AbstractLattice) = LatticeValue(l, rand(T, length(l)))
@@ -158,12 +157,12 @@ Base.@propagate_inbounds function Base.Broadcast.dotview(lv::LatticeValueWrapper
     inds = site_inds(lattice(lv), lv_mask)
     LatticeValueWrapper(lattice(lv)[inds], @view lv.values[inds])
 end
-function Base.Broadcast.dotview(lv::LatticeValueWrapper, pairs::Pair{<:SiteParameter}...)
+function Base.Broadcast.dotview(lv::LatticeValueWrapper, pairs::Pair{<:AbstractSiteParameter}...)
     inds = pairs_to_inds(lattice(lv), pairs...)
     return LatticeValueWrapper(lattice(lv)[inds], @view lv.values[inds])
 end
 function Base.Broadcast.dotview(lv::LatticeValueWrapper; kw...)
-    return Base.Broadcast.dotview(lv, (SiteParameter(crd) => val for (crd, val) in kw)...)
+    return Base.Broadcast.dotview(lv, kw...)
 end
 
 Base.@propagate_inbounds function Base.setindex!(lv::LatticeValueWrapper, lv_rhs::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
@@ -177,20 +176,20 @@ Base.@propagate_inbounds function Base.setindex!(lv::LatticeValueWrapper, lv_rhs
     return lv_rhs
 end
 
-function Base.getindex(lvw::LatticeValueWrapper, pairs::Pair{<:SiteParameter}...)
+function Base.getindex(lvw::LatticeValueWrapper, pairs::Pair{<:AbstractSiteParameter}...)
     inds = pairs_to_inds(lattice(lvw), pairs...)
     return length(inds) == 1 ? lvw.values[only(inds)] :
         LatticeValueWrapper(lattice(lvw)[inds], lvw.values[inds])
 end
 function Base.getindex(lvw::LatticeValueWrapper; kw...)
-    lvw[(SiteParameter(crd) => val for (crd, val) in kw)...]
+    lvw[kw...]
 end
-function Base.setindex!(lvw::LatticeValueWrapper, rhs, pairs::Pair{<:SiteParameter}...)
+function Base.setindex!(lvw::LatticeValueWrapper, rhs, pairs::Pair{<:AbstractSiteParameter}...)
     inds = pairs_to_inds(lattice(lvw), pairs...)
     setindex!(lvw.values, rhs, inds)
 end
 function Base.setindex!(lvw::LatticeValueWrapper, rhs; kw...)
-    lvw[(SiteParameter(crd) => val for (crd, val) in kw)...] = rhs
+    lvw[kw...] = rhs
 end
 
 """

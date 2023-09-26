@@ -2,19 +2,12 @@ abstract type AbstractSite{N} end
 
 dims(::AbstractSite{N}) where N = N
 Base.iterate(site::AbstractSite{N}, i=1) where N = i > N ? nothing : (site.coords[i], i + 1)
-@inline function Base.getproperty(site::AbstractSite{N}, sym::Symbol) where N
-    if sym === :x && N ≥ 1
-        return site.coords[1]
-    elseif sym === :y && N ≥ 2
-        return site.coords[2]
-    elseif sym === :z && N ≥ 3
-        return site.coords[3]
-    end
-    Base.getfield(site, sym)
-end
 
 abstract type SiteParameter end
+const AbstractSiteParameter = Union{<:SiteParameter, Symbol}
 get_param(::AbstractSite, p::SiteParameter) = error("Site does not accept param $p")
+# get_param(site::AbstractSite, sym::Symbol) = getproperty(site, sym)
+get_param(site::AbstractSite, sym::Symbol) = get_param(site, SiteParameter(sym))
 
 struct Coord <: SiteParameter axis::Int end
 function get_param(site::AbstractSite, c::Coord)
@@ -24,6 +17,13 @@ end
 SiteParameter(sym::Symbol) =
     sym === :x ? Coord(1) : sym === :y ? Coord(2) : sym === :z ? Coord(3) :
         error("Failed to parse parameter `$sym`. Try using `p\"$sym\"`.")
+
+@inline function Base.getproperty(site::AbstractSite{N}, sym::Symbol) where N
+    if sym in (:x, :y, :z)
+        return get_param(site, sym)
+    end
+    Base.getfield(site, sym)
+end
 
 abstract type AbstractLattice{SiteT} <: AbstractSet{SiteT} end
 lattice(l::AbstractLattice) = l
@@ -62,12 +62,12 @@ function pairs_to_inds(l::AbstractLattice, pairs...)
     end
     return inds
 end
-function Base.getindex(l::AbstractLattice, pairs::Pair{<:SiteParameter}...)
+function Base.getindex(l::AbstractLattice, pairs::Pair{<:AbstractSiteParameter}...)
     inds = pairs_to_inds(l, pairs...)
     return length(inds) == 1 ? l[only(inds)] : l[inds]
 end
 function Base.getindex(l::AbstractLattice; kw...)
-    return l[(SiteParameter(crd) => val for (crd, val) in kw)...]
+    return l[(crd => val for (crd, val) in kw)...]
 end
 
 function collect_coords(l::AbstractLattice)

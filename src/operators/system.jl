@@ -5,7 +5,7 @@ struct Sample{LT, BasisT}
 end
 Sample(l::LT) where {LT<:AbstractLattice} = Sample{LT,Nothing}(l, nothing)
 function Sample(l::BravaisLattice, internal::IT=nothing;
-        boundaries=BoundaryConditions()) where {IT<:Nullable{Basis}}
+        boundaries=l.boundaries) where {IT<:Nullable{Basis}}
     new_l = add_boundaries(l, boundaries)
     Sample{typeof(new_l), IT}(new_l, internal)
 end
@@ -61,8 +61,8 @@ struct FixedMu{SampleT} <: OneParticleBasisSystem{SampleT}
     statistics::ParticleStatistics
     T::Float64
 end
-function FixedMu(sample::SampleT, μ; statistics=FermiDirac, T = 0) where SampleT
-    FixedMu{SampleT}(sample, μ, statistics, T)
+function FixedMu(sample::SampleT, μ = nothing, mu = μ; statistics=FermiDirac, T = 0) where SampleT
+    FixedMu{SampleT}(sample, mu, statistics, T)
 end
 
 struct FixedN{SampleT} <: OneParticleBasisSystem{SampleT}
@@ -81,21 +81,26 @@ struct NParticles{SampleT} <: System{SampleT}
     statistics::ParticleStatistics
     T::Float64
 end
-function NParticles(sample::SampleT, nparticles; statistics=FermiDirac, T = 0) where SampleT
-    NParticles{SampleT}(sample, nparticles, statistics)
+function NParticles(sample::SampleT, nparticles; statistics = FermiDirac, T = 0) where SampleT
+    NParticles{SampleT}(sample, nparticles, statistics, T)
 end
+NParticles(onep::OneParticleSystem, nparticles; kw...) = NParticles(onep.sample, nparticles;
+    T = onep.T, kw...)
 
-function System(sample::Sample; μ = nothing, N = nothing, T = 0, statistics=FermiDirac)
-    if μ !== nothing && N === nothing
-        return FixedMu(sample, μ, statistics=statistics, T=T)
-    elseif N !== nothing && μ === nothing
+function System(sample::Sample; μ = nothing, mu = μ, N = nothing, T = 0, statistics=FermiDirac)
+    if mu !== nothing && N === nothing
+        return FixedMu(sample, mu, statistics=statistics, T=T)
+    elseif N !== nothing && mu === nothing
         return FixedN(sample, N, statistics=statistics, T=T)
+    elseif N === mu === nothing
+        return OneParticleSystem(sample, T)
     else
         error("Please define the chemical potential `μ` or the particle number `N` (but not both)")
     end
 end
-System(args...; μ = nothing, N = nothing, statistics=FermiDirac, T=0, kw...) =
-    System(Sample(args...; kw...), μ=μ, N=N, T=T, statistics=statistics)
+System(onep::OneParticleSystem; kw...) = System(onep.sample; T=onep.T, kw...)
+System(args...; μ = nothing, mu = μ, N = nothing, statistics=FermiDirac, T=0, kw...) =
+    System(Sample(args...; kw...), mu=mu, N=N, T=T, statistics=statistics)
 
 function occupations(np::NParticles)
     if np.statistics == FermiDirac
@@ -126,8 +131,8 @@ shift_site(sys::System, site) = shift_site(lattice(sys), site)
 
 macro accepts_system(fname, default_basis=nothing)
     esc(quote
-        $fname(sample::Sample, args...; T = 0, kw...) =
-            $fname(OneParticleSystem(sample, T), args...; kw...)
+        $fname(sample::Sample, args...; T = 0, μ = nothing, mu = μ, N = nothing, statistics = nothing, kw...) =
+            $fname(System(sample, T=T, mu=mu, N=N, statistics=statistics), args...; kw...)
         $fname(l::BravaisLattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
             $fname(Sample(l, bas, boundaries=boundaries), args...; kw...)
         $fname(l::BravaisLattice, args...; boundaries=BoundaryConditions(), kw...) =

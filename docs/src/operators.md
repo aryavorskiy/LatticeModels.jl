@@ -17,13 +17,13 @@ This adds $\frac{2\pi}{\phi_0} \int_{r_i}^{r_j} \overrightarrow{A} \cdot \overri
 To generate the Hamiltonian operator, use the [`tightbinding_hamiltonian`](@ref) function:
 
 ```julia
-l = SquareLattice(10, 10)
+l = SquareLattice(10, 10, boundaries = ([10, 0] => true, [0, 10] => true))
 H = tightbinding_hamiltonian(l)     # Yes, it is that simple
 # t1 stands for t, t2 - for t', etc.
 H2 = tightbinding_hamiltonian(l, t1 = 2, t2 = 1, t3 = 0)
 
-s = Sample(l, boundaries = BoundaryConditions(1 => true, 2 => true))
-H3 = tightbinding_hamiltonian(s)    # You can use a `Sample` or a `System` as well
+s = System(l, N = 2, T = 1)
+H3 = tightbinding_hamiltonian(s)    # You can use a `System` as well
 ```
 
 Applying magnetic field is a bit more complicated. You can use a pre-defined magnetic field from the library or define your own. In the latter case 
@@ -34,17 +34,17 @@ you must provide the number of integration steps to calculate the phase in the P
 H4 = tightbinding_hamiltonian(l, field=LandauField(0.1))
 
 # Define the very same magnetic field
-landau_field = MagneticField(n = 100) do crd
+my_landau_field = MagneticField(n = 100) do crd
     x, y = crd
     # The function must return the vector potential as a `Tuple`
     return (0, 0.1 * x)
 end
-H5 = tightbinding_hamiltonian(l, field=landau_field)
+H5 = tightbinding_hamiltonian(l, field=my_landau_field)
 ```
 The pre-defined magnetic field types include:
-- `LandauField(B::Real)` - Landau gauge uniform magnetic field
-- `SymmetricField(B::Real)` - symmetric gauge uniform magnetic field
-- `FluxField(Φ::Real, point::Tuple{Number, Number})` - point magnetic field flux through `point`.
+- `LandauField(B::Real)` - Landau gauge uniform magnetic field,
+- `SymmetricField(B::Real)` - symmetric gauge uniform magnetic field,
+- `FluxField(Φ::Real, point::NTuple{2, Number})` - point magnetic field flux through `point`.
   
 Note that using a user-defined `MagneticField` will most probably result in slower operator generation. See [Custom magnetic fields](@ref) for more info.
 
@@ -53,10 +53,10 @@ Note that using a user-defined `MagneticField` will most probably result in slow
 To create spatial coordinate operators, use the [`coord_operators`](@ref) function. If you want one specific coordinate operator, use [`coord_operator`](@ref). These functions accept a `Sample` as first argument.
 
 ```julia
-X = coord_operator(s, :x)   # X spatial coordinate operator
-J1 = coord_operator(s, :j1) # Unit cell coordinate operator
-X, Y = coord_operators(s)   # Shorthand for generating both coordinate operators
-X, Y = coord_operators(l)   # Also accepts a `Lattice` and optional internal basis
+X = coord_operator(s, :x)       # X spatial coordinate operator
+J1 = coord_operator(s, p"j1")   # Unit cell 1st coordinate operator
+X, Y = coord_operators(s)       # Shorthand for generating both coordinate operators
+X, Y = coord_operators(l)       # Also accepts a `Lattice` and optional internal basis
 ```
 
 If more fine-grained control over the hoppings is required, you can make use of transition operators:
