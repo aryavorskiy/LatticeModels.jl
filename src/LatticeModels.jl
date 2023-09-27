@@ -35,7 +35,7 @@ export System, FermiDirac, BoseEinstein
 include("operators/magneticfield.jl")
 export MagneticField
 include("operators/constructor.jl")
-export OperatorBuilder
+export OperatorBuilder, FastSparseOperatorBuilder
 include("operators/buildoperator.jl")
 export tightbinding_hamiltonian, build_operator, build_hamiltonian
 include("operators/manybody.jl")

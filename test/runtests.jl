@@ -347,31 +347,41 @@ end
     @testset "Operator builder" begin
         l = SquareLattice(10, 10)
         spin = SpinBasis(1//2)
-        builder = OperatorBuilder(l ⊗ spin)
-        builder2 = OperatorBuilder(l ⊗ spin, auto_hermitian=true)
-        @increment for site in l
+        builder = OperatorBuilder(l, spin, auto_hermitian=true)
+        builder2 = FastSparseOperatorBuilder(l ⊗ spin)
+        builder3 = FastSparseOperatorBuilder(l ⊗ spin, auto_hermitian=true)
+
+        for site in l
             site_hx = site + SiteOffset(axis = 1)
             site_hy = site + SiteOffset(axis = 2)
 
-            builder[site, site] += sigmaz(spin)
-            builder[site, site_hx] += (sigmaz(spin) - im * sigmax(spin)) / 2
-            builder[site_hx, site] += (sigmaz(spin) + im * sigmax(spin)) / 2
+            builder[site, site] = sigmaz(spin)
+            builder[site, site_hx] = (sigmaz(spin) - im * sigmax(spin)) / 2
             builder[site, site_hy] += (sigmaz(spin) - im * sigmay(spin)) / 2
-            builder[site_hy, site] += (sigmaz(spin) + im * sigmay(spin)) / 2
 
-            builder2[site, site] += sigmaz(spin)
-            builder2[site, site_hx] += (sigmaz(spin) - im * sigmax(spin)) / 2
-            builder2[site, site_hy] += (sigmaz(spin) - im * sigmay(spin)) / 2
+            @increment begin
+                builder2[site, site] += sigmaz(spin)
+                builder2[site, site_hx] += (sigmaz(spin) - im * sigmax(spin)) / 2
+                builder2[site_hx, site] += (sigmaz(spin) + im * sigmax(spin)) / 2
+                builder2[site, site_hy] += (sigmaz(spin) - im * sigmay(spin)) / 2
+                builder2[site_hy, site] += (sigmaz(spin) + im * sigmay(spin)) / 2
+
+                builder3[site, site] += sigmaz(spin)
+                builder3[site, site_hx] += (sigmaz(spin) - im * sigmax(spin)) / 2
+                builder3[site, site_hy] += (sigmaz(spin) - im * sigmay(spin)) / 2
+            end
         end
         H = qwz(l)
         H1 = Operator(builder)
         H2 = Operator(builder2)
-        H3 = build_hamiltonian(l, spin, sigmaz(spin) => 1,
+        H3 = Operator(builder3)
+        H4 = build_hamiltonian(l, spin, sigmaz(spin) => 1,
             (sigmaz(spin) - im * sigmax(spin)) / 2 => SiteOffset(axis = 1),
             (sigmaz(spin) - im * sigmay(spin)) / 2 => SiteOffset(axis = 2))
         @test H == H1
         @test H == H2
         @test H == H3
+        @test H == H4
     end
 
     @testset "Operator builtins" begin
