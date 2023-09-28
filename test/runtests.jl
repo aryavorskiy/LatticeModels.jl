@@ -358,6 +358,7 @@ end
             builder[site, site] = sigmaz(spin)
             builder[site, site_hx] = (sigmaz(spin) - im * sigmax(spin)) / 2
             builder[site, site_hy] += (sigmaz(spin) - im * sigmay(spin)) / 2
+            builder[site, site_hy] *= 1
 
             @increment begin
                 builder2[site, site] += sigmaz(spin)
