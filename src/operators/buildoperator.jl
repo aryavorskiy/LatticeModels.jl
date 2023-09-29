@@ -11,7 +11,7 @@ function add_hoppings!(builder, l::AbstractLattice, op, bond::SiteOffset,
     dims(bond) > dims(l) && error("Incompatible dims")
     for site1 in l
         site2 = site1 + bond
-        site2 === nothing && continue
+        site2 === NoSite() && continue
         add_hoppings!(builder, l, op, site1 => site2, field)
     end
 end

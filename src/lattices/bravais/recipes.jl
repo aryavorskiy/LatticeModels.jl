@@ -43,7 +43,7 @@ tr_vector(l::BravaisLattice, hop::SiteOffset{Nothing}) =
         for i in eachindex(l)
             site1 = l[i]
             site2 = displace_site(l, site1, bs)
-            site2 === nothing && continue
+            site2 === NoSite() && continue
 
             a = site1.coords
             b = site2.coords

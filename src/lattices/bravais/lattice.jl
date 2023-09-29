@@ -30,7 +30,7 @@ default_bonds(l::BravaisLattice, i::Int) = default_bonds(l, Val(i))
 
 get_site(l::BravaisLattice, lp::BravaisPointer) = BravaisSite(lp, l.bravais)
 get_site(::BravaisLattice, site::BravaisSite) = site
-get_site(::BravaisLattice, ::Nothing) = nothing
+get_site(::BravaisLattice, ::NoSite) = NoSite()
 
 shift_site(l::BravaisLattice, site::AbstractSite) = shift_site(l.boundaries, l, site)
 

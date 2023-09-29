@@ -56,14 +56,14 @@ Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::
     push!(builder.Is, i1)
     push!(builder.Js, i2)
     push!(builder.Vs, rhs * factor)
-    return rhs
+    return nothing
 end
 Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::SparseMatrixCSC; factor=1)
     nis, njs, nvs = findnz(rhs)
     append!(builder.Is, nis)
     append!(builder.Js, njs)
     append!(builder.Vs, nvs * factor)
-    return rhs
+    return nothing
 end
 
 const AbstractMatrixBuilder = Union{AbstractMatrix, SparseMatrixBuilder}
@@ -73,7 +73,7 @@ Base.@propagate_inbounds function increment!(builder::AbstractMatrixBuilder, rhs
         v = rhs[i, j]
         iszero(v) || increment!(builder, v, i + N * (i1 - 1), j + N * (i2 - 1); kw...)
     end
-    return rhs
+    return nothing
 end
 Base.@propagate_inbounds increment!(builder::AbstractMatrixBuilder, rhs::DataOperator, i1::Int, i2::Int; kw...) =
     increment!(builder, rhs.data, i1, i2; kw...)
@@ -131,19 +131,19 @@ function preprocess_sites(l::AbstractLattice, field::AbstractField, site1::Abstr
     return i, j, jfact * field_fact * ifact'
 end
 
-Base.@propagate_inbounds function increment!(opbuilder::OperatorBuilder, rhs, site1, site2)
+Base.@propagate_inbounds function increment!(opbuilder::OperatorBuilder, rhs, site1::AbstractSite, site2::AbstractSite)
     new_rhs = preprocess_rhs(opbuilder, rhs)
     prop = preprocess_sites(lattice(opbuilder), opbuilder.field, site1, site2)
-    prop === nothing && return NoMatrixElement()
+    prop === nothing && return nothing
     i, j, total_factor = prop
     increment!(opbuilder.builder, new_rhs, i, j, factor = total_factor)
     if opbuilder.auto_hermitian && i != j
         increment!(opbuilder.builder, new_rhs', j, i, factor = total_factor')
     end
-    return rhs
+    return nothing
 end
 
-Base.@propagate_inbounds function Base.getindex(opbuilder::OperatorBuilder, site1, site2)
+Base.@propagate_inbounds function Base.getindex(opbuilder::OperatorBuilder, site1::AbstractSite, site2::AbstractSite)
     prop = preprocess_sites(lattice(opbuilder), opbuilder.field, site1, site2)
     prop === nothing && return NoMatrixElement()
     i, j, total_factor = prop
@@ -152,7 +152,7 @@ Base.@propagate_inbounds function Base.getindex(opbuilder::OperatorBuilder, site
     return Operator(internal_basis(opbuilder), mat)
 end
 
-Base.@propagate_inbounds function Base.setindex!(opbuilder::OperatorBuilder, rhs, site1, site2)
+Base.@propagate_inbounds function Base.setindex!(opbuilder::OperatorBuilder, rhs, site1::AbstractSite, site2::AbstractSite)
     new_rhs = preprocess_rhs(opbuilder, rhs)
     prop = preprocess_sites(lattice(opbuilder), opbuilder.field, site1, site2)
     prop === nothing && return NoMatrixElement()
@@ -166,7 +166,7 @@ Base.@propagate_inbounds function Base.setindex!(opbuilder::OperatorBuilder, rhs
     end
     return rhs
 end
-Base.setindex!(::OperatorBuilder, ::NoMatrixElement, site1, site2) = NoMatrixElement()
+Base.setindex!(::OperatorBuilder, ::NoMatrixElement, ::AbstractSite, ::AbstractSite) = NoMatrixElement()
 
 function QuantumOpticsBase.Operator(opb::OperatorBuilder; warning=true)
     op = Operator(onebodybasis(opb.sys), to_matrix(opb.builder))

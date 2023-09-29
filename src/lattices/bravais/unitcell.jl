@@ -78,7 +78,7 @@ struct BravaisSite{N, B} <: AbstractSite{N}
     BravaisSite(lp::BravaisPointer{N}, b::B) where {N, B<:UnitCell} =
         new{N, B}(lp, b, site_coords(b, lp))
 end
-BravaisSite(::Nothing, ::Any) = nothing
+BravaisSite(::Nothing, ::Any) = NoSite()
 
 @inline function Base.getproperty(site::BravaisSite{N}, sym::Symbol) where N
     if sym === :index

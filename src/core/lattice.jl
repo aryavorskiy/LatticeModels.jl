@@ -6,7 +6,6 @@ Base.iterate(site::AbstractSite{N}, i=1) where N = i > N ? nothing : (site.coord
 abstract type SiteParameter end
 const AbstractSiteParameter = Union{<:SiteParameter, Symbol}
 get_param(::AbstractSite, p::SiteParameter) = error("Site does not accept param $p")
-# get_param(site::AbstractSite, sym::Symbol) = getproperty(site, sym)
 get_param(site::AbstractSite, sym::Symbol) = get_param(site, SiteParameter(sym))
 
 struct Coord <: SiteParameter axis::Int end
@@ -25,12 +24,14 @@ SiteParameter(sym::Symbol) =
     Base.getfield(site, sym)
 end
 
+struct NoSite <: AbstractSite{0} end
+
 abstract type AbstractLattice{SiteT} <: AbstractSet{SiteT} end
 lattice(l::AbstractLattice) = l
 dims(::AbstractLattice{<:AbstractSite{N}}) where {N} = N
 dims(l) = dims(lattice(l))
 Base.size(l::AbstractLattice) = (length(l),)
-site_index(::AbstractLattice, ::Nothing) = nothing
+site_index(::AbstractLattice, ::NoSite) = nothing
 
 # Set functions
 Base.copy(l::AbstractLattice) = Base.copymutable(l)

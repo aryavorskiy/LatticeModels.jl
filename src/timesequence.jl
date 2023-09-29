@@ -94,7 +94,7 @@ end
 function Base.iterate(tseq::TimeSequence, state=(1, length(tseq)))
     ind, len = state
     1 ≤ ind ≤ len || return nothing
-    tseq.times[ind] => tseq.values[ind], (ind + 1, len)
+    return tseq.times[ind] => tseq.values[ind], (ind + 1, len)
 end
 
 _internal(op::DataOperator) = op.data

@@ -83,7 +83,7 @@ function route(bcs::BoundaryConditions{<:NTuple{M}}, l::AbstractLattice, lp::Bra
     end
     return Tuple(@SVector zeros(Int, M))
 end
-function shift_site(bcs::BoundaryConditions, l::AbstractLattice, site)
+function shift_site(bcs::BoundaryConditions, l::AbstractLattice, site::BravaisSite)
     factor = 1.
     tup = route(bcs, l, site.lp)
     for i in 1:length(bcs.bcs)
@@ -92,5 +92,6 @@ function shift_site(bcs::BoundaryConditions, l::AbstractLattice, site)
     end
     return factor, site
 end
+shift_site(::BoundaryConditions, ::AbstractLattice, ::NoSite) = 1., NoSite()
 
 struct MagneticBoundaryConditions end
