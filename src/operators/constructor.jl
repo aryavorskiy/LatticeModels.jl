@@ -93,6 +93,15 @@ function OperatorBuilder(T::Type{<:Number}, sys::SystemT; field::FieldT=NoField(
 end
 @accepts_system_t OperatorBuilder
 
+const SparseOperatorBuilder{SystemT, FieldT, T} =
+    OperatorBuilder{SystemT, FieldT, <:SparseMatrixCSC{T}}
+function SparseOperatorBuilder(T::Type{<:Number}, sys::SystemT; field::FieldT=NoField(), auto_hermitian=false
+    ) where {SystemT<:System, FieldT<:AbstractField}
+    mat = spzeros(T, length(onebodybasis(sys)), length(onebodybasis(sys)))
+    OperatorBuilder{SystemT, FieldT, typeof(mat)}(sys, field, internal_length(sys), mat, auto_hermitian)
+end
+@accepts_system_t SparseOperatorBuilder
+
 const FastSparseOperatorBuilder{SystemT, FieldT, T} =
     OperatorBuilder{SystemT, FieldT, SparseMatrixBuilder{T}}
 function FastSparseOperatorBuilder(T::Type{<:Number}, sys::SystemT; field::FieldT=NoField(),

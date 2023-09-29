@@ -137,10 +137,83 @@ plot(lcm)
     The only difference is that a `Hamiltonian` stores information about the `System` it is defined on. It is used to build a
     density matrix in a more convenient way. 
 
+### The `Bonds` syntax
+
+The syntax to describe ways of offsetting sites in a Bravais lattice is simple: in a Bravais lattice bonds usually connect a site with its counterpart in the neighboring unit cell. Sometimes their indices in the lattice basis also differ. Thus, setting a `Bonds` means defining the connection between site indices and the unit cell offset.
+
+The connection between site indices can be set using a simple `::Int=>::Int` pair. If it is omitted, the default 
+behavior would be to connect sites with the same index. On the other hand, the unit cell offset can be set using 
+`axis` and `dist` keywords or with a vector of lattice translations. Note that `[0, 2]` will be equivalent to 
+`axis = 2, dist = 2` in this context.
+
+As an example let us consider the honeycomb lattice. It has two sites in every unit cell, so let's plot the two sublattices with two different colors.
+
+```@example env
+l = HoneycombLattice(6, 6)
+
+plot(leg=:none)
+plot!(l[p"index" => 1])
+plot!(l[p"index" => 2])
+
+plot!(l, Bonds(axis = 1), c = :green)       # dist = 1 is the default
+plot!(l, Bonds(2 => 1, [1, 0]), c = :red)   # Same unit cell offset
+plot!(l, Bonds(2 => 1), c = :blue)          # Connects sites in the same unit cell
+plot!(l, Bonds(1 => 1, [1, -1]), c = :black)# Site index #2 not affected
+```
+
 ## The `OperatorBuilder`
 
-!!! info "Docs under construction"
-    This manual page is not written yet. I'm working on that. You can watch [a video on YouTube](https://www.youtube.com/watch?v=dQw4w9WgXcQ) meanwhile.
+The [`OperatorBuilder`](@ref) it the most powerful and flexible way to create a tight-binding operator. Unlike `build_operator`, it allows direct control of what are the hopping terms between any pair of sites.
+
+Let us use this tool to create the same QWZ model hamiltonian:
+
+```julia
+spin = SpinBasis(1//2)
+builder = OperatorBuilder(l, spin, auto_hermitian=true)
+for site in l
+    site_x = site + SiteOffset(axis = 1)    # Offset site in x direction
+    site_y = site + SiteOffset(axis = 2)    # And in y direction also
+
+    builder[site, site] += sigmaz(spin) * m[site]                   # Increment
+    builder[site, site_x] = (sigmaz(spin) - im * sigmax(spin)) / 2  # Assignment
+    builder[site, site_y] = (sigmaz(spin) - im * sigmay(spin)) / 2
+end
+
+H = Hamiltonian(builder)    # The very same H from the example above
+```
+
+Let's go through this example step by step. Firstly, we created a special `OperatorBuilder` object that will take care of things like boundary conditions or magnetic field. `auto_hermitian=true` means that hermitian-conjugate terms will be added automatically.
+
+Thus, `builder[site, site] += sigmaz(spin) * m[site]` is equal to adding the $m_i c^\dagger_i \sigma_z c_i$ term to 
+the resulting Hamiltonian, where $i$ is the index of the `site`. Meanwhile, `builder[site, site_x] = (sigmaz(spin) - 
+im * sigmax(spin)) / 2` sets the horizontal hopping. Note that the right-hand side must be a `Operator` with the right 
+basis. The `SiteOffset` syntax here works exactly the same as the `Bonds` syntax. In fact, `Bonds` is simply an alias 
+for `SiteOffset`, so you can freely use one instead of another.
+
+Note that `H` will be a dense operator, which increases performance but also causes great memory consumption. For large
+Hilbert spaces consider using `SparseMatrixBuilder` instead to reduce the amount of used memory (al other operations 
+remain intact). However, in this case you may experience a significant performance drop. To mitigate this effect, you
+can use the `FastSparseOperatorConstructor`. However, you must follow these rules for correct usage:
+
+- Do not use assignments `builder[site1, site2] = ...`. Only increments `builder[site1, site2] += ...` are allowed.
+- All increment operations (or the block of code that contains them) must be wrapped with the `@increment` macro. Note that this macro might break unrelated increment operations in the same block of code.
+
+The resulting code will look like this:
+
+```julia
+spin = SpinBasis(1//2)
+builder = FastSparseOperatorBuilder(l, spin, auto_hermitian=true)
+@increment for site in l
+    site_x = site + SiteOffset(axis = 1)
+    site_y = site + SiteOffset(axis = 2)
+
+    builder[site, site] += sigmaz(spin) * m[site]
+    builder[site, site_x] += (sigmaz(spin) - im * sigmax(spin)) / 2
+    builder[site, site_y] += (sigmaz(spin) - im * sigmay(spin)) / 2
+end
+
+H = Hamiltonian(builder)    # The very same H from the example above
+```
 
 ## Diagonalizing operators
 

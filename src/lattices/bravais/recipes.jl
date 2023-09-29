@@ -23,14 +23,10 @@ using RecipesBase
     end
 end
 
-function displace_site(l::BravaisLattice, site::BravaisSite, bs::SiteOffset)
-    new_site = get_site_periodic(l, site + bs)
-    new_site in l ? new_site : nothing
-end
 function tr_vector(l::BravaisLattice, hop::SiteOffset{<:Pair})
     i, j = hop.site_indices
-    return bravais(l).basis[:, j] - bravais(l).basis[:, i] +
-     mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
+    return l.bravais.basis[:, j] - l.bravais.basis[:, i] +
+     mm_assuming_zeros(l.bravais.translation_vectors, hop.translate_uc)
 end
 tr_vector(l::BravaisLattice, hop::SiteOffset{Nothing}) =
     mm_assuming_zeros(l.bravais.translation_vectors, hop.translate_uc)
@@ -42,8 +38,10 @@ tr_vector(l::BravaisLattice, hop::SiteOffset{Nothing}) =
         T = tr_vector(l, bs)
         for i in eachindex(l)
             site1 = l[i]
-            site2 = displace_site(l, site1, bs)
-            site2 === NoSite() && continue
+            p = shift_site(l, site1 + bs)
+            p === nothing && continue
+            site2 = p[2]
+            site2 in l || continue
 
             a = site1.coords
             b = site2.coords
@@ -53,6 +51,7 @@ tr_vector(l::BravaisLattice, hop::SiteOffset{Nothing}) =
     label := nothing
     pts
 end
+@recipe f(l::BravaisLattice, bs::SiteOffset, bss::SiteOffset...) = (l, (bs, bss...))
 
 const BravaisLatticeValue{Sym, N} = LatticeValue{<:Number, <:Sites{<:BravaisSite{N, <:UnitCell{Sym, N}}, <:BravaisLattice{N, <:UnitCell{Sym, N}}}}
 raw"""

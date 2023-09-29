@@ -1,4 +1,7 @@
-## LatticeValue basics
+!!! info "Docs under construction"
+    This manual page is not written yet. I'm working on that. You can watch [a video on YouTube](https://www.youtube.com/watch?v=dQw4w9WgXcQ) meanwhile.
+
+## Generate lattice-dependent values
 
 A LatticeValue is a struct that maps sites of a certain `Lattice` to values of some type. 
 One can be generated using a `do`-syntax similar to one in [Sublattices](@ref):
@@ -40,7 +43,7 @@ Depending on the lattice type, additional plot recipes can be available. For exa
 plot(lv, markersize=10)
 ```
 
-## Indexing
+### Indexing
 
 It is often required to select some sites by certain condition. 
 This can be done using a `LatticeValue{Bool}` and broadcasting (like with [Sublattices](@ref)).
@@ -74,3 +77,7 @@ plot!(p[2], project(lv_on_line, :y))
 
 Note that we can show the sites we selected by plotting the lattice of the selected values with `high_contrast=true`.
 This options hides the indices and translucent marks, and also makes the plot markers black-and-white, which prevents them from blending in with the heatmap in the background.
+
+
+
+## Obtain local density of state

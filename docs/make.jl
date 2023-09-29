@@ -18,7 +18,7 @@ makedocs(
         "Step-by-step tutorial" => [
             "Defining the system" => "system.md",
             "Operators" => "operators.md",
-            "Wavefunctions and density matrices" => "lattice_values.md",
+            "Processing data" => "processing.md",
             "Currents" => "currents.md",
             "Unitary evolution" => "evolution.md"
         ],
