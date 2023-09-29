@@ -50,14 +50,6 @@ Base.:(+)(ham::Hamiltonian{Sys, B}, op::Operator{B, B}) where{Sys, B} = Hamilton
 
 Hamiltonian(opb::OperatorBuilder; kw...) = Hamiltonian(opb.sys, Operator(opb; kw...))
 
-tightbinding_hamiltonian(sys::System; t1=1, t2=0, t3=0, field=NoField()) =
-    build_hamiltonian(sys,
-    t1 => default_bonds(sys.sample),
-    t2 => default_bonds(sys.sample, Val(2)),
-    t3 => default_bonds(sys.sample, Val(3)),
-    field=field)
-@accepts_system tightbinding_hamiltonian
-
 const AbstractSiteOffset = Union{SiteOffset, SingleBond}
 function build_operator!(builder::SparseMatrixBuilder, sample::Sample, arg::Pair{<:Any, <:Tuple}; kw...)
     # Several entries
@@ -136,9 +128,9 @@ function preprocess_argument(sample::Sample, arg::Pair)
     end
 end
 
-function build_operator(sys::System, args...; field=NoField())
+function build_operator(T::Type, sys::System, args...; field=NoField())
     sample = sys.sample
-    builder = SparseMatrixBuilder{ComplexF64}(length(sample), length(sample))
+    builder = SparseMatrixBuilder{T}(length(sample), length(sample))
     for arg in args
         build_operator!(builder, sample, preprocess_argument(sample, arg);
             field=field)
@@ -146,6 +138,14 @@ function build_operator(sys::System, args...; field=NoField())
     op = Operator(basis(sample), to_matrix(builder))
     return manybodyoperator(sys, op)
 end
-@accepts_system build_operator
-build_hamiltonian(sys::System, args...; field=NoField()) = Hamiltonian(sys, build_operator(sys, args...; field=field))
-@accepts_system build_hamiltonian
+@accepts_system_t build_operator
+build_hamiltonian(T::Type, sys::System, args...; kw...) = Hamiltonian(sys, build_operator(T, sys, args...; kw...))
+@accepts_system_t build_hamiltonian
+
+tightbinding_hamiltonian(T::Type, sys::System; t1=1, t2=0, t3=0, field=NoField()) =
+    build_hamiltonian(T, sys,
+    t1 => default_bonds(sys.sample),
+    t2 => default_bonds(sys.sample, Val(2)),
+    t3 => default_bonds(sys.sample, Val(3)),
+    field=field)
+@accepts_system_t tightbinding_hamiltonian

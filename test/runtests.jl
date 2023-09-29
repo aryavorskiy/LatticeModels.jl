@@ -349,7 +349,7 @@ end
         spin = SpinBasis(1//2)
         builder = OperatorBuilder(l, spin, auto_hermitian=true)
         builder2 = FastSparseOperatorBuilder(l ⊗ spin)
-        builder3 = FastSparseOperatorBuilder(l ⊗ spin, auto_hermitian=true)
+        builder3 = FastSparseOperatorBuilder(ComplexF32, l, spin, auto_hermitian=true)
 
         for site in l
             site_hx = site + SiteOffset(axis = 1)

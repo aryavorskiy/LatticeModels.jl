@@ -91,10 +91,7 @@ function OperatorBuilder(T::Type{<:Number}, sys::SystemT; field::FieldT=NoField(
     mat = zeros(T, length(onebodybasis(sys)), length(onebodybasis(sys)))
     OperatorBuilder{SystemT, FieldT, typeof(mat)}(sys, field, internal_length(sys), mat, auto_hermitian)
 end
-(::Type{T})(args...; kw...) where {T<:OperatorBuilder} = T(ComplexF64, args...; kw...)
-(::Type{T})(::Type, ::Type, args...; kw...) where {T<:OperatorBuilder} =
-    throw(MethodError(T, args))
-@accepts_system OperatorBuilder
+@accepts_system_t OperatorBuilder
 
 const FastSparseOperatorBuilder{SystemT, FieldT, T} =
     OperatorBuilder{SystemT, FieldT, SparseMatrixBuilder{T}}
@@ -103,7 +100,7 @@ function FastSparseOperatorBuilder(T::Type{<:Number}, sys::SystemT; field::Field
     mat = SparseMatrixBuilder{T}(length(onebodybasis(sys)), length(onebodybasis(sys)))
     OperatorBuilder{SystemT, FieldT, typeof(mat)}(sys, field, internal_length(sys), mat, auto_hermitian)
 end
-@accepts_system FastSparseOperatorBuilder
+@accepts_system_t FastSparseOperatorBuilder
 sample(opb::OperatorBuilder) = sample(opb.sys)
 const OpBuilderWithInternal = OperatorBuilder{<:System{<:SampleWithInternal}}
 const OpBuilderWithoutInternal = OperatorBuilder{<:System{<:SampleWithoutInternal}}

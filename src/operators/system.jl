@@ -139,3 +139,17 @@ macro accepts_system(fname, default_basis=nothing)
             $fname(Sample(l, $default_basis, boundaries=boundaries), args...; kw...)
     end)
 end
+
+macro accepts_system_t(fname, default_basis=nothing)
+    esc(quote
+        $fname(type::Type, sample::Sample, args...; T = 0, μ = nothing, mu = μ, N = nothing, statistics = nothing, kw...) =
+            $fname(type, System(sample, T=T, mu=mu, N=N, statistics=statistics), args...; kw...)
+        $fname(type::Type, l::BravaisLattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
+            $fname(type, Sample(l, bas, boundaries=boundaries), args...; kw...)
+        $fname(type::Type, l::BravaisLattice, args...; boundaries=BoundaryConditions(), kw...) =
+            $fname(type, Sample(l, $default_basis, boundaries=boundaries), args...; kw...)
+        $fname(args...; kw...) = $fname(ComplexF64, args...; kw...)
+        $fname(::Type, ::Type, args...; kw...) =
+            throw(MethodError($fname, args))
+    end)
+end
