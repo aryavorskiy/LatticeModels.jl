@@ -37,7 +37,7 @@ export MagneticField
 include("operators/constructor.jl")
 export OperatorBuilder, SparseOperatorBuilder, FastSparseOperatorBuilder
 include("operators/buildoperator.jl")
-export tightbinding_hamiltonian, build_operator, build_hamiltonian
+export Hamiltonian, tightbinding_hamiltonian, build_operator, build_hamiltonian
 include("operators/manybody.jl")
 export interaction
 include("operators/miscoperators.jl")

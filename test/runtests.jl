@@ -347,9 +347,9 @@ end
     @testset "Operator builder" begin
         l = SquareLattice(10, 10)
         spin = SpinBasis(1//2)
-        builder = OperatorBuilder(l, spin, auto_hermitian=true)
-        builder2 = FastSparseOperatorBuilder(l ⊗ spin)
-        builder3 = FastSparseOperatorBuilder(ComplexF32, l, spin, auto_hermitian=true)
+        builder = OperatorBuilder(l, spin, auto_hermitian=true, field=LandauField(0.1))
+        builder2 = SparseOperatorBuilder(l ⊗ spin, field=LandauField(0.1))
+        builder3 = FastSparseOperatorBuilder(ComplexF16, l, spin, auto_hermitian=true, field=LandauField(0.1))
 
         for site in l
             site_hx = site + SiteOffset(axis = 1)
@@ -372,17 +372,28 @@ end
                 builder3[site, site_hy] += (sigmaz(spin) - im * sigmay(spin)) / 2
             end
         end
-        H = qwz(l)
-        H1 = Operator(builder)
-        H2 = Operator(builder2)
-        H3 = Operator(builder3)
-        H4 = build_hamiltonian(l, spin, sigmaz(spin) => 1,
+        H = qwz(l, field=LandauField(0.1))
+        H1 = Hamiltonian(builder)
+        H2 = Hamiltonian(builder2)
+        H3 = Hamiltonian(builder3)
+        H4 = build_hamiltonian(l, spin, field=LandauField(0.1), sigmaz(spin) => 1,
             (sigmaz(spin) - im * sigmax(spin)) / 2 => SiteOffset(axis = 1),
             (sigmaz(spin) - im * sigmay(spin)) / 2 => SiteOffset(axis = 2))
-        @test H == H1
-        @test H == H2
-        @test H == H3
-        @test H == H4
+        @test H ≈ H1
+        @test H ≈ H2
+        @test H ≈ H3
+        @test H ≈ H4
+        a = 2
+        b = [1, 2, 3]
+        c = [1, 2, 3]
+        @increment begin
+            a += 3
+            b[1:2] += [2, 1]
+            c += [2, 1, 0]
+        end
+        @test a == 5
+        @test b == [3, 3, 3]
+        @test c == [3, 3, 3]
     end
 
     @testset "Operator builtins" begin

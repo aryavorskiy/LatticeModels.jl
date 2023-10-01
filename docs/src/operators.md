@@ -196,7 +196,7 @@ remain intact). However, in this case you may experience a significant performan
 can use the `FastSparseOperatorConstructor`. However, you must follow these rules for correct usage:
 
 - Do not use assignments `builder[site1, site2] = ...`. Only increments `builder[site1, site2] += ...` are allowed.
-- All increment operations (or the block of code that contains them) must be wrapped with the `@increment` macro. Note that this macro might break unrelated increment operations in the same block of code.
+- All increment operations (or the block of code that contains them) must be wrapped with the `@increment` macro.
 
 The resulting code will look like this:
 

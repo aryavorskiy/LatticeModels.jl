@@ -1,12 +1,14 @@
 import QuantumOpticsBase: Operator, check_samebases
 
+Base.@propagate_inbounds increment!(lhs, rhs, args...) = lhs[args...] += rhs
+Base.@propagate_inbounds increment!(lhs, rhs) = lhs += rhs
 Base.@propagate_inbounds function increment!(builder::AbstractArray, rhs::Number, i1::Int, i2::Int; factor=1)
     builder[i1, i2] += rhs * factor
     return nothing
 end
 Base.@propagate_inbounds function increment!(builder::AbstractArray, rhs::SparseMatrixCSC; factor=1)
     @. builder += rhs * factor
-    return nothing
+    return builder
 end
 
 function _process_increment(expr::Expr)
@@ -16,7 +18,7 @@ function _process_increment(expr::Expr)
         builder, refs = lhs.args[1], lhs.args[2:end]
         return :(LatticeModels.increment!($builder, $rhs, $(refs...)))
     elseif lhs isa Symbol
-        return :(LatticeModels.increment!($lhs, $rhs))
+        return :($lhs = LatticeModels.increment!($lhs, $rhs))
     end
 end
 function _process_increment_recursive!(expr)
@@ -63,7 +65,7 @@ Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::
     append!(builder.Is, nis)
     append!(builder.Js, njs)
     append!(builder.Vs, nvs * factor)
-    return nothing
+    return builder
 end
 
 const AbstractMatrixBuilder = Union{AbstractMatrix, SparseMatrixBuilder}
@@ -157,6 +159,8 @@ Base.@propagate_inbounds function Base.getindex(opbuilder::OperatorBuilder, site
     mat = opbuilder.builder[(i - 1) * N + 1:i * N, (j - 1) * N + 1:j * N] * total_factor'
     return Operator(internal_basis(opbuilder), mat)
 end
+Base.getindex(::FastSparseOperatorBuilder, ::AbstractSite, ::AbstractSite) =
+    error("`FastSparseOperatorBuilder` does not support indexing. Maybe you forgot to use `@increment` macro?")
 
 Base.@propagate_inbounds function Base.setindex!(opbuilder::OperatorBuilder, rhs, site1::AbstractSite, site2::AbstractSite)
     new_rhs = preprocess_rhs(opbuilder, rhs)
@@ -172,6 +176,8 @@ Base.@propagate_inbounds function Base.setindex!(opbuilder::OperatorBuilder, rhs
     end
     return rhs
 end
+Base.setindex!(::FastSparseOperatorBuilder, ::Any, ::AbstractSite, ::AbstractSite) =
+    error("`FastSparseOperatorBuilder` does not support indexing. Use increments `+=` and `@increment` macro.")
 Base.setindex!(::OperatorBuilder, ::NoMatrixElement, ::AbstractSite, ::AbstractSite) = NoMatrixElement()
 
 function QuantumOpticsBase.Operator(opb::OperatorBuilder; warning=true)
