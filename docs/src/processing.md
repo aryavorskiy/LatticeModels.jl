@@ -1,83 +1,104 @@
-!!! info "Docs under construction"
-    This manual page is not written yet. I'm working on that. You can watch [a video on YouTube](https://www.youtube.com/watch?v=dQw4w9WgXcQ) meanwhile.
+This chapter is devoted to various ways of working with values defined on lattice sites. The [`LatticeValue`](@ref) is 
+a struct designed specially for this.
 
 ## Generate lattice-dependent values
 
-A LatticeValue is a struct that maps sites of a certain `Lattice` to values of some type. 
-One can be generated using a `do`-syntax similar to one in [Sublattices](@ref):
-
-```@setup env
-using LatticeModels, Plots
-```
+You can create new `LatticeValue`s mostly the same way as with ordinary `Vector`s:
 
 ```@repl env
+using LatticeModels, Plots
 l = SquareLattice(10, 10)
-lv = LatticeValue(l) do (x, y); x + y + 1; end    # arbitrary site-dependent
-lv2 = rand(l)                               # uniformly distributed random numbers
-lv3 = randn(l)                              # normally distributed random numbers
-lv4 = ones(l)                               # 1 on all sites. Also zeros(l) is possible
+lv = zeros(l)                       # 0.0 on all sites
+lv1 = ones(l)                       # 1.0 on all sites
+lv2 = rand(l)                       # uniformly distributed random numbers
+lv3 = randn(l)                      # normally distributed random numbers
+nothing # hide
 ```
 
-To generate a tuple of `LatticeValue`s for site coordinates, you can use the [`coord_values`](@ref) function.
-Note that `LatticeValue`s support [broadcasting](https://docs.julialang.org/en/v1/manual/functions/#man-vectorized), which means you can create coordinate-dependent lattice values in-place:
+To generate a tuple of `LatticeValue`s for site coordinates, you can use the [`coord_values`](@ref) function. Also use `param_value` to generate `LatticeValue`s representing various site parameters similar to [`param_operator`](@ref):
 
 ```@repl env
 x, y = coord_values(l)
-lv == x .+ y .+ 1
+x1 = param_value(l, :x)     # Same as `x`
+j1 = param_value(l, p"j1")  # Unit cell index #1
+scatter(j1)                 # Show values on a scatter plot
 ```
 
-!!! note
-    A wavefunction cannot and must not be stored as a `LatticeValue`, use `LatticeVector` instead. 
-    The reason is that a `LatticeValue` does not take one-site phase spaces into account, which renders them unusable for these purposes.
-    
-    Linear algebra operations and `@on_lattice` wrapping are deliberately unsupported for `LatticeValue`s.
+Another way to generate a `LatticeValue` is using broadcasting or `do`-syndax. These are the most common ways to generate arbitrary `LatticeValue`s that can be used for different models or wavefunctions:
 
-Lattice values implement a scatter plot recipe, which colors the plot markers according to the value:
-```@example env
-scatter(lv, markersize=10)
+```@repl env
+xp2y = @. x + 2y
+xp2y = l .|> (site -> site.x + 2 * site.y)
+xo2y = LatticeValue((site -> site.x + 2 * site.y), l)
+xp2y = LatticeValue(l) do (x, y)
+    return x + 2y
+end
+plot(xp2y)
 ```
 
-Depending on the lattice type, additional plot recipes can be available. For example, a lattice value on a square lattice can be plotted as a heatmap (which will be enabled by default if you do not specify the series type):
+All these examples in this piece of code produce the same `LatticeValue`. In the last example `(x, y)` is the 
+parameter of the `do`-lambda, which unpacks the `LatticeSite` in-place.
 
-```@example env
-plot(lv, markersize=10)
+Note that the plot displaying the `LatticeValue` values is now a heatmap. This is because the default plot recipes 
+that is triggered when `plot` is called is overridden for square lattices. However, any lattice type implements a 
+scatter plot recipe, and for most lattices this is the default. Consider the honeycomb lattice: 
+
+```@repl env
+hl = HoneycombLattice(5, 5)
+x, y = coord_values(hl)
+plot(@. x + 2y)             # heatmap(@. x + 2y) will produce an error
 ```
 
 ### Indexing
 
-It is often required to select some sites by certain condition. 
-This can be done using a `LatticeValue{Bool}` and broadcasting (like with [Sublattices](@ref)).
-
-In the example below we will delete all sites from the circle of radius 3 in the center of the lattice 
-(which will make the according heatmap regions blank).
+Indexing a `LatticeValue` works the same way as indexing a `Lattice`; it produces a new `LatticeValue` with the same 
+values, but defined on a sublattice. If the resulting sublattice consists of only one site, the value on this site is 
+returned. Storing new values using the same indexing syntax is also available.
 
 ```@example env
-heatmap(lv[@. √(x^2 + y^2) ≥ 10])
+l = SquareLattice(10, 10)
+x, y = coord_values(l)
+lv = zeros(l)
+lv[x = 1..3, y = 2..9] = x      # Assign another LatticeValue
+lv[x = 7..9, y = 2..9] .= 3     # or a number
+nothing # hide
+```
+
+Now let us plot a sectional view of this `LatticeValue` along the `y = 5` line. We will need the `project` function to 
+convert a `LatticeValue` defined on a "stripe" of sites into a series that can be shown on a line plot:
+
+!!! info
+    `project` accepts any site parameter as second argument and returns a tuple of two lists, one containing values of 
+    the parameter on the sites of the `LatticeValue`, and the other values of the latter.
+
+```@example env
+p = plot(layout=(2, 1), size=(500, 900))
+plot!(p[1], lv)
+plot!(p[1], l[x = 5], :high_contrast)   # Mark the sites that will be included into the sectional view
+plot!(p[2], project(l[x = 5], :y))      # The resulting narrowed `LatticeValue` is projected onto the y axis
+```
+
+Another way is to index a `Lattice`/`LatticeValue` using a boolean-typed `LatticeValue`. The behavior is pretty much the same:
+
+```@example env
+# Let's select the sites in a sector-shaped area
+plot(lv[@. √(x^2 + y^2) ≥ 10])
 ```
 
 The approach from above provides a flexible way to edit `LatticeValue`s:
 
 ```@example env
 lv2 = ones(l)
-lv2[@. x < y] = x .* y          # Assign another LatticeValue
-lv2[@. x ≥ y && x ≥ -y] .= 20   # or a number
-heatmap(lv2)
+lv2[@. x < y] = x .* y          
+lv2[@. x ≥ y && x ≥ -y] .= 20 
+plot(lv2)
 ```
 
-Note that a `LatticeValue` can be projected to some coordinate axis to create line plots. The projection axis is set by an axis descriptor (see [Axis descriptors](@ref axis_descriptors))
+## Generate a wavefunction
 
-```@example env
-lv_on_line = lv[x = 5]
-p = plot(layout=(2, 1))
+!!! info "Docs under construction"
+    This manual page is not written yet. I'm working on that. You can watch [a video on YouTube](https://www.youtube.com/watch?v=dQw4w9WgXcQ) meanwhile.
+## Obtain lattice density
 
-heatmap!(p[1], lv)
-plot!(p[1], lattice(lv_on_line), high_contrast=true)
-plot!(p[2], project(lv_on_line, :y))
-```
-
-Note that we can show the sites we selected by plotting the lattice of the selected values with `high_contrast=true`.
-This options hides the indices and translucent marks, and also makes the plot markers black-and-white, which prevents them from blending in with the heatmap in the background.
-
-
-
-## Obtain local density of state
+!!! info "Docs under construction"
+    This manual page is not written yet. I'm working on that. You can watch [a video on YouTube](https://www.youtube.com/watch?v=dQw4w9WgXcQ) meanwhile.
