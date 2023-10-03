@@ -75,7 +75,7 @@ convert a `LatticeValue` defined on a "stripe" of sites into a series that can b
 p = plot(layout=(2, 1), size=(500, 900))
 plot!(p[1], lv)
 plot!(p[1], l[x = 5], :high_contrast)   # Mark the sites that will be included into the sectional view
-plot!(p[2], project(l[x = 5], :y))      # The resulting narrowed `LatticeValue` is projected onto the y axis
+plot!(p[2], project(lv[x = 5], :y))      # The resulting narrowed `LatticeValue` is projected onto the y axis
 ```
 
 Another way is to index a `Lattice`/`LatticeValue` using a boolean-typed `LatticeValue`. The behavior is pretty much the same:
@@ -96,9 +96,63 @@ plot(lv2)
 
 ## Generate a wavefunction
 
-!!! info "Docs under construction"
-    This manual page is not written yet. I'm working on that. You can watch [a video on YouTube](https://www.youtube.com/watch?v=dQw4w9WgXcQ) meanwhile.
+Generating a wavefunction is easy. A complex-valued `LatticeValue` is itself not a wavefunction, but is easily convertable:
+
+```julia
+kx = 2
+ky = -1
+sigma = 1
+c = @. exp(im * (kx * x + ky * y) + sigma^2/2 * (x^2 + y^2))    # Wave packet
+psi1 = ketstate(c)                                              # Ket vector
+psi2 = brastate(c)                                              # Bra vector
+psi1 == psi2'                                                   # true
+```
+
+Creating tensor product states for systems that incorporate on-site degrees of freedom is even easier:
+
+```julia
+spin = SpinBasis(1//2)                          # Spin-one-half basis
+S = spinup(spin)                                # Spin up state
+
+psi = S ⊗ c      
+# Same as S ⊗ ketstate(c)
+
+psi′ = c ⊗ S
+# Also same as S ⊗ ketstate(c) - mind the ordering!
+
+psi′′ = S' ⊗ c
+# Same as S' ⊗ brastate(c), because S' is a Bra vector
+```
+
 ## Obtain lattice density
 
-!!! info "Docs under construction"
-    This manual page is not written yet. I'm working on that. You can watch [a video on YouTube](https://www.youtube.com/watch?v=dQw4w9WgXcQ) meanwhile.
+A very common need for many research cases is obtain the spatial (lattice) density of some state represented as a 
+wavefunction or a density matrix. This can be easily achieved with the [`lattice_density`](@ref) function:
+
+```@example env
+H = tightbinding_hamiltonian(l)
+P = densitymatrix(H, mu = 0.1, T = 0.1)
+plot(lattice_density(P))
+```
+
+A very similar operation is [`diag_reduce`](@ref). What it does is applies a function to each diagonal minor of a 
+single-particle operator that corresponds to a lattice site. As an example, let us plot the local Chern marker for a 
+topological insulator in the QWZ model, whose formula is the following:
+
+$$c(r) = \text{Im } 4\pi \sum_{r_i} \text{Tr}_{on-site} \left( P(r, r_1) x_1 Q(r_1, r_2) y_2 P(r_2, r) \right)$$
+
+where the trace is taken over on-site degrees of freedom.
+
+```@example env
+m = ones(l)
+m[x = 4..7, y = 4..7] .= -1
+H = qwz(m)
+P = densitymatrix(H)
+Q = one(P) - P
+X, Y = coord_operators(basis(P))
+C = diag_reduce(imag ∘ tr, 4pi * P * X * Q * Y * P)
+plot(C)
+```
+
+Note `site_density(-4pi * im * P * X * Q * Y * P)` produces absolutely the same result for `C`. However, this was a 
+good case to show together.

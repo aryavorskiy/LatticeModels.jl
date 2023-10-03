@@ -95,7 +95,7 @@ using LatticeModels
 ```@example env
 const σ = [[0 1; 1 0], [0 -im; im 0], [1 0; 0 -1]]
 
-qwzmodel(m::LatticeValue{<:Number, <:SquareLattice}; field=NoField()) = 
+qwzmodel(m::LatticeValue{<:Number, <:SquareLattice}; field=LatticeModels.NoField()) = 
 build_hamiltonian(lattice(m), SpinBasis(1//2), field=field,
     σ[3] => m,
     (σ[3] - im * σ[1]) / 2 => Bonds(axis = 1),
@@ -126,10 +126,7 @@ H = qwzmodel(m)
 X, Y = coord_operators(l, SpinBasis(1//2))  # Coordinate operators
 P = densitymatrix(H)                        # Density matrix
 C = 4pi * im * P * X * P * Y * P
-lcm = lattice_density(C)                    # Local Chern marker
-
-using Plots
-plot(lcm)
+plot(lattice_density(C))                    # Local Chern marker
 ```
 
 !!! note
@@ -256,11 +253,11 @@ It's highly recommended to use the built-in [`dos`](@ref) and [`ldos`](@ref) fun
 using Plots
 
 p = plot(layout=@layout[_ a{0.5w} _; grid(1, 2)], size=(800, 800))
-plot!(p[1], -4:0.1:4, dos(sp, 0.2), title="DOS with δ = 0.2")
-plot!(p[2], ldos(sp, 1, 0.2), title="LDOS at E = 1 with δ = 0.2")
+plot!(p[1], -4:0.1:4, dos(dg, 0.2), title="DOS with δ = 0.2")
+plot!(p[2], ldos(dg, 1, 0.2), title="LDOS at E = 1 with δ = 0.2")
 
 # These two lines produce exactly the same result as the previous
-ldos_fun = ldos(sp, 0.2)
+ldos_fun = ldos(gd, 0.2)
 plot!(p[3], ldos_fun(1), title="LDOS at E = 1 with δ = 0.2 (via function)")
 ```
 

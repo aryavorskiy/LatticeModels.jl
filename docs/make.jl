@@ -14,8 +14,8 @@ makedocs(
     format = format,
     pages = [
         "Home" => "index.md",
-        "Tutorial" => "tutorial.md",
-        "Step-by-step tutorial" => [
+        "Step-by-step tutorial" => "tutorial.md",
+        "Manual" => [
             "Defining the system" => "system.md",
             "Operators" => "operators.md",
             "Processing data" => "processing.md",
