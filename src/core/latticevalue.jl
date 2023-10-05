@@ -172,7 +172,7 @@ Base.@propagate_inbounds function Base.setindex!(lv::LatticeValueWrapper, lv_rhs
     end
     inds_l = site_inds(lattice(lv), lv_mask)
     inds_r = site_inds(lattice(lv_rhs), lv_mask)
-    lv.values[inds_l] = lv_rhs.values[inds_r]
+    lv.values[inds_l] = @view lv_rhs.values[inds_r]
     return lv_rhs
 end
 
@@ -184,9 +184,14 @@ end
 function Base.getindex(lvw::LatticeValueWrapper; kw...)
     lvw[kw...]
 end
-function Base.setindex!(lvw::LatticeValueWrapper, rhs, pairs::Pair{<:AbstractSiteParameter}...)
-    inds = pairs_to_inds(lattice(lvw), pairs...)
-    setindex!(lvw.values, rhs, inds)
+function Base.setindex!(lv::LatticeValueWrapper, lv_rhs::LatticeValueWrapper, pairs::Pair{<:AbstractSiteParameter}...)
+    inds_l = pairs_to_inds(lattice(lv), pairs...)
+    inds_r = pairs_to_inds(lattice(lv_rhs), pairs...)
+    @boundscheck begin
+        check_samelattice(lattice(lv)[inds_l], lattice(lv_rhs)[inds_r])
+    end
+    lv.values[inds_l] = @view lv_rhs.values[inds_r]
+    return lv_rhs
 end
 function Base.setindex!(lvw::LatticeValueWrapper, rhs; kw...)
     lvw[kw...] = rhs

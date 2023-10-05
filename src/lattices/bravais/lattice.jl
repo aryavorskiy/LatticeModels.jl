@@ -15,8 +15,8 @@ sites(l::BravaisLattice) = Sites(add_boundaries(l, BoundaryConditions()))
 
 Base.:(==)(l1::BravaisLattice, l2::BravaisLattice) = (l1.pointers == l2.pointers) && (l1.bravais == l2.bravais)
 
-Base.emptymutable(l::BravaisLattice{B, N}, ::Type{BravaisSite{N}}=eltype(l)) where {B, N} =
-    BravaisLattice(l.bravais, [])
+Base.emptymutable(l::BravaisLattice{N, B}, ::Type{BravaisSite{N, B}}) where {N, B} =
+    BravaisLattice(l.bravais, BravaisPointer{N}[])
 Base.copymutable(l::BravaisLattice) = BravaisLattice(l.bravais, copy(l.pointers))
 Base.length(l::BravaisLattice) = length(l.pointers)
 lattice_type(::BravaisLattice{<:UnitCell{Sym}}) where {Sym} = Sym
@@ -60,9 +60,10 @@ Base.@propagate_inbounds function Base.deleteat!(l::BravaisLattice, inds)
 end
 
 function Base.push!(l::BravaisLattice, lp::BravaisPointer)
-    @assert 1 ≤ lp.basis_index ≤ basis_length(lp) "invalid basis index $(lp.basis_index)"
+    @assert 1 ≤ lp.basis_index ≤ basis_length(l) "invalid basis index $(lp.basis_index)"
     i = searchsortedfirst(l.pointers, lp)
-    i < length(l) && l.pointers[i] != lp && insert(l.pointers, i, lp)
+    i ≤ length(l) && l.pointers[i] == lp && return l
+    insert!(l.pointers, i, lp)
 end
 Base.push!(l::BravaisLattice{N, B}, site::BravaisSite{N, B}) where {N, B} =
     push!(l, site.lp)

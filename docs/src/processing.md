@@ -5,7 +5,7 @@ a struct designed specially for this.
 
 You can create new `LatticeValue`s mostly the same way as with ordinary `Vector`s:
 
-```@repl env
+```@example env
 using LatticeModels, Plots
 l = SquareLattice(10, 10)
 lv = zeros(l)                       # 0.0 on all sites
@@ -147,7 +147,7 @@ where the trace is taken over on-site degrees of freedom.
 m = ones(l)
 m[x = 4..7, y = 4..7] .= -1
 H = qwz(m)
-P = densitymatrix(H)
+P = densitymatrix(H, mu = 0)
 Q = one(P) - P
 X, Y = coord_operators(basis(P))
 C = diag_reduce(imag ∘ tr, 4pi * P * X * Q * Y * P)

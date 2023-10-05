@@ -198,7 +198,7 @@ function ldos(eig::AbstractEigensystem{<:AbstractLatticeBasis}, E::Real, δ::Rea
     Es = eig.values
     Vs = eig.states
     l = lattice(eig.basis)
-    N = length(internal_basis(eig.basis))
+    N = internal_length(eig.basis)
     inves = imag.(1 ./ (Es .- (E + im * δ)))'
     LatticeValue(l, [sum(abs2.(Vs[(i-1)*N+1:i*N, :]) .* inves) for i in eachindex(l)])
 end
@@ -213,7 +213,7 @@ the produced function is optimized and reduces overall computation time dramatic
 function ldos(eig::AbstractEigensystem{<:AbstractLatticeBasis}, δ::Real)
     Es = eig.values
     l = lattice(eig.basis)
-    N = length(internal_basis(eig.basis))
+    N = internal_length(eig.basis)
     density_sums = reshape(
         sum(reshape(abs2.(eig.states), (N, :, length(eig))), dims=1), (:, length(eig)))
     E -> LatticeValue(l, vec(sum(density_sums .* imag.(1 ./ (Es .- (E + im * δ)))', dims=2)))

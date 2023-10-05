@@ -21,6 +21,7 @@ QuantumOpticsBase.basis(sample::SampleWithoutInternal) = LatticeBasis(sample.lat
 sample(lb::LatticeBasis) = Sample(lb.sites)
 sample(b::CompositeLatticeBasis) = Sample(b.bases[2].sites, b.bases[1])
 sample(b::Basis) = throw(MethodError(sample, (b,)))
+sample(any) = sample(basis(any))
 lattice(sample::Sample) = sample.latt
 lattice(any) = lattice(sample(any))
 internal_basis(sample::SampleWithInternal) = sample.internal

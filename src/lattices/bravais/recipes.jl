@@ -53,7 +53,7 @@ tr_vector(l::BravaisLattice, hop::SiteOffset{Nothing}) =
 end
 @recipe f(l::BravaisLattice, bs::SiteOffset, bss::SiteOffset...) = (l, (bs, bss...))
 
-const BravaisLatticeValue{Sym, N} = LatticeValue{<:Number, <:Sites{<:BravaisSite{N, <:UnitCell{Sym, N}}, <:BravaisLattice{N, <:UnitCell{Sym, N}}}}
+const BravaisLatticeValue{Sym, N} = LatticeValue{<:Number, <:BravaisLattice{N, <:UnitCell{Sym, N}}}
 raw"""
     rectified_values(lv::LatticeValue)
 
@@ -103,4 +103,7 @@ end
     else
         plot_fallback(lv)
     end
+end
+@recipe function f(lv::LatticeValue{<:Number, <:Sites})
+    LatticeValue(lattice(lv).latt, lv.values)
 end

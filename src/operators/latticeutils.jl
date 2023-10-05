@@ -10,7 +10,7 @@ The state can be expressed as a ket/bra vector or a density matrix.
 The output of this function is a `LatticeValue`.
 """
 function lattice_density(ket::Ket{<:LatticeBasis})
-    LatticeValue(lattice(ket), map(abs2, ket.data))
+    LatticeValue(sites(ket), map(abs2, ket.data))
 end
 function lattice_density(ket::Ket{<:CompositeLatticeBasis})
     l = sites(ket)

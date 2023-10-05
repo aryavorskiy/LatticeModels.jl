@@ -124,8 +124,10 @@ m[x = 4..7] .= -1   # Except this ribbon
 H = qwzmodel(m)
 
 X, Y = coord_operators(l, SpinBasis(1//2))  # Coordinate operators
-P = densitymatrix(H)                        # Density matrix
+P = densitymatrix(H, mu = 0)                # Density matrix
 C = 4pi * im * P * X * P * Y * P
+
+using Plots
 plot(lattice_density(C))                    # Local Chern marker
 ```
 
@@ -221,7 +223,7 @@ A `Eigensystem` object contains eigenvalues and eigenvectors of some hermitian o
 
 It is a very convenient way to work with eigenvectors. Check this out:
 
-```@repl env
+```@example env
 dg = diagonalize(tightbinding_hamiltonian(SquareLattice(5, 5)))
 dg[1]       # Get the first eigenstate (e. g. the state with lowest energy)
 dg[3]       # Get the third eigenstate
@@ -237,7 +239,7 @@ You can use [`densitymatrix`](@ref) or [`projector`](@ref) (only in zero-tempera
 P = projector(E -> E < 0, dg)
 P = projector(diag_filled)              # The same thing
 P = densitymatrix(dg, μ = 0, T = 0)     # The same thing
-P = densitymatrix(dg)                   # The same thing
+P = densitymatrix(dg, mu = 0)           # The same thing
 ```
 
 !!! warning
@@ -250,14 +252,12 @@ The DOS is the imaginary part of $\text{tr}\left(\frac{1}{\hat{H} - E - i\delta}
 It's highly recommended to use the built-in [`dos`](@ref) and [`ldos`](@ref) functions, because the `Eigensystem` object stores the $\hat{H}$ operator already diagonalized, which makes calculations much faster.
 
 ```@example env
-using Plots
-
 p = plot(layout=@layout[_ a{0.5w} _; grid(1, 2)], size=(800, 800))
 plot!(p[1], -4:0.1:4, dos(dg, 0.2), title="DOS with δ = 0.2")
 plot!(p[2], ldos(dg, 1, 0.2), title="LDOS at E = 1 with δ = 0.2")
 
 # These two lines produce exactly the same result as the previous
-ldos_fun = ldos(gd, 0.2)
+ldos_fun = ldos(dg, 0.2)
 plot!(p[3], ldos_fun(1), title="LDOS at E = 1 with δ = 0.2 (via function)")
 ```
 

@@ -156,8 +156,12 @@ Base.@propagate_inbounds function Base.getindex(opbuilder::OperatorBuilder, site
     prop === nothing && return NoMatrixElement()
     i, j, total_factor = prop
     N = internal_length(opbuilder)
-    mat = opbuilder.builder[(i - 1) * N + 1:i * N, (j - 1) * N + 1:j * N] * total_factor'
-    return Operator(internal_basis(opbuilder), mat)
+    mat = opbuilder.builder[(i - 1) * N + 1:i * N, (j - 1) * N + 1:j * N] / total_factor
+    if hasinternal(opbuilder)
+        return Operator(internal_basis(opbuilder), mat)
+    else
+        return only(mat)
+    end
 end
 Base.getindex(::FastSparseOperatorBuilder, ::AbstractSite, ::AbstractSite) =
     error("`FastSparseOperatorBuilder` does not support indexing. Maybe you forgot to use `@increment` macro?")
