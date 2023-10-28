@@ -162,7 +162,7 @@ sys2 = System(s, statistics = FermiDirac, μ = 0)    # Non-interacting fermions 
     
     ```julia
     l = SquareLattice(10, 10)
-    spin = Spin(1//2)
+    spin = SpinBasis(1//2)
     bs = BoundaryConditions(1 => true, 2 => true)
     sys = System(l, spin, boundaries = bs, μ = 0, statistics = FermiDirac)
 
