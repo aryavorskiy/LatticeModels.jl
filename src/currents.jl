@@ -16,7 +16,7 @@ Gets the lattice where the given `AbstractCurrents` object is defined.
 """
 sample(curr::AbstractCurrents) = error("lattice(::$(typeof(curr))) must be explicitly implemented")
 
-Base.getindex(curr::AbstractCurrents, s1::BravaisSite, s2::BravaisSite) =
+Base.getindex(curr::AbstractCurrents, s1::AbstractSite, s2::AbstractSite) =
     curr[site_index(lattice(curr), s1), site_index(lattice(curr), s2)]
 
 """

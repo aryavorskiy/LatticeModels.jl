@@ -1,26 +1,52 @@
 using RecipesBase
 
-@recipe function f(l::BravaisLattice, ::Val{:bonds})
+@recipe function f(l::BravaisLattice, ::Val{:bonds}; bonds = (1, 2, 3))
     label := ""
-    @series begin   # The bonds
+    1 in bonds && @series begin   # The bonds
         seriestype := :path
         label := ""
         l, default_bonds(l)
     end
-    @series begin   # The nnbonds
+    2 in bonds && @series begin   # The nnbonds
         seriestype := :path
         linestyle := :dash
-        linealpha := 0.8
+        linealpha := 0.5
         label := ""
         l, default_bonds(l, Val(2))
     end
-    @series begin   # The nnnbonds
+    3 in bonds && @series begin   # The nnnbonds
         seriestype := :path
         linestyle := :dot
         linealpha := 0.5
         label := ""
         l, default_bonds(l, Val(3))
     end
+end
+
+@recipe function f(l::BravaisLattice{N, B, <:BoundaryConditions{<:NTuple{M}}} where {B}, ::Val{:boundaries}) where {N, M}
+    label := ""
+    for cind in cartesian_indices(l.b_depth, Val(M))
+        tup = Tuple(cind)
+        all(==(0), tup) && continue
+        tr_vec = @SVector zeros(Int, N)
+        for i in 1:M
+            tr_vec += tup[i] * l.boundaries.bcs[i].R
+        end
+        shifted_pointers = [shift_site(tr_vec, lp) for lp in l.pointers]
+        shifted_lattice = BravaisLattice(l.bravais, shifted_pointers)
+        @series begin
+            seriesalpha := 0.2
+            sites(shifted_lattice)
+        end
+    end
+end
+
+@recipe function f(l::BravaisLattice; showboundaries=false, showbonds=false)
+    shownumbers --> showboundaries
+    @series sites(l)
+    !showbonds && (bonds --> ())
+    @series l, :bonds
+    showboundaries && @series l, :boundaries
 end
 
 function tr_vector(l::BravaisLattice, hop::SiteOffset{<:Pair})

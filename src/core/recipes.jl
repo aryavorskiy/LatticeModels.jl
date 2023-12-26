@@ -5,7 +5,7 @@ using RecipesBase
     [Tuple(site.coords),]
 end
 
-@recipe function f(l::AbstractLattice, style::Symbol=:plain)
+@recipe function f(l::AbstractLattice, style::Symbol)
     l, Val(style)
 end
 
@@ -13,9 +13,13 @@ end
     error("Unsupported lattice plot style $StyleT")
 end
 
-@recipe function f(l::AbstractLattice, ::Val{:plain})
-    l, nothing
+@recipe function f(l::AbstractLattice, styles...)
+    for style in styles
+        @series l, style
+    end
 end
+
+@recipe f(l::AbstractLattice, ::Val{:sites}) = @series l, nothing
 
 @recipe function f(l::AbstractLattice, ::Val{:high_contrast})
     markersize := 4
@@ -27,19 +31,21 @@ end
     l, nothing
 end
 
-@recipe function f(l::AbstractLattice, ::Val{:markers})
+@recipe function f(l::AbstractLattice, ::Val{:numbers})
     label --> ""
+    annotations = [(" " * string(i), :left, :top, :grey, 6) for i in eachindex(l)]
     @series begin   # The sites
         seriestype := :scatter
-        annotations = [(" " * string(i), :left, :top, :grey, 6) for i in eachindex(l)]
+        markershape := :none
         series_annotations := annotations
         l, nothing
     end
 end
 
-@recipe function f(l::AbstractLattice, ::Val{:pretty})
-    @series l, Val(:markers)
-    @series l, Val(:bonds)
+@recipe function f(l::AbstractLattice; shownumbers=false)
+    label --> ""
+    @series l, :sites
+    shownumbers && @series l, :numbers
 end
 
 @recipe function f(l::AbstractLattice, v)

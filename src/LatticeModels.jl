@@ -56,7 +56,7 @@ include("evolution.jl")
 export @evolution
 
 include("zoo/lattices.jl")
-export SquareLattice, HoneycombLattice
+export SquareLattice, TriangularLattice, HoneycombLattice
 include("zoo/magneticfields.jl")
 export LandauField, SymmetricField, FluxField
 include("zoo/models.jl")

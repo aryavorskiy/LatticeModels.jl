@@ -4,14 +4,15 @@ struct BravaisLattice{N, B<:UnitCell{Sym, N} where Sym, BS<:BoundaryConditions} 
     bravais::B
     pointers::Vector{BravaisPointer{N}}
     boundaries::BS
-    function BravaisLattice(bravais::B, pointers::Vector{BravaisPointer{N}}, boundaries::BS) where {N,B,BS}
-        new{N,B,BS}(bravais, sort!(pointers), boundaries)
+    b_depth::Int
+    function BravaisLattice(bravais::B, pointers::Vector{BravaisPointer{N}}, boundaries::BS; b_depth=1) where {N,B,BS}
+        new{N,B,BS}(bravais, sort!(pointers), boundaries, b_depth)
     end
 end
-
 BravaisLattice(bravais, pointers) = BravaisLattice(bravais, pointers, BoundaryConditions())
 add_boundaries(l::BravaisLattice, bs) = BravaisLattice(l.bravais, l.pointers, to_boundaries(bs))
 sites(l::BravaisLattice) = Sites(add_boundaries(l, BoundaryConditions()))
+b_depth(l::BravaisLattice) = l.b_depth
 
 Base.:(==)(l1::BravaisLattice, l2::BravaisLattice) = (l1.pointers == l2.pointers) && (l1.bravais == l2.bravais)
 

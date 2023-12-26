@@ -15,6 +15,12 @@ default_bonds(::SquareLattice{N}, ::Val{3}) where {N} = Tuple(SiteOffset(axis=i,
 LatticeModels.site_coords(b::UnitCell{:square,N,1}, lp::BravaisPointer{N}) where {N} =
     vec(b.basis) + lp.unit_cell
 
+const TriangularLattice = BravaisLattice{2, <:UnitCell{:triangular,2,1}}
+UnitCell{:triangular,2,1}() = UnitCell{:triangular}([1 0.5; 0 √3/2])
+default_bonds(::TriangularLattice, ::Val{1}) = SiteOffset([0, 1]), SiteOffset([-1, 0]), SiteOffset([1, -1])
+default_bonds(::TriangularLattice, ::Val{2}) = SiteOffset([1, 1]), SiteOffset([-2, 1]), SiteOffset([1, -2])
+default_bonds(::TriangularLattice, ::Val{3}) = SiteOffset([0, 2]), SiteOffset([-2, 0]), SiteOffset([2, -2])
+
 """
     HoneycombLattice
 Type alias for `Lattice{:honeycomb,2,2}`.

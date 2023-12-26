@@ -71,8 +71,9 @@ end
 @generated cartesian_indices(depth::Int, ::Val{M}) where M = quote
     CartesianIndex($((:(-depth) for _ in 1:M)...)):CartesianIndex($((:depth for _ in 1:M)...))
 end
-function route(bcs::BoundaryConditions{<:NTuple{M}}, l::AbstractLattice, lp::BravaisPointer{N}, depth=1) where {M, N}
-    for cind in cartesian_indices(depth, Val(M))
+b_depth(::AbstractLattice) = 1
+function route(bcs::BoundaryConditions{<:NTuple{M}}, l::AbstractLattice, lp::BravaisPointer{N}) where {M, N}
+    for cind in cartesian_indices(b_depth(l), Val(M))
         tup = Tuple(cind)
         tr_vec = @SVector zeros(Int, N)
         for i in 1:M
