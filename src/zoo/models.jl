@@ -1,3 +1,9 @@
+hubbard(T::Type, sys::NParticles; U::Real=0, kw...) = tightbinding_hamiltonian(T, sys; kw...) +
+    interaction((site1, site2) -> (site1 == site2 ? U : zero(U)), T, sys)
+hubbard(t::Type, l::AbstractLattice, N::Int; T = 0, statistics = FermiDirac, kw...) =
+    hubbard(t, NParticles(l, N; T = T, statistics = statistics); kw...)
+@accepts_t hubbard
+
 @doc raw"""
     qwz([f, ]mv::LatticeValue[; field::AbstractField, pbc=false])
     qwz([f, ]l::SquareLattice[, m::Number=1; field::AbstractField, pbc=false])
@@ -44,5 +50,5 @@ haldane(sys::System{<:Sample{<:HoneycombLattice}}, t1::Real, t2::Real, m::Real=0
 kanemele(sys::System{<:Sample{<:HoneycombLattice}}, t1::Real, t2::Real; kw...) =
     build_hamiltonian(sys,
         t1 => default_bonds(sys),
-        im * t2 * sigmaz(internal_basis) => default_bonds(sys, Val(2)))
+        im * t2 * sigmaz(internal_basis) => default_bonds(sys, Val(2)); kw...)
 @accepts_system kanemele SpinBasis(1//2)

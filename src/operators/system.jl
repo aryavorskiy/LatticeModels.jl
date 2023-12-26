@@ -82,11 +82,12 @@ struct NParticles{SampleT} <: System{SampleT}
     statistics::ParticleStatistics
     T::Float64
 end
-function NParticles(sample::SampleT, nparticles; statistics = FermiDirac, T = 0) where SampleT
+function NParticles(sample::SampleT, nparticles; statistics = FermiDirac, T = 0) where SampleT<:Sample
     NParticles{SampleT}(sample, nparticles, statistics, T)
 end
-NParticles(onep::OneParticleSystem, nparticles; kw...) = NParticles(onep.sample, nparticles;
+NParticles(onep::OneParticleSystem, n; kw...) = NParticles(onep.sample, n;
     T = onep.T, kw...)
+NParticles(l::AbstractLattice, n; kw...) = NParticles(Sample(l, nothing), n; kw...)
 
 function System(sample::Sample; μ = nothing, mu = μ, N = nothing, T = 0, statistics=FermiDirac)
     if mu !== nothing && N === nothing
@@ -119,7 +120,7 @@ Base.zero(sys::System) = zero(basis(sys))
 
 function QuantumOpticsBase.manybodyoperator(ps::NParticles, op::AbstractOperator)
     check_samebases(onebodybasis(ps), basis(op))
-    return manybodyoperator(ManyBodyBasis(bas, occupations(ps)), oper)
+    return manybodyoperator(ManyBodyBasis(basis(op), occupations(ps)), op)
 end
 function QuantumOpticsBase.manybodyoperator(sys::OneParticleBasisSystem, op::AbstractOperator)
     check_samebases(onebodybasis(sys), basis(op))
@@ -138,6 +139,14 @@ macro accepts_system(fname, default_basis=nothing)
             $fname(Sample(l, bas, boundaries=boundaries), args...; kw...)
         $fname(l::BravaisLattice, args...; boundaries=BoundaryConditions(), kw...) =
             $fname(Sample(l, $default_basis, boundaries=boundaries), args...; kw...)
+    end)
+end
+
+macro accepts_t(fname)
+    esc(quote
+    $fname(args...; kw...) = $fname(ComplexF64, args...; kw...)
+    $fname(::Type, ::Type, args...; kw...) =
+        throw(MethodError($fname, args))
     end)
 end
 

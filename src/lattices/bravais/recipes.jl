@@ -23,13 +23,13 @@ using RecipesBase
     end
 end
 
-@recipe function f(l::BravaisLattice{N, B, <:BoundaryConditions{<:NTuple{M}}} where {B}, ::Val{:boundaries}) where {N, M}
+@recipe function f(l::BravaisLattice{N}, ::Val{:boundaries}) where {N}
     label := ""
-    for cind in cartesian_indices(l.b_depth, Val(M))
+    for cind in cartesian_indices(l)
         tup = Tuple(cind)
         all(==(0), tup) && continue
         tr_vec = @SVector zeros(Int, N)
-        for i in 1:M
+        for i in eachindex(tup)
             tr_vec += tup[i] * l.boundaries.bcs[i].R
         end
         shifted_pointers = [shift_site(tr_vec, lp) for lp in l.pointers]

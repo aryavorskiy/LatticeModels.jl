@@ -43,10 +43,20 @@ function Hamiltonian(sys::System, op::Operator)
 end
 QuantumOpticsBase.Operator(ham::Hamiltonian) = Operator(ham.basis_l, ham.data)
 sample(ham::Hamiltonian) = sample(ham.sys)
-Base.:(*)(op::Operator{B1, B2}, ham::Hamiltonian{Sys, B2}) where{Sys, B1, B2} = op * Operator(ham)
-Base.:(*)(ham::Hamiltonian{Sys, B2}, op::Operator{B1, B2}) where{Sys, B1, B2} = Operator(ham) * op
-Base.:(+)(op::Operator{B, B}, ham::Hamiltonian{Sys, B}) where{Sys, B} = Hamiltonian(ham.sys, op + Operator(ham))
-Base.:(+)(ham::Hamiltonian{Sys, B}, op::Operator{B, B}) where{Sys, B} = Hamiltonian(ham.sys, Operator(ham) + op)
+Base.:(*)(op::Operator{B1, B2}, ham::Hamiltonian{Sys, B2}) where {Sys, B1, B2} = op * Operator(ham)
+Base.:(*)(ham::Hamiltonian{Sys, B2}, op::Operator{B1, B2}) where {Sys, B1, B2} = Operator(ham) * op
+Base.:(+)(op::Operator{B, B}, ham::Hamiltonian{Sys, B}) where {Sys, B} = op + Operator(ham)
+Base.:(+)(ham::Hamiltonian{Sys, B}, op::DataOperator{B, B}) where {Sys, B} = Operator(ham) + op
+function Base.:(+)(ham::Hamiltonian{Sys, B}, ham2::Hamiltonian{Sys, B}) where {Sys, B}
+    @assert ham.sys == ham2.sys
+    return Hamiltonian(ham.sys, Operator(ham) + Operator(ham2))
+end
+Base.:(-)(op::Operator{B, B}, ham::Hamiltonian{Sys, B}) where {Sys, B} = op - Operator(ham)
+Base.:(-)(ham::Hamiltonian{Sys, B}, op::DataOperator{B, B}) where {Sys, B} = Operator(ham) - op
+function Base.:(-)(ham::Hamiltonian{Sys, B}, ham2::Hamiltonian{Sys, B}) where {Sys, B}
+    @assert ham.sys == ham2.sys
+    return Hamiltonian(ham.sys, Operator(ham) - Operator(ham2))
+end
 
 Hamiltonian(opb::OperatorBuilder; kw...) = Hamiltonian(opb.sys, Operator(opb; kw...))
 

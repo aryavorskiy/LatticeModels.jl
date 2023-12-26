@@ -31,7 +31,7 @@ include("lattices/bravais/recipes.jl")
 include("operators/bases.jl")
 export LatticeBasis, @increment, ketstate, brastate
 include("operators/system.jl")
-export System, FermiDirac, BoseEinstein
+export System, NParticles, FermiDirac, BoseEinstein
 include("operators/magneticfield.jl")
 export MagneticField
 include("operators/constructor.jl")
@@ -60,7 +60,7 @@ export SquareLattice, TriangularLattice, HoneycombLattice
 include("zoo/magneticfields.jl")
 export LandauField, SymmetricField, FluxField
 include("zoo/models.jl")
-export qwz, haldane, kanemele
+export hubbard, qwz, haldane, kanemele
 include("zoo/currents.jl")
 export DensityCurrents
 
