@@ -18,6 +18,15 @@ default_bonds(sample::Sample, arg=Val(1)) = default_bonds(lattice(sample), arg)
 QuantumOpticsBase.basis(sample::SampleWithInternal) = sample.internal ⊗ LatticeBasis(sample.latt)
 QuantumOpticsBase.basis(sample::SampleWithoutInternal) = LatticeBasis(sample.latt)
 
+function Base.show(io::IO, mime::MIME"text/plain", sample::Sample)
+    hasinternal(sample) && print("(")
+    summary(io, lattice(sample))
+    if hasinternal(sample)
+        print(io, ") ⊗ ")
+        show(io, mime, internal_basis(sample))
+    end
+end
+
 sample(lb::LatticeBasis) = Sample(lb.sites)
 sample(b::CompositeLatticeBasis) = Sample(b.bases[2].sites, b.bases[1])
 sample(b::Basis) = throw(MethodError(sample, (b,)))
@@ -76,6 +85,18 @@ function FixedN(sample::SampleT, N; statistics=FermiDirac, T = 0) where SampleT
     FixedN{SampleT}(sample, N, statistics, T)
 end
 
+function Base.show(io::IO, mime::MIME"text/plain", sys::OneParticleBasisSystem)
+    if sys isa OneParticleSystem
+        print(io, "One particle on ")
+    elseif sys isa FixedN
+        print(io, "$(sys.nparticles) non-interacting particles on ")
+    elseif sys isa FixedMu
+        print(io, "Non-interactng particles with fixed μ=",
+            trunc(sys.chempotential, digits=2), " on ")
+    end
+    show(io, mime, sys.sample)
+end
+
 struct NParticles{SampleT} <: System{SampleT}
     sample::SampleT
     nparticles::Int
@@ -88,6 +109,11 @@ end
 NParticles(onep::OneParticleSystem, n; kw...) = NParticles(onep.sample, n;
     T = onep.T, kw...)
 NParticles(l::AbstractLattice, n; kw...) = NParticles(Sample(l, nothing), n; kw...)
+function Base.show(io::IO, mime::MIME"text/plain", sys::NParticles)
+    print(io, sys.nparticles, " interacting ",
+        sys.statistics == FermiDirac ? "fermions" : "bosons", " on ")
+    show(io, mime, sys.sample)
+end
 
 function System(sample::Sample; μ = nothing, mu = μ, N = nothing, T = 0, statistics=FermiDirac)
     if mu !== nothing && N === nothing

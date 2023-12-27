@@ -17,6 +17,15 @@ function shift_site(bc::TwistedBoundary{N}, i::Int, site) where N
     return exp(im * i * bc.Θ), shift_site(-bc.R * i, site)
 end
 
+function Base.show(io::IO, ::MIME"text/plain", bc::TwistedBoundary)
+    print(io, bc.R, " → ")
+    if bc.Θ % 2π ≈ 0
+        print("periodic")
+    else
+        print("twist θ = ", trunc(bc.Θ, digits=2))
+    end
+end
+
 struct FunctionBoundary{N, F<:Function} <: Boundary{N}
     condition::F
     R::SVector{N, Int}
@@ -65,6 +74,14 @@ function to_boundaries(arg)
     elseif !(arg isa BoundaryConditions)
         return BoundaryConditions(to_boundary(arg))
     else return arg
+    end
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", bcs::BoundaryConditions)
+    print(io, "Boundary conditions:")
+    for bc in bcs.bcs
+        println()
+        show(io, mime, bc)
     end
 end
 

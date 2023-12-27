@@ -14,3 +14,9 @@ Base.iterate(s::Sites, state...) = iterate(s.latt, state...)
 Base.@propagate_inbounds Base.getindex(s::Sites, any...; kw...) = getindex(s.latt, any...; kw...)
 Base.@propagate_inbounds site_index(s::Sites, any) = site_index(s.latt, any)
 Base.deleteat!(s::Sites, i) = (Base.deleteat!(s.latt, i); s)
+
+function Base.summary(io::IO, sites::Sites)
+    print(io, "Sites(")
+    summary(io, sites.latt)
+    print(io, ")")
+end

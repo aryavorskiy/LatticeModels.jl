@@ -3,6 +3,9 @@ abstract type AbstractSite{N} end
 dims(::AbstractSite{N}) where N = N
 Base.iterate(site::AbstractSite{N}, i=1) where N = i > N ? nothing : (site.coords[i], i + 1)
 
+Base.show(io::IO, ::MIME"text/plain", site::AbstractSite{N}) where N =
+    print(io, "Site of a ", N, "-dim lattice @ x = $(site.coords)")
+
 abstract type SiteParameter end
 const AbstractSiteParameter = Union{<:SiteParameter, Symbol}
 get_param(::AbstractSite, p::SiteParameter) = error("Site does not accept param $p")
@@ -32,6 +35,20 @@ dims(::AbstractLattice{<:AbstractSite{N}}) where {N} = N
 dims(l) = dims(lattice(l))
 Base.size(l::AbstractLattice) = (length(l),)
 site_index(::AbstractLattice, ::NoSite) = nothing
+
+Base.summary(io::IO, l::AbstractLattice{<:AbstractSite{N}}) where N =
+    print(io, length(l), "-site ", N, "-dim lattice")
+function Base.show(io::IO, mime::MIME"text/plain", l::AbstractLattice)
+    summary(io, l)
+    if !get(io, :compact, false)
+        print(io, ":")
+        for i in 1:min(length(l), 10)
+            print("\n  ")
+            show(io, mime, l[i])
+        end
+        length(l) > 10 && print("\n  ⋮")
+    end
+end
 
 # Set functions
 Base.copy(l::AbstractLattice) = Base.copymutable(l)

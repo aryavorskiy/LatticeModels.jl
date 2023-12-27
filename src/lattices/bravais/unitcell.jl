@@ -95,6 +95,9 @@ BravaisSite(::Nothing, ::Any) = NoSite()
     Base.getfield(site, sym)
 end
 
+Base.show(io::IO, ::MIME"text/plain", site::BravaisSite{N, <:UnitCell{Sym}}) where {N, Sym} =
+    print(io, "Site of a ", N, "-dim ", Sym, " lattice @ x = $(site.coords)")
+
 struct UnitcellAxis <: SiteParameter axis::Int end
 struct UnitcellIndex <: SiteParameter end
 function get_param(site::BravaisSite, c::UnitcellAxis)

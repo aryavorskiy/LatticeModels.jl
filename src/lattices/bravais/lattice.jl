@@ -86,10 +86,20 @@ function Base.iterate(l::BravaisLattice, state = (1, length(l)))
     return i > len ? nothing : (l[i], (i+1, len))
 end
 
-function Base.show(io::IO, ::MIME"text/plain", l::BravaisLattice{N, <:UnitCell{Sym}}) where {N,Sym}
-    print(io, length(l), "-site ", N, "-dimensional ", Sym, " lattice")
+function Base.summary(io::IO, l::BravaisLattice{N, <:UnitCell{Sym}}) where {N,Sym}
+    print(io, length(l), "-site ", N, "-dim ", Sym, " lattice")
     if basis_length(l) > 1
         print(io, " (", basis_length(l), "-site basis)")
+    end
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", l::BravaisLattice)
+    summary(io, l)
+    (isempty(l.boundaries.bcs) || get(io, :compact, false)) && return
+    print(io, " with boundary conditions:")
+    for bc in l.boundaries.bcs
+        println()
+        show(io, mime, bc)
     end
 end
 
