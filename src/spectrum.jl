@@ -1,5 +1,6 @@
 using Logging
 import LinearAlgebra: eigen, Hermitian, eigvals, eigvecs
+import KrylovKit: eigsolve
 
 abstract type AbstractEigensystem{BT} end
 """
@@ -37,19 +38,53 @@ Eigensystem(ham_eig::HamiltonianEigensystem) =
 QuantumOpticsBase.basis(eig::AbstractEigensystem) = eig.basis
 
 """
-    diagonalize(op::DataOperator)
+    diagonalize(op::DataOperator[, routine; params...])
 
-Finds eigenvalues and eigenvectors for a `Operator` and stores it in an Eigensystem.
+Finds eigenvalues and eigenvectors for a `Operator` and stores them in an `Eigensystem`.
+
+Two routines are available:
+- `:lapack` uses the `eigen` function from the standard `LinearAlgebra` package.
+- `:krylovkit` uses the Lanczos algorithm from the `KrylovKit` package.
+    Accepts following parameters:
+    - `v0` is the starting vector. Default is `rand(ComplexF64, size(op.data, 1))`.
+    - `n` is the target number of eigenvectors. Default is 10.
+    Remaining keyword arguments are passed to the `eigsolve` function.
+
+The default routine is `:lapack` for dense operators. If the operator matrix is less than
+3000×3000, it is automatically converted to a dense operator. In other cases `:krylovkit`
+is used.
 """
-function diagonalize(op::DataOperator)
-    # TODO support sparse diagonalization also
-    vals, vecs = eigen(dense(op).data)
+function diagonalize(op::DataOperator, ::Val{:lapack}; warning=true)
+    v = size(op.data, 1)
+    v > 10000 && warning &&
+        @warn """$v×$v dense operator is too large for exact diagonalization; consider making is sparse with `sparse(op)`.
+    Set `warning=false` to disable this warning."""
+    vals, vecs = eigen(op.data)
     Eigensystem(basis(op), vecs, vals)
 end
-function diagonalize(ham::Hamiltonian)
-    eig = diagonalize(Operator(ham))
+function diagonalize(op::DataOperator, ::Val{:krylovkit};
+        n=10, v0=rand(ComplexF64, size(op.data, 1)), warning=true, kw...)
+    v = size(op.data, 1)
+    v < 1000 && warning &&
+        @warn """$v×$v sparse operator can be diagonalized exactly; consider making is dense with `dense(op)`.
+    Set `warning=false` to disable this warning."""
+    vals, vecs = eigsolve(op.data, v0, n, :SR, kw...)
+    Eigensystem(basis(op), hcat(vecs...), vals)
+end
+diagonalize(::DataOperator, ::Val{Routine}) where Routine =
+    error("Unsupported diagonalization routine $Routine")
+diagonalize(op::DataOperator, routine::Symbol; kw...) =
+    diagonalize(op, Val(routine); kw...)
+function diagonalize(ham::Hamiltonian, routine; kw...)
+    eig = diagonalize(Operator(ham), routine; kw...)
     HamiltonianEigensystem(ham.sys, eig.basis, eig.states, eig.values)
 end
+diagonalize(op::DataOperator; kw...) =
+    diagonalize(find_routine(op)...; kw...)
+find_routine(op::DenseOpType) = op, Val(:lapack)
+find_routine(op::DataOperator) =
+    size(op.data, 1) > 3000 ? (op, Val(:krylovkit)) : (dense(op), Val(:lapack))
+
 
 Base.length(eig::AbstractEigensystem) = length(eig.values)
 Base.getindex(eig::AbstractEigensystem, i::Int) = Ket(eig.basis, eig.states[:, i])
@@ -131,14 +166,19 @@ function fixn_densitymatrix(eig::AbstractEigensystem;
 end
 
 """
-    densitymatrix(eig::Eigensystem[; T=0, μ=0, statistics=OneParticle])
+    densitymatrix(eig::Eigensystem[; T=0, μ=0, statistics])
 
 Creates an `Operator` representing a equilibrium density matrix, given the eigensystem `eig`
 of the Hamiltonian.
 
+The resulting distribution will be Fermi-Dirac or Bose-Einstein if the `statistics` is
+specified, otherwise the Gibbs distribution will be used.
+
 ## Keyword arguments
-The `μ` and `T` keywords set the chemical potential and the temperature respectively.
-The `statistics` Keyword sets the probability distribution .`OneParticle` means Boltzmann distribution.
+- `T` is the temperature of the system. Default is zero.
+- `μ` is the chemical potential. Use keyword `mu` as a synonym if Unicode input is not available.
+- `field` is the magnetic field. Default is `NoField()`.
+- `statistics` defines the particle statistics, either `FermiDirac` or `BoseEinstein`.
 
 Note that if `eig` is a diagonalized `Hamiltonian`, the `μ` and `statistics` parameters are inserted automatically.
 """
