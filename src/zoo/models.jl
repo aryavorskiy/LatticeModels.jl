@@ -6,17 +6,54 @@ function hubbard(T::Type, sys::NParticles; U::Real=0, kw...)
     tightbinding_hamiltonian(T, sys; kw...) +
     interaction((site1, site2) -> (site1 == site2 ? U : zero(U)), T, sys)
 end
-bosehubbard(t::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
-    hubbard(t, NParticles(l, N; T = T, statistics = BoseEinstein); kw...)
-fermihubbard(t::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
-    hubbard(t, NParticles(l ⊗ SpinBasis(1//2), N; T = T, statistics = FermiDirac); kw...)
+@doc raw"""
+    bosehubbard([type, ]lattice, N[; T, t1, t2, t3, field])
+
+$$\hat{H} =
+\sum_{i,j}^\text{sites} t_{ij} c^\dagger_i c_j +
+\sum_i^\text{sites} \frac{U}{2} \hat{n}_i (\hat{n}_i - 1)$$
+
+Generates a Bose-Hubbard model hamiltonian on given lattice `lattice`.
+## Arguments
+- `type` is the element type of the resulting operator. Default is `ComplexF64`.
+- `N` is the number of particles.
+
+## Keyword arguments
+- `t1`, `t2`, `t3` denote the coefficient on first, second and third hoppings respectively.
+    By default `t1` is equal to one, the rest are zero.
+- `T` is the temperature of the system. Default is zero.
+- `field` is the magnetic field. Default is `NoField()`.
+"""
+bosehubbard(type::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
+    hubbard(type, NParticles(l, N; T = T, statistics = BoseEinstein); kw...)
+@doc raw"""
+    fermihubbard([type, ]lattice, N[; T, t1, t2, t3, field])
+
+$$\hat{H} =
+\sum_{i,j}^\text{sites} t_{ij} c^\dagger_i c_j +
+\sum_i^\text{sites} \frac{U} \hat{n}_i^{↑} \hat{n}_i^{↓}$$
+
+Generates a Fermi-Hubbard model hamiltonian on given lattice `lattice`.
+
+## Arguments
+- `type` is the element type of the resulting operator. Default is `ComplexF64`.
+- `N` is the number of particles.
+
+## Keyword arguments
+- `t1`, `t2`, `t3` denote the coefficient on first, second and third hoppings respectively.
+    By default `t1` is equal to one, the rest are zero.
+- `T` is the temperature of the system. Default is zero.
+- `field` is the magnetic field. Default is `NoField()`.
+"""
+fermihubbard(type::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
+    hubbard(type, NParticles(l ⊗ SpinBasis(1//2), N; T = T, statistics = FermiDirac); kw...)
 @accepts_t hubbard
 @accepts_t bosehubbard
 @accepts_t fermihubbard
 
 @doc raw"""
-    qwz([f, ]mv::LatticeValue[; field::AbstractField, pbc=false])
-    qwz([f, ]l::SquareLattice[, m::Number=1; field::AbstractField, pbc=false])
+    qwz(m::LatticeValue[; T, μ, field, statistics])
+    qwz(lattice::SquareLattice[, m; T, μ, field, statistics])
 
 $$\hat{H} =
 \sum_i^\text{sites} m_i c^\dagger_i \sigma_z c_i +
@@ -25,11 +62,16 @@ c^\dagger_{i + \hat{x}} \frac{\sigma_z - i \sigma_x}{2} c_i +
 c^\dagger_{i + \hat{y}} \frac{\sigma_z - i \sigma_y}{2} c_i +
 h. c. \right)$$
 
-Generates a QWZ model hamiltonian operator with set magnetic field.
-If the ``m_i`` values are set by the `mv::LatticeValue`, which must be defined on a `SquareLattice`.
-Otherwise they will all be set to `m`.
+Generates a QWZ model hamiltonian operator on given square lattice `lattice`.
 
-`f` here must be a function or a `PairSelector` describing which hoppings will be excluded.
+## Arguments
+- `m` (either a `LatticeValue` or a number) defines the $m_i$ factors
+
+## Keyword arguments
+- `T` is the temperature of the system. Default is zero.
+- `μ` is the chemical potential. Use keyword `mu` as a synonym if Unicode input is not available.
+- `field` is the magnetic field. Default is `NoField()`.
+- `statistics` defines the particle statistics, either `FermiDirac` or `BoseEinstein`.
 """
 qwz(m::LatticeValue; kw...) = qwz(lattice(m), m; kw...)
 qwz(sys::System{<:Sample{<:SquareLattice}}, m=1; kw...) =
@@ -40,7 +82,7 @@ qwz(sys::System{<:Sample{<:SquareLattice}}, m=1; kw...) =
 @accepts_system qwz SpinBasis(1//2)
 
 @doc raw"""
-    haldane(l::HoneycombLattice, t1::Real, t2::Real[, m::Real=0; field::AbstractField])
+    haldane(lattice, t1, t2[, m=0; T, μ, field, statistics])
 
 $$\hat{H} =
 \sum_i^\text{sublattice A} m c^\dagger_i c_i +
@@ -48,7 +90,13 @@ $$\hat{H} =
 \sum_{i, j}^\text{adjacent} \left( t_1 c^\dagger_i c_j + h. c. \right) +
 \sum_{i, j}^\text{2-connected,\\counter-clockwise} \left( i \cdot t_2 c^\dagger_i c_j + h. c. \right)$$
 
-Generates a Haldane topological insulator hamiltonian operator.
+Generates a Haldane topological insulator hamiltonian operator on given lattice `lattice`.
+
+## Keyword arguments
+- `T` is the temperature of the system. Default is zero.
+- `μ` is the chemical potential. Use keyword `mu` as a synonym if Unicode input is not available.
+- `field` is the magnetic field. Default is `NoField()`.
+- `statistics` defines the particle statistics, either `FermiDirac` or `BoseEinstein`.
 """
 haldane(sys::System{<:Sample{<:HoneycombLattice}}, t1::Real, t2::Real, m::Real=0; kw...) =
     build_hamiltonian(sys,
@@ -57,6 +105,21 @@ haldane(sys::System{<:Sample{<:HoneycombLattice}}, t1::Real, t2::Real, m::Real=0
     im * t2 => default_bonds(sys, Val(2)); kw...)
 @accepts_system haldane
 
+@doc raw"""
+    kanemele(lattice::HoneycombLattice, t1, t2[; T, μ, field, statistics])
+
+$$\hat{H} =
+\sum_{i, j}^\text{adjacent} \left( t_1 c^\dagger_i c_j + h. c. \right) +
+\sum_{i, j}^\text{2-connected,\\counter-clockwise} \left( i \cdot t_2 c^\dagger_i σ_z c_j + h. c. \right)$$
+
+Generates a Kane-Mele hamiltonian operator on given lattice `lattice`\.
+
+## Keyword arguments
+- `T` is the temperature of the system. Default is zero.
+- `μ` is the chemical potential. Use keyword `mu` as a synonym if Unicode input is not available.
+- `field` is the magnetic field. Default is `NoField()`.
+- `statistics` defines the particle statistics, either `FermiDirac` or `BoseEinstein`.
+"""
 kanemele(sys::System{<:Sample{<:HoneycombLattice}}, t1::Real, t2::Real; kw...) =
     build_hamiltonian(sys,
         t1 => default_bonds(sys),

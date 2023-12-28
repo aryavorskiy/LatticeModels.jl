@@ -60,7 +60,7 @@ export SquareLattice, TriangularLattice, HoneycombLattice
 include("zoo/magneticfields.jl")
 export LandauField, SymmetricField, FluxField
 include("zoo/models.jl")
-export hubbard, qwz, haldane, kanemele
+export hubbard, bosehubbard, fermihubbard, qwz, haldane, kanemele
 include("zoo/currents.jl")
 export DensityCurrents
 
