@@ -1,8 +1,18 @@
-hubbard(T::Type, sys::NParticles; U::Real=0, kw...) = tightbinding_hamiltonian(T, sys; kw...) +
+function hubbard(T::Type, sys::NParticles; U::Real=0, kw...)
+    if sys.statistics == FermiDirac && !hasinternal(sys)
+        @warn """Fermi-Dirac statistic with no internal degrees of freedom.
+        No Hubbard interaction is possible."""
+    end
+    tightbinding_hamiltonian(T, sys; kw...) +
     interaction((site1, site2) -> (site1 == site2 ? U : zero(U)), T, sys)
-hubbard(t::Type, l::AbstractLattice, N::Int; T = 0, statistics = FermiDirac, kw...) =
-    hubbard(t, NParticles(l, N; T = T, statistics = statistics); kw...)
+end
+bosehubbard(t::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
+    hubbard(t, NParticles(l, N; T = T, statistics = BoseEinstein); kw...)
+fermihubbard(t::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
+    hubbard(t, NParticles(l ⊗ SpinBasis(1//2), N; T = T, statistics = FermiDirac); kw...)
 @accepts_t hubbard
+@accepts_t bosehubbard
+@accepts_t fermihubbard
 
 @doc raw"""
     qwz([f, ]mv::LatticeValue[; field::AbstractField, pbc=false])

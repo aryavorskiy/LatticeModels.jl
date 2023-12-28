@@ -331,7 +331,7 @@ end
     end
 
     @testset "Field application" begin
-        H1 = build_operator(l, Bonds(axis=1), Bonds(axis = 2), field = la)
+        H1 = build_operator(l, Bonds(axis=1), Bonds(axis=2), field = la)
         H2 = build_operator(l, Bonds(axis=1), Bonds(axis=2), field = lla)
         H3 = build_operator(l, Bonds(axis=1), Bonds(axis=2))
         H4 = copy(H3)
@@ -341,6 +341,33 @@ end
         @test H2 ≈ H3
         @test H3 ≈ H4
     end
+end
+
+@testset "Interaction" begin
+    l = SquareLattice(2, 2)
+    # Bose-Hubbard interaction
+    sys = NParticles(l, 3, statistics=BoseEinstein)
+    I1 = interaction(sys) do site1, site2
+        site1 == site2 ? 1.0 : 0.0
+    end
+    I2 = interaction(sys, 2) do (site1, site2), (site3, site4)
+        site1 == site2 == site3 == site4 ? 0.5 : 0.0
+    end
+    @test I1 == I2
+
+    # Fermi-Hubbard interaction
+    sys2 = NParticles(l ⊗ SpinBasis(1//2), 3, statistics=FermiDirac)
+    IS1 = interaction(sys2) do site1, site2
+        site1 == site2 ? 1.0 : 0.0
+    end
+    IS2 = interaction(sys2, 2, affect_internal = false) do (site1, site2), (site3, site4)
+        site1 == site2 == site3 == site4 ? 1.0 : 0.0
+    end
+    IS3 = interaction(sys2, 2) do (site1, site2), is1, (site3, site4), is2
+        (site1 == site2 == site3 == site4 && is1 == is2) ? 1.0 : 0.0
+    end
+    @test IS1 == IS2
+    @test IS2 == IS3
 end
 
 @testset "Operators" begin
