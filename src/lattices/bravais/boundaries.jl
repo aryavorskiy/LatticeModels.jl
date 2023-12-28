@@ -31,7 +31,6 @@ struct FunctionBoundary{N, F<:Function} <: Boundary{N}
     R::SVector{N, Int}
 end
 FunctionBoundary(f::F, svec::AbstractArray) where F<:Function = FunctionBoundary{length(svec), F}(f, svec)
-
 function shift_site(bc::FunctionBoundary{N}, i::Int, site::BravaisSite{N}) where N
     i == 0 && return 1., site
     factor = 1.
@@ -46,19 +45,33 @@ function shift_site(bc::FunctionBoundary{N}, i::Int, site::BravaisSite{N}) where
     end
     factor, site
 end
+Base.show(io::IO, ::MIME"text/plain", bc::FunctionBoundary) =
+    print(io, bc.R, " → function '", bc.condition, "'")
 
 struct BoundaryConditions{CondsTuple}
     bcs::CondsTuple
-    function BoundaryConditions(bcs::CondsTuple) where CondsTuple<:NTuple{M, <:Boundary{N}} where {M, N}
+    function BoundaryConditions(bcs::CondsTuple) where CondsTuple<:Tuple{Vararg{<:Boundary{N}}} where {N}
         new{CondsTuple}(bcs)
     end
 end
-BoundaryConditions(::NTuple{M, <:Boundary} where M) =
-    throw(ArgumentError("Dimension inconsistency. Check that cimension count for all boundaries is the same"))
+BoundaryConditions(::Tuple{Vararg{<:Boundary}}) =
+    throw(ArgumentError("Dimension inconsistency. Check that dimension count for all boundaries is the same"))
+
 BoundaryConditions(args...) =
-    BoundaryConditions(Tuple(skipmissing(to_boundary.(args))))
+    _construct_boundary_conditions(args)
+
+_construct_boundary_conditions(args::Tuple) =
+    _construct_boundary_conditions((), args)
+_construct_boundary_conditions(pre_args::Tuple, post_args::Tuple) =
+    _construct_boundary_conditions(pre_args::Tuple, to_boundary(post_args[1]), Base.tail(post_args))
+_construct_boundary_conditions(pre_args::Tuple, ::Tuple{}) = BoundaryConditions(pre_args)
+_construct_boundary_conditions(pre_args::Tuple, ::Nothing, post_args::Tuple) =
+    _construct_boundary_conditions(pre_args, post_args)
+_construct_boundary_conditions(pre_args::Tuple, arg, post_args::Tuple) =
+    _construct_boundary_conditions((pre_args..., arg), post_args)
+
 to_boundary(p::Pair{<:AbstractVector, Bool}) =
-    p[2] ? PeriodicBoundary(p[1]) : missing
+    p[2] ? PeriodicBoundary(p[1]) : nothing
 to_boundary(p::Pair{<:AbstractVector, <:Real}) =
     TwistedBoundary(p[1], p[2])
 to_boundary(p::Pair{<:AbstractVector, <:Function}) =
@@ -68,7 +81,7 @@ to_boundary(b) = throw(ArgumentError("Could not convert `$b` to Boundary"))
 
 function to_boundaries(arg)
     if arg isa Tuple
-        return BoundaryConditions(arg...)
+        return _construct_boundary_conditions(arg)
     elseif arg isa Boundary
         return BoundaryConditions(arg)
     elseif !(arg isa BoundaryConditions)
