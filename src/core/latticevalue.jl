@@ -29,6 +29,8 @@ Base.eltype(lvw::LatticeValueWrapper) = eltype(lvw.values)
 Base.eachindex(lvw::LatticeValueWrapper) = lattice(lvw)
 Base.iterate(lvw::LatticeValueWrapper, s...) = iterate(lvw.values, s...)
 Base.pairs(lvw::LatticeValueWrapper) = Iterators.map(=>, lvw.latt, lvw.values)
+Base.keys(lvw::LatticeValueWrapper) = lvw.latt
+Base.values(lvw::LatticeValueWrapper) = lvw.values
 
 """
     LatticeValue{T, LT}
