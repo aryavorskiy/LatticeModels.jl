@@ -11,10 +11,10 @@ A struct representing bonds in some direction in a lattice.
 Constructs a `SiteOffset` object.
 
 ## Arguments:
-- `site_indices`: a `::Int => ::Int` pair with indices of sites connected by the bond.
+- `site_indices`: A `::Int => ::Int` pair with indices of sites connected by the bond.
 When not defined, the resulting `bonds` object will connect site with any basis index to
 a site with the same basis index, but in another unit cell.
-- `translate_uc`: the unit cell offset.
+- `translate_uc`: The unit cell offset.
 
 If `site_indices` are equal or undefined and `translate_uc` is zero, the bond connects
 each site with itself. In this case an error will be thrown.

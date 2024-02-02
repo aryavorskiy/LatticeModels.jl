@@ -15,14 +15,14 @@ $$\hat{H} =
 
 Generates a Bose-Hubbard model hamiltonian on given lattice `lattice`.
 ## Arguments
-- `type` is the element type of the resulting operator. Default is `ComplexF64`.
-- `N` is the number of particles.
+- `type`: The element type of the resulting operator. Default is `ComplexF64`.
+- `N`: The number of particles.
 
 ## Keyword arguments
 - `t1`, `t2`, `t3` denote the coefficient on first, second and third hoppings respectively.
     By default `t1` is equal to one, the rest are zero.
-- `T` is the temperature of the system. Default is zero.
-- `field` is the magnetic field. Default is `NoField()`.
+- `T`: The temperature of the system. Default is zero.
+- `field`: The magnetic field. Default is `NoField()`.
 """
 bosehubbard(type::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
     hubbard(type, NParticles(l, N; T = T, statistics = BoseEinstein); kw...)
@@ -36,14 +36,14 @@ $$\hat{H} =
 Generates a Fermi-Hubbard model hamiltonian on given lattice `lattice`.
 
 ## Arguments
-- `type` is the element type of the resulting operator. Default is `ComplexF64`.
-- `N` is the number of particles.
+- `type`: The element type of the resulting operator. Default is `ComplexF64`.
+- `N`: The number of particles.
 
 ## Keyword arguments
 - `t1`, `t2`, `t3` denote the coefficient on first, second and third hoppings respectively.
     By default `t1` is equal to one, the rest are zero.
-- `T` is the temperature of the system. Default is zero.
-- `field` is the magnetic field. Default is `NoField()`.
+- `T`: The temperature of the system. Default is zero.
+- `field`: The magnetic field. Default is `NoField()`.
 """
 fermihubbard(type::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
     hubbard(type, NParticles(l ⊗ SpinBasis(1//2), N; T = T, statistics = FermiDirac); kw...)
@@ -68,9 +68,9 @@ Generates a QWZ model hamiltonian operator on given square lattice `lattice`.
 - `m` (either a `LatticeValue` or a number) defines the $m_i$ factors
 
 ## Keyword arguments
-- `T` is the temperature of the system. Default is zero.
-- `μ` is the chemical potential. Use keyword `mu` as a synonym if Unicode input is not available.
-- `field` is the magnetic field. Default is `NoField()`.
+- `T`: The temperature of the system. Default is zero.
+- `μ`: The chemical potential. Use keyword `mu` as a synonym if Unicode input is not available.
+- `field`: The magnetic field. Default is `NoField()`.
 - `statistics` defines the particle statistics, either `FermiDirac` or `BoseEinstein`.
 """
 qwz(m::LatticeValue; kw...) = qwz(lattice(m), m; kw...)
@@ -93,9 +93,9 @@ $$\hat{H} =
 Generates a Haldane topological insulator hamiltonian operator on given lattice `lattice`.
 
 ## Keyword arguments
-- `T` is the temperature of the system. Default is zero.
-- `μ` is the chemical potential. Use keyword `mu` as a synonym if Unicode input is not available.
-- `field` is the magnetic field. Default is `NoField()`.
+- `T`: The temperature of the system. Default is zero.
+- `μ`: The chemical potential. Use keyword `mu` as a synonym if Unicode input is not available.
+- `field`: The magnetic field. Default is `NoField()`.
 - `statistics` defines the particle statistics, either `FermiDirac` or `BoseEinstein`.
 """
 haldane(sys::System{<:Sample{<:HoneycombLattice}}, t1::Real, t2::Real, m::Real=0; kw...) =
@@ -115,9 +115,9 @@ $$\hat{H} =
 Generates a Kane-Mele hamiltonian operator on given lattice `lattice`\.
 
 ## Keyword arguments
-- `T` is the temperature of the system. Default is zero.
-- `μ` is the chemical potential. Use keyword `mu` as a synonym if Unicode input is not available.
-- `field` is the magnetic field. Default is `NoField()`.
+- `T`: The temperature of the system. Default is zero.
+- `μ`: The chemical potential. Use keyword `mu` as a synonym if Unicode input is not available.
+- `field`: The magnetic field. Default is `NoField()`.
 - `statistics` defines the particle statistics, either `FermiDirac` or `BoseEinstein`.
 """
 kanemele(sys::System{<:Sample{<:HoneycombLattice}}, t1::Real, t2::Real; kw...) =
