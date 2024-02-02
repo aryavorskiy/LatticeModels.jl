@@ -1,0 +1,143 @@
+@testset "Lattice" begin
+    @testset "Interface" begin
+        sql = SquareLattice(10, 20)
+        @test [site_index(sql, s) for s in sql] == 1:length(sql)
+        x, y = coord_values(sql)
+        s_0 = SquareLattice(10, 20) do (x, y)
+            x < y
+        end
+        s_1 = sublattice(sql) do (x, y)
+            x < y
+        end
+        s_2 = sql[x.<y]
+        @test s_0 == s_1
+        @test s_1 == s_2
+
+        hl = HoneycombLattice(10, 10)
+        xh, yh = coord_values(hl)
+        s_3 = HoneycombLattice(10, 10) do (x, y)
+            x < y
+        end
+        s_4 = sublattice(hl) do (x, y)
+            x < y
+        end
+        s_5 = hl[xh.<yh]
+        @test s_3 == s_4
+        @test s_4 == s_5
+        @test_throws LatticeModels.IncompatibleLattices hl[x.<y]
+        @test hl[p"j1" => 3, p"j2 "=> 2, p"index" => 1] == LatticeModels.get_site(hl,
+            LatticeModels.BravaisPointer(SA[3, 2], 1))
+        xb, yb = coord_values(SquareLattice(5, 40))
+        @test_throws LatticeModels.IncompatibleLattices sql[xb.<yb]
+        sql2 = sublattice(sql) do site
+            site ∉ (sql[1], sql[end])
+        end
+        pop!(sql)
+        popfirst!(sql)
+        @test sql == sql2
+    end
+
+    l = SquareLattice(10, 10)
+    x, y = coord_values(l)
+    xm2 = LatticeValue(l) do (x, y)
+        2x
+    end
+    y = LatticeValue(l) do (x, y)
+        y
+    end
+    xy = LatticeValue(l) do site
+        site.x * site.y
+    end
+    idxs = LatticeValue(l) do site
+        site_index(l, site)
+    end
+
+    @testset "LatticeValue" begin
+        small_l = SquareLattice(2, 2)
+        small_x, small_y = coord_values(small_l)
+        @test small_x.values == [1, 1, 2, 2]
+        @test small_y.values == [1, 2, 1, 2]
+
+        x2 = param_value(l, :x)
+        x3 = param_value(l, p"x1")
+        @test [idxs[s] for s in l] == 1:length(l)
+        @test x == x2
+        @test x == x3
+
+        (mn, i) = findmin(xy)
+        (mx, j) = findmax(xy)
+        @test xy[i] == mn
+        @test xy[j] == mx
+        @test all(mn .≤ xy.values .≤ mx)
+        imx = findall(==(mx), xy)
+        @test all((site in imx || xy[site] < mx) for site in l)
+    end
+
+    @testset "Broadcast" begin
+        x4 = l .|> (site -> site.x)
+        @test x == x4
+        @test x .* y == xy
+        @test x .* 2 == xm2
+        @test 2 .* x == xm2
+        @test x .|> (x -> 2x) == xm2
+        y .= x .* y
+        @test y == xy
+        @test_throws ArgumentError x .* ones(100)
+        l′ = SquareLattice(5, 20)
+        x′ = LatticeValue(l′) do (x, y)
+            x
+        end
+        @test_throws LatticeModels.IncompatibleLattices x .* x′
+    end
+
+    @testset "Indexing" begin
+        z = zeros(l)
+        z2 = zero(z)
+        z .= 1
+        z2[x.≥y] .+= 1
+        z2[x.<y] = ones(l)
+        @test z == ones(l)
+        @test z2 == ones(l)
+        @test z[x=1, y=1] == 1
+        z3 = ones(l)
+        for i in 2:10
+            z3[x=i] .= i
+        end
+        @test z3 == x
+    end
+end
+
+@testset "Bonds" begin
+    @testset "Constructor" begin
+        @test Bonds(axis=1) == Bonds([1])
+        @test Bonds(axis=1) != Bonds([1, 0])
+        @test_throws ArgumentError Bonds(2 => 2, [0, 0])
+    end
+    @testset "Hopping matching" begin
+        l = SquareLattice(6, 5)
+        hx = Bonds(axis=1)
+        hxmy = Bonds([1, -1])
+        pbc = BoundaryConditions([6, 0] => true)
+        for site in l
+            ucx, ucy = site.unit_cell
+            dst_dx = LatticeModels.shift_site(BoundaryConditions(), l, site + hx)[2]
+            dst_dxmy = LatticeModels.shift_site(pbc, l, site + hxmy)[2]
+            @test !(dst_dx in l) == (ucx == 6)
+            @test !(dst_dxmy in l) == (ucy == 1)
+            !(dst_dxmy in l) != (ucy == 1) && @show site, dst_dxmy
+        end
+    end
+    @testset "Bonds" begin
+        l = SquareLattice(2, 2)
+        ls1, _, ls3, ls4 = l
+        bs = adjacency_matrix(l, Bonds(axis=1), Bonds(axis=2))
+        bs1 = adjacency_matrix(l, Bonds(axis=1)) | adjacency_matrix(l, Bonds(axis=2))
+        bs2 = bs^2
+        @test bs.bmat == (!!bs).bmat
+        @test bs.bmat == bs1.bmat
+        @test bs[ls1, ls3]
+        @test !bs[ls1, ls4]
+        @test bs2[ls1, ls3]
+        @test bs2[ls1, ls4]
+    end
+end

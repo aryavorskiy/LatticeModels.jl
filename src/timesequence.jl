@@ -7,7 +7,7 @@ struct TimeSequence{ET} <: AbstractDict{Float64, ET}
     values::Vector{ET}
     function TimeSequence{ET}(ts, vs) where ET
         length(ts) != length(vs) &&
-            error("Keys/values length mismatch:\n$(length(ts)) timestamps, $(length(vs)) snapshots")
+            throw(ArgumentError("Keys/values length mismatch:\n$(length(ts)) timestamps, $(length(vs)) snapshots"))
         new{ET}(ts, vs)
     end
 end

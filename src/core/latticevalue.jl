@@ -102,7 +102,7 @@ Base.getindex(l::AbstractLattice, i::CartesianIndex{1}) = l[only(Tuple(i))]
 Base.BroadcastStyle(::Type{<:LatticeValueWrapper}) = LatticeStyle()
 Base.BroadcastStyle(::Type{<:AbstractLattice}) = LatticeStyle()
 Base.BroadcastStyle(bs::Broadcast.BroadcastStyle, ::LatticeStyle) =
-    error("cannot broadcast LatticeValue along style $bs")
+    throw(ArgumentError("cannot broadcast LatticeValue along style $bs"))
 Base.BroadcastStyle(::Broadcast.DefaultArrayStyle{0}, ::LatticeStyle) = LatticeStyle()
 
 function Base.similar(bc::Broadcast.Broadcasted{LatticeStyle}, ::Type{Eltype}) where {Eltype}

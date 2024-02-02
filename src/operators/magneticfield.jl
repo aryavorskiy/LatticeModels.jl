@@ -11,7 +11,7 @@ This function should be defined for new field types, but it is not necessary
 unless you want to use built-in trapezoidal rule integrating.
 """
 vector_potential(fld::AbstractField, _) =
-    error("no vector potential function defined for field type $(typeof(fld))")
+    throw(ArgumentError("no vector potential function defined for field type $(typeof(fld))"))
 
 @doc raw"""
     line_integral(field, p1, p2[, n_steps=1])
