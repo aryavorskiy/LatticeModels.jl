@@ -101,9 +101,10 @@ function preprocess_argument(sample::Sample, arg::DataOperator)
 end
 
 function preprocess_argument(sample::Sample, arg::AbstractMatrix)
-    bas = sample.internal
-    if all(==(length(bas)), size(arg))
-        preprocess_argument(sample, SparseOperator(bas, arg))
+    if hasinternal(sample) all(==(internal_length(sample)), size(arg))
+        preprocess_argument(sample, SparseOperator(internal_basis(sample), arg))
+    elseif size(arg) .== 1
+        return only(arg)
     else
         error("Invalid Matrix argument: size does not match on-site dimension count")
     end
@@ -112,7 +113,8 @@ end
 preprocess_argument(sample::Sample, arg) =
     preprocess_argument(sample, internal_one(sample) => arg)
 
-preprocess_argument(sample::Sample, n::Number) = preprocess_argument(sample, n * internal_one(sample))
+preprocess_argument(sample::SampleWithInternal, n::Number) = preprocess_argument(sample, n * internal_one(sample))
+preprocess_argument(::SampleWithoutInternal, n::Number) = n
 
 function preprocess_argument(sample::Sample, arg::Pair)
     op, on_lattice = arg

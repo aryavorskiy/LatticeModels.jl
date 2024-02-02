@@ -31,8 +31,8 @@ function _block(op::OneParticleOperator, i, j)
 end
 function _block(op::AbstractLatticeOperator, i, j)
     N = internal_length(op)
-    t_buffer = zeros(eltype(op.data), N, N)
-    fill!(buffer, 0)
+    T = zeros(eltype(op.data), N, N)
+    bas = basis(op)
     buffer = QuantumOpticsBase.allocate_buffer(bas.occupations)
     mask = fill(false, N, N)
     for (m, occ) in enumerate(bas.occupations)
@@ -45,11 +45,11 @@ function _block(op::AbstractLatticeOperator, i, j)
             C === nothing && continue
 
             n = QuantumOpticsBase.state_index(bas.occupations, buffer)
-            t_buffer[ni, nj] = matrix_element(state, m, n) / C
+            T[ni, nj] = op.data[m, n] / C
             mask[ni, nj] = true
         end
     end
-    return t_buffer
+    return T
 end
 
 """
