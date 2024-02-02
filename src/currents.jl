@@ -42,8 +42,25 @@ function Base.getindex(curr::AbstractCurrents, lvm::LatticeValue{Bool})
     SubCurrents(curr, indices)
 end
 
+function _site_indices(l::BravaisLattice, l2::BravaisLattice)
+    check_issublattice(l2, l)
+    return [site_index(l, site) for site in l2]
+end
+_site_indices(l::BravaisLattice, site::BravaisSite) = (site_index(l, site),)
+function currents_from(curr::AbstractCurrents, src)
+    l = lattice(curr)
+    is = _site_indices(l, src)
+    LatticeValue(l, Float64[j in is ? 0 : sum(curr[i, j] for i in is) for j in eachindex(l)])
+end
+function currents_from_to(curr::AbstractCurrents, src, dst=nothing)
+    l = lattice(curr)
+    is = _site_indices(l, src)
+    js = dst === nothing ? setdiff(eachindex(l), is) : _site_indices(l, dst)
+    sum(curr[i, j] for i in is, j in js)
+end
+
 """
-    MaterializedCurrents <: AbstractCurrents
+    Currents <: AbstractCurrents
 
 A `AbstractCurrents` instance that stores values for all currents explicitly.
 """
@@ -64,6 +81,12 @@ Base.copy(mc::Currents) = Currents(lattice(mc), copy(mc.currents))
 Base.zero(mc::Currents) = Currents(lattice(mc), zero(mc.currents))
 lattice(mcurr::Currents) = mcurr.lattice
 
+
+Base.:(==)(c1::Currents, c2::Currents) =
+    c1.lattice == c2.lattice && c1.currents == c2.currents
+Base.isapprox(c1::Currents, c2::Currents; kw...) =
+    c1.lattice == c2.lattice && isapprox(c1.currents, c2.currents; kw...)
+
 Base.getindex(mcurr::Currents, i::Int, j::Int) = mcurr.currents[i, j]
 function Base.setindex!(curr::Currents, rhs, s1::AbstractSite, s2::AbstractSite)
     l = lattice(curr)
@@ -79,23 +102,6 @@ function Base.getindex(curr::Currents, lvm::LatticeValue{Bool})
     check_samesites(curr, lvm)
     indices = findall(lvm.values)
     Currents(curr.lattice[lvm], curr.currents[indices, indices])
-end
-
-function _site_indices(l::BravaisLattice, l2::BravaisLattice)
-    check_issublattice(l2, l)
-    return [site_index(l, site) for site in l2]
-end
-_site_indices(l::BravaisLattice, site::BravaisSite) = (site_index(l, site),)
-function currents_from(curr::AbstractCurrents, src)
-    l = lattice(curr)
-    is = _site_indices(l, src)
-    LatticeValue(l, Float64[j in is ? 0 : sum(curr[i, j] for i in is) for j in eachindex(l)])
-end
-function currents_from_to(curr::AbstractCurrents, src, dst=nothing)
-    l = lattice(curr)
-    is = _site_indices(l, src)
-    js = dst === nothing ? setdiff(eachindex(l), is) : _site_indices(l, dst)
-    sum(curr[i, j] for i in is, j in js)
 end
 
 for f in (:+, :-)

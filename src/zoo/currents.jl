@@ -70,7 +70,7 @@ struct DensityCurrents{HT, ST} <: AbstractCurrents
     - `hamiltonian`: A `Hamiltonian` object representing the Hamiltonian of the system.
     - `state`: A `Ket` or `Bra` representing the wavefunction or an `Operator` representing the density matrix.
     """
-    function DensityCurrents(ham::HT, state::ST) where {HT<:AbstractLatticeOperator, ST<:AbstractLatticeOperator}
+    function DensityCurrents(ham::HT, state::ST) where {HT<:AbstractLatticeOperator, ST<:StateType}
         check_samebases(basis(ham), basis(state))
         new{HT, ST}(ham, state)
     end
@@ -105,7 +105,7 @@ struct OperatorCurrents{HT, ST, OT} <: AbstractCurrents
     - `state`: A `Ket` or `Bra` representing the wavefunction or an `Operator` representing the density matrix.
     - `op`: A local (on-site) operator; either an `Operator` or a matrix of such.
     """
-    function OperatorCurrents(ham::HT, state::ST, op::OT; check_commutator=true) where {HT<:AbstractLatticeOperator, ST<:AbstractLatticeOperator, OT<:DataOperator}
+    function OperatorCurrents(ham::HT, state::ST, op::OT; check_commutator=true) where {HT<:AbstractLatticeOperator, ST<:StateType, OT<:DataOperator}
         !hasinternal(ham) && throw(ArgumentError("System expected to have internal degrees of freedom"))
         check_samebases(basis(ham), basis(state))
         if basis(ham) == basis(op)
