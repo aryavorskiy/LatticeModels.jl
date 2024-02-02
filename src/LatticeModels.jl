@@ -48,7 +48,7 @@ export lattice_density, diag_reduce, apply_field!
 include("spectrum.jl")
 export Eigensystem, diagonalize, projector, densitymatrix, dos, ldos
 include("currents.jl")
-export materialize, currents_from, currents_from_to, map_currents
+export Currents, currents_from, currents_from_to, map_currents
 include("timesequence.jl")
 export init_record, integrate, integrate!, differentiate, differentiate!, timestamps,
     TimeSequence
@@ -62,7 +62,7 @@ export LandauField, SymmetricField, FluxField
 include("zoo/models.jl")
 export hubbard, bosehubbard, fermihubbard, qwz, haldane, kanemele
 include("zoo/currents.jl")
-export DensityCurrents
+export DensityCurrents, OperatorCurrents
 
 using Logging
 try

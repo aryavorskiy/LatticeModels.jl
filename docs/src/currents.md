@@ -43,7 +43,7 @@ It is quite likely that you might want to define your own type of currents. All 
 
 An `AbstractCurrents` is a lazy object. This allows to avoid excessive computation of site-to-site currents, but the computations that are needed will be repeated every time when we access that object; also abstract currents cannot be normally stored into a `TimeSequence` (more precisely, you won't be able to differentiate or integrate such currents over time). That's where the `MaterializedCurrents` come in, having all their values stored explicitly in an array.
 
-To convert any type of currents to `MaterializedCurrents`, simply use the [`materialize`](@ref) function. You can avoid evaluating some currents (for example, if you know beforehand that they must be zero) by passing a lambda as a first argument (or with `do`-syntax): it must take the `Lattice` and two `LatticeSite`s and return whether the current between these sites must be evaluated.
+To convert any type of currents to `MaterializedCurrents`, simply use the [`Currents`](@ref) function. You can avoid evaluating some currents (for example, if you know beforehand that they must be zero) by passing a lambda as a first argument (or with `do`-syntax): it must take the `Lattice` and two `LatticeSite`s and return whether the current between these sites must be evaluated.
 
 You can find it similar to the selector function we used back in [Hopping operators](@ref Hopping-operators), which indeed is.
 You may find the following selector functions useful:

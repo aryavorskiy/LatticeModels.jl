@@ -93,7 +93,7 @@ end   # time: 0.0703386
     Base.precompile(Tuple{typeof(diag_reduce),typeof(tr),Operator{LatticeBasis{SquareLattice{2}}, LatticeBasis{SquareLattice{2}}, SparseMatrixCSC{Float64, Int64}}})   # time: 0.0440815
     Base.precompile(Tuple{typeof(lattice_density),Operator{LatticeBasis{SquareLattice{2}}, LatticeBasis{SquareLattice{2}}, SparseMatrixCSC{Float64, Int64}}})   # time: 0.0429766
     Base.precompile(Tuple{Type{SiteOffset},Nothing,SVector{1, Int64}})   # time: 0.0421869
-    Base.precompile(Tuple{typeof(-),MaterializedCurrents,MaterializedCurrents})   # time: 0.0405042
+    Base.precompile(Tuple{typeof(-),Currents,Currents})   # time: 0.0405042
     Base.precompile(Tuple{typeof(add_hoppings!),SparseMatrixBuilder{ComplexF64},Nothing,SquareLattice{2},SparseMatrixCSC{ComplexF64, Int64},Bonds{Nothing, 1},LandauField,BoundaryConditions{Tuple{}}})   # time: 0.0390868
     Base.precompile(Tuple{typeof(coord_operators),SquareLattice{2}})   # time: 0.0384461
     Base.precompile(Tuple{typeof(apply_field!),Operator{LatticeBasis{SquareLattice{2}}, LatticeBasis{SquareLattice{2}}, SparseMatrixCSC{ComplexF64, Int64}},LandauField})   # time: 0.037036
@@ -125,7 +125,7 @@ end   # time: 0.0262093
     Base.precompile(Tuple{typeof(hoppings),SquareLattice{2},Bonds{Nothing, 2}})   # time: 0.0190509
     Base.precompile(Tuple{typeof(adjacency_matrix),SquareLattice{2},Bonds{Nothing, 2}})   # time: 0.0181176
     Base.precompile(Tuple{typeof(==),BravaisPointer{2},BravaisPointer{2}})   # time: 0.0175775
-    Base.precompile(Tuple{typeof(*),Int64,MaterializedCurrents})   # time: 0.0175421
+    Base.precompile(Tuple{typeof(*),Int64,Currents})   # time: 0.0175421
     let fbody = try __lookup_kwbody__(which(qwz, (Nothing,SquareLattice{2},LatticeValue{Float64, SquareLattice{2}},))) catch missing end
     if !ismissing(fbody)
         precompile(fbody, (BoundaryConditions{Tuple{}},Base.Iterators.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}},typeof(qwz),Nothing,SquareLattice{2},LatticeValue{Float64, SquareLattice{2}},))
@@ -148,7 +148,7 @@ end   # time: 0.0174606
     Base.precompile(Tuple{typeof(evolution_operator!),SparseMatrixCSC{ComplexF64, Int64},SparseMatrixCSC{ComplexF64, Int64},Int64})   # time: 0.0098654
     Base.precompile(Tuple{typeof(adjacency_matrix),SquareLattice{2},Bonds{Nothing, 1},Vararg{SiteOffset}})   # time: 0.0098116
     Base.precompile(Tuple{typeof(build_hamiltonian),Sample{Nothing, SquareLattice{2}, Nothing, BoundaryConditions{Tuple{}}},Bonds{Nothing, 1},Bonds{Nothing, 2}})   # time: 0.0094902
-    Base.precompile(Tuple{Type{MaterializedCurrents},SquareLattice{2}})   # time: 0.009332
+    Base.precompile(Tuple{Type{Currents},SquareLattice{2}})   # time: 0.009332
     Base.precompile(Tuple{typeof(cartesian_index),BravaisPointer{2}})   # time: 0.0091336
     Base.precompile(Tuple{typeof(hoppings),PairLhsGraph,SquareLattice{2},Bonds{Nothing, 1}})   # time: 0.0086111
     isdefined(LatticeModels, Symbol("#104#105")) && Base.precompile(Tuple{getfield(LatticeModels, Symbol("#104#105")),Int64})   # time: 0.0083957
@@ -168,7 +168,7 @@ end   # time: 0.0174606
     Base.precompile(Tuple{Type{SiteOffset},Vector{Int64}})   # time: 0.0066776
     Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, HoneycombLattice},Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(|>), Tuple{LatticeValue{Float64, HoneycombLattice}, Base.RefValue{typeof(real)}}}})   # time: 0.0066735
     Base.precompile(Tuple{typeof(differentiate),TimeSequence{Float64}})   # time: 0.0065741
-    Base.precompile(Tuple{typeof(getindex),MaterializedCurrents,LatticeValue{Bool, SquareLattice{2}}})   # time: 0.0064549
+    Base.precompile(Tuple{typeof(getindex),Currents,LatticeValue{Bool, SquareLattice{2}}})   # time: 0.0064549
     Base.precompile(Tuple{typeof(shift_site),BoundaryConditions{Tuple{TwistedBoundary}},SquareLattice{2},BravaisPointer{2}})   # time: 0.0064271
     Base.precompile(Tuple{typeof(copyto!),LatticeValue{Float64, SquareLattice{2}},Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(|>), Tuple{LatticeValue{Float64, SquareLattice{2}}, Base.RefValue{typeof(real)}}}})   # time: 0.0063886
     Base.precompile(Tuple{typeof(copyto!),LatticeValue{Bool, SquareLattice{2}},Base.Broadcast.Broadcasted{LatticeStyle, Tuple{Base.OneTo{Int64}}, typeof(>=), Tuple{LatticeValue{Float64, SquareLattice{2}}, LatticeValue{Float64, SquareLattice{2}}}}})   # time: 0.0062885

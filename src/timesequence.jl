@@ -113,7 +113,7 @@ end
 
 _underlying_array(op::DataOperator) = op.data
 _underlying_array(lv::LatticeValue) = lv.values
-_underlying_array(curr::MaterializedCurrents) = curr.currents
+_underlying_array(curr::Currents) = curr.currents
 _underlying_array(arr::AbstractArray) = arr
 _underlying_array(::Any) = nothing
 _underlying_array(::StaticArray) = nothing

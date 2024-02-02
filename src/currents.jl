@@ -14,7 +14,7 @@ abstract type AbstractCurrents end
 
 Gets the lattice where the given `AbstractCurrents` object is defined.
 """
-sample(curr::AbstractCurrents) = error("lattice(::$(typeof(curr))) must be explicitly implemented")
+lattice(curr::AbstractCurrents) = error("lattice(::$(typeof(curr))) must be explicitly implemented")
 
 Base.getindex(curr::AbstractCurrents, s1::AbstractSite, s2::AbstractSite) =
     curr[site_index(lattice(curr), s1), site_index(lattice(curr), s2)]
@@ -36,40 +36,49 @@ end
 
 Base.getindex(scurr::SubCurrents, i::Int, j::Int) = scurr.parent_currents[scurr.indices[i], scurr.indices[j]]
 lattice(scurr::SubCurrents) = scurr.lattice
-
-"""
-    MaterializedCurrents <: AbstractCurrents
-
-A `AbstractCurrents` instance that stores values for all currents explicitly.
-"""
-struct MaterializedCurrents <: AbstractCurrents
-    lattice::BravaisLattice
-    currents::Matrix{Float64}
-    function MaterializedCurrents(l::BravaisLattice, curs::Matrix{Float64})
-        !all(length(l) .== size(curs)) && error("dimension mismatch")
-        new(l, curs)
-    end
-end
-
-MaterializedCurrents(l::BravaisLattice) =
-    MaterializedCurrents(l, zeros(length(l), length(l)))
-
-Base.convert(::Type{MaterializedCurrents}, curr::AbstractCurrents) = materialize(curr)
-Base.copy(mc::MaterializedCurrents) = MaterializedCurrents(lattice(mc), copy(mc.currents))
-Base.zero(mc::MaterializedCurrents) = MaterializedCurrents(lattice(mc), zero(mc.currents))
-lattice(mcurr::MaterializedCurrents) = mcurr.lattice
-
-Base.getindex(mcurr::MaterializedCurrents, i::Int, j::Int) = mcurr.currents[i, j]
 function Base.getindex(curr::AbstractCurrents, lvm::LatticeValue{Bool})
     check_samesites(curr, lvm)
     indices = findall(lvm.values)
     SubCurrents(curr, indices)
 end
 
-function Base.getindex(curr::MaterializedCurrents, lvm::LatticeValue{Bool})
+"""
+    MaterializedCurrents <: AbstractCurrents
+
+A `AbstractCurrents` instance that stores values for all currents explicitly.
+"""
+struct Currents <: AbstractCurrents
+    lattice::BravaisLattice
+    currents::Matrix{Float64}
+    function Currents(l::BravaisLattice, curs::Matrix{Float64})
+        !all(length(l) .== size(curs)) && error("dimension mismatch")
+        new(l, curs)
+    end
+end
+
+Currents(l::BravaisLattice) =
+    Currents(l, zeros(length(l), length(l)))
+
+Base.convert(::Type{Currents}, curr::AbstractCurrents) = Currents(curr)
+Base.copy(mc::Currents) = Currents(lattice(mc), copy(mc.currents))
+Base.zero(mc::Currents) = Currents(lattice(mc), zero(mc.currents))
+lattice(mcurr::Currents) = mcurr.lattice
+
+Base.getindex(mcurr::Currents, i::Int, j::Int) = mcurr.currents[i, j]
+function Base.setindex!(curr::Currents, rhs, s1::AbstractSite, s2::AbstractSite)
+    l = lattice(curr)
+    ns1 = shift_site(l, s1)[2]
+    ns2 = shift_site(l, s2)[2]
+    i = site_index(l, ns1)
+    j = site_index(l, ns2)
+    curr.currents[i, j] = rhs
+    curr.currents[j, i] = -rhs
+end
+
+function Base.getindex(curr::Currents, lvm::LatticeValue{Bool})
     check_samesites(curr, lvm)
     indices = findall(lvm.values)
-    MaterializedCurrents(curr.lattice[lvm], curr.currents[indices, indices])
+    Currents(curr.lattice[lvm], curr.currents[indices, indices])
 end
 
 function _site_indices(l::BravaisLattice, l2::BravaisLattice)
@@ -90,27 +99,29 @@ function currents_from_to(curr::AbstractCurrents, src, dst=nothing)
 end
 
 for f in (:+, :-)
-    @eval function ($f)(curr::MaterializedCurrents, curr2::MaterializedCurrents)
+    @eval function ($f)(curr::Currents, curr2::Currents)
         check_samesites(curr, curr2)
-        MaterializedCurrents(lattice(curr), ($f)(curr.currents, curr2.currents))
+        Currents(lattice(curr), ($f)(curr.currents, curr2.currents))
     end
 end
 for f in (:*, :/)
-    @eval ($f)(curr::MaterializedCurrents, num::Number) = MaterializedCurrents(lattice(curr), ($f)(curr.currents, num))
+    @eval ($f)(curr::Currents, num::Number) = Currents(lattice(curr), ($f)(curr.currents, num))
 end
-*(num::Number, curr::MaterializedCurrents) = curr * num
+*(num::Number, curr::Currents) = curr * num
 
 """
-    materialize([adjacency_matrix, ]currents)
+    Currents(currents[, adjacency_matrix])
 
-Creates a `MaterializedCurrents` instance for `currents`.
+Creates a `Currents` instance for `currents`.
 
-If `function` is provided, it must accept a `Lattice` and two `LatticeSite`s and return if the current between this site must be calculated or not.
-This can be useful to avoid exsessive calculations.
+## Arguments:
+- `currents`: The `AbstractCurrents` object to be turned into `Currents`. That might be time-consuming,
+    because  this requires evaluation of the current between all pairs.
+- `adjacency_matrix`: If provided, the current will be evaluated only between adjacent sites.
 """
-function materialize(am::Nullable{AdjacencyMatrix}, curr::AbstractCurrents)
+function Currents(curr::AbstractCurrents, am::Nullable{AdjacencyMatrix}=nothing)
     l = lattice(curr)
-    m = MaterializedCurrents(l)
+    m = Currents(l)
     for i in eachindex(l), j in 1:i-1
         am !== nothing && !am[l[i], l[j]] && continue
         ij_curr = curr[i, j]
@@ -119,7 +130,6 @@ function materialize(am::Nullable{AdjacencyMatrix}, curr::AbstractCurrents)
     end
     m
 end
-materialize(curr::AbstractCurrents) = materialize(nothing, curr)
 
 """
     map_currents(map_fn, currs::AnstractCurrents[; reduce_fn, sort=false])
@@ -166,7 +176,7 @@ end
 
 @recipe function f(curr::AbstractCurrents)
     l = lattice(curr)
-    dims(l) != 2 && error("2D lattice expected")
+    dims(l) != 2 && error("2-dim lattice expected")
     Xs = Float64[]
     Ys = Float64[]
     Qs = NTuple{2,Float64}[]

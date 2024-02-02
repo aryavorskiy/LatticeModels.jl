@@ -65,7 +65,7 @@ function interaction(f::Function, T::Type{<:Number}, sys::NParticles, ::Val{K}; 
             at_inds = Tuple(at_inds_c)
             issorted(at_inds) || continue
             for (m, occ) in enumerate(bas.occupations)
-                C = QuantumOpticsBase.state_transition!(buffer, occ, a_inds, at_inds)
+                C = QuantumOpticsBase.state_transition!(buffer, occ, at_inds, a_inds)
                 C === nothing && continue
                 value = if hasinternal(sys) && affect_internal
                     f(l_inds(a_inds), i_inds(a_inds), l_inds(at_inds), i_inds(at_inds))::Number

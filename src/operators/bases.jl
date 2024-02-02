@@ -26,13 +26,18 @@ QuantumOpticsBase.basisstate(l::AbstractLattice, site::AbstractSite) =
     basisstate(ComplexF64, l, site)
 
 const CompositeLatticeBasis{S, BT, LT} = CompositeBasis{S, Tuple{BT, LatticeBasis{LT}}}
-const AbstractLatticeBasis = Union{LatticeBasis, CompositeLatticeBasis}
+const OneParticleBasis = Union{LatticeBasis, CompositeLatticeBasis}
+const AbstractLatticeBasis = Union{OneParticleBasis, ManyBodyBasis{<:OneParticleBasis}}
 
 const LatticeOperator = DataOperator{BT, BT} where BT<:LatticeBasis
 const CompositeLatticeOperator = DataOperator{BT, BT} where BT<:CompositeLatticeBasis
+const OneParticleOperator = DataOperator{BT, BT} where BT<:OneParticleBasis
 const AbstractLatticeOperator = DataOperator{BT, BT} where BT<:AbstractLatticeBasis
+
+const StateType{BT<:Basis} = Union{DataOperator{BT,BT}, Ket{BT}, Bra{BT}}
 
 sites(lb::LatticeBasis) = lb.sites
 sites(lb::CompositeLatticeBasis) = sites(lb.bases[end])
-sites(op::AbstractOperator) = sites(basis(op))
-sample(op::AbstractOperator) = sample(basis(op))
+sites(ms::ManyBodyBasis{<:OneParticleBasis}) = sites(ms.onebodybasis)
+sites(state::StateType) = sites(basis(state))
+sample(state::StateType) = sample(basis(state))

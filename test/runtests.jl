@@ -58,7 +58,7 @@ end
         X, Y = coord_operators(basis(H0))
         @evolution {H := h(t), P0 --> H --> P} for t in 0:0.1:10
             d = lattice_density(4π * im * P * X * (one(P) - P) * Y * P)
-            ch = materialize(DensityCurrents(H, P))
+            ch = Currents(DensityCurrents(H, P))
             rd = d .|> real
         end
         true
@@ -462,10 +462,10 @@ end
     P = densitymatrix(diagonalize(H(0)), statistics=FermiDirac)
     dc = DensityCurrents(H(0.1), P)
     bs = adjacency_matrix(H(0.1))
-    m1 = materialize(dc)[x.<y]
-    m2 = materialize(dc[x.<y])
-    m3 = materialize(bs, dc)[x.<y]
-    m4 = materialize(bs, dc[x.<y])
+    m1 = Currents(dc)[x.<y]
+    m2 = Currents(dc[x.<y])
+    m3 = Currents(dc, bs)[x.<y]
+    m4 = Currents(dc[x.<y], bs)
     @test m1.currents == m2.currents
     @test m1.currents == m3.currents
     @test m1.currents == m4.currents
@@ -474,4 +474,8 @@ end
     s2 = l[45]
     @test dc[s1, s2] == -dc[s2, s1]
     @test abs(dc[s1, s1]) < eps()
+    l = SquareLattice(1, 2)
+    m5 = Currents(l)
+    m5[l[1], l[2]] = 2
+    @test m5.currents == [0 2; -2 0]
 end
