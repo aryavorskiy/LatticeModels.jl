@@ -31,13 +31,13 @@ include("lattices/bravais/recipes.jl")
 include("operators/bases.jl")
 export LatticeBasis, @increment, ketstate, brastate
 include("operators/system.jl")
-export System, NParticles, FermiDirac, BoseEinstein
+export System, NParticles, FermiDirac, BoseEinstein, Hamiltonian
 include("operators/magneticfield.jl")
 export MagneticField
 include("operators/constructor.jl")
 export OperatorBuilder, SparseOperatorBuilder, FastSparseOperatorBuilder
 include("operators/buildoperator.jl")
-export Hamiltonian, tightbinding_hamiltonian, build_operator, build_hamiltonian
+export Nearest, tightbinding_hamiltonian, build_operator, build_hamiltonian
 include("operators/manybody.jl")
 export interaction
 include("operators/miscoperators.jl")

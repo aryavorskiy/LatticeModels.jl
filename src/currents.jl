@@ -10,8 +10,6 @@ Subtypes must implement `Base.getindex(::Int, ::Int)` and `lattice` functions.
 abstract type AbstractCurrents end
 
 """
-    sample(::AbstractCurrents)
-
 Gets the lattice where the given `AbstractCurrents` object is defined.
 """
 lattice(curr::AbstractCurrents) = error("lattice(::$(typeof(curr))) must be explicitly implemented")

@@ -40,4 +40,3 @@ sites(lb::LatticeBasis) = lb.sites
 sites(lb::CompositeLatticeBasis) = sites(lb.bases[end])
 sites(ms::ManyBodyBasis{<:OneParticleBasis}) = sites(ms.onebodybasis)
 sites(state::StateType) = sites(basis(state))
-sample(state::StateType) = sample(basis(state))

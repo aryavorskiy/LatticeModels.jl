@@ -1,11 +1,12 @@
 using QuantumOpticsBase: basis, check_samebases
+
 struct Sample{LT, BasisT}
     latt::LT
     internal::BasisT
 end
 Sample(l::LT) where {LT<:AbstractLattice} = Sample{LT,Nothing}(l, nothing)
-function Sample(l::BravaisLattice, internal::IT=nothing;
-        boundaries=l.boundaries) where {IT<:Nullable{Basis}}
+function Sample(l::AbstractLattice, internal::IT=nothing;
+        boundaries=nothing) where {IT<:Nullable{Basis}}
     new_l = add_boundaries(l, boundaries)
     Sample{typeof(new_l), IT}(new_l, internal)
 end
@@ -27,10 +28,19 @@ function Base.show(io::IO, mime::MIME"text/plain", sample::Sample)
     end
 end
 
+"""
+Returns the `Sample` of the object.
+
+Define this function for your type to implement `Sample` API.
+
+!!! info
+    This function can be considered stable internal API. Feel free to use it in your packages.
+"""
 sample(lb::LatticeBasis) = Sample(lb.sites)
 sample(b::CompositeLatticeBasis) = Sample(b.bases[2].sites, b.bases[1])
-sample(b::Basis) = throw(MethodError(sample, (b,)))
-sample(any) = sample(basis(any))
+sample(mb::ManyBodyBasis) = sample(mb.onebodybasis)
+sample(state::StateType) = sample(basis(state))
+sample(op::AbstractLatticeOperator) = sample(basis(op))
 lattice(sample::Sample) = sample.latt
 lattice(any) = lattice(sample(any))
 internal_basis(sample::SampleWithInternal) = sample.internal
@@ -144,26 +154,15 @@ QuantumOpticsBase.basis(sys::NParticles) = ManyBodyBasis(basis(sys.sample), occu
 
 Base.zero(sys::System) = zero(basis(sys))
 
-function QuantumOpticsBase.manybodyoperator(ps::NParticles, op::AbstractOperator)
-    check_samebases(onebodybasis(ps), basis(op))
-    return manybodyoperator(ManyBodyBasis(basis(op), occupations(ps)), op)
-end
-function QuantumOpticsBase.manybodyoperator(sys::OneParticleBasisSystem, op::AbstractOperator)
-    check_samebases(onebodybasis(sys), basis(op))
-    return op
-end
-QuantumOpticsBase.manybodyoperator(sys::System, mat::AbstractMatrix) =
-    manybodyoperator(sys::System, Operator(onebodybasis(sys), mat))
-
 shift_site(sys::System, site) = shift_site(lattice(sys), site)
 
 macro accepts_system(fname, default_basis=nothing)
     esc(quote
         $fname(sample::Sample, args...; T = 0, μ = nothing, mu = μ, N = nothing, statistics = nothing, kw...) =
             $fname(System(sample, T=T, mu=mu, N=N, statistics=statistics), args...; kw...)
-        $fname(l::BravaisLattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
+        $fname(l::AbstractLattice, bas::Basis, args...; boundaries=nothing, kw...) =
             $fname(Sample(l, bas, boundaries=boundaries), args...; kw...)
-        $fname(l::BravaisLattice, args...; boundaries=BoundaryConditions(), kw...) =
+        $fname(l::AbstractLattice, args...; boundaries=nothing, kw...) =
             $fname(Sample(l, $default_basis, boundaries=boundaries), args...; kw...)
     end)
 end
@@ -180,12 +179,39 @@ macro accepts_system_t(fname, default_basis=nothing)
     esc(quote
         $fname(type::Type, sample::Sample, args...; T = 0, μ = nothing, mu = μ, N = nothing, statistics = nothing, kw...) =
             $fname(type, System(sample, T=T, mu=mu, N=N, statistics=statistics), args...; kw...)
-        $fname(type::Type, l::BravaisLattice, bas::Basis, args...; boundaries=BoundaryConditions(), kw...) =
+        $fname(type::Type, l::AbstractLattice, bas::Basis, args...; boundaries=nothing, kw...) =
             $fname(type, Sample(l, bas, boundaries=boundaries), args...; kw...)
-        $fname(type::Type, l::BravaisLattice, args...; boundaries=BoundaryConditions(), kw...) =
+        $fname(type::Type, l::AbstractLattice, args...; boundaries=nothing, kw...) =
             $fname(type, Sample(l, $default_basis, boundaries=boundaries), args...; kw...)
         $fname(args...; kw...) = $fname(ComplexF64, args...; kw...)
         $fname(::Type, ::Type, args...; kw...) =
             throw(MethodError($fname, args))
     end)
+end
+
+struct Hamiltonian{SystemT, BasisT, T} <: DataOperator{BasisT, BasisT}
+    sys::SystemT
+    basis_l::BasisT
+    basis_r::BasisT
+    data::T
+end
+function Hamiltonian(sys::System, op::Operator)
+    return Hamiltonian(sys, basis(op), basis(op), op.data)
+end
+QuantumOpticsBase.Operator(ham::Hamiltonian) = Operator(ham.basis_l, ham.data)
+
+Base.:(*)(op::Operator{B1, B2}, ham::Hamiltonian{Sys, B2}) where {Sys, B1, B2} = op * Operator(ham)
+Base.:(*)(ham::Hamiltonian{Sys, B2}, op::Operator{B1, B2}) where {Sys, B1, B2} = Operator(ham) * op
+Base.:(+)(op::Operator{B, B}, ham::Hamiltonian{Sys, B}) where {Sys, B} = op + Operator(ham)
+Base.:(+)(ham::Hamiltonian{Sys, B}, op::DataOperator{B, B}) where {Sys, B} = Operator(ham) + op
+Base.:(-)(op::Operator{B, B}, ham::Hamiltonian{Sys, B}) where {Sys, B} = op - Operator(ham)
+Base.:(-)(ham::Hamiltonian{Sys, B}, op::DataOperator{B, B}) where {Sys, B} = Operator(ham) - op
+
+function Base.:(+)(ham::Hamiltonian{Sys, B}, ham2::Hamiltonian{Sys, B}) where {Sys, B}
+    @assert ham.sys == ham2.sys
+    return Hamiltonian(ham.sys, Operator(ham) + Operator(ham2))
+end
+function Base.:(-)(ham::Hamiltonian{Sys, B}, ham2::Hamiltonian{Sys, B}) where {Sys, B}
+    @assert ham.sys == ham2.sys
+    return Hamiltonian(ham.sys, Operator(ham) - Operator(ham2))
 end

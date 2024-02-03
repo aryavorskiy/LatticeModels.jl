@@ -11,6 +11,7 @@ struct BravaisLattice{N, B<:UnitCell{Sym, N} where Sym, BS<:BoundaryConditions} 
 end
 BravaisLattice(bravais, pointers) = BravaisLattice(bravais, pointers, BoundaryConditions())
 add_boundaries(l::BravaisLattice, bs) = BravaisLattice(l.bravais, l.pointers, to_boundaries(bs))
+add_boundaries(l::AbstractLattice, ::Nothing) = l
 sites(l::BravaisLattice) = Sites(add_boundaries(l, BoundaryConditions()))
 b_depth(l::BravaisLattice) = l.b_depth
 cartesian_indices(l::BravaisLattice{N, B, <:BoundaryConditions{<:NTuple{M}}} where {N, B}) where M =
