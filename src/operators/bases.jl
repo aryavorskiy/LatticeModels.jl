@@ -35,6 +35,10 @@ const OneParticleOperator = DataOperator{BT, BT} where BT<:OneParticleBasis
 const AbstractLatticeOperator = DataOperator{BT, BT} where BT<:AbstractLatticeBasis
 
 const StateType{BT<:Basis} = Union{DataOperator{BT,BT}, Ket{BT}, Bra{BT}}
+# These function interpret any state type (vector/matrix) as a density matrix
+@inline matrix_element(op::DataOperator, i, j) = op.data[i, j]
+@inline matrix_element(ket::Ket, i, j) = ket.data[i] * ket.data[j]'
+@inline matrix_element(bra::Bra, i, j) = bra.data[j] * bra.data[i]'
 
 sites(lb::LatticeBasis) = lb.sites
 sites(lb::CompositeLatticeBasis) = sites(lb.bases[end])

@@ -1,4 +1,4 @@
-using QuantumOpticsBase: basis, check_samebases
+import QuantumOpticsBase: basis, check_samebases, manybodyoperator
 
 struct Sample{LT, BasisT}
     latt::LT
@@ -106,7 +106,29 @@ function Base.show(io::IO, mime::MIME"text/plain", sys::OneParticleBasisSystem)
     show(io, mime, sys.sample)
 end
 
-struct NParticles{SampleT} <: System{SampleT}
+abstract type ManyBodySystem{SampleT} <: System{SampleT} end
+function manybodyoperator(sys::ManyBodySystem, op::AbstractOperator)
+    bas = basis(op)
+    sys_bas = onebodybasis(sys)
+    if bas == onebodybasis(sys)
+        return manybodyoperator(ManyBodyBasis(sys_bas, occupations(sys)), op)
+    elseif hasinternal(sys)
+        if bas == internal_basis(sys)
+            latt_op = one(LatticeBasis(lattice(sys)))
+            return manybodyoperator(ManyBodyBasis(sys_bas, occupations(sys)), op ⊗ latt_op)
+        elseif bas == LatticeBasis(lattice(sys))
+            int_op = internal_one(sys)
+            return manybodyoperator(ManyBodyBasis(sys_bas, occupations(sys)), int_op ⊗ op)
+        end
+    end
+    error("basis mismatch")
+end
+function manybodyoperator(sys::ManyBodySystem{<:SampleWithInternal}, op::AbstractMatrix)
+    @assert all(size(op) .== internal_length(sys))
+    return manybodyoperator(sys, Operator(internal_basis(sys), op))
+end
+
+struct NParticles{SampleT} <: ManyBodySystem{SampleT}
     sample::SampleT
     nparticles::Int
     statistics::ParticleStatistics

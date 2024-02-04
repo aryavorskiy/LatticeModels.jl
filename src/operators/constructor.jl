@@ -193,10 +193,7 @@ Base.setindex!(::FastSparseOperatorBuilder, ::Any, ::AbstractSite, ::AbstractSit
     error("`FastSparseOperatorBuilder` does not support normal indexing. Use increments `+=` and `@increment` macro.")
 Base.setindex!(::OperatorBuilder, ::NoMatrixElement, ::AbstractSite, ::AbstractSite) = NoMatrixElement()
 
-function _build_manybody_maybe(ps::NParticles, op::AbstractOperator)
-    check_samebases(onebodybasis(ps), basis(op))
-    return manybodyoperator(ManyBodyBasis(basis(op), occupations(ps)), op)
-end
+_build_manybody_maybe(sys::ManyBodySystem, op::AbstractOperator) = manybodyoperator(sys, op)
 _build_manybody_maybe(::OneParticleBasisSystem, op::AbstractOperator) = op
 function QuantumOpticsBase.Operator(opb::OperatorBuilder; warning=true)
     op = Operator(onebodybasis(opb.sys), to_matrix(opb.mat_builder))

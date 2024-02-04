@@ -1,42 +1,36 @@
 import QuantumOpticsBase: basis, samebases, check_samebases
 
 """
-    lattice_density(ket::Ket)
-    lattice_density(bra::Bra)
-    lattice_density(densitymat::Operator)
+    lattice_density(state)
 
-Calculate local density of given state.
-The state can be expressed as a ket/bra vector or a density matrix.
+Calculate local density of given `state`.
 The output of this function is a `LatticeValue`.
+
+## Arguments:
+- `state`: A `Ket` or `Bra` representing the wavefunction or an `Operator` representing the density matrix.
 """
-function lattice_density(ket::Ket{<:LatticeBasis})
-    LatticeValue(sites(ket), map(abs2, ket.data))
+function lattice_density(state::StateType{<:OneParticleBasis})
+    l = sites(state)
+    N = internal_length(state)
+    LatticeValue(l, [real(sum(matrix_element(state, j, j) for j in (i-1)*N+1:i*N)) for i in eachindex(l)])
 end
-function lattice_density(ket::Ket{<:CompositeLatticeBasis})
-    l = sites(ket)
-    N = internal_length(ket)
-    LatticeValue(l, [sum(abs2, @view(ket.data[(i - 1) * N + 1: i * N])) for i in eachindex(l)])
-end
-
-lattice_density(bra::Bra) = lattice_density(dagger(bra))
-
-function lattice_density(op::LatticeOperator)
-    LatticeValue(sites(op), real.(diag(op.data)))
-end
-
-function lattice_density(op::CompositeLatticeOperator)
-    l = sites(op)
-    N = internal_length(op)
-    dg = diag(op.data)
-    LatticeValue(l, [real(sum(@view(dg[(i - 1) * N + 1: i * N]))) for i in eachindex(l)])
+function lattice_density(state::StateType{<:ManyBodyBasis{<:OneParticleBasis}})
+    vs = zeros(length(basis(state).onebodybasis))
+    bas = basis(state)
+    for i in 1:length(bas)
+        occ = bas.occupations[i]
+        vs .+= real.(occ .* matrix_element(state, i, i))
+    end
+    N = internal_length(state)
+    l = sites(state)
+    LatticeValue(l, [sum(@view vs[(i-1)*N+1:i*N]) for i in eachindex(l)])
 end
 
-function diag_reduce(f, op::AbstractLatticeOperator)
+function diag_reduce(f, op::OneParticleOperator)
     l = sites(op)
     N = internal_length(op)
     LatticeValue(l,
-        [f(@view op.data[(i - 1) * N + 1: i * N, (i - 1) * N + 1: i * N]
-        ) for i in eachindex(l)])
+        [f(@view op.data[(i-1)*N+1:i*N, (i-1)*N+1:i*N]) for i in eachindex(l)])
 end
 
 function QuantumOpticsBase.ptrace(op::LatticeModels.CompositeLatticeOperator, sym::Symbol)
@@ -48,29 +42,6 @@ function QuantumOpticsBase.ptrace(op::LatticeModels.CompositeLatticeOperator, sy
     else
         throw(ArgumentError("Invalid subspace symbol ':$sym'; ':lattice' or ':internal' expected"))
     end
-end
-
-function lattice_density(ket::Ket{<:ManyBodyBasis{<:Any,<:AbstractLatticeBasis}})
-    vs = zeros(length(basis(ket).onebodybasis))
-    for i in 1:length(ket)
-        occ = basis(ket).occupations[i]
-        @. vs += occ * abs2(ket.data[i])
-    end
-    N = internal_length(ket)
-    l = sites(ket)
-    LatticeValue(l, [@view(vs[(i - 1) * N + 1: i * N]) for i in eachindex(l)])
-end
-
-function lattice_density(op::DataOperator{BT, BT} where BT<:ManyBodyBasis{<:Any, <:AbstractLatticeBasis})
-    vs = zeros(length(basis(op).onebodybasis))
-    ds = diag(op.data)
-    for i in eachindex(ds)
-        occ = basis(op).occupations[i]
-        @. vs += occ * ds[i]
-    end
-    N = internal_length(op)
-    l = sites(op)
-    LatticeValue(l, [@view(vs[(i - 1) * N + 1: i * N]) for i in eachindex(l)])
 end
 
 """
