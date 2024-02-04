@@ -50,11 +50,11 @@ Base.show(io::IO, ::MIME"text/plain", bc::FunctionBoundary) =
 
 struct BoundaryConditions{CondsTuple}
     bcs::CondsTuple
-    function BoundaryConditions(bcs::CondsTuple) where CondsTuple<:Tuple{Vararg{<:Boundary{N}}} where {N}
+    function BoundaryConditions(bcs::CondsTuple) where CondsTuple<:Tuple{Vararg{Boundary{N}}} where {N}
         new{CondsTuple}(bcs)
     end
 end
-BoundaryConditions(::Tuple{Vararg{<:Boundary}}) =
+BoundaryConditions(::Tuple{Vararg{Boundary}}) =
     throw(ArgumentError("Dimension inconsistency. Check that dimension count for all boundaries is the same"))
 
 BoundaryConditions(args...) =

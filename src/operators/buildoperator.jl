@@ -74,16 +74,15 @@ arg_to_pair(sample::Sample, arg) = _internal_one_mat(sample) => arg
 
 struct Nearest{N}
     is::NTuple{N, Int}
-    Nearest(is::NTuple{N}) where N = new{N}(is)
+    Nearest(is::Vararg{Int, N}) where N = new{N}(is)
 end
-Nearest(is...) = Nearest(is)
 get_bonds(l::AbstractLattice, n::Nearest) = tuple(((default_bonds(l, i) for i in n.is)...)...)
 function arg_to_pair(sample::Sample, arg::Pair)
     op, lpart = arg
     if lpart isa LatticeValue
         check_samesites(lpart, sample)
         new_lpart = lpart
-    elseif lpart isa AbstractBond || lpart isa Tuple{Vararg{<:AbstractBond}}
+    elseif lpart isa AbstractBond || lpart isa Tuple{Vararg{AbstractBond}}
         new_lpart = lpart
     elseif lpart isa Nearest
         new_lpart = get_bonds(lattice(sample), lpart)
