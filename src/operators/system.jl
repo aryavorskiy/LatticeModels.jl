@@ -4,7 +4,6 @@ struct Sample{LT, BasisT}
     latt::LT
     internal::BasisT
 end
-Sample(l::LT) where {LT<:AbstractLattice} = Sample{LT,Nothing}(l, nothing)
 function Sample(l::AbstractLattice, internal::IT=nothing;
         boundaries=nothing) where {IT<:Nullable{Basis}}
     new_l = add_boundaries(l, boundaries)
@@ -199,6 +198,7 @@ function Hamiltonian(sys::System, op::Operator)
     return Hamiltonian(sys, basis(op), basis(op), op.data)
 end
 QuantumOpticsBase.Operator(ham::Hamiltonian) = Operator(ham.basis_l, ham.data)
+sample(ham::Hamiltonian) = sample(ham.sys)
 
 Base.:(*)(op::Operator{B1, B2}, ham::Hamiltonian{Sys, B2}) where {Sys, B1, B2} = op * Operator(ham)
 Base.:(*)(ham::Hamiltonian{Sys, B2}, op::Operator{B1, B2}) where {Sys, B1, B2} = Operator(ham) * op

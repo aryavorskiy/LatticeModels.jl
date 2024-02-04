@@ -62,16 +62,15 @@ end
 
 A `AbstractCurrents` instance that stores values for all currents explicitly.
 """
-struct Currents <: AbstractCurrents
-    lattice::BravaisLattice
+struct Currents{T, LT} <: AbstractCurrents
+    lattice::LT
     currents::Matrix{Float64}
-    function Currents(l::BravaisLattice, curs::Matrix{Float64})
+    function Currents(l::LT, curs::Matrix{T}) where {T, LT}
         !all(length(l) .== size(curs)) && error("dimension mismatch")
-        new(l, curs)
+        new{T, LT}(l, curs)
     end
 end
-
-Currents(l::BravaisLattice) =
+Currents(l::AbstractLattice) =
     Currents(l, zeros(length(l), length(l)))
 
 Base.convert(::Type{Currents}, curr::AbstractCurrents) = Currents(curr)

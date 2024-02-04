@@ -4,9 +4,14 @@ Base.@propagate_inbounds function increment!(lhs, rhs, arg1, args...)
     lhs[arg1, args...] += rhs
     return lhs
 end
-Base.@propagate_inbounds increment!(lhs, rhs) = lhs += rhs; return lhs
+Base.@propagate_inbounds increment!(lhs, rhs) = (lhs += rhs; return lhs)
 Base.@propagate_inbounds function increment!(builder::AbstractArray, rhs::Number, i1::Int, i2::Int; factor=1)
     builder[i1, i2] += rhs * factor
+    return nothing
+end
+Base.@propagate_inbounds function increment!(builder::AbstractArray, rhs::AbstractArray,
+        i1::AbstractArray, i2::AbstractArray; factor=1)
+    @. builder[i1, i2] += rhs * factor
     return nothing
 end
 Base.@propagate_inbounds function increment!(builder::AbstractArray, rhs::SparseMatrixCSC; factor=1)
@@ -69,7 +74,8 @@ Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::
     append!(builder.Vs, nvs * factor)
     return builder
 end
-Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::AbstractMatrix, is1, is2; kw...)
+Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::AbstractMatrix,
+        is1::AbstractArray, is2::AbstractArray; kw...)
     for (i1, j1) in enumerate(is1), (i2, j2) in enumerate(is2)
         v = rhs[i1, i2]
         iszero(v) || increment!(builder, v, j1, j2; kw...)
@@ -81,7 +87,7 @@ struct OperatorBuilder{SystemT, FieldT, BT}
     sys::SystemT
     field::FieldT
     internal_length::Int
-    builder::BT
+    mat_builder::BT
     auto_hermitian::Bool
 end
 
@@ -118,7 +124,7 @@ Base.:(+)(::NoMatrixElement, _) = NoMatrixElement()
 Base.:(*)(::NoMatrixElement, _) = NoMatrixElement()
 
 _internal_one_mat(sample::SampleWithInternal) = internal_one(sample).data
-_internal_one_mat(sample::SampleWithoutInternal) = 1
+_internal_one_mat(::SampleWithoutInternal) = SMatrix{1,1}(1)
 op_to_matrix(sample::SampleWithoutInternal, n::Number) = n * _internal_one_mat(sample)
 function op_to_matrix(sample::SampleWithInternal, op::DataOperator)
     @boundscheck QuantumOpticsBase.check_samebases(basis(op), internal_basis(sample))
@@ -129,8 +135,7 @@ op_to_matrix(::Sample, op) =
     throw(ArgumentError("unsupported on-site operator type $(typeof(op))"))
 
 # convert site1=>site2 pair to (i,j,fact) tuple
-function expand_bond(l::AbstractLattice, bond::SingleBond, field::AbstractField)
-    site1, site2 = bond
+function expand_bond(l::AbstractLattice, site1::AbstractSite, site2::AbstractSite, field::AbstractField)
     ifact, new_site1 = shift_site(l, site1)
     jfact, new_site2 = shift_site(l, site2)
     i = site_index(l, new_site1)
@@ -138,27 +143,29 @@ function expand_bond(l::AbstractLattice, bond::SingleBond, field::AbstractField)
     i === nothing && return nothing
     j === nothing && return nothing
     field_fact = exp(-2π * im * line_integral(field, site1.coords, site2.coords))
+    !isfinite(field_fact) && @warn("got NaN or Inf when finding the phase factor")
     return i, j, jfact * field_fact * ifact'
 end
 
 Base.@propagate_inbounds function increment!(opbuilder::OperatorBuilder, rhs, site1::AbstractSite, site2::AbstractSite)
     new_rhs = op_to_matrix(sample(opbuilder), rhs)
-    ijfact = expand_bond(lattice(opbuilder), site1 => site2, opbuilder.field)
+    ijfact = expand_bond(lattice(opbuilder), site1, site2, opbuilder.field)
     ijfact === nothing && return nothing
+    i, j, total_factor = ijfact
     N = internal_length(opbuilder)
-    increment!(opbuilder.builder, new_rhs, (i-1)*N+1:i*N, (j-1)*N+1:j*N, factor = total_factor)
+    increment!(opbuilder.mat_builder, new_rhs, (i-1)*N+1:i*N, (j-1)*N+1:j*N, factor = total_factor)
     if opbuilder.auto_hermitian && i != j
-        increment!(opbuilder.builder, new_rhs', (j-1)*N+1:j*N, (i-1)*N+1:i*N, factor = total_factor')
+        increment!(opbuilder.mat_builder, new_rhs', (j-1)*N+1:j*N, (i-1)*N+1:i*N, factor = total_factor')
     end
     return nothing
 end
 
 Base.@propagate_inbounds function Base.getindex(opbuilder::OperatorBuilder, site1::AbstractSite, site2::AbstractSite)
-    ijfact = expand_bond(lattice(opbuilder), site1 => site2, opbuilder.field)
+    ijfact = expand_bond(lattice(opbuilder), site1, site2, opbuilder.field)
     ijfact === nothing && return NoMatrixElement()
     i, j, total_factor = ijfact
     N = internal_length(opbuilder)
-    mat = opbuilder.builder[(i-1)*N+1:i*N, (j-1)*N+1:j*N] / total_factor
+    mat = opbuilder.mat_builder[(i-1)*N+1:i*N, (j-1)*N+1:j*N] / total_factor
     if hasinternal(opbuilder)
         return Operator(internal_basis(opbuilder), mat)
     else
@@ -170,15 +177,15 @@ Base.getindex(::FastSparseOperatorBuilder, ::AbstractSite, ::AbstractSite) =
 
 Base.@propagate_inbounds function Base.setindex!(opbuilder::OperatorBuilder, rhs, site1::AbstractSite, site2::AbstractSite)
     new_rhs = op_to_matrix(sample(opbuilder), rhs)
-    ijfact = expand_bond(lattice(opbuilder), site1 => site2, opbuilder.field)
+    ijfact = expand_bond(lattice(opbuilder), site1, site2, opbuilder.field)
     ijfact === nothing && return NoMatrixElement()
     i, j, total_factor = ijfact
     N = internal_length(opbuilder)
     @boundscheck !all(size(new_rhs) == (N, N)) &&
         error("rhs size mismatch: Expected $N×$N, got $(join("×", size(new_rhs))))")
-    opbuilder.builder[(i-1)*N+1:i*N, (j-1)*N+1:j*N] = new_rhs * total_factor
+    opbuilder.mat_builder[(i-1)*N+1:i*N, (j-1)*N+1:j*N] = new_rhs * total_factor
     if opbuilder.auto_hermitian && i != j
-        opbuilder.builder[(j-1)*N+1:j*N, (i-1)*N+1:i*N] = new_rhs' * total_factor'
+        opbuilder.mat_builder[(j-1)*N+1:j*N, (i-1)*N+1:i*N] = new_rhs' * total_factor'
     end
     return rhs
 end
@@ -192,7 +199,7 @@ function _build_manybody_maybe(ps::NParticles, op::AbstractOperator)
 end
 _build_manybody_maybe(::OneParticleBasisSystem, op::AbstractOperator) = op
 function QuantumOpticsBase.Operator(opb::OperatorBuilder; warning=true)
-    op = Operator(onebodybasis(opb.sys), to_matrix(opb.builder))
+    op = Operator(onebodybasis(opb.sys), to_matrix(opb.mat_builder))
     if warning && !opb.auto_hermitian && !ishermitian(op)
         @warn "The resulting operator is not hermitian. Set `warning=false` to hide this message or add `auto_hermitian=true` to the `OperatorBuilder` constructor."
     end
