@@ -24,7 +24,7 @@ A lazy wrapper for a `Currents` object representing the same currents but on a s
 """
 struct SubCurrents{CT} <: AbstractCurrents
     parent_currents::CT
-    lattice::BravaisLattice
+    lattice::AbstractLattice
     indices::Vector{Int}
     function SubCurrents(parent_currents::CT, indices::Vector{Int}) where {CT<:AbstractCurrents}
         l = lattice(parent_currents)
@@ -40,11 +40,11 @@ function Base.getindex(curr::AbstractCurrents, lvm::LatticeValue{Bool})
     SubCurrents(curr, indices)
 end
 
-function _site_indices(l::BravaisLattice, l2::BravaisLattice)
+function _site_indices(l::AbstractLattice, l2::AbstractLattice)
     check_issublattice(l2, l)
     return [site_index(l, site) for site in l2]
 end
-_site_indices(l::BravaisLattice, site::BravaisSite) = (site_index(l, site),)
+_site_indices(l::AbstractLattice, site::BravaisSite) = (site_index(l, site),)
 function currents_from(curr::AbstractCurrents, src)
     l = lattice(curr)
     is = _site_indices(l, src)
@@ -91,6 +91,10 @@ function Base.setindex!(curr::Currents, rhs, s1::AbstractSite, s2::AbstractSite)
     ns2 = shift_site(l, s2)[2]
     i = site_index(l, ns1)
     j = site_index(l, ns2)
+    if i == j
+        @warn "matching source and destination sites"
+        return
+    end
     curr.currents[i, j] = rhs
     curr.currents[j, i] = -rhs
 end

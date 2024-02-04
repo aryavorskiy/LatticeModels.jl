@@ -4,6 +4,7 @@
     H_0 = qwz(l)
     H_1 = qwz(l, field=LandauField(0.1))
     dg = diagonalize(H_0)
+    gs = dg[1]
     P = densitymatrix(dg, statistics=FermiDirac)
     dc = DensityCurrents(H_1, P)
 
@@ -20,6 +21,7 @@
         t4 = s1 + SiteOffset(axis=2, dist=-1)
         dts = lattice_density(im * (H_1 * P - P * H_1))
         @test dc[s1, t1] + dc[s1, t2] + dc[s1, t3] + dc[s1, t4] ≈ dts[s1]
+        @test currents_from_to(dc, s1) ≈ dts[s1]
 
         # Test state representations
         ground_state = dg[1]
@@ -29,8 +31,10 @@
 
         # 'materialized' currents
         l2 = SquareLattice(1, 2)
+        site1, site2 = l2
         m = Currents(l2)
-        m[l2[1], l2[2]] = 2
+        m[site1, site2] = 2
+        m[site1, site1] = 1
         @test m.currents == [0 2; -2 0]
         mc = Currents(dc)
         @test mc + mc == 2mc + zero(mc)
@@ -47,14 +51,38 @@
         @test m1.currents == m4.currents
     end
 
-    @testset "Manybody" begin
-        sys = NParticles(l ⊗ SpinBasis(1//2), 2, statistics=BoseEinstein)
-        H2_0 = qwz(sys)
-        H2_1 = qwz(sys, field=LandauField(0.1))
-        gs2 = diagonalize(H2_0)[1]
+    sys = NParticles(l ⊗ SpinBasis(1//2), 2, statistics=BoseEinstein)
+    H2_0 = qwz(sys)
+    H2_1 = qwz(sys, field=LandauField(0.1))
+    gs2 = diagonalize(H2_0)[1]
 
-        gs_curr = DensityCurrents(H_1, dg[1]) |> Currents
-        gs2_curr = DensityCurrents(H2_1, gs2) |> Currents
-        @test 2 * gs_curr ≈ gs2_curr
+    @testset "Manybody" begin
+        gs_curr = DensityCurrents(H_1, gs) |> Currents
+        mb_gs_curr = DensityCurrents(H2_1, gs2) |> Currents
+        @test 2 * gs_curr ≈ mb_gs_curr
+    end
+
+    @testset "Operator currents" begin
+        gs_curr = DensityCurrents(H_1, gs) |> Currents
+        new_gs_curr = OperatorCurrents(H_1, gs, [1 0; 0 1]) |> Currents
+        @test new_gs_curr ≈ gs_curr
+
+        spinup_curr = OperatorCurrents(H_1, gs, [1 0; 0 0]) |> Currents
+        spindown_curr = OperatorCurrents(H_1, gs, [0 0; 0 1]) |> Currents
+        spin_curr = OperatorCurrents(H_1, gs, [1 0; 0 -1]) |> Currents
+
+        @test spinup_curr + spindown_curr ≈ gs_curr
+        @test spinup_curr - spindown_curr ≈ spin_curr
+
+        site = l[6]
+        state = basisstate(l, site)
+        spin_op = Operator(SpinBasis(1//2), [1 0; 0 -1]) ⊗ (state ⊗ state')
+        dts = gs' * -im * (H_1 * spin_op - spin_op * H_1) * gs
+        @test currents_from_to(spin_curr, site) ≈ dts
+
+        mb_spin_curr = OperatorCurrents(H2_1, gs2, [1 0; 0 -1]) |> Currents
+        mb_spin_op = manybodyoperator(sys, spin_op)
+        mb_dts = gs2' * -im * (H2_1 * mb_spin_op - mb_spin_op * H2_1) * gs2
+        @test currents_from_to(mb_spin_curr, site) ≈ mb_dts
     end
 end

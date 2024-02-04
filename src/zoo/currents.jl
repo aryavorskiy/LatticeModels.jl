@@ -1,10 +1,5 @@
 import QuantumOpticsBase: check_samebases
 
-# These function interpret any state type (vector/matrix) as a density matrix
-@inline matrix_element(op::Operator, i, j) = op.data[i, j]
-@inline matrix_element(ket::Ket, i, j) = ket.data[i] * ket.data[j]'
-@inline matrix_element(bra::Bra, i, j) = bra.data[j] * bra.data[i]'
-
 # Average of creation/destruction operator combination
 function _avg(state::StateType{<:OneParticleBasis}, at_indices, a_indices)
     length(at_indices) == 1 && length(a_indices) == 1 || return zero(eltype(state.data))
@@ -125,21 +120,22 @@ function OperatorCurrents(ham, state, op::AbstractMatrix)
     return OperatorCurrents(ham, state, new_op)
 end
 
-_op_block(op::DataOperator, _, _) = op.data
-_op_block(op::LatticeOperator, i, j) = _block(op, i, j)
+_op_diag_block(op::DataOperator, _) = op.data
+_op_diag_block(op::LatticeOperator, i) = _block(op, i, i)
 lattice(curr::OperatorCurrents) = lattice(curr.hamiltonian)
 function Base.getindex(curr::OperatorCurrents, i::Int, j::Int)
     outp_cur = 0.
     N = internal_length(curr.hamiltonian)
-    T = _block(curr.ham, i, j)
-    O = _op_block(curr.op, i, i)
+    T = _block(curr.hamiltonian, i, j)
+    O = _op_diag_block(curr.op, i)
     for i′ in 1:N, j′ in 1:N
         i′′ = i′ + (i - 1) * N
         j′′ = j′ + (j - 1) * N
         OT_ij = sum(O[i′, k] * T[k, j′] for k in 1:N)
         TO_ij = sum(T[i′, k] * O[k, j′] for k in 1:N)
         outp_cur -= 2 * imag(_avg(curr.state, i′′, j′′) * OT_ij)
-        outp_cur += 2 * imag(_avg(curr.state, (i′′, i′′), (i′′, j′′)) * (TO_ij - OT_ij))
+        # TODO: what the hell?
+        # outp_cur -= 2 * imag(_avg(curr.state, (i′′, i′′), (i′′, j′′)) * (TO_ij - OT_ij))
     end
     return outp_cur
 end
