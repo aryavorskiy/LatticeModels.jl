@@ -63,7 +63,7 @@ Base.:(-)(uv::UniversalView, rhs) = WrappedUniversalView(uv.axes, rhs, -1)
 Base.adjoint(uvw::WrappedUniversalView) = WrappedUniversalView(reverse(uvw.axes), uvw.rhs', uvw.factor')
 
 Base.getindex(::SparseMatrixBuilder, I...) = UniversalView(I)
-function Base.setindex!(bh::SparseMatrixBuilder, wuv::WrappedUniversalView, I...; factor=1)
+Base.@propagate_inbounds function Base.setindex!(bh::SparseMatrixBuilder, wuv::WrappedUniversalView, I...; factor=1)
     @boundscheck wuv.axes != I && throw(ArgumentError("Invalid indexing. Only `A[I...] (+=|-=|=) B` is allowed."))
     Base.setindex!(bh, wuv.rhs, I...; overwrite=false, factor=wuv.factor * factor)
 end
