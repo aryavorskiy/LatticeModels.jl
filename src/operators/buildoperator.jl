@@ -15,14 +15,14 @@ end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:SingleBond})
     # Hopping term
     op, bond = arg
-    @increment builder[bond[1], bond[2]] = op
+    builder[bond[1], bond[2]] += op
 end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:SiteOffset})
     # Hopping term
     op, bonds = arg
     dims(bonds) > dims(builder) && error("Incompatible dims")
     for site1 in lattice(builder)
-        @increment builder[site1, site1 + bonds] += op
+        builder[site1, site1 + bonds] += op
     end
 end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:LatticeValue})
@@ -30,7 +30,8 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:LatticeValue})
     op, lv = arg
     N = internal_length(builder)
     for i in 1:length(lattice(builder)) # This avoids finding indices of sites
-        increment!(builder.mat_builder, op, (i-1)*N+1:i*N, (i-1)*N+1:i*N, factor=lv.values[i])
+        is = (i - 1) * N + 1:i * N
+        builder.mat_builder[is, is, factor=lv.values[i]] = op
     end
 end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:Number})
@@ -38,12 +39,13 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:Number})
     op, n = arg
     N = internal_length(builder)
     for i in 1:length(lattice(builder)) # This avoids finding indices of sites
-        increment!(builder.mat_builder, op, (i-1)*N+1:i*N, (i-1)*N+1:i*N, factor=n)
+        is = (i - 1) * N + 1:i * N
+        builder.mat_builder[is, is, factor=n] = op
     end
 end
 function add_term!(builder::OperatorBuilder, arg::DataOperator)
     # Arbitrary sparse operator
-    increment!(builder.mat_builder, arg.data)
+    register_increment!(builder.mat_builder.increment_helper, arg.data)
 end
 
 function arg_to_pair(sample::Sample, arg::DataOperator)
@@ -96,7 +98,7 @@ end
 
 function build_operator(T::Type, sys::System, args...; field=NoField())
     sample = sys.sample
-    builder = FastSparseOperatorBuilder(T, sys; field=field, auto_hermitian=true)
+    builder = OperatorBuilder(T, sys; field=field, auto_hermitian=true)
     for arg in args
         add_term!(builder, arg_to_pair(sample, arg))
     end

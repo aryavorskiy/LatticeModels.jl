@@ -1,127 +1,92 @@
 import QuantumOpticsBase: Operator, check_samebases
 
-Base.@propagate_inbounds function increment!(lhs, rhs, arg1, args...)
-    lhs[arg1, args...] += rhs
-    return lhs
+struct MatrixWrite{T}
+    val::T
+    overwrite::Bool
 end
-Base.@propagate_inbounds increment!(lhs, rhs) = (lhs += rhs; return lhs)
-Base.@propagate_inbounds function increment!(builder::AbstractArray, rhs::Number, i1::Int, i2::Int; factor=1)
-    builder[i1, i2] += rhs * factor
-    return nothing
-end
-Base.@propagate_inbounds function increment!(builder::AbstractArray, rhs::AbstractArray,
-        i1::AbstractArray, i2::AbstractArray; factor=1)
-    @. builder[i1, i2] += rhs * factor
-    return nothing
-end
-Base.@propagate_inbounds function increment!(builder::AbstractArray, rhs::SparseMatrixCSC; factor=1)
-    @. builder += rhs * factor
-    return builder
-end
-
-function _process_increment(expr::Expr)
-    !Meta.isexpr(expr, :(+=)) && error("+= increment expected")
-    lhs, rhs = expr.args
-    if Meta.isexpr(lhs, :ref)
-        builder, refs = lhs.args[1], lhs.args[2:end]
-        return :(LatticeModels.increment!($builder, $rhs, $(refs...)))
-    elseif lhs isa Symbol
-        return :($lhs = LatticeModels.increment!($lhs, $rhs))
-    end
-end
-function _process_increment_recursive!(expr)
-    !Meta.isexpr(expr, (:if, :elseif, :for, :while, :block)) && return expr
-    for i in eachindex(expr.args)
-        if Meta.isexpr(expr.args[i], :(+=))
-            expr.args[i] = _process_increment(expr.args[i])
-        else
-            _process_increment_recursive!(expr.args[i])
-        end
-    end
-    return expr
-end
-macro increment(expr)
-    if Meta.isexpr(expr, :(+=))
-        return esc(_process_increment(expr))
+Base.:(*)(mw::MatrixWrite, n::Number) = MatrixWrite(mw.val * n, mw.overw)
+function combine_writes(mw1::MatrixWrite, mw2::MatrixWrite)
+    if mw2.overwrite
+        return mw2
     else
-        return esc(_process_increment_recursive!(expr))
+        return MatrixWrite(mw1.val + mw2.val, true)
     end
 end
+Base.convert(::Type{MatrixWrite{T}}, mw::MatrixWrite) where T = MatrixWrite(convert(T, mw.val), mw.overwrite)
+Base.zero(::Type{MatrixWrite{T}}) where T = MatrixWrite(zero(T), true)
+to_number(mw::MatrixWrite) = mw.val
+
 struct SparseMatrixBuilder{T}
     size::Tuple{Int,Int}
     Is::Vector{Int}
     Js::Vector{Int}
-    Vs::Vector{T}
-    SparseMatrixBuilder{T}(x::Int, y::Int=x) where T = new{T}((x, y), Int[], Int[], T[])
+    Vs::Vector{MatrixWrite{T}}
+    SparseMatrixBuilder{T}(x::Int, y::Int) where T = new{T}((x, y), Int[], Int[], MatrixWrite{T}[])
 end
-Base.size(smb::SparseMatrixBuilder) = smb.size
-to_matrix(builder::SparseMatrixBuilder) =
-    sparse(builder.Is, builder.Js, builder.Vs, builder.size...)
-to_matrix(mat::AbstractMatrix) = mat
+function to_matrix(bh::SparseMatrixBuilder)
+    _mat = sparse(bh.Is, bh.Js, bh.Vs, bh.size..., combine_writes)
+    return SparseMatrixCSC(_mat.m, _mat.n, _mat.colptr, _mat.rowval, to_number.(_mat.nzval))
+end
 
-Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::Number, i1::Int, i2::Int; factor=1)
+Base.@propagate_inbounds function Base.setindex!(bh::SparseMatrixBuilder, rhs::Number, i1::Int, i2::Int; overwrite=true, factor=1)
     # number increment
-    push!(builder.Is, i1)
-    push!(builder.Js, i2)
-    push!(builder.Vs, rhs * factor)
+    push!(bh.Is, i1)
+    push!(bh.Js, i2)
+    push!(bh.Vs, MatrixWrite(rhs * factor, overwrite))
     return nothing
 end
-Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::SparseMatrixCSC; factor=1)
-    # global increment
-    nis, njs, nvs = findnz(rhs)
-    append!(builder.Is, nis)
-    append!(builder.Js, njs)
-    append!(builder.Vs, nvs * factor)
-    return builder
-end
-Base.@propagate_inbounds function increment!(builder::SparseMatrixBuilder, rhs::AbstractMatrix,
+Base.@propagate_inbounds function Base.setindex!(bh::SparseMatrixBuilder, rhs::AbstractMatrix,
         is1::AbstractArray, is2::AbstractArray; kw...)
     for (i1, j1) in enumerate(is1), (i2, j2) in enumerate(is2)
         v = rhs[i1, i2]
-        iszero(v) || increment!(builder, v, j1, j2; kw...)
+        iszero(v) || Base.setindex!(bh, v, j1, j2; kw...)
     end
-    return builder
+end
+Base.@propagate_inbounds function increment!(bh::SparseMatrixBuilder, rhs::SparseMatrixCSC)
+    # global increment
+    nis, njs, nvs = findnz(rhs)
+    append!(bh.Is, nis)
+    append!(bh.Js, njs)
+    append!(bh.Vs, MatrixWrite.(nvs * factor, false))
 end
 
-struct OperatorBuilder{SystemT, FieldT, BT}
+struct UniversalView{AT}
+    axes::AT
+end
+struct WrappedUniversalView{RT,AT,NT}
+    axes::AT
+    rhs::RT
+    factor::NT
+end
+Base.:(+)(uv::UniversalView, rhs) = WrappedUniversalView(uv.axes, rhs, 1)
+Base.:(-)(uv::UniversalView, rhs) = WrappedUniversalView(uv.axes, rhs, -1)
+Base.adjoint(uvw::WrappedUniversalView) = WrappedUniversalView(reverse(uvw.axes), uvw.rhs', uvw.factor')
+
+Base.getindex(::SparseMatrixBuilder, I...) = UniversalView(I)
+function Base.setindex!(bh::SparseMatrixBuilder, wuv::WrappedUniversalView, I...; factor=1)
+    @boundscheck wuv.axes != I && throw(ArgumentError("Invalid indexing. Only `A[I...] (+=|-=|=) B` is allowed."))
+    Base.setindex!(bh, wuv.rhs, I...; overwrite=false, factor=wuv.factor * factor)
+end
+
+struct OperatorBuilder{SystemT, FieldT, T}
     sys::SystemT
     field::FieldT
     internal_length::Int
-    mat_builder::BT
+    mat_builder::SparseMatrixBuilder{T}
     auto_hermitian::Bool
 end
 
 function OperatorBuilder(T::Type{<:Number}, sys::SystemT;
         field::FieldT=NoField(), auto_hermitian=false) where {SystemT<:System, FieldT<:AbstractField}
-    mat = zeros(T, length(onebodybasis(sys)), length(onebodybasis(sys)))
-    OperatorBuilder{SystemT, FieldT, typeof(mat)}(sys, field, internal_length(sys), mat, auto_hermitian)
+    oneparticle_len = length(onebodybasis(sys))
+    OperatorBuilder{SystemT, FieldT, T}(sys, field, internal_length(sys),
+        SparseMatrixBuilder{T}(oneparticle_len, oneparticle_len), auto_hermitian)
 end
 @accepts_system_t OperatorBuilder
 
-const SparseOperatorBuilder{SystemT, FieldT, T} =
-    OperatorBuilder{SystemT, FieldT, <:SparseMatrixCSC{T}}
-function SparseOperatorBuilder(T::Type{<:Number}, sys::SystemT; field::FieldT=NoField(), auto_hermitian=false
-    ) where {SystemT<:System, FieldT<:AbstractField}
-    mat = spzeros(T, length(onebodybasis(sys)), length(onebodybasis(sys)))
-    OperatorBuilder{SystemT, FieldT, typeof(mat)}(sys, field, internal_length(sys), mat, auto_hermitian)
-end
-@accepts_system_t SparseOperatorBuilder
-
-const FastSparseOperatorBuilder{SystemT, FieldT, T} =
-    OperatorBuilder{SystemT, FieldT, SparseMatrixBuilder{T}}
-function FastSparseOperatorBuilder(T::Type{<:Number}, sys::SystemT; field::FieldT=NoField(),
-    auto_hermitian=false) where {SystemT<:System, FieldT<:AbstractField}
-    mat = SparseMatrixBuilder{T}(length(onebodybasis(sys)))
-    OperatorBuilder{SystemT, FieldT, typeof(mat)}(sys, field, internal_length(sys), mat, auto_hermitian)
-end
-@accepts_system_t FastSparseOperatorBuilder
 sample(opb::OperatorBuilder) = sample(opb.sys)
 const OpBuilderWithInternal = OperatorBuilder{<:System{<:SampleWithInternal}}
 const OpBuilderWithoutInternal = OperatorBuilder{<:System{<:SampleWithoutInternal}}
-
-struct NoMatrixElement end
-Base.:(+)(::NoMatrixElement, _) = NoMatrixElement()
-Base.:(*)(::NoMatrixElement, _) = NoMatrixElement()
 
 _internal_one_mat(sample::SampleWithInternal) = internal_one(sample).data
 _internal_one_mat(::SampleWithoutInternal) = SMatrix{1,1}(1)
@@ -130,7 +95,10 @@ function op_to_matrix(sample::SampleWithInternal, op::DataOperator)
     @boundscheck QuantumOpticsBase.check_samebases(basis(op), internal_basis(sample))
     return op.data
 end
-op_to_matrix(::Sample, mat::AbstractMatrix) = mat
+function op_to_matrix(sample::Sample, mat::AbstractMatrix)
+    @boundscheck all(==(internal_length(sample)), size(mat))
+    return mat
+end
 op_to_matrix(::Sample, op) =
     throw(ArgumentError("unsupported on-site operator type $(typeof(op))"))
 
@@ -147,51 +115,30 @@ function expand_bond(l::AbstractLattice, site1::AbstractSite, site2::AbstractSit
     return i, j, jfact * field_fact * ifact'
 end
 
-Base.@propagate_inbounds function increment!(opbuilder::OperatorBuilder, rhs, site1::AbstractSite, site2::AbstractSite)
-    new_rhs = op_to_matrix(sample(opbuilder), rhs)
+Base.getindex(::OperatorBuilder, axes...) = UniversalView(axes)
+
+function _preprocess_op(sample::Sample, uvw::WrappedUniversalView, axes, new_axes)
+    new_mat = op_to_matrix(sample, uvw.rhs)
+    @boundscheck if uvw.axes != axes
+        throw(ArgumentError("Invalid `OperatorBuilder` indexing. Only `A[site1, site2] (+=|-=|=) B` allowed, where B is a number, matrix or `Operator`"))
+    end
+    return WrappedUniversalView(new_axes, new_mat, uvw.factor)
+end
+_preprocess_op(sample::Sample, op, _, _) = op_to_matrix(sample, op)
+Base.@propagate_inbounds function Base.setindex!(opbuilder::OperatorBuilder, rhs, site1::AbstractSite, site2::AbstractSite)
     ijfact = expand_bond(lattice(opbuilder), site1, site2, opbuilder.field)
     ijfact === nothing && return nothing
     i, j, total_factor = ijfact
     N = internal_length(opbuilder)
-    increment!(opbuilder.mat_builder, new_rhs, (i-1)*N+1:i*N, (j-1)*N+1:j*N, factor = total_factor)
+    is = (i - 1) * N+1:i * N
+    js = (j - 1) * N+1:j * N
+    new_rhs = _preprocess_op(sample(opbuilder), rhs, (site1, site2), (is, js))
+    opbuilder.mat_builder[is, js, factor = total_factor] = new_rhs
     if opbuilder.auto_hermitian && i != j
-        increment!(opbuilder.mat_builder, new_rhs', (j-1)*N+1:j*N, (i-1)*N+1:i*N, factor = total_factor')
+        opbuilder.mat_builder[js, is, factor = total_factor'] = new_rhs'
     end
     return nothing
 end
-
-Base.@propagate_inbounds function Base.getindex(opbuilder::OperatorBuilder, site1::AbstractSite, site2::AbstractSite)
-    ijfact = expand_bond(lattice(opbuilder), site1, site2, opbuilder.field)
-    ijfact === nothing && return NoMatrixElement()
-    i, j, total_factor = ijfact
-    N = internal_length(opbuilder)
-    mat = opbuilder.mat_builder[(i-1)*N+1:i*N, (j-1)*N+1:j*N] / total_factor
-    if hasinternal(opbuilder)
-        return Operator(internal_basis(opbuilder), mat)
-    else
-        return only(mat)
-    end
-end
-Base.getindex(::FastSparseOperatorBuilder, ::AbstractSite, ::AbstractSite) =
-    error("`FastSparseOperatorBuilder` does not support normal indexing. Maybe you forgot to use `@increment` macro?")
-
-Base.@propagate_inbounds function Base.setindex!(opbuilder::OperatorBuilder, rhs, site1::AbstractSite, site2::AbstractSite)
-    new_rhs = op_to_matrix(sample(opbuilder), rhs)
-    ijfact = expand_bond(lattice(opbuilder), site1, site2, opbuilder.field)
-    ijfact === nothing && return NoMatrixElement()
-    i, j, total_factor = ijfact
-    N = internal_length(opbuilder)
-    @boundscheck !all(size(new_rhs) == (N, N)) &&
-        error("rhs size mismatch: Expected $N×$N, got $(join("×", size(new_rhs))))")
-    opbuilder.mat_builder[(i-1)*N+1:i*N, (j-1)*N+1:j*N] = new_rhs * total_factor
-    if opbuilder.auto_hermitian && i != j
-        opbuilder.mat_builder[(j-1)*N+1:j*N, (i-1)*N+1:i*N] = new_rhs' * total_factor'
-    end
-    return rhs
-end
-Base.setindex!(::FastSparseOperatorBuilder, ::Any, ::AbstractSite, ::AbstractSite) =
-    error("`FastSparseOperatorBuilder` does not support normal indexing. Use increments `+=` and `@increment` macro.")
-Base.setindex!(::OperatorBuilder, ::NoMatrixElement, ::AbstractSite, ::AbstractSite) = NoMatrixElement()
 
 _build_manybody_maybe(sys::ManyBodySystem, op::AbstractOperator) = manybodyoperator(sys, op)
 _build_manybody_maybe(::OneParticleBasisSystem, op::AbstractOperator) = op

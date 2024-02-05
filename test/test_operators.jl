@@ -3,8 +3,8 @@
         l = SquareLattice(10, 10)
         spin = SpinBasis(1//2)
         builder = OperatorBuilder(l, spin, auto_hermitian=true, field=LandauField(0.1))
-        builder2 = SparseOperatorBuilder(l ⊗ spin, field=LandauField(0.1))
-        builder3 = FastSparseOperatorBuilder(ComplexF16, l, spin, auto_hermitian=true, field=LandauField(0.1))
+        builder2 = OperatorBuilder(l ⊗ spin, field=LandauField(0.1))
+        builder3 = OperatorBuilder(ComplexF16, l, spin, auto_hermitian=true, field=LandauField(0.1))
 
         for site in l
             site_hx = site + SiteOffset(axis = 1)
@@ -13,19 +13,16 @@
             builder[site, site] = sigmaz(spin)
             builder[site, site_hx] = (sigmaz(spin) - im * sigmax(spin)) / 2
             builder[site, site_hy] += (sigmaz(spin) - im * sigmay(spin)) / 2
-            builder[site, site_hy] *= 1
 
-            @increment begin
-                builder2[site, site] += sigmaz(spin)
-                builder2[site, site_hx] += (sigmaz(spin) - im * sigmax(spin)) / 2
-                builder2[site_hx, site] += (sigmaz(spin) + im * sigmax(spin)) / 2
-                builder2[site, site_hy] += (sigmaz(spin) - im * sigmay(spin)) / 2
-                builder2[site_hy, site] += (sigmaz(spin) + im * sigmay(spin)) / 2
+            builder2[site, site] += sigmaz(spin)
+            builder2[site, site_hx] += (sigmaz(spin) - im * sigmax(spin)) / 2
+            builder2[site_hx, site] += (sigmaz(spin) + im * sigmax(spin)) / 2
+            builder2[site, site_hy] += (sigmaz(spin) - im * sigmay(spin)) / 2
+            builder2[site_hy, site] += (sigmaz(spin) + im * sigmay(spin)) / 2
 
-                builder3[site, site] += sigmaz(spin)
-                builder3[site, site_hx] += (sigmaz(spin) - im * sigmax(spin)) / 2
-                builder3[site, site_hy] += (sigmaz(spin) - im * sigmay(spin)) / 2
-            end
+            builder3[site, site] += sigmaz(spin)
+            builder3[site, site_hx] += (sigmaz(spin) - im * sigmax(spin)) / 2
+            builder3[site, site_hy] += (sigmaz(spin) - im * sigmay(spin)) / 2
         end
         H = qwz(l, field=LandauField(0.1))
         H1 = Hamiltonian(builder)
@@ -38,17 +35,6 @@
         @test H ≈ H2
         @test H ≈ H3
         @test H ≈ H4
-        a = 2
-        b = [1, 2, 3]
-        c = [1, 2, 3]
-        @increment begin
-            a += 3
-            b[1:2] += [2, 1]
-            c += [2, 1, 0]
-        end
-        @test a == 5
-        @test b == [3, 3, 3]
-        @test c == [3, 3, 3]
     end
 
     @testset "Operator builtins" begin
