@@ -1,9 +1,5 @@
 import QuantumOpticsBase: DataOperator
 
-function add_hopping_term!(builder::OperatorBuilder, op, bonds::SiteOffset)
-
-end
-
 const AbstractBond = Union{SiteOffset, SingleBond}
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:Tuple})
     # Expand 'lattice' part
@@ -20,7 +16,6 @@ end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:SiteOffset})
     # Hopping term
     op, bonds = arg
-    dims(bonds) > dims(builder) && error("Incompatible dims")
     for site1 in lattice(builder)
         builder[site1, site1 + bonds] += op
     end
@@ -45,7 +40,7 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:Number})
 end
 function add_term!(builder::OperatorBuilder, arg::DataOperator)
     # Arbitrary sparse operator
-    register_increment!(builder.mat_builder.increment_helper, arg.data)
+    increment!(builder.mat_builder.increment_helper, arg.data)
 end
 
 function arg_to_pair(sample::Sample, arg::DataOperator)
@@ -60,18 +55,11 @@ function arg_to_pair(sample::Sample, arg::DataOperator)
             return internal_one(sample) ⊗ sparse(arg)
         end
     else
-        error("Invalid Operator argument: basis does not match neither lattice nor internal phase space")
+        throw(ArgumentError("operator basis does not match neither lattice nor internal phase space"))
     end
 end
 
-function arg_to_pair(sample::Sample, arg::AbstractMatrix)
-    if all(==(internal_length(sample)), size(arg))
-        return arg => 1
-    else
-        error("Invalid Matrix argument: size does not match on-site dimension count")
-    end
-end
-arg_to_pair(sample::Sample, n::Number) = op_to_matrix(sample, n) => 1
+arg_to_pair(sample::Sample, arg::AbstractMatrix) = op_to_matrix(sample, arg) => 1
 arg_to_pair(sample::Sample, arg) = _internal_one_mat(sample) => arg
 
 struct Nearest{N}
@@ -91,7 +79,7 @@ function arg_to_pair(sample::Sample, arg::Pair)
     elseif lpart isa Number
         new_lpart = lpart
     else
-        throw(ArgumentError("unsupported on-lattice operator type $(typeof(lpart))"))
+        throw(ArgumentError("cannot interpret $(typeof(lpart)) as on-lattice operator"))
     end
     return op_to_matrix(sample, op) => new_lpart
 end
