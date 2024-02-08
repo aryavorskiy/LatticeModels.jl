@@ -1,16 +1,16 @@
 using Logging, StaticArrays
 
 """
-    Bravais{Sym, N, NB}
-`N`-dimensional infinite Bravais lattice with `NB` sites in basis.
+    UnitCell{Sym, N, NB}
+`N`-dimensional infinite Bravais lattice unit cell with `NB` sites in basis.
 `Sym` is a `Symbol` which represents
 the type of the lattice (e. g. `:square`, `:honeycomb`).
 This makes `Bravais` object behavior known at compile-time,
 which allows to introduce various optimizations or define specific plot recipes.
 
 ---
-    Bravais(translation_vectors[, basis, offset])
-Constructs a Bravais lattice with given translation vectors and locations of basis sites
+    UnitCell(translation_vectors[, basis, offset])
+Constructs a Bravais lattice unit cell with given translation vectors and locations of basis sites
 relative to some unit cell.
 The `basis` argument can be omitted, in which case the lattice basis will consist of
 one site located in the bottom-left corner of the unit cell.
@@ -23,11 +23,12 @@ struct UnitCell{Sym,N,NB,NN,NNB}
     basis::SMatrix{N,NB,Float64,NNB}
     function UnitCell{Sym}(translation_vectors::AbstractMatrix{<:Real},
         basis::AbstractMatrix{<:Real}=zeros((size(translation_vectors, 1), 1)),
-        offset::AbstractVector{<:Real}=zeros(size(basis)[1])) where Sym
-        N, NB = size(basis)
-        size(translation_vectors)[1] != N &&
-            error("inconsistent dimension `tr_vectors` count")
-        length(offset) != N && error("inconsistent `offset` dimension count")
+        offset::AbstractVector{<:Real}=zeros(size(translation_vectors, 1))) where Sym
+        @check_size translation_vectors :square
+        N = size(translation_vectors, 1)
+        @check_size offset N
+        NB = size(basis, 2)
+        @check_size basis (N, NB)
         new{Sym,N,NB,N*N,N*NB}(translation_vectors, basis .+ offset)
     end
 end

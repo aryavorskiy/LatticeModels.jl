@@ -18,7 +18,7 @@ a site with the same basis index, but in another unit cell.
 
 If `site_indices` are equal or undefined and `translate_uc` is zero, the bond connects
 each site with itself. In this case an error will be thrown.
-Note that though the dimension count for the bond is static, it is automatically compatible to higher-dimensional lattices.
+Note that though the dimension count for the bond is static, it is automatically compatible with higher-dimensional lattices.
 """
 struct SiteOffset{T, N}
     site_indices::T
@@ -39,11 +39,13 @@ SiteOffset(::Nothing, tr_uc) = SiteOffset(tr_uc)
     SiteOffset(site_indices)
     SiteOffset([site_indices; ]axis[, dist=1])
 
-A convenient constructor for a `SiteOffset` object. `site_indices` is `1 => 1` by default.
+A convenient constructor for a `SiteOffset` object.
 
-`site_indices` is a `::Int => ::Int` pair with indices of sites connected by the bond; `1 => 1` is the default value.
+## Arguments:
+- `site_indices`: a `::Int => ::Int` pair with indices of sites connected by the bond;
+if omitted, the bond connects sites with the same sublattice index.
 
-**Keyword arguments:**
+## Keyword arguments:
 - `axis`: The hopping direction axis in terms of unit cell vectors.
 - `dist`: The hopping distance in terms of
 """
@@ -64,8 +66,9 @@ function Base.show(io::IO, ::MIME"text/plain", hop::SiteOffset{<:Nothing})
 end
 dims(::SiteOffset{T, N} where T) where N = N
 
-@inline function Base.:(+)(lp::BravaisPointer, bs::SiteOffset{<:Pair})
+@inline function Base.:(+)(lp::BravaisPointer{N}, bs::SiteOffset{<:Pair}) where N
     bs.site_indices[1] != lp.basis_index && return nothing
+    any(bs.translate_uc[N+1:end] .!= 0) && return nothing
     return BravaisPointer(add_assuming_zeros(lp.unit_cell, bs.translate_uc), bs.site_indices[2])
 end
 @inline Base.:(+)(lp::BravaisPointer, bs::SiteOffset{<:Nothing}) =

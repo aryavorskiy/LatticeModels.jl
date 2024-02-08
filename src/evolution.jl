@@ -38,17 +38,6 @@ function myexp!(P::AbstractMatrix, A::AbstractMatrix, factor; threshold=1e-8, no
     return P
 end
 
-@doc raw"""
-    evolution_operator(H, t)
-
-Calculates the unitary evolution operator using the formula
-
-$ \mathcal{U}(t) = e^{-\frac{1}{i\hbar} \hat{H} t} $
-
-# Arguments
-- `H`: the hamiltonian matrix
-- `t`: the evolution time
-"""
 evolution_operator!(Ev::AbstractMatrix, H::AbstractMatrix, t::Real) = myexp!(Ev, H, -im * t)
 evolution_operator!(Ev::DataOperator, H::DataOperator, t) = Operator(basis(H), evolution_operator!(Ev.data, H.data, t))
 
@@ -240,7 +229,7 @@ end
 Generates an environment with defined hamiltonian and density matrices that evolve by certain laws.
 See [Unitary evolution](evolution.md) for more details.
 
-**Keyword arguments:**
+## Keyword arguments:
 - `k`: order of the Taylor expansion for matrix exponent. If omitted, the default `exp` function will be used.
 - `pade`: set this to true to use Padé approximant formula instead of Taylor expansion.
 - `rtol`: the relative tolerance to decide whether the `Δt` changed between iterations or not. `1e-12` by default.

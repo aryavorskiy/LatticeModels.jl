@@ -44,7 +44,7 @@ function _site_indices(l::AbstractLattice, l2::AbstractLattice)
     check_issublattice(l2, l)
     return [site_index(l, site) for site in l2]
 end
-_site_indices(l::AbstractLattice, site::BravaisSite) = (site_index(l, site),)
+_site_indices(l::AbstractLattice, site::AbstractSite) = (site_index(l, site),)
 function currents_from(curr::AbstractCurrents, src)
     l = lattice(curr)
     is = _site_indices(l, src)
@@ -66,7 +66,8 @@ struct Currents{T, LT} <: AbstractCurrents
     lattice::LT
     currents::Matrix{Float64}
     function Currents(l::LT, curs::Matrix{T}) where {T, LT}
-        !all(length(l) .== size(curs)) && error("dimension mismatch")
+        @check_size curs :square
+        @check_size l size(curs, 1)
         new{T, LT}(l, curs)
     end
 end
@@ -144,7 +145,7 @@ end
 Accepts a function that takes a `Lattice` and two `LatticeSite`s and returns any value.
 Applies `map_fn` to every site pair and returns two `Vector`s: one with currents, one with results of `map_fn`.
 
-**Keyword arguments:**
+## Keyword arguments:
 - `reduce_fn`: if a function is provided, all currents with the same mapped value will be reduced into one value.
 For example, if `aggr_fn=(x -> mean(abs.(x)))`, and `map_fn` finds the distance between the sites,
 the returned lists will store the distance between sites and the average absolute current between sites with such distance.
@@ -153,7 +154,7 @@ the returned lists will store the distance between sites and the average absolut
 function map_currents(f::Function, curr::AbstractCurrents; reduce_fn::Nullable{Function}=nothing, sort::Bool=false)
     l = lattice(curr)
     cs = Float64[]
-    ms = only(Base.return_types(f, (BravaisSite, BravaisSite)))[]
+    ms = typeof(f(l[1], l[1]))[]
     for (i, site1) in enumerate(l)
         for (j, site2) in enumerate(l)
             if site1 > site2

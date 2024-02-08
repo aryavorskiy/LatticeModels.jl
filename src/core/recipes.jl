@@ -10,7 +10,7 @@ end
 end
 
 @recipe function f(::AbstractLattice, ::Val{StyleT}) where StyleT
-    error("Unsupported lattice plot style $StyleT")
+    error("Unsupported lattice plot style '$StyleT'")
 end
 
 @recipe function f(l::AbstractLattice, styles...)

@@ -137,5 +137,3 @@ end
 function (::Type{T})(f::Function, args...; kw...) where T<:BravaisLattice
     sublattice(f, T(args...; kw...))
 end
-
-macrocell_size(::BravaisLattice) = error("This function is discontinued")

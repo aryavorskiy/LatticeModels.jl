@@ -121,10 +121,11 @@ function manybodyoperator(sys::ManyBodySystem, op::AbstractOperator)
             return manybodyoperator(ManyBodyBasis(sys_bas, occupations(sys)), int_op ⊗ op)
         end
     end
-    error("basis mismatch")
+    throw(ArgumentError("cannot match basis $bas to lattice or on-site phase space"))
 end
 function manybodyoperator(sys::ManyBodySystem{<:SampleWithInternal}, op::AbstractMatrix)
-    @assert all(size(op) .== internal_length(sys))
+    N = internal_length(sys)
+    @check_size op (N, N)
     return manybodyoperator(sys, Operator(internal_basis(sys), op))
 end
 
@@ -154,7 +155,7 @@ function System(sample::Sample; μ = nothing, mu = μ, N = nothing, T = 0, stati
     elseif N === mu === nothing
         return OneParticleSystem(sample, T)
     else
-        error("Please define the chemical potential `μ` or the particle number `N` (but not both)")
+        throw(ArgumentError("Both chemical potential `μ` and the particle number `N` are defined"))
     end
 end
 System(onep::OneParticleSystem; kw...) = System(onep.sample; T=onep.T, kw...)

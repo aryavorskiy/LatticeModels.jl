@@ -13,8 +13,7 @@ struct Eigensystem{BT<:Basis,MT<:AbstractMatrix} <: AbstractEigensystem{BT}
     states::MT
     values::Vector{Float64}
     function Eigensystem(basis::BT, states::MT, values::AbstractVector) where {BT,MT}
-        length(basis) != size(states)[1] && error("inconsistent basis dimensionality")
-        length(values) != size(states)[2] && error("inconsistent energies list length")
+        @check_size states (length(basis), length(values))
         sp = sortperm(real.(values))
         new{BT,MT}(basis, states[:, sp], values[sp])
     end
@@ -25,8 +24,7 @@ struct HamiltonianEigensystem{ST<:System,BT<:Basis,MT<:AbstractMatrix} <: Abstra
     states::MT
     values::Vector{Float64}
     function HamiltonianEigensystem(sys::ST, basis::BT, states::MT, values::AbstractVector) where {ST,BT,MT}
-        length(basis) != size(states)[1] && error("inconsistent basis dimensionality")
-        length(values) != size(states)[2] && error("inconsistent energies list length")
+        @check_size states (length(basis), length(values))
         sp = sortperm(real.(values))
         new{ST,BT,MT}(sys, basis, states[:, sp], values[sp])
     end
@@ -145,7 +143,8 @@ function ensemble_densitymatrix(eig::AbstractEigensystem;
     return projector(densfun(T, mu, statistics), eig)
 end
 function fermisphere_densitymatrix(eig::AbstractEigensystem; N::Int)
-    length(Es) < N && error("overfilled Fermi sphere")
+    length(Es) < N &&
+        throw(ArgumentError("cannot build Fermi sphere with $N particles: only $(length(Es)) bands present"))
     length(Es) == N && return projector(ham_eig)
     Es[N] ≈ Es[N+1] && @warn "degenerate levels on the Fermi sphere"
     return projector(eig[1:N])
@@ -162,7 +161,7 @@ function fixn_densitymatrix(eig::AbstractEigensystem;
         abs(dMu) < atol && return ensemble_densitymatrix(eig; T=T, statistics=statistics, mu=newmu)
         newmu += dMu
     end
-    error("did not converge")
+    throw(ArgumentError("did not converge"))
 end
 
 """

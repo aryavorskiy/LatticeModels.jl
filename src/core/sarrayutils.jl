@@ -21,3 +21,29 @@ end
         Expr(:call, :+, [:(m[:, $i] * v[$i]) for i in 1:N]...)
     end
 end
+
+
+function check_size(arr, expected_size::Tuple, var::Symbol)
+    if size(arr) != expected_size
+        throw(ArgumentError(string(
+            "invalid ",
+            arr isa AbstractVector ? "length" : "size",
+            " of `$var`; expected ",
+            join(expected_size, "×"),
+            ", got ", join(size(arr), "×"))))
+    end
+end
+check_size(arr, len::Int, var) = check_size(arr, (len,), var)
+function check_size(arr, expected_size::Symbol, var::Symbol)
+    if expected_size === :square
+        length(size(arr)) == 2 && size(arr, 1) == size(arr, 2) && return
+        throw(ArgumentError(string(
+            "invalid size of `$var`; expected square matrix, got ", join(size(arr), "×"))))
+    end
+end
+
+macro check_size(arr::Symbol, siz)
+    quote
+        check_size($(esc(arr)), $(esc(siz)), $(QuoteNode(arr)))
+    end
+end

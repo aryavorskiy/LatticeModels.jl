@@ -8,7 +8,7 @@ Base.show(io::IO, ::MIME"text/plain", site::AbstractSite{N}) where N =
 
 abstract type SiteParameter end
 const AbstractSiteParameter = Union{<:SiteParameter, Symbol}
-get_param(::AbstractSite, p::SiteParameter) = error("Site does not accept param $p")
+get_param(::AbstractSite, p::SiteParameter) = throw(ArgumentError("Site does not accept param $p"))
 get_param(site::AbstractSite, sym::Symbol) = get_param(site, SiteParameter(sym))
 
 struct Coord <: SiteParameter axis::Int end
@@ -148,7 +148,7 @@ end
     site_distance(l::Lattice, site1::LatticeSite, site2::LatticeSite[; pbc=false])
 Returns the distance between two sites on the `l` lattice.
 
-**Keyword arguments:**
+## Keyword arguments:
 - `pbc`: if `true`, the boundary conditions will be considered periodic and
 the distance will be measured on the shortest path.
 """

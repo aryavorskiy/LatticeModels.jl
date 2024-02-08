@@ -10,10 +10,12 @@ by taking its power: `bs2 = bs1 ^ n`.
 struct AdjacencyMatrix{LT<:Sites}
     sites::LT
     bmat::Matrix{Bool}
-    function AdjacencyMatrix(l::LT, bmat) where {LT<:AbstractLattice}
-        !all(size(bmat) .== length(l)) && error("inconsistent connectivity matrix size")
+    function AdjacencyMatrix(l::LT, connectivity_matrix) where {LT<:AbstractLattice}
+        @check_size connectivity_matrix :square
+        @check_size l size(connectivity_matrix, 1)
         s = sites(l)
-        new{typeof(s)}(s, bmat .| bmat' .| Matrix(I, length(l), length(l)))
+        new{typeof(s)}(s,
+            connectivity_matrix .| connectivity_matrix' .| Matrix(I, length(l), length(l)))
     end
     function AdjacencyMatrix(l::AbstractLattice)
         AdjacencyMatrix(l, Matrix(I, length(l), length(l)))

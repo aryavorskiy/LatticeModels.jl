@@ -33,7 +33,7 @@ export LatticeBasis, ketstate, brastate
 include("operators/system.jl")
 export System, NParticles, FermiDirac, BoseEinstein, Hamiltonian
 include("operators/magneticfield.jl")
-export MagneticField
+export MagneticField, LineIntegralMagneticField
 include("operators/constructor.jl")
 export OperatorBuilder
 include("operators/buildoperator.jl")

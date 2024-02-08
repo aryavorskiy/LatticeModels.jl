@@ -1,7 +1,7 @@
 """
     LandauField <: AbstractField
 
-An object representing Landau calibrated uniform magnetic field along z-axis.
+An object representing Landau gauge uniform magnetic field along z-axis.
 Fields:
 - `B`: The magnetic field value
 """
@@ -10,12 +10,12 @@ struct LandauField <: AbstractField
 end
 vector_potential(field::LandauField, p1) = (0, p1[1] * field.B)
 line_integral(field::LandauField, p1, p2) = ((p1[1] + p2[1]) / 2) * (p2[2] - p1[2]) * field.B
-Base.show(io::IO, ::MIME"text/plain", field::LandauField) = print(io, "Landau calibration field; B = $(field.B) flux quanta per 1×1 plaquette")
+Base.show(io::IO, ::MIME"text/plain", field::LandauField) = print(io, "Landau gauge uniform field; B = $(field.B) flux quanta per 1×1 plaquette")
 
 """
     SymmetricField <: AbstractField
 
-An object representing symmetrically calibrated uniform magnetic field along z-axis.
+An object representing symmetrically gauged uniform magnetic field along z-axis.
 Fields:
 - `B`: The magnetic field value
 """
@@ -24,7 +24,7 @@ struct SymmetricField <: AbstractField
 end
 vector_potential(field::SymmetricField, p1) = SA[-p1[2], p1[1]] * field.B / 2
 line_integral(field::SymmetricField, p1, p2) = (p1[1] * p2[2] - p2[1] * p1[2]) / 2 * field.B
-Base.show(io::IO, ::MIME"text/plain", field::SymmetricField) = print(io, "Symmetric calibration field; B = $(field.B) flux quanta per 1×1 plaquette")
+Base.show(io::IO, ::MIME"text/plain", field::SymmetricField) = print(io, "Symmetric gauge uniform field; B = $(field.B) flux quanta per 1×1 plaquette")
 
 """
     FluxField <: AbstractField

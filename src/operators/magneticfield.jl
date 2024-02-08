@@ -17,7 +17,7 @@ vector_potential(fld::AbstractField, _) =
     line_integral(field, p1, p2[, n_steps=1])
 
 Calculates the $\int_{p1}^{p2} \overrightarrow{A} \cdot \overrightarrow{dl}$ integral using the trapezoidal rule.
-Increase `n_steps` to improve accuracy (note that for linear fields like Landau or symmetrical calibrations the formula is already pefrectly accurate).
+Increase `n_steps` to improve accuracy (note that for linear field gauges like Landau or symmetrical the formula is already pefrectly accurate).
 If needed, redefine this function for specific field types - this is likely to boost accuracy and performance.
 """
 line_integral(field::AbstractField, p1, p2) =
@@ -50,6 +50,12 @@ end
 vector_potential(field::MagneticField, p1::SVector) = field.func(p1)
 line_integral(field::MagneticField, p1, p2) =
     line_integral(field, p1, p2, field.n)
+
+struct LineIntegralMagneticField{FuncT<:Function} <: AbstractField
+    func::FuncT
+    LineIntegralMagneticField(func::FuncT) where FuncT = new{FuncT}(func)
+end
+line_integral(field::LineIntegralMagneticField, p1, p2) = field.func(p1, p2)
 
 struct FieldSum{FT<:Tuple} <: AbstractField
     fields::FT
