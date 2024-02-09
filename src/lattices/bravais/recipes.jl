@@ -91,8 +91,8 @@ This function might be quite useful in custom plot recipes.
 """
 function rectified_values(lv::BravaisLatticeValue{Sym, N} where Sym) where N
     s = sites(lv)
-    mins = Vector(s[1].unit_cell)
-    maxs = Vector(s[1].unit_cell)
+    mins = Vector(s[1].lp.unit_cell)
+    maxs = Vector(s[1].lp.unit_cell)
     for lp in s.latt.pointers
         @. mins = min(mins, lp.unit_cell)
         @. maxs = max(maxs, lp.unit_cell)

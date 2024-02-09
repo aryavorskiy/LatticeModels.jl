@@ -58,23 +58,11 @@ Generates a tuple of `LatticeValue`s representing spatial coordinates.
 """
 coord_values(l::AbstractLattice) =
     [LatticeValue(l, vec) for vec in eachrow(collect_coords(l))]
-macro p_str(e::String)
-    e === "index" && return :(UnitcellIndex())
-    e === "x" && return :(Coord(1))
-    e === "y" && return :(Coord(2))
-    e === "z" && return :(Coord(3))
-    length(e) < 2 && error("Cannot parse site parameter `$e`")
-    typ = e[1]
-    ind = tryparse(Int, e[2:end])
-    ind === nothing && error("Cannot parse site parameter `$e`")
-    if typ == 'x'
-        return :(Coord($ind))
-    elseif typ == 'j'
-        return :(UnitcellAxis($ind))
-    end
-    error("Cannot parse site parameter `$e`")
-end
-param_value(l::AbstractLattice, a::AbstractSiteParameter) = LatticeValue(l, [get_param(site, a) for site in l])
+siteproperty_value(l::AbstractLattice, a::SiteProperty) = LatticeValue(l, [getsiteproperty(site, a) for site in l])
+siteproperty_value(l::AbstractLattice, sym::Symbol) =
+    siteproperty_value(l, SitePropertyAlias{sym}())
+coord_value(l::AbstractLattice, i::Int) = siteproperty_value(l, Coord(i))
+coord_value(l::AbstractLattice, sym::Symbol) = siteproperty_value(l, SitePropertyAlias{sym}())
 
 Base.rand(l::AbstractLattice) = LatticeValue(l, rand(length(l)))
 Base.rand(T::Type, l::AbstractLattice) = LatticeValue(l, rand(T, length(l)))
@@ -159,12 +147,9 @@ Base.@propagate_inbounds function Base.Broadcast.dotview(lv::LatticeValueWrapper
     inds = site_inds(lattice(lv), lv_mask)
     LatticeValueWrapper(lattice(lv)[inds], @view lv.values[inds])
 end
-function Base.Broadcast.dotview(lv::LatticeValueWrapper, pairs::Pair{<:AbstractSiteParameter}...)
-    inds = pairs_to_inds(lattice(lv), pairs...)
+function Base.Broadcast.dotview(lv::LatticeValueWrapper, pairs::Pair...; kw...)
+    inds = pairs_to_inds(lattice(lv), pairs...; kw...)
     return LatticeValueWrapper(lattice(lv)[inds], @view lv.values[inds])
-end
-function Base.Broadcast.dotview(lv::LatticeValueWrapper; kw...)
-    return Base.Broadcast.dotview(lv, kw...)
 end
 
 Base.@propagate_inbounds function Base.setindex!(lv::LatticeValueWrapper, lv_rhs::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
@@ -178,26 +163,25 @@ Base.@propagate_inbounds function Base.setindex!(lv::LatticeValueWrapper, lv_rhs
     return lv_rhs
 end
 
-function Base.getindex(lvw::LatticeValueWrapper, pairs::Pair{<:AbstractSiteParameter}...)
-    inds = pairs_to_inds(lattice(lvw), pairs...)
+function Base.getindex(lvw::LatticeValueWrapper, pairs::Pair...; kw...)
+    inds = pairs_to_inds(lattice(lvw), pairs...; kw...)
     return length(inds) == 1 ? lvw.values[only(inds)] :
         LatticeValueWrapper(lattice(lvw)[inds], lvw.values[inds])
 end
-function Base.getindex(lvw::LatticeValueWrapper; kw...)
-    lvw[kw...]
-end
-function Base.setindex!(lv::LatticeValueWrapper, lv_rhs::LatticeValueWrapper, pairs::Pair{<:AbstractSiteParameter}...)
-    inds_l = pairs_to_inds(lattice(lv), pairs...)
-    inds_r = pairs_to_inds(lattice(lv_rhs), pairs...)
+Base.getindex(lvw::LatticeValueWrapper, ::typeof(!), pairs::Pair...; kw...) =
+    lvw.values[pairs_to_ind(lattice(lvw), pairs...; kw...)]
+
+function Base.setindex!(lv::LatticeValueWrapper, lv_rhs::LatticeValueWrapper, pairs::Pair...; kw...)
+    inds_l = pairs_to_inds(lattice(lv), pairs...; kw...)
+    inds_r = pairs_to_inds(lattice(lv_rhs), pairs...; kw...)
     @boundscheck begin
         check_samelattice(lattice(lv)[inds_l], lattice(lv_rhs)[inds_r])
     end
     lv.values[inds_l] = @view lv_rhs.values[inds_r]
     return lv_rhs
 end
-function Base.setindex!(lvw::LatticeValueWrapper, rhs; kw...)
-    lvw[kw...] = rhs
-end
+Base.setindex!(lvw::LatticeValueWrapper, rhs, ::typeof(!), pairs::Pair...; kw...) =
+    lvw.values[pairs_to_inds(lattice(lvw), pairs...; kw...)] = rhs
 
 """
     project(lv::LatticeValue, axis)
@@ -205,12 +189,12 @@ end
 Creates a mapping from site coordinates to values of `lv`.
 The coordinate axis to project the sites onto can be set with the `axis` argument.
 """
-function project(lv::LatticeValue, param::SiteParameter)
-    pr_crds = [get_param(site, param) for site in lattice(lv)]
+function project(lv::LatticeValue, param::SiteProperty)
+    pr_crds = [getsiteproperty(site, param) for site in lattice(lv)]
     perm = sortperm(pr_crds)
     pr_crds[perm], lv.values[perm]
 end
-project(any, param::Symbol) = project(any, SiteParameter(param))
+project(any, param::Symbol) = project(any, SitePropertyAlias{param}())
 
 ketstate(lv::LatticeValue) = Ket(LatticeBasis(sites(lv)), lv.values)
 brastate(lv::LatticeValue) = Bra(LatticeBasis(sites(lv)), lv.values)

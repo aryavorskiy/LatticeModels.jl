@@ -56,17 +56,17 @@
     @testset "Operator builtins" begin
         l = SquareLattice(10, 10)
         X, Y = coord_operators(l)
-        X2 = param_operator(l, :x)
-        X3 = param_operator(l, LatticeModels.Coord(1))
-        X4 = diagonaloperator(param_value(l, :x))
+        X2 = coord_operator(l, :x)
+        X3 = siteproperty_operator(l, LatticeModels.Coord(1))
+        X4 = diagonaloperator(coord_value(l, :x))
         @test X == X2
         @test X == X3
         @test X == X4
 
         spin = SpinBasis(1//2)
         Xs = one(spin) ⊗ X
-        Xs1 = param_operator(l, spin, :x)
-        Xs2 = param_operator(l ⊗ spin, p"x1")
+        Xs1 = siteproperty_operator(l, spin, :x)
+        Xs2 = siteproperty_operator(l ⊗ spin, LatticeModels.Coord(1))
         @test Xs == Xs1
         @test Xs == Xs2
     end

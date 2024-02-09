@@ -53,11 +53,11 @@ site_coords(b::UnitCell{Sym,N,1} where {Sym}, lp::BravaisPointer{N}) where {N} =
 
 Base.:(==)(lp1::BravaisPointer, lp2::BravaisPointer) =
     lp1.basis_index == lp2.basis_index && lp1.unit_cell == lp2.unit_cell
-function Base.isless(site1::BravaisPointer, site2::BravaisPointer)
-    if site1.unit_cell == site2.unit_cell
-        return isless(site1.basis_index, site2.basis_index)
+function Base.isless(lp1::BravaisPointer, lp2::BravaisPointer)
+    if lp1.unit_cell == lp2.unit_cell
+        return isless(lp1.basis_index, lp2.basis_index)
     else
-        return isless(site1.unit_cell, site2.unit_cell)
+        return isless(lp1.unit_cell, lp2.unit_cell)
     end
 end
 
@@ -81,31 +81,21 @@ struct BravaisSite{N, B} <: AbstractSite{N}
 end
 BravaisSite(::Nothing, ::Any) = NoSite()
 
-@inline function Base.getproperty(site::BravaisSite{N}, sym::Symbol) where N
-    if sym === :index
-        return site.lp.basis_index
-    elseif sym === :unit_cell
-        return site.lp.unit_cell
-    elseif sym === :x && N ≥ 1
-        return site.coords[1]
-    elseif sym === :y && N ≥ 2
-        return site.coords[2]
-    elseif sym === :z && N ≥ 3
-        return site.coords[3]
-    end
-    Base.getfield(site, sym)
-end
-
 Base.show(io::IO, ::MIME"text/plain", site::BravaisSite{N, <:UnitCell{Sym}}) where {N, Sym} =
     print(io, "Site of a ", N, "-dim ", Sym, " lattice @ x = $(site.coords)")
 
-struct UnitcellAxis <: SiteParameter axis::Int end
-struct UnitcellIndex <: SiteParameter end
-function get_param(site::BravaisSite, c::UnitcellAxis)
+struct UnitcellAxis <: SiteProperty axis::Int end
+function getsiteproperty(site::BravaisSite, c::UnitcellAxis)
     @assert 1 ≤ c.axis ≤ dims(site)
-    return site.unit_cell[c.axis]
+    return getfield(site, :lp).unit_cell[c.axis]
 end
-get_param(site::BravaisSite, ::UnitcellIndex) = site.lp.basis_index
+for i in 1:32
+    @eval SitePropertyAlias{$(QuoteNode(Symbol("j$i")))}() = UnitcellAxis($i)
+end
+
+struct UnitcellIndex <: SiteProperty end
+getsiteproperty(site::BravaisSite, ::UnitcellIndex) = getfield(site, :lp).basis_index
+SitePropertyAlias{:index}() = UnitcellIndex()
 
 Base.:(==)(site1::BravaisSite, site2::BravaisSite) =
     site1.lp == site2.lp && site1.coords == site2.coords

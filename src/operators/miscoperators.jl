@@ -1,6 +1,6 @@
 QuantumOpticsBase.diagonaloperator(lv::LatticeValue) =
     QuantumOpticsBase.diagonaloperator(LatticeBasis(lattice(lv)), lv.values)
-function QuantumOpticsBase.diagonaloperator(lb::AbstractLatticeBasis, lv::LatticeValue)
+function QuantumOpticsBase.diagonaloperator(lb::OneParticleBasis, lv::LatticeValue)
     check_samesites(lv, lb)
     N = internal_length(lb)
     return diagonaloperator(lb, repeat(lv.values, inner=N))
@@ -17,15 +17,20 @@ Generate a `Tuple` of coordinate operators for given `sample`.
 
 Standard rules for functions accepting `Sample`s apply.
 """
-coord_operators(lb::AbstractLatticeBasis) =
+coord_operators(lb::OneParticleBasis) =
     Tuple(diagonaloperator(lb, lv) for lv in coord_values(lattice(lb)))
 coord_operators(sample::OneParticleBasisSystem) = coord_operators(basis(sample))
 @accepts_system coord_operators
 
-param_operator(lb::AbstractLatticeBasis, crd) =
-    diagonaloperator(lb, param_value(lattice(lb), crd))
-param_operator(sample::OneParticleBasisSystem, crd) = param_operator(basis(sample), crd)
-@accepts_system param_operator
+siteproperty_operator(lb::OneParticleBasis, crd) =
+    diagonaloperator(lb, siteproperty_value(lattice(lb), crd))
+siteproperty_operator(sample::OneParticleBasisSystem, crd) = siteproperty_operator(basis(sample), crd)
+@accepts_system siteproperty_operator
+
+coord_operator(lb::OneParticleBasis, crd) = coord_operator(sample(lb), crd)
+coord_operator(sample::Sample, i::Int) = siteproperty_operator(sample, Coord(i))
+coord_operator(sample::Sample, sym::Symbol) = siteproperty_operator(sample, SitePropertyAlias{sym}())
+@accepts_system coord_operator
 
 """
     QuantumOpticsBase.transition(sys::System, site1::LatticeSite, site2::LatticeSite[, op; field])

@@ -15,7 +15,7 @@ include("core/lattice.jl")
 export lattice, sublattice, site_index, site_distance
 include("core/sites.jl")
 include("core/latticevalue.jl")
-export LatticeValue, param_value, coord_values, project, @p_str
+export LatticeValue, siteproperty_value, coord_value, coord_values, project
 include("core/adjacency.jl")
 include("core/recipes.jl")
 
@@ -41,7 +41,7 @@ export Nearest, tightbinding_hamiltonian, build_operator, build_hamiltonian
 include("operators/manybody.jl")
 export interaction
 include("operators/miscoperators.jl")
-export param_operator, coord_operators
+export siteproperty_operator, coord_operator, coord_operators
 include("operators/latticeutils.jl")
 export lattice_density, diag_reduce, apply_field!
 

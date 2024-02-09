@@ -6,28 +6,41 @@ Base.iterate(site::AbstractSite{N}, i=1) where N = i > N ? nothing : (site.coord
 Base.show(io::IO, ::MIME"text/plain", site::AbstractSite{N}) where N =
     print(io, "Site of a ", N, "-dim lattice @ x = $(site.coords)")
 
-abstract type SiteParameter end
-const AbstractSiteParameter = Union{<:SiteParameter, Symbol}
-get_param(::AbstractSite, p::SiteParameter) = throw(ArgumentError("Site does not accept param $p"))
-get_param(site::AbstractSite, sym::Symbol) = get_param(site, SiteParameter(sym))
-
-struct Coord <: SiteParameter axis::Int end
-function get_param(site::AbstractSite, c::Coord)
-    @assert 1 ≤ c.axis ≤ dims(site)
-    return site.coords[c.axis]
-end
-SiteParameter(sym::Symbol) =
-    sym === :x ? Coord(1) : sym === :y ? Coord(2) : sym === :z ? Coord(3) :
-        error("Failed to parse parameter `$sym`. Try using `p\"$sym\"`.")
-
-@inline function Base.getproperty(site::AbstractSite{N}, sym::Symbol) where N
-    if sym in (:x, :y, :z)
-        return get_param(site, sym)
-    end
-    Base.getfield(site, sym)
-end
-
 struct NoSite <: AbstractSite{0} end
+
+# Site parameters
+abstract type SiteProperty end
+getsiteproperty(::AbstractSite, p::SiteProperty) = throw(ArgumentError("Site has no property `$p`"))
+
+struct SitePropertyAlias{Symb} <: SiteProperty end
+getsiteproperty(::AbstractSite, ::SitePropertyAlias{Symb}) where Symb =
+    throw(ArgumentError("`$Symb` is not a valid site property"))
+@inline getsiteproperty(site::AbstractSite, sym::Symbol) =
+    getsiteproperty(site, SitePropertyAlias{sym}())
+
+@inline function Base.getproperty(site::AbstractSite, sym::Symbol)
+    if sym in fieldnames(typeof(site))
+        return getfield(site, sym)
+    end
+    prop = SitePropertyAlias{sym}()
+    if !(prop isa SitePropertyAlias)
+        # If the constructor was overridden, then get site property
+        return getsiteproperty(site, prop)
+    end
+    return getfield(site, sym)
+end
+
+struct Coord <: SiteProperty axis::Int end
+@inline function getsiteproperty(site::AbstractSite, c::Coord)
+    @assert 1 ≤ c.axis ≤ dims(site)
+    return getfield(site, :coords)[c.axis]
+end
+SitePropertyAlias{:x}() = Coord(1)
+SitePropertyAlias{:y}() = Coord(2)
+SitePropertyAlias{:z}() = Coord(3)
+for i in 1:32
+    @eval SitePropertyAlias{$(QuoteNode(Symbol("x$i")))}() = Coord($i)
+end
 
 abstract type AbstractLattice{SiteT} <: AbstractSet{SiteT} end
 lattice(l::AbstractLattice) = l
@@ -71,22 +84,54 @@ Base.checkbounds(l::AbstractLattice, is) =
 Base.pop!(l::AbstractLattice) = Base.deleteat!(l, lastindex(l))
 Base.popfirst!(l::AbstractLattice) = Base.deleteat!(l, firstindex(l))
 
-function pairs_to_inds(l::AbstractLattice, pairs...)
+sym_to_param_pair(p::Pair{Symbol}) = SitePropertyAlias{p[1]}() => p[2]
+function check_param_pairs(pairs::Tuple{Vararg{Pair}})
+    for (prop, _) in pairs
+        if prop isa Symbol
+            error("`:$prop => ...` notation is purposely disallowed. Use `$prop = ...`")
+        end
+    end
+end
+to_param_pairs(ntup::NamedTuple{T}) where T =
+    tuple(SitePropertyAlias{first(T)}() => first(ntup),
+        to_param_pairs(Base.structdiff(ntup, NamedTuple{(first(T),)}))...)
+to_param_pairs(::NamedTuple{()}) = ()
+to_param_pairs(ps::Base.Pairs) = to_param_pairs(NamedTuple(ps))
+
+function pairs_to_ind(l::AbstractLattice, pairs...; kw...)
+    check_param_pairs(pairs)
+    all_pairs = tuple(pairs..., to_param_pairs(kw)...)
+    ind = 0
+    found_flag = false
+    for (i, site) in enumerate(l)
+        if all(getsiteproperty(site, param) in val for (param, val) in all_pairs)
+            found_flag &&
+                throw(ArgumentError("More than one site satisfies parameter conditions"))
+            ind = i
+            found_flag = true
+        end
+    end
+    !found_flag && throw(BoundsError(l, (pairs..., NamedTuple(kw))))
+    return ind
+end
+function pairs_to_inds(l::AbstractLattice, pairs::Pair...; kw...)
+    check_param_pairs(pairs)
+    all_pairs = tuple(pairs..., to_param_pairs(kw)...)
     inds = Int[]
     for (i, site) in enumerate(l)
-        if all(get_param(site, param) in val for (param, val) in pairs)
+        if all(getsiteproperty(site, param) in val for (param, val) in all_pairs)
             push!(inds, i)
         end
     end
     return inds
 end
-function Base.getindex(l::AbstractLattice, pairs::Pair{<:AbstractSiteParameter}...)
-    inds = pairs_to_inds(l, pairs...)
-    return length(inds) == 1 ? l[only(inds)] : l[inds]
+
+function Base.getindex(l::AbstractLattice, pairs::Pair...; kw...)
+    inds = pairs_to_inds(l, pairs...; kw...)
+    length(inds) == 1 ? l[only(inds)] : l[inds]
 end
-function Base.getindex(l::AbstractLattice; kw...)
-    return l[(crd => val for (crd, val) in kw)...]
-end
+Base.getindex(l::AbstractLattice, ::typeof(!), pairs::Pair...; kw...) =
+    l[pairs_to_ind(l, pairs...; kw...)]
 
 function collect_coords(l::AbstractLattice)
     d = dims(l)
