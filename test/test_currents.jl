@@ -19,9 +19,11 @@
         t2 = s1 + SiteOffset(axis=2)
         t3 = s1 + SiteOffset(axis=1, dist=-1)
         t4 = s1 + SiteOffset(axis=2, dist=-1)
-        dts = lattice_density(im * (H_1 * P - P * H_1))
-        @test dc[s1, t1] + dc[s1, t2] + dc[s1, t3] + dc[s1, t4] ≈ dts[s1]
-        @test currents_from_to(dc, s1) ≈ dts[s1]
+        state = basisstate(l, s1)
+        dens_op = one(SpinBasis(1//2)) ⊗ (state ⊗ state')
+        dens_dt = tr(im * (H_1 * dens_op - dens_op * H_1) * P)
+        @test dc[s1, t1] + dc[s1, t2] + dc[s1, t3] + dc[s1, t4] ≈ dens_dt
+        @test currents_from_to(dc, s1) ≈ dens_dt
 
         # Test state representations
         ground_state = dg[1]
@@ -74,15 +76,17 @@
         @test spinup_curr + spindown_curr ≈ gs_curr
         @test spinup_curr - spindown_curr ≈ spin_curr
 
+        # Check Heisenberg equation
         site = l[6]
         state = basisstate(l, site)
         spin_op = Operator(SpinBasis(1//2), [1 0; 0 -1]) ⊗ (state ⊗ state')
-        dts = gs' * -im * (H_1 * spin_op - spin_op * H_1) * gs
-        @test currents_from_to(spin_curr, site) ≈ dts
+        spin_dt = gs' * im * (H_1 * spin_op - spin_op * H_1) * gs
+        @test currents_from_to(spin_curr, site) ≈ spin_dt
 
         mb_spin_curr = OperatorCurrents(H2_1, gs2, [1 0; 0 -1]) |> Currents
         mb_spin_op = manybodyoperator(sys, spin_op)
-        mb_dts = gs2' * -im * (H2_1 * mb_spin_op - mb_spin_op * H2_1) * gs2
-        @test currents_from_to(mb_spin_curr, site) ≈ mb_dts
+        mb_spin_dt = gs2' * im * (H2_1 * mb_spin_op - mb_spin_op * H2_1) * gs2
+        @test currents_from_to(mb_spin_curr, site) ≈ mb_spin_dt
+        @test mb_spin_curr ≈ 2 * spin_curr
     end
 end

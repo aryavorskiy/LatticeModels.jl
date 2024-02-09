@@ -1,4 +1,20 @@
 @testset "Operators" begin
+    @testset "Basics" begin
+        l = SquareLattice(10, 10)
+        H_0 = qwz(l)
+        H_1 = qwz(l, field=LandauField(0.1))
+        P = densitymatrix(H_0, statistics=FermiDirac)
+
+        # Check Heisenberg and von Neumann equation
+        site = l[11]
+        state = basisstate(l, site)
+        dens_op = one(SpinBasis(1//2)) ⊗ (state ⊗ state')
+        dens_dt = tr(im * (H_1 * dens_op - dens_op * H_1) * P)
+
+        dts = lattice_density(-im * (H_1 * P - P * H_1))
+        @test dens_dt ≈ dts[site]
+    end
+
     @testset "Operator builder" begin
         l = SquareLattice(10, 10)
         spin = SpinBasis(1//2)

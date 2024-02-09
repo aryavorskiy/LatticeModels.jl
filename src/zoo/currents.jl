@@ -77,10 +77,10 @@ function Base.getindex(curr::DensityCurrents, i::Int, j::Int)
     outp_cur = 0.
     N = internal_length(curr.hamiltonian)
     T = _block(curr.hamiltonian, i, j)
-    for i′ in 1:N, j′ in 1:N
-        i′′ = i′ + (i - 1) * N
-        j′′ = j′ + (j - 1) * N
-        outp_cur -= 2 * imag(T[i′, j′] * _avg(curr.state, i′′, j′′))
+    for α in 1:N, β in 1:N
+        i′ = α + (i - 1) * N
+        j′ = β + (j - 1) * N
+        outp_cur += 2 * imag(T[α, β] * _avg(curr.state, i′, j′))
     end
     return outp_cur
 end
@@ -121,21 +121,18 @@ function OperatorCurrents(ham, state, op::AbstractMatrix)
 end
 
 _op_diag_block(op::DataOperator, _) = op.data
-_op_diag_block(op::LatticeOperator, i) = _block(op, i, i)
+_op_diag_block(op::AbstractLatticeOperator, i) = _block(op, i, i)
 lattice(curr::OperatorCurrents) = lattice(curr.hamiltonian)
 function Base.getindex(curr::OperatorCurrents, i::Int, j::Int)
     outp_cur = 0.
     N = internal_length(curr.hamiltonian)
     T = _block(curr.hamiltonian, i, j)
     O = _op_diag_block(curr.op, i)
-    for i′ in 1:N, j′ in 1:N
-        i′′ = i′ + (i - 1) * N
-        j′′ = j′ + (j - 1) * N
-        OT_ij = sum(O[i′, k] * T[k, j′] for k in 1:N)
-        TO_ij = sum(T[i′, k] * O[k, j′] for k in 1:N)
-        outp_cur -= 2 * imag(_avg(curr.state, i′′, j′′) * OT_ij)
-        # TODO: what the hell?
-        # outp_cur -= 2 * imag(_avg(curr.state, (i′′, i′′), (i′′, j′′)) * (TO_ij - OT_ij))
+    for α in 1:N, β in 1:N
+        i′ = α + (i - 1) * N
+        j′ = β + (j - 1) * N
+        OT_αβ = sum(O[α, k] * T[k, β] for k in 1:N)
+        outp_cur += 2 * imag(OT_αβ * _avg(curr.state, i′, j′))
     end
     return outp_cur
 end

@@ -85,7 +85,7 @@
         scatter!(p[3], SquareLattice(3, 4, 5))
         plot!(p[4], project(xy, :x))
         plot!(p[4], project(xy, p"j1"))
-        mpcs = map_currents(site_distance, dc, reduce_fn=sum, sort=true)
+        mpcs = mapgroup_currents(site_distance, sum, dc, sortresults=true)
         plot!(p[4], mpcs)
         true
     end

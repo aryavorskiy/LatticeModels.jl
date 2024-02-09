@@ -17,6 +17,35 @@ lattice(curr::AbstractCurrents) = error("lattice(::$(typeof(curr))) must be expl
 Base.getindex(curr::AbstractCurrents, s1::AbstractSite, s2::AbstractSite) =
     curr[site_index(lattice(curr), s1), site_index(lattice(curr), s2)]
 
+@inline iszerocurrent(::AbstractCurrents, i::Int, j::Int) = false
+@inline iszerocurrent(curr::AbstractCurrents, s1::AbstractSite, s2::AbstractSite) =
+    iszerocurrent(curr, site_index(lattice(curr), s1), site_index(lattice(curr), s2))
+
+function Base.length(curr::AbstractCurrents)
+    le = length(lattice(curr))
+    return le * (le - 1) ÷ 2
+end
+@inline function Base.iterate(curr::AbstractCurrents)
+    if length(lattice(curr)) < 2
+        return nothing
+    else
+        l = lattice(curr)
+        return (l[1] => l[2], curr[1, 2]), 1 => 2
+    end
+end
+@inline function Base.iterate(curr::AbstractCurrents, pair::Pair{Int, Int})
+    l = lattice(curr)
+    i, j = pair
+    j += 1
+    if j > length(l)
+        i += 1
+        j = i + 1
+        j > length(l) && return nothing
+    end
+    iszerocurrent(curr, i, j) && return iterate(curr, i => j)
+    return (l[i] => l[j], curr[i, j]), i => j
+end
+
 """
     SubCurrents{CT<:AbstractCurrents} <: AbstractCurrents
 
@@ -139,47 +168,40 @@ function Currents(curr::AbstractCurrents, am::Nullable{AdjacencyMatrix}=nothing)
     m
 end
 
-"""
-    map_currents(map_fn, currs::AnstractCurrents[; reduce_fn, sort=false])
+_reorder(p::Pair, ::Nothing) = p
+_reorder(p::Pair, by::Function) = by(p[1]) < by(p[2]) ? p : reverse(p)
+_mulorder(::Pair, ::Nothing) = 1
+_mulorder(p::Pair, by::Function) = by(p[1]) < by(p[2]) ? 1 : -1
 
-Accepts a function that takes a `Lattice` and two `LatticeSite`s and returns any value.
-Applies `map_fn` to every site pair and returns two `Vector`s: one with currents, one with results of `map_fn`.
+"""
+    mapgroup_currents(f, group, currents[; sort=false, sortpairsby])
+
+Find the current between all possible pairs of sites, apply `f` to every site pair and
+group the result by value of `f`,
+
+## Arguments:
+- `f`: This function will be applied to all site pairs. Must accept two `AbstractSite`s.
+- `group`: This function will be used to group the current values for pairs with the same mapped value. Must accept a `Vector` of numbers.
+- `currents`: The `AbstractCurrents` object to process.
 
 ## Keyword arguments:
-- `reduce_fn`: if a function is provided, all currents with the same mapped value will be reduced into one value.
-For example, if `aggr_fn=(x -> mean(abs.(x)))`, and `map_fn` finds the distance between the sites,
-the returned lists will store the distance between sites and the average absolute current between sites with such distance.
-- `sort`: if true, the output arrays will be sorted by mapped value.
+- `sortresults`: if true, the output arrays will be sorted by results of `f`.
+- `sortpairsby`: if provided, the sites in each pair will be sorted by this function.
+    Must accept one `AbstractSite`; by default the order of the sites in the pair matches
+    their order in the lattice. The sign of the current will match the site order.
 """
-function map_currents(f::Function, curr::AbstractCurrents; reduce_fn::Nullable{Function}=nothing, sort::Bool=false)
-    l = lattice(curr)
-    cs = Float64[]
-    ms = typeof(f(l[1], l[1]))[]
-    for (i, site1) in enumerate(l)
-        for (j, site2) in enumerate(l)
-            if site1 > site2
-                push!(cs, curr[i, j])
-                push!(ms, f(site1, site2))
-            else
-                break
-            end
-        end
+function mapgroup_currents(f::Function, group::Function, curr::AbstractCurrents;
+        sortresults::Bool=false, sortpairsby::Nullable{Function}=nothing)
+    ms = [f(_reorder(pair, sortpairsby)...) for (pair, _) in curr]
+    cs = [val * _mulorder(pair, sortpairsby) for (pair, val) in curr]
+    new_ms = unique(ms)
+    new_cs = [group(cs[ms .== m]) for m in new_ms]
+    if sortresults
+        perm = sortperm(new_ms)
+        permute!(new_ms, perm)
+        permute!(new_cs, perm)
     end
-    if reduce_fn !== nothing
-        ms_set = unique(ms)
-        cs = [reduce_fn(cs[ms .== m]) for m in ms_set]
-        ms = ms_set
-    end
-    if sort
-        perm = sortperm(ms)
-        permute!(ms, perm)
-        permute!(cs, perm)
-    end
-    if eltype(cs) <: Vector
-        ms, transpose(hcat(cs...))
-    else
-        ms, cs
-    end
+    return new_ms, new_cs
 end
 
 @recipe function f(curr::AbstractCurrents)
@@ -191,18 +213,14 @@ end
     arrows_scale --> 1
     arrows_rtol --> 1e-2
     seriestype := :quiver
-    for (i, site1) in enumerate(l)
-        for (j, site2) in enumerate(l)
-            j ≥ i && continue
-            ij_curr = curr[i, j]::Real
-            crd = ij_curr > 0 ? site1.coords : site2.coords
-            vc = site2.coords - site1.coords
-            vc_n = norm(vc)
-            if vc_n < abs(ij_curr * plotattributes[:arrows_scale] / plotattributes[:arrows_rtol])
-                push!(Xs, crd[1])
-                push!(Ys, crd[2])
-                push!(Qs, Tuple(vc * (ij_curr * plotattributes[:arrows_scale] / vc_n)))
-            end
+    for ((site1, site2), val) in curr
+        crd = val > 0 ? site1.coords : site2.coords
+        vc = site2.coords - site1.coords
+        vc_n = norm(vc)
+        if vc_n < abs(val * plotattributes[:arrows_scale] / plotattributes[:arrows_rtol])
+            push!(Xs, crd[1])
+            push!(Ys, crd[2])
+            push!(Qs, Tuple(vc * (val * plotattributes[:arrows_scale] / vc_n)))
         end
     end
     quiver := Qs
