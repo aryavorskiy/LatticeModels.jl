@@ -92,34 +92,40 @@ function check_param_pairs(pairs::Tuple{Vararg{Pair}})
         end
     end
 end
-to_param_pairs(ntup::NamedTuple{T}) where T =
+kw_to_param_pairs(ntup::NamedTuple{T}) where T =
     tuple(SitePropertyAlias{first(T)}() => first(ntup),
-        to_param_pairs(Base.structdiff(ntup, NamedTuple{(first(T),)}))...)
-to_param_pairs(::NamedTuple{()}) = ()
-to_param_pairs(ps::Base.Pairs) = to_param_pairs(NamedTuple(ps))
+        kw_to_param_pairs(Base.structdiff(ntup, NamedTuple{(first(T),)}))...)
+kw_to_param_pairs(::NamedTuple{()}) = ()
+kw_to_param_pairs(ps::Base.Iterators.Pairs) = kw_to_param_pairs(NamedTuple(ps))
 
-function pairs_to_ind(l::AbstractLattice, pairs...; kw...)
-    check_param_pairs(pairs)
-    all_pairs = tuple(pairs..., to_param_pairs(kw)...)
+function to_param_pairs(arg...; kw...)
+    check_param_pairs(arg)
+    return tuple(arg..., kw_to_param_pairs(kw)...)
+end
+
+match_param_pairs(site, ::Tuple{}) = true
+function match_param_pairs(site, pairs::Tuple{Vararg{Pair}})
+    param, val = first(pairs)
+    return getsiteproperty(site, param) in val && match_param_pairs(site, Base.tail(pairs))
+end
+
+function pairs_to_index(l::AbstractLattice, all_pairs::Tuple{Vararg{Pair}})
     ind = 0
-    found_flag = false
+    nfound = 0
     for (i, site) in enumerate(l)
-        if all(getsiteproperty(site, param) in val for (param, val) in all_pairs)
-            found_flag &&
-                throw(ArgumentError("More than one site satisfies parameter conditions"))
+        if match_param_pairs(site, all_pairs)
             ind = i
-            found_flag = true
+            nfound += 1
         end
     end
-    !found_flag && throw(BoundsError(l, (pairs..., NamedTuple(kw))))
+    nfound > 1 && throw(ArgumentError("More than one site satisfies parameter conditions"))
+    nfound < 1 && throw(BoundsError(l, (pairs..., NamedTuple(kw))))
     return ind
 end
-function pairs_to_inds(l::AbstractLattice, pairs::Pair...; kw...)
-    check_param_pairs(pairs)
-    all_pairs = tuple(pairs..., to_param_pairs(kw)...)
+function pairs_to_indices(l::AbstractLattice, all_pairs::Tuple{Vararg{Pair}})
     inds = Int[]
     for (i, site) in enumerate(l)
-        if all(getsiteproperty(site, param) in val for (param, val) in all_pairs)
+        if match_param_pairs(site, all_pairs)
             push!(inds, i)
         end
     end
@@ -127,11 +133,11 @@ function pairs_to_inds(l::AbstractLattice, pairs::Pair...; kw...)
 end
 
 function Base.getindex(l::AbstractLattice, pairs::Pair...; kw...)
-    inds = pairs_to_inds(l, pairs...; kw...)
+    inds = pairs_to_indices(l, to_param_pairs(pairs...; kw...))
     length(inds) == 1 ? l[only(inds)] : l[inds]
 end
 Base.getindex(l::AbstractLattice, ::typeof(!), pairs::Pair...; kw...) =
-    l[pairs_to_ind(l, pairs...; kw...)]
+    l[pairs_to_index(l, to_param_pairs(pairs...; kw...))]
 
 function collect_coords(l::AbstractLattice)
     d = dims(l)
@@ -140,16 +146,6 @@ function collect_coords(l::AbstractLattice)
         pts[:, i] = site.coords
     end
     pts
-end
-
-"""
-    sublattice(lf::Function, l::Lattice) -> Lattice
-Generates a a subset of lattice `l` by applying the `lf` function to its sites.
-The `lf` function must return a boolean value.
-"""
-function sublattice(f::Function, l::AbstractLattice)
-    inds = [i for (i, site) in enumerate(l) if f(site)]
-    return l[inds]
 end
 
 struct IncompatibleLattices <: Exception

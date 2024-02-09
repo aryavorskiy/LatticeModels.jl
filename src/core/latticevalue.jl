@@ -148,7 +148,7 @@ Base.@propagate_inbounds function Base.Broadcast.dotview(lv::LatticeValueWrapper
     LatticeValueWrapper(lattice(lv)[inds], @view lv.values[inds])
 end
 function Base.Broadcast.dotview(lv::LatticeValueWrapper, pairs::Pair...; kw...)
-    inds = pairs_to_inds(lattice(lv), pairs...; kw...)
+    inds = pairs_to_indices(lattice(lv), pairs...; kw...)
     return LatticeValueWrapper(lattice(lv)[inds], @view lv.values[inds])
 end
 
@@ -164,16 +164,17 @@ Base.@propagate_inbounds function Base.setindex!(lv::LatticeValueWrapper, lv_rhs
 end
 
 function Base.getindex(lvw::LatticeValueWrapper, pairs::Pair...; kw...)
-    inds = pairs_to_inds(lattice(lvw), pairs...; kw...)
+    inds = pairs_to_indices(lattice(lvw), to_param_pairs(pairs...; kw...))
     return length(inds) == 1 ? lvw.values[only(inds)] :
         LatticeValueWrapper(lattice(lvw)[inds], lvw.values[inds])
 end
 Base.getindex(lvw::LatticeValueWrapper, ::typeof(!), pairs::Pair...; kw...) =
-    lvw.values[pairs_to_ind(lattice(lvw), pairs...; kw...)]
+    lvw.values[pairs_to_index(lattice(lvw), to_param_pairs(pairs...; kw...))]
 
 function Base.setindex!(lv::LatticeValueWrapper, lv_rhs::LatticeValueWrapper, pairs::Pair...; kw...)
-    inds_l = pairs_to_inds(lattice(lv), pairs...; kw...)
-    inds_r = pairs_to_inds(lattice(lv_rhs), pairs...; kw...)
+    param_pairs = to_param_pairs(pairs...; kw...)
+    inds_l = pairs_to_indices(lattice(lv), param_pairs)
+    inds_r = pairs_to_indices(lattice(lv_rhs), param_pairs)
     @boundscheck begin
         check_samelattice(lattice(lv)[inds_l], lattice(lv_rhs)[inds_r])
     end
@@ -181,7 +182,7 @@ function Base.setindex!(lv::LatticeValueWrapper, lv_rhs::LatticeValueWrapper, pa
     return lv_rhs
 end
 Base.setindex!(lvw::LatticeValueWrapper, rhs, ::typeof(!), pairs::Pair...; kw...) =
-    lvw.values[pairs_to_inds(lattice(lvw), pairs...; kw...)] = rhs
+    lvw.values[pairs_to_index(lattice(lvw), to_param_pairs(pairs...; kw...))] = rhs
 
 """
     project(lv::LatticeValue, axis)

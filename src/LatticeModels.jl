@@ -12,7 +12,7 @@ const Nullable{T} = Union{Nothing,T}
 
 include("core/sarrayutils.jl")
 include("core/lattice.jl")
-export lattice, sublattice, site_index, site_distance
+export lattice, sublattice, site_index, site_distance, Coord
 include("core/sites.jl")
 include("core/latticevalue.jl")
 export LatticeValue, siteproperty_value, coord_value, coord_values, project
@@ -23,7 +23,7 @@ include("lattices/bravais/unitcell.jl")
 include("lattices/bravais/boundaries.jl")
 export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions
 include("lattices/bravais/lattice.jl")
-export adjacency_matrix, add_boundaries
+export adjacency_matrix, add_boundaries, UnitcellAxis, UnitcellIndex
 include("lattices/bravais/bonds.jl")
 export SiteOffset, Bonds
 include("lattices/bravais/recipes.jl")
