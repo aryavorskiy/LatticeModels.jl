@@ -4,6 +4,7 @@ authors = ["A. Yavorsky <iavorskii.ar@phystech.edu>"]
 version = "0.20.3"
 
 [deps]
+FillArrays = "1a297f60-69ca-5386-bcde-b61e274b549b"
 IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
 KrylovKit = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"

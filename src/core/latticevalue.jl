@@ -168,8 +168,11 @@ function Base.getindex(lvw::LatticeValueWrapper, pairs::Pair...; kw...)
     return length(inds) == 1 ? lvw.values[only(inds)] :
         LatticeValueWrapper(lattice(lvw)[inds], lvw.values[inds])
 end
-Base.getindex(lvw::LatticeValueWrapper, ::typeof(!), pairs::Pair...; kw...) =
-    lvw.values[pairs_to_index(lattice(lvw), to_param_pairs(pairs...; kw...))]
+function Base.getindex(lvw::LatticeValueWrapper, ::typeof(!), pairs::Pair...; kw...)
+    ind = pairs_to_index(lattice(lvw), to_param_pairs(pairs...; kw...))
+    ind === nothing && throw(BoundsError(lvw, (pairs..., NamedTuple(kw))))
+    lvw.values[ind]
+end
 
 function Base.setindex!(lv::LatticeValueWrapper, lv_rhs::LatticeValueWrapper, pairs::Pair...; kw...)
     param_pairs = to_param_pairs(pairs...; kw...)
@@ -181,8 +184,11 @@ function Base.setindex!(lv::LatticeValueWrapper, lv_rhs::LatticeValueWrapper, pa
     lv.values[inds_l] = @view lv_rhs.values[inds_r]
     return lv_rhs
 end
-Base.setindex!(lvw::LatticeValueWrapper, rhs, ::typeof(!), pairs::Pair...; kw...) =
-    lvw.values[pairs_to_index(lattice(lvw), to_param_pairs(pairs...; kw...))] = rhs
+function Base.setindex!(lvw::LatticeValueWrapper, rhs, ::typeof(!), pairs::Pair...; kw...)
+    ind = pairs_to_index(lattice(lvw), to_param_pairs(pairs...; kw...))
+    ind === nothing && throw(BoundsError(lvw, (pairs..., NamedTuple(kw))))
+    lvw.values[ind] = rhs
+end
 
 """
     project(lv::LatticeValue, axis)

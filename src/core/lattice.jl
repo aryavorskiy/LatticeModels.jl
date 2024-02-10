@@ -48,6 +48,7 @@ dims(::AbstractLattice{<:AbstractSite{N}}) where {N} = N
 dims(l) = dims(lattice(l))
 Base.size(l::AbstractLattice) = (length(l),)
 site_index(::AbstractLattice, ::NoSite) = nothing
+Base.getindex(::AbstractLattice, ::NoSite) = nothing
 
 Base.summary(io::IO, l::AbstractLattice{<:AbstractSite{N}}) where N =
     print(io, length(l), "-site ", N, "-dim lattice")
@@ -119,7 +120,7 @@ function pairs_to_index(l::AbstractLattice, all_pairs::Tuple{Vararg{Pair}})
         end
     end
     nfound > 1 && throw(ArgumentError("More than one site satisfies parameter conditions"))
-    nfound < 1 && throw(BoundsError(l, (pairs..., NamedTuple(kw))))
+    nfound < 1 && return nothing
     return ind
 end
 function pairs_to_indices(l::AbstractLattice, all_pairs::Tuple{Vararg{Pair}})
