@@ -23,8 +23,8 @@
         builder3 = OperatorBuilder(ComplexF16, l, spin, auto_hermitian=true, field=LandauField(0.1))
 
         for site in l
-            site_hx = site + BravaisShift(axis = 1)
-            site_hy = site + BravaisShift(axis = 2)
+            site_hx = site + BravaisShift(l, axis = 1)
+            site_hy = site + BravaisShift(l, axis = 2)
 
             builder[site, site] = sigmaz(spin)
             builder[site, site_hx] = (sigmaz(spin) - im * sigmax(spin)) / 2

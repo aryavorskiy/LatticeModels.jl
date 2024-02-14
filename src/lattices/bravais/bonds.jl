@@ -38,7 +38,7 @@ apply_lattice(bsh::BravaisShift{UndefinedLattice}, l::AbstractLattice) =
     BravaisShift(l, bsh.site_indices, bsh.translate_uc)
 dims(::BravaisShift{UndefinedLattice, N}) where N = N
 
-@inline has_sublatremap(bsh::BravaisShift) = bsh.site_indices == (0 => 0)
+@inline has_sublatremap(bsh::BravaisShift) = bsh.site_indices != (0 => 0)
 
 """
     BravaisShift(site_indices)

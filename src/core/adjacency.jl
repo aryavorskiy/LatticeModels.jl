@@ -61,6 +61,13 @@ end
 
 nhops(am::AdjacencyMatrix, n::Int) =
     AdjacencyMatrix(am.lat, am.mat^n .!= 0)
+function Base.union(am::AdjacencyMatrix, ams::AdjacencyMatrix...)
+    l = lattice(am)
+    for _am in ams
+        check_samelattice(l, lattice(_am))
+    end
+    return AdjacencyMatrix(l, .|(am.mat, getfield.(ams, :mat)...))
+end
 
 function adjacency_matrix(bonds::AbstractBonds, more_bonds::AbstractBonds...)
     l = lattice(bonds)
@@ -120,7 +127,7 @@ function SpatialShift(R::AbstractVector{<:Number})
 end
 apply_lattice(sh::SpatialShift{UndefinedLattice}, l::AbstractLattice) =
     SpatialShift(l, sh.R)
-dims(sh::SpatialShift{UndefinedLattice, N}) where N = N
+dims(::SpatialShift{UndefinedLattice, N}) where N = N
 
 isdestination(sh::SpatialShift, site1::AbstractSite, site2::AbstractSite) =
     isapprox(site2.coords - site1.coords, sh.R, atol=√eps())

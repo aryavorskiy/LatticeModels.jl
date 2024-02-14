@@ -131,9 +131,8 @@ end
         l = SquareLattice(2, 2)
         ls1, _, ls3, ls4 = l
         bs = adjacency_matrix(l, BravaisShift(axis=1), BravaisShift(axis=2))
-        bs1 = adjacency_matrix(l, BravaisShift(axis=1)) | adjacency_matrix(l, BravaisShift(axis=2))
-        bs2 = bs^2
-        @test bs.mat == (!!bs).mat
+        bs1 = union(adjacency_matrix(l, BravaisShift(axis=1)), adjacency_matrix(l, BravaisShift(axis=2)))
+        bs2 = union(bs, nhops(bs, 2))
         @test bs.mat == bs1.mat
         @test bs[ls1, ls3]
         @test !bs[ls1, ls4]

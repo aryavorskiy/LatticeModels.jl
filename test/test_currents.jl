@@ -15,10 +15,10 @@
         @test dc[s1, s1] ≈ 0 atol=eps()
 
         # Check Heisenberg equation
-        t1 = s1 + BravaisShift(axis=1)
-        t2 = s1 + BravaisShift(axis=2)
-        t3 = s1 + BravaisShift(axis=1, dist=-1)
-        t4 = s1 + BravaisShift(axis=2, dist=-1)
+        t1 = s1 + BravaisShift(l, axis=1)
+        t2 = s1 + BravaisShift(l, axis=2)
+        t3 = s1 + BravaisShift(l, axis=1, dist=-1)
+        t4 = s1 + BravaisShift(l, axis=2, dist=-1)
         state = basisstate(l, s1)
         dens_op = one(SpinBasis(1//2)) ⊗ (state ⊗ state')
         dens_dt = tr(im * (H_1 * dens_op - dens_op * H_1) * P)

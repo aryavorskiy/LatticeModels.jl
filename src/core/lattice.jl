@@ -7,6 +7,7 @@ Base.show(io::IO, ::MIME"text/plain", site::AbstractSite{N}) where N =
     print(io, "Site of a ", N, "-dim lattice @ x = $(site.coords)")
 
 struct NoSite <: AbstractSite{0} end
+Base.show(op::IO, ::NoSite) = print(io, "LatticeModels.NoSite()")
 
 # Site parameters
 abstract type SiteProperty end

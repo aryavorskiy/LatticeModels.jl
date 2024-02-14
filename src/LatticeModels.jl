@@ -17,13 +17,14 @@ include("core/sites.jl")
 include("core/latticevalue.jl")
 export LatticeValue, siteproperty_value, coord_value, coord_values, project
 include("core/adjacency.jl")
+export adjacency_matrix, nhops
 include("core/recipes.jl")
 
 include("lattices/bravais/unitcell.jl")
 include("lattices/bravais/boundaries.jl")
 export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions
 include("lattices/bravais/lattice.jl")
-export adjacency_matrix, add_boundaries, UnitcellAxis, UnitcellIndex
+export add_boundaries, UnitcellAxis, UnitcellIndex
 include("lattices/bravais/bonds.jl")
 export BravaisShift
 include("lattices/bravais/recipes.jl")

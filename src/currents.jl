@@ -160,7 +160,7 @@ function Currents(curr::AbstractCurrents, am::Nullable{AdjacencyMatrix}=nothing)
     l = lattice(curr)
     m = Currents(l)
     for i in eachindex(l), j in 1:i-1
-        am !== nothing && !am[l[i], l[j]] && continue
+        am !== nothing && !(am[l[i], l[j]] || am[l[j], l[i]]) && continue
         ij_curr = curr[i, j]
         m.currents[i, j] = ij_curr
         m.currents[j, i] = -ij_curr
