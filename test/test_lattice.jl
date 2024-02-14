@@ -6,7 +6,7 @@
         s_0 = SquareLattice(10, 20) do (x, y)
             x < y
         end
-        s_1 = sublattice(sql) do (x, y)
+        s_1 = filter(sql) do (x, y)
             x < y
         end
         s_2 = sql[x.<y]
@@ -18,7 +18,7 @@
         s_3 = HoneycombLattice(10, 10) do (x, y)
             x < y
         end
-        s_4 = sublattice(hl) do (x, y)
+        s_4 = filter(hl) do (x, y)
             x < y
         end
         s_5 = hl[xh.<yh]
@@ -29,7 +29,7 @@
             LatticeModels.get_site(hl, LatticeModels.BravaisPointer(SA[3, 2], 1))
         xb, yb = coord_values(SquareLattice(5, 40))
         @test_throws LatticeModels.IncompatibleLattices sql[xb.<yb]
-        sql2 = sublattice(sql) do site
+        sql2 = filter(sql) do site
             site ∉ (sql[1], sql[end])
         end
         pop!(sql)
@@ -109,14 +109,14 @@ end
 
 @testset "Bonds" begin
     @testset "Constructor" begin
-        @test Bonds(axis=1) == Bonds([1])
-        @test Bonds(axis=1) != Bonds([1, 0])
-        @test_throws ArgumentError Bonds(2 => 2, [0, 0])
+        @test BravaisShift(axis=1) == BravaisShift([1])
+        @test BravaisShift(axis=1) != BravaisShift([1, 0])
+        @test_throws ArgumentError BravaisShift(2 => 2, [0, 0])
     end
     @testset "Hopping matching" begin
         l = SquareLattice(6, 5)
-        hx = Bonds(axis=1)
-        hxmy = Bonds([1, -1])
+        hx = BravaisShift(l, axis=1)
+        hxmy = BravaisShift(l, [1, -1])
         pbc = BoundaryConditions([6, 0] => true)
         for site in l
             ucx, ucy = site.lp.unit_cell
@@ -130,11 +130,11 @@ end
     @testset "Bonds" begin
         l = SquareLattice(2, 2)
         ls1, _, ls3, ls4 = l
-        bs = adjacency_matrix(l, Bonds(axis=1), Bonds(axis=2))
-        bs1 = adjacency_matrix(l, Bonds(axis=1)) | adjacency_matrix(l, Bonds(axis=2))
+        bs = adjacency_matrix(l, BravaisShift(axis=1), BravaisShift(axis=2))
+        bs1 = adjacency_matrix(l, BravaisShift(axis=1)) | adjacency_matrix(l, BravaisShift(axis=2))
         bs2 = bs^2
-        @test bs.bmat == (!!bs).bmat
-        @test bs.bmat == bs1.bmat
+        @test bs.mat == (!!bs).mat
+        @test bs.mat == bs1.mat
         @test bs[ls1, ls3]
         @test !bs[ls1, ls4]
         @test bs2[ls1, ls3]

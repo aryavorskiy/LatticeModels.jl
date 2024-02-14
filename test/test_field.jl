@@ -48,9 +48,9 @@
     end
 
     @testset "Field application" begin
-        H1 = build_operator(l, Bonds(axis=1), Bonds(axis=2), field = la)
-        H2 = build_operator(l, Bonds(axis=1), Bonds(axis=2), field = lla)
-        H3 = build_operator(l, Bonds(axis=1), Bonds(axis=2))
+        H1 = build_operator(l, BravaisShift(axis=1), BravaisShift(axis=2), field = la)
+        H2 = build_operator(l, BravaisShift(axis=1), BravaisShift(axis=2), field = lla)
+        H3 = build_operator(l, BravaisShift(axis=1), BravaisShift(axis=2))
         H4 = copy(H3)
         apply_field!(H3, la)
         apply_field!(H4, lla)

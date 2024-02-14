@@ -97,7 +97,7 @@ function apply_lattice(bonds::AbstractBonds{AbstractLattice}, l::AbstractLattice
     return bonds
 end
 adjacency_matrix(l::AbstractLattice, bonds::AbstractBonds...) =
-    adjacency_matrix(Tuple(apply_lattice(b, l) for b in bonds))
+    adjacency_matrix((apply_lattice(b, l) for b in bonds)...)
 
 Base.:(+)(site::AbstractSite, bonds::OneToOneBonds) = destination(bonds, site)
 Base.:(+)(::AbstractSite, ::OneToOneBonds{UndefinedLattice}) =

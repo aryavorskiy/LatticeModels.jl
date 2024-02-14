@@ -23,8 +23,8 @@
         builder3 = OperatorBuilder(ComplexF16, l, spin, auto_hermitian=true, field=LandauField(0.1))
 
         for site in l
-            site_hx = site + SiteOffset(axis = 1)
-            site_hy = site + SiteOffset(axis = 2)
+            site_hx = site + BravaisShift(axis = 1)
+            site_hy = site + BravaisShift(axis = 2)
 
             builder[site, site] = sigmaz(spin)
             builder[site, site_hx] = (sigmaz(spin) - im * sigmax(spin)) / 2
@@ -45,8 +45,8 @@
         H2 = Hamiltonian(builder2)
         H3 = Hamiltonian(builder3)
         H4 = build_hamiltonian(l, spin, field=LandauField(0.1), sigmaz(spin) => 1,
-            (sigmaz(spin) - im * sigmax(spin)) / 2 => SiteOffset(axis = 1),
-            (sigmaz(spin) - im * sigmay(spin)) / 2 => SiteOffset(axis = 2))
+            (sigmaz(spin) - im * sigmax(spin)) / 2 => BravaisShift(axis = 1),
+            (sigmaz(spin) - im * sigmay(spin)) / 2 => BravaisShift(axis = 2))
         @test H ≈ H1
         @test H ≈ H2
         @test H ≈ H3

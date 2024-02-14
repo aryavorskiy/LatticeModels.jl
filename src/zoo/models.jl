@@ -77,8 +77,8 @@ qwz(m::LatticeValue; kw...) = qwz(lattice(m), m; kw...)
 qwz(sys::System{<:Sample{<:SquareLattice}}, m=1; kw...) =
     build_hamiltonian(sys,
     [1 0; 0 -1] => m,
-    [1 -im; -im -1] / 2 => SiteOffset(axis = 1),
-    [1 -1; 1 -1] / 2 => SiteOffset(axis = 2); kw...)
+    [1 -im; -im -1] / 2 => BravaisShift(axis = 1),
+    [1 -1; 1 -1] / 2 => BravaisShift(axis = 2); kw...)
 @accepts_system qwz SpinBasis(1//2)
 
 @doc raw"""

@@ -5,8 +5,8 @@
         end
         b = LatticeBasis(l)
         d = identityoperator(b)
-        hx = build_operator(l, Bonds(axis=1))
-        hy = build_operator(l, Bonds(axis=2))
+        hx = build_operator(l, BravaisShift(axis=1))
+        hy = build_operator(l, BravaisShift(axis=2))
         H = d + hx + hy
         eig = diagonalize(H)
         P = densitymatrix(eig, statistics=FermiDirac)
@@ -29,8 +29,8 @@
         phasespace = l ⊗ spin
         H0 = build_hamiltonian(phasespace,
             [1 0; 0 -1] => rand(l),
-            [1 im; im -1] / 2 => Bonds(axis = 1),
-            [1 1; -1 -1] / 2 => Bonds(axis = 2),
+            [1 im; im -1] / 2 => BravaisShift(axis = 1),
+            [1 1; -1 -1] / 2 => BravaisShift(axis = 2),
             field = LandauField(0.5)
         )
         function h(t)
@@ -39,8 +39,8 @@
             build_hamiltonian(l, spin,
                 sigmaz(spin) => ms,
                 randn(l),
-                [1 im; im -1] / 2 => Bonds(axis = 1),
-                [1 1; -1 -1] / 2 => Bonds(axis = 2),
+                [1 im; im -1] / 2 => BravaisShift(axis = 1),
+                [1 1; -1 -1] / 2 => BravaisShift(axis = 2),
                 field = LandauField(t)
             )
         end
@@ -64,8 +64,8 @@
         plot!(p[1], xy)
         H = build_hamiltonian(l, spin,
             sigmaz(spin),
-            [1 im; im -1] / 2 => Bonds(axis = 1),
-            [1 1; -1 -1] / 2 => Bonds(axis = 2),
+            [1 im; im -1] / 2 => BravaisShift(axis = 1),
+            [1 1; -1 -1] / 2 => BravaisShift(axis = 2),
             field = LandauField(0.5)
         )
         P = densitymatrix(diagonalize(H), μ = 0.1, statistics=FermiDirac)
@@ -80,7 +80,7 @@
         scatter!(p[1], l[x.<y], high_contrast=true)
         scatter!(p[1], xy[x.≥y])
         plot!(p[1], adjacency_matrix(H))
-        plot!(p[1], adjacency_matrix(l, Bonds([1, 1])))
+        plot!(p[1], adjacency_matrix(BravaisShift(l, [1, 1])))
         surface!(p[2], xy)
         scatter!(p[3], SquareLattice(3, 4, 5))
         plot!(p[4], project(xy, :x))
