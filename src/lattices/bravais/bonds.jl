@@ -1,14 +1,14 @@
 using StaticArrays
 
 """
-    SiteOffset{T, N}
+    BravaisShift{T, N}
 
 A struct representing bonds in some direction in a lattice.
 
 ---
-    SiteOffset([site_indices, ]translate_uc)
+    BravaisShift([site_indices, ]translate_uc)
 
-Constructs a `SiteOffset` object.
+Constructs a `BravaisShift` object.
 
 ## Arguments:
 - `site_indices`: A `::Int => ::Int` pair with indices of sites connected by the bond.
@@ -20,26 +20,31 @@ If `site_indices` are equal or undefined and `translate_uc` is zero, the bond co
 each site with itself. In this case an error will be thrown.
 Note that though the dimension count for the bond is static, it is automatically compatible with higher-dimensional lattices.
 """
-struct SiteOffset{T, N}
-    site_indices::T
+struct BravaisShift{LT, N} <: OneToOneBonds{LT}
+    lat::LT
+    site_indices::Pair{Int, Int}
     translate_uc::SVector{N, Int}
-    function SiteOffset(site_indices::Pair{Int, Int}, tr_uc::AbstractVector)
-        any(<(1), site_indices) && throw(ArgumentError("Positive site indices expected"))
+    function BravaisShift(latt::LT, site_indices::Pair{Int, Int}, tr_uc::AbstractVector) where LT<:AbstractLattice
+        if any(<(1), site_indices) && site_indices != (0 => 0)
+            throw(ArgumentError("Invalid site indices $site_indices: ≥1 or 0=>0 expected"))
+        end
         iszero(tr_uc) && ==(site_indices...) && throw(ArgumentError("bond connects site to itself"))
-        new{Pair{Int, Int}, length(tr_uc)}(site_indices, tr_uc)
-    end
-    function SiteOffset(tr_uc::AbstractVector)
-        iszero(tr_uc) && throw(ArgumentError("bond connects site to itself"))
-        new{Nothing, length(tr_uc)}(nothing, tr_uc)
+        new{LT, length(tr_uc)}(latt, site_indices, tr_uc)
     end
 end
-SiteOffset(::Nothing, tr_uc) = SiteOffset(tr_uc)
+BravaisShift(lat::AbstractLattice, tr_uc::AbstractVector) = BravaisShift(lat, 0=>0, tr_uc)
+BravaisShift(args...; kw...) = BravaisShift(UndefinedLattice(), args...; kw...)
+apply_lattice(bsh::BravaisShift{UndefinedLattice}, l::AbstractLattice) =
+    BravaisShift(l, bsh.site_indices, bsh.translate_uc)
+dims(::BravaisShift{UndefinedLattice, N}) where N = N
+
+@inline has_sublatremap(bsh::BravaisShift) = bsh.site_indices == (0 => 0)
 
 """
-    SiteOffset(site_indices)
-    SiteOffset([site_indices; ]axis[, dist=1])
+    BravaisShift(site_indices)
+    BravaisShift([site_indices; ]axis[, dist=1])
 
-A convenient constructor for a `SiteOffset` object.
+A convenient constructor for a `BravaisShift` object.
 
 ## Arguments:
 - `site_indices`: a `::Int => ::Int` pair with indices of sites connected by the bond;
@@ -49,43 +54,37 @@ if omitted, the bond connects sites with the same sublattice index.
 - `axis`: The hopping direction axis in terms of unit cell vectors.
 - `dist`: The hopping distance in terms of
 """
-function SiteOffset(site_indices::Nullable{Pair{Int,Int}}=nothing; axis=0, dist=1)
-    axis == 0 && return SiteOffset(site_indices, [])
-    SiteOffset(site_indices, one_hot(axis, axis) * dist)
+function BravaisShift(lat::AbstractLattice, site_indices::Pair{Int,Int} = 0=>0; axis=0, dist=1)
+    axis == 0 && return BravaisShift(site_indices, [])
+    BravaisShift(lat, site_indices, one_hot(axis, axis) * dist)
 end
-const Bonds{N} = SiteOffset{N}
 
-Base.:(==)(h1::SiteOffset, h2::SiteOffset) =
-    all(getproperty(h1, fn) == getproperty(h2, fn) for fn in fieldnames(SiteOffset))
-
-function Base.show(io::IO, ::MIME"text/plain", hop::SiteOffset{<:Pair})
-    println(io, "SiteOffset connecting site #$(hop.site_indices[1]) with site #$(hop.site_indices[1]) translated by $(hop.translate_uc)")
+Base.:(==)(h1::BravaisShift, h2::BravaisShift) =
+    all(getfield(h1, fn) == getfield(h2, fn) for fn in fieldnames(BravaisShift))
+function Base.inv(bsh::BravaisShift)
+    a, b = bsh.site_indices
+    BravaisShift(bsh.lat, b => a, -bsh.translate_uc)
 end
-function Base.show(io::IO, ::MIME"text/plain", hop::SiteOffset{<:Nothing})
-    println(io, "SiteOffset connecting sites translated by $(hop.translate_uc)")
-end
-dims(::SiteOffset{T, N} where T) where N = N
 
-@inline function Base.:(+)(lp::BravaisPointer{N}, bs::SiteOffset{<:Pair}) where N
-    bs.site_indices[1] != lp.basis_index && return nothing
-    any(bs.translate_uc[N+1:end] .!= 0) && return nothing
-    return BravaisPointer(add_assuming_zeros(lp.unit_cell, bs.translate_uc), bs.site_indices[2])
-end
-@inline Base.:(+)(lp::BravaisPointer, bs::SiteOffset{<:Nothing}) =
-    return BravaisPointer(add_assuming_zeros(lp.unit_cell, bs.translate_uc), lp.basis_index)
-
-@inline Base.:(+)(site::BravaisSite, bs) = BravaisSite(site.lp + bs, site.bravais)
-
-function adjacency_matrix(l::AbstractLattice{<:BravaisSite}, bss::SiteOffset...)
-    matrix = zeros(Bool, length(l), length(l))
-    for bs in bss
-        for (i, site) in enumerate(l)
-            offset_site = site + bs
-            _, new_site = shift_site(l, offset_site)
-            j = site_index(l, new_site)
-            j === nothing && continue
-            matrix[i, j] = matrix[j, i] = true
-        end
+function Base.show(io::IO, mime::MIME"text/plain", bsh::BravaisShift)
+    println(io, "BravaisShift; Unit cell shift ", bsh.translate_uc,
+        ", Sublattice remapping: ",
+        has_sublatremap(bsh) ? "none" : bsh.site_indices)
+    if !(bsh.lat isa UndefinedLattice)
+        print(io, "\n on")
+        show(io, mime, bsh.lat)
     end
-    return AdjacencyMatrix(l, matrix)
 end
+
+@inline function _destination_bp(bsh::BravaisShift, lp::BravaisPointer)
+    if has_sublatremap(bsh)
+        bsh.site_indices[1] != lp.basis_index && return nothing
+        new_basindex = bsh.site_indices[2]
+    else
+        new_basindex = lp.basis_index
+    end
+    any(bsh.translate_uc[dims(bsh)+1:end] .!= 0) && return nothing
+    return BravaisPointer(add_assuming_zeros(lp.unit_cell, bsh.translate_uc), new_basindex)
+end
+@inline destination(bs::BravaisShift, site::BravaisSite) =
+    BravaisSite(_destination_bp(bs, site.lp), site.bravais)

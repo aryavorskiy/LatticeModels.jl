@@ -148,7 +148,7 @@ Base.@propagate_inbounds function Base.Broadcast.dotview(lv::LatticeValueWrapper
     LatticeValueWrapper(lattice(lv)[inds], @view lv.values[inds])
 end
 function Base.Broadcast.dotview(lv::LatticeValueWrapper, pairs::Pair...; kw...)
-    inds = pairs_to_indices(lattice(lv), pairs...; kw...)
+    inds = pairs_to_indices(lattice(lv), to_param_pairs(pairs...; kw...))
     return LatticeValueWrapper(lattice(lv)[inds], @view lv.values[inds])
 end
 

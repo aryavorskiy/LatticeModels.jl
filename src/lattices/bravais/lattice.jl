@@ -135,5 +135,5 @@ function AnyDimLattice{Sym,NB}(sz::Vararg{Int,N}; kw...) where {Sym,N,NB}
     return BravaisLattice(UnitCell{Sym,N,NB}(), sz; kw...)
 end
 function (::Type{T})(f::Function, args...; kw...) where T<:BravaisLattice
-    sublattice(f, T(args...; kw...))
+    filter(f, T(args...; kw...))
 end

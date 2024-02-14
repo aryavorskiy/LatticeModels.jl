@@ -1,6 +1,6 @@
 import QuantumOpticsBase: DataOperator
 
-const AbstractBond = Union{SiteOffset, SingleBond}
+const BondOrPair = Union{BravaisShift, SingleBond}
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:Tuple})
     # Expand 'lattice' part
     opdata, lparts = arg
@@ -9,15 +9,17 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:Tuple})
     end
 end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:SingleBond})
-    # Hopping term
+    # Single bond
     op, bond = arg
     builder[bond[1], bond[2]] += op
 end
-function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:SiteOffset})
+function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:AbstractBonds})
     # Hopping term
     op, bonds = arg
     for site1 in lattice(builder)
-        builder[site1, site1 + bonds] += op
+        for site2 in destination_sites(bonds, site1)
+            builder[site1, site2] += op
+        end
     end
 end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:LatticeValue})
@@ -69,11 +71,14 @@ end
 get_bonds(l::AbstractLattice, n::Nearest) = tuple(((default_bonds(l, i) for i in n.is)...)...)
 function arg_to_pair(sample::Sample, arg::Pair)
     op, lpart = arg
+    _apply_lattice(b::AbstractBonds) = apply_lattice(b, lattice(sample))
+    _apply_lattice(p::SingleBond) = p
+    _apply_lattice(tup::Tuple) = _apply_lattice.(tup)
     if lpart isa LatticeValue
         check_samesites(lpart, sample)
         new_lpart = lpart
-    elseif lpart isa AbstractBond || lpart isa Tuple{Vararg{AbstractBond}}
-        new_lpart = lpart
+    elseif lpart isa BondOrPair || lpart isa Tuple{Vararg{BondOrPair}}
+        new_lpart = _apply_lattice(lpart)
     elseif lpart isa Nearest
         new_lpart = get_bonds(lattice(sample), lpart)
     elseif lpart isa Number
@@ -93,10 +98,12 @@ function build_operator(T::Type, sys::System, args...; field=NoField())
     Operator(builder)
 end
 @accepts_system_t build_operator
+
 build_hamiltonian(T::Type, sys::System, args...; kw...) =
     Hamiltonian(sys, build_operator(T, sys, args...; kw...))
 @accepts_system_t build_hamiltonian
 
 tightbinding_hamiltonian(T::Type, sys::System; t1=1, t2=0, t3=0, field=NoField()) =
     build_hamiltonian(T, sys, t1 => Nearest(1), t2 => Nearest(2), t3 => Nearest(3), field=field)
+
 @accepts_system_t tightbinding_hamiltonian

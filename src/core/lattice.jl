@@ -48,7 +48,8 @@ dims(::AbstractLattice{<:AbstractSite{N}}) where {N} = N
 dims(l) = dims(lattice(l))
 Base.size(l::AbstractLattice) = (length(l),)
 site_index(::AbstractLattice, ::NoSite) = nothing
-Base.getindex(::AbstractLattice, ::NoSite) = nothing
+Base.getindex(::AbstractLattice, ::Nothing) = NoSite()
+Base.pairs(l::AbstractLattice) = Base.Iterators.Pairs(l, 1:length(l))
 
 Base.summary(io::IO, l::AbstractLattice{<:AbstractSite{N}}) where N =
     print(io, length(l), "-site ", N, "-dim lattice")

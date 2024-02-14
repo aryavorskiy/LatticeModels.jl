@@ -49,14 +49,14 @@ end
     showboundaries && @series l, :boundaries
 end
 
-function tr_vector(l::BravaisLattice, hop::SiteOffset{<:Pair})
+function tr_vector(l::BravaisLattice, hop::BravaisShift{<:Pair})
     i, j = hop.site_indices
     return l.bravais.basis[:, j] - l.bravais.basis[:, i] +
      mm_assuming_zeros(l.bravais.translation_vectors, hop.translate_uc)
 end
-tr_vector(l::BravaisLattice, hop::SiteOffset{Nothing}) =
+tr_vector(l::BravaisLattice, hop::BravaisShift{Nothing}) =
     mm_assuming_zeros(l.bravais.translation_vectors, hop.translate_uc)
-@recipe function f(l::BravaisLattice{N, B}, bss::NTuple{M, SiteOffset} where M) where {N, B}
+@recipe function f(l::BravaisLattice{N, B}, bss::NTuple{M, BravaisShift} where M) where {N, B}
     aspect_ratio := :equal
     pts = NTuple{N, Float64}[]
     br_pt = fill(NaN, dims(l)) |> Tuple
@@ -77,7 +77,7 @@ tr_vector(l::BravaisLattice, hop::SiteOffset{Nothing}) =
     label := nothing
     pts
 end
-@recipe f(l::BravaisLattice, bs::SiteOffset, bss::SiteOffset...) = (l, (bs, bss...))
+@recipe f(l::BravaisLattice, bs::BravaisShift, bss::BravaisShift...) = (l, (bs, bss...))
 
 const BravaisLatticeValue{Sym, N} = LatticeValue{<:Number, <:BravaisLattice{N, <:UnitCell{Sym, N}}}
 raw"""

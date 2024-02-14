@@ -25,7 +25,7 @@ export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions
 include("lattices/bravais/lattice.jl")
 export adjacency_matrix, add_boundaries, UnitcellAxis, UnitcellIndex
 include("lattices/bravais/bonds.jl")
-export SiteOffset, Bonds
+export BravaisShift
 include("lattices/bravais/recipes.jl")
 
 include("operators/bases.jl")
