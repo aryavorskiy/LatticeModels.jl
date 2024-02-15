@@ -20,7 +20,7 @@ If `site_indices` are equal or undefined and `translate_uc` is zero, the bond co
 each site with itself. In this case an error will be thrown.
 Note that though the dimension count for the bond is static, it is automatically compatible with higher-dimensional lattices.
 """
-struct BravaisShift{LT, N} <: OneToOneBonds{LT}
+struct BravaisShift{LT, N} <: AbstractTranslation{LT}
     lat::LT
     site_indices::Pair{Int, Int}
     translate_uc::SVector{N, Int}
@@ -76,14 +76,14 @@ function Base.show(io::IO, mime::MIME"text/plain", bsh::BravaisShift)
     end
 end
 
-@inline function _destination_bp(bsh::BravaisShift, lp::BravaisPointer)
+@inline function _destination_bp(bsh::BravaisShift{LT, N} where LT, lp::BravaisPointer{M}) where {N, M}
     if has_sublatremap(bsh)
         bsh.site_indices[1] != lp.basis_index && return nothing
         new_basindex = bsh.site_indices[2]
     else
         new_basindex = lp.basis_index
     end
-    any(bsh.translate_uc[dims(bsh)+1:end] .!= 0) && return nothing
+    N > M && any(!=(0), @view bsh.translate_uc[M+1:N]) && return nothing
     return BravaisPointer(add_assuming_zeros(lp.unit_cell, bsh.translate_uc), new_basindex)
 end
 @inline destination(bs::BravaisShift, site::BravaisSite) =

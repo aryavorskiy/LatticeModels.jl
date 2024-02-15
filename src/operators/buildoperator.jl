@@ -16,10 +16,8 @@ end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:AbstractBonds})
     # Hopping term
     op, bonds = arg
-    for site1 in lattice(builder)
-        for site2 in destination_sites(bonds, site1)
-            builder[site1, site2] += op
-        end
+    for (s1, s2) in bonds
+        builder[s1, s2] += op
     end
 end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:LatticeValue})

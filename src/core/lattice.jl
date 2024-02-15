@@ -207,5 +207,18 @@ This notation can be handy when passing this function as an argument.
 """
 site_distance() = (site1, site2) -> site_distance(site1, site2)
 
-shift_site(::AbstractLattice, site::AbstractSite) = (1, site)
+struct ResolvedSite{ST, T}
+    site::ST
+    index::Int
+    factor::T
+end
+function ResolvedSite(site::ST, index::Int) where {ST}
+    ResolvedSite{ST, Int}(site, index, 1)
+end
+function resolve_site(l::AbstractLattice, site::AbstractSite)
+    index = site_index(l, site)
+    index === nothing && return nothing
+    ResolvedSite(site, index)
+end
+
 const SingleBond{LT<:AbstractSite} = Pair{LT, LT}

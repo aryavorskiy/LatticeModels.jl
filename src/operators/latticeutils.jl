@@ -44,6 +44,9 @@ function QuantumOpticsBase.ptrace(op::LatticeModels.CompositeLatticeOperator, sy
     end
 end
 
+_lattice(op::AbstractLatticeOperator) = sites(op)
+_lattice(ham::Hamiltonian) = lattice(ham)
+
 """
     adjacency_matrix(op::Operator)
 
@@ -51,15 +54,15 @@ Generates an `AdjacencyMatrix` for the provided operator.
 """
 function adjacency_matrix(op::LatticeOperator)
     matrix = Bool[!iszero(op.data[i, j])
-                  for i in eachindex(sites(op)), j in eachindex(sites(op))]
-    return AdjacencyMatrix(sites(op), matrix)
+                  for i in eachindex(_lattice(op)), j in eachindex(_lattice(op))]
+    return AdjacencyMatrix(_lattice(op), matrix)
 end
 function adjacency_matrix(op::CompositeLatticeOperator)
     n = internal_length(op)
     ind(k) = (k - 1) * n + 1 : k * n
     matrix = Bool[!iszero(op.data[ind(i), ind(j)])
-                  for i in eachindex(sites(op)), j in eachindex(sites(op))]
-    return AdjacencyMatrix(sites(op), matrix)
+                  for i in eachindex(_lattice(op)), j in eachindex(_lattice(op))]
+    return AdjacencyMatrix(_lattice(op), matrix)
 end
 
 function apply_field!(op::AbstractLatticeOperator, field::AbstractField)

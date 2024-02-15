@@ -176,8 +176,6 @@ QuantumOpticsBase.basis(sys::NParticles) = ManyBodyBasis(basis(sys.sample), occu
 
 Base.zero(sys::System) = zero(basis(sys))
 
-shift_site(sys::System, site) = shift_site(lattice(sys), site)
-
 macro accepts_system(fname, default_basis=nothing)
     esc(quote
         $fname(sample::Sample, args...; T = 0, μ = nothing, mu = μ, N = nothing, statistics = nothing, kw...) =

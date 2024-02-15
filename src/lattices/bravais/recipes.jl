@@ -64,9 +64,9 @@ tr_vector(l::BravaisLattice, hop::BravaisShift{Nothing}) =
         T = tr_vector(l, bs)
         for i in eachindex(l)
             site1 = l[i]
-            p = shift_site(l, site1 + bs)
+            p = resolve_site(l, site1 + bs)
             p === nothing && continue
-            site2 = p[2]
+            site2 = p.site
             site2 in l || continue
 
             a = site1.coords

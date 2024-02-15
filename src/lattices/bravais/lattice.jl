@@ -37,7 +37,12 @@ get_site(l::BravaisLattice, lp::BravaisPointer) = BravaisSite(lp, l.bravais)
 get_site(::BravaisLattice, site::BravaisSite) = site
 get_site(::BravaisLattice, ::NoSite) = NoSite()
 
-shift_site(l::BravaisLattice, site::AbstractSite) = shift_site(l.boundaries, l, site)
+function resolve_site(l::BravaisLattice, site::AbstractSite)
+    factor, site = shift_site(l.boundaries, l, site)
+    i = site_index(l, site)
+    i === nothing && return nothing
+    return ResolvedSite(site, i, factor)
+end
 
 Base.in(lp::BravaisPointer, l::BravaisLattice) = insorted(lp, l.pointers)
 function Base.in(site::BravaisSite{N, B}, l::BravaisLattice{N, B}) where {N, B}

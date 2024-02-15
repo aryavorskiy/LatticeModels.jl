@@ -104,14 +104,16 @@ op_to_matrix(::Sample, op) =
     throw(ArgumentError("cannot interpret $(typeof(op)) as on-site operator"))
 
 function expand_bond(l::AbstractLattice, site1::AbstractSite, site2::AbstractSite, field::AbstractField)
-    ifact, new_site1 = shift_site(l, site1)
-    jfact, new_site2 = shift_site(l, site2)
-    i = site_index(l, new_site1)
-    j = site_index(l, new_site2)
-    i === nothing && return nothing
-    j === nothing && return nothing
-    field_fact = exp(-2π * im * line_integral(field, site1.coords, site2.coords))
-    return i, j, jfact * field_fact * ifact'
+    s1 = resolve_site(l, site1)
+    s2 = resolve_site(l, site2)
+    s1 === nothing && return nothing
+    s2 === nothing && return nothing
+    return expand_bond(l, s1, s2, field)
+end
+
+function expand_bond(::AbstractLattice, s1::ResolvedSite, s2::ResolvedSite, field::AbstractField)
+    field_fact = exp(-2π * im * line_integral(field, s1.site.coords, s2.site.coords))
+    return s1.index, s2.index, s2.factor * field_fact * s1.factor'
 end
 
 Base.getindex(::OperatorBuilder, axes...) = BuilderView(axes)
@@ -124,7 +126,7 @@ function _preprocess_op(sample::Sample, uvw::BuilderIncrementIndex, axes, new_ax
     return BuilderIncrementIndex(new_axes, new_mat, uvw.factor)
 end
 _preprocess_op(sample::Sample, op, _, _) = op_to_matrix(sample, op)
-Base.@propagate_inbounds function Base.setindex!(opbuilder::OperatorBuilder, rhs, site1::AbstractSite, site2::AbstractSite)
+Base.@propagate_inbounds function Base.setindex!(opbuilder::OperatorBuilder, rhs, site1, site2)
     ijfact = expand_bond(lattice(opbuilder), site1, site2, opbuilder.field)
     ijfact === nothing && return nothing
     i, j, total_factor = ijfact

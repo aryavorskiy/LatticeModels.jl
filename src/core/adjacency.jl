@@ -3,30 +3,26 @@ using SparseArrays, FillArrays, StaticArrays
 abstract type AbstractBonds{LatticeT} end
 lattice(bonds::AbstractBonds) = bonds.lat
 dims(bonds::AbstractBonds) = dims(lattice(bonds))
-function isdestination end
+function isadjacent end
 Base.getindex(bonds::AbstractBonds, site1::AbstractSite, site2::AbstractSite) =
-    isdestination(bonds, site1, site2)
+    isadjacent(bonds, site1, site2)
 
-struct DestinationsIterator{AT, ST}
-    bonds::AT
-    site::ST
-    function DestinationsIterator(bonds::AT, site::ST) where
-            {ST<:AbstractSite, AT<:AbstractBonds{<:AbstractLattice{ST}}}
-        new{AT, ST}(bonds, site)
+function Base.iterate(bonds::AbstractBonds, ind_pair = 1 => 1)
+    l = lattice(bonds)
+    i, j = ind_pair
+    j += 1
+    if j > length(l)
+        i += 1
+        j = i + 1
+        j > length(l) && return nothing
     end
-end
-
-function Base.iterate(dests::DestinationsIterator, lat_state...)
-    p = iterate(lattice(dests.bonds), lat_state...)
-    p === nothing && return nothing
-    site, new_state = p
-    if isdestination(dests.bonds, dests.site, site) && site != dests.site
-        return site, new_state
+    site1, site2 = l[i], l[j]
+    if isadjacent(bonds, site1, site2)
+        return ResolvedSite(site1, i) => ResolvedSite(site2, j), i => j
     else
-        return iterate(dests, new_state)
+        return iterate(bonds, i => j)
     end
 end
-destination_sites(bonds::AbstractBonds, site::AbstractSite) = DestinationsIterator(bonds, site)
 
 """
     AdjacencyMatrix{LT} where {LT<:Lattice}
@@ -50,8 +46,17 @@ struct AdjacencyMatrix{LT,MT} <: AbstractBonds{LT}
         AdjacencyMatrix(l, spzeros(length(l), length(l)))
     end
 end
+function apply_lattice(b::AdjacencyMatrix, l::AbstractLattice)
+    check_issublattice(l, lattice(b))
+    if l == lattice(b)
+        return b
+    else
+        inds = Int[site_index(lattice(b), site) for site in l]
+        return AdjacencyMatrix(l, b.mat[inds, inds])
+    end
+end
 
-function isdestination(am::AdjacencyMatrix, site1::AbstractSite, site2::AbstractSite)
+function isadjacent(am::AdjacencyMatrix, site1::AbstractSite, site2::AbstractSite)
     i = site_index(am.lat, site1)
     i === nothing && return false
     j = site_index(am.lat, site2)
@@ -76,43 +81,44 @@ function adjacency_matrix(bonds::AbstractBonds, more_bonds::AbstractBonds...)
     end
     Is = Int[]
     Js = Int[]
-    for (i, site) in enumerate(l)
-        for adj in tuple(bonds, more_bonds...)
-            for site2 in destination_sites(adj, site)
-                j = site_index(l, site2)
-                j === nothing && continue
-                push!(Is, i)
-                push!(Js, j)
-            end
+    for adj in tuple(bonds, more_bonds...)
+        for (s1, s2) in adj
+            push!(Is, s1.index)
+            push!(Js, s2.index)
         end
     end
     return AdjacencyMatrix(l, sparse(Is, Js, Fill(true, length(Is)), length(l), length(l), (i,j)->j))
 end
+adjacency_matrix(l::AbstractLattice, bonds::AbstractBonds...) =
+    adjacency_matrix((apply_lattice(b, l) for b in bonds)...)
 
-abstract type OneToOneBonds{LT} <: AbstractBonds{LT} end
 struct UndefinedLattice <: AbstractLattice{NoSite} end
 Base.iterate(::UndefinedLattice) = nothing
 Base.length(::UndefinedLattice) = 0
 
-function destination(bonds::OneToOneBonds, site::AbstractSite)
-    dest = findfirst(site2 -> isdestination(bonds, site, site2), lattice(bonds))
-    return dest === nothing ? NoSite() : dest
+abstract type AbstractTranslation{LT} <: AbstractBonds{LT} end
+isadjacent(bonds::AbstractTranslation, site1::AbstractSite, site2::AbstractSite) =
+    site2 === destination(bonds, site1) || site1 === destination(bonds, site2)
+function Base.iterate(bonds::AbstractTranslation, i = 1)
+    l = lattice(bonds)
+    i > length(l) && return nothing
+    dest = destination(bonds, l[i])
+    j = site_index(l, dest)
+    j === nothing && return iterate(bonds, i + 1)
+    return ResolvedSite(l[i], i) => ResolvedSite(dest, j), i + 1
 end
-destination_sites(bonds::OneToOneBonds, site::AbstractSite) = (destination(bonds, site),)
-function apply_lattice(bonds::AbstractBonds{AbstractLattice}, l::AbstractLattice)
+function apply_lattice(bonds::AbstractBonds{<:AbstractLattice}, l::AbstractLattice)
     check_samelattice(l, lattice(bonds))
     return bonds
 end
-adjacency_matrix(l::AbstractLattice, bonds::AbstractBonds...) =
-    adjacency_matrix((apply_lattice(b, l) for b in bonds)...)
 
-Base.:(+)(site::AbstractSite, bonds::OneToOneBonds) = destination(bonds, site)
-Base.:(+)(::AbstractSite, ::OneToOneBonds{UndefinedLattice}) =
+Base.:(+)(site::AbstractSite, bonds::AbstractTranslation) = destination(bonds, site)
+Base.:(+)(::AbstractSite, ::AbstractTranslation{UndefinedLattice}) =
     throw(ArgumentError("Using a `Bonds`-type object on undefined lattice is allowed only in `build_operator`. Please define the lattice."))
-Base.:(-)(bonds::OneToOneBonds) = Base.inv(bonds)
-Base.:(-)(site::AbstractSite, bonds::OneToOneBonds) = destination(Base.inv(bonds), site)
+Base.:(-)(bonds::AbstractTranslation) = Base.inv(bonds)
+Base.:(-)(site::AbstractSite, bonds::AbstractTranslation) = destination(Base.inv(bonds), site)
 
-struct SpatialShift{LT, N} <: OneToOneBonds{LT}
+struct SpatialShift{LT, N} <: AbstractTranslation{LT}
     lat::LT
     R::SVector{N, Float64}
     function SpatialShift(latt::LT, R::AbstractVector{<:Number}) where
@@ -125,11 +131,19 @@ function SpatialShift(R::AbstractVector{<:Number})
     n = length(R)
     new{UndefinedLattice, n}(UndefinedLattice(), SVector{n}(R))
 end
-apply_lattice(sh::SpatialShift{UndefinedLattice}, l::AbstractLattice) =
-    SpatialShift(l, sh.R)
+apply_lattice(bonds::SpatialShift, l::AbstractLattice) =
+    SpatialShift(l, bonds.R)
+function destination(sh::SpatialShift, site::AbstractSite)
+    for dest in lattice(sh)
+        if isapprox(site.coords + sh.R, dest.coords, atol=√eps())
+            return dest
+        end
+    end
+    return NoSite()
+end
 dims(::SpatialShift{UndefinedLattice, N}) where N = N
 
-isdestination(sh::SpatialShift, site1::AbstractSite, site2::AbstractSite) =
+isadjacent(sh::SpatialShift, site1::AbstractSite, site2::AbstractSite) =
     isapprox(site2.coords - site1.coords, sh.R, atol=√eps())
 Base.inv(sh::SpatialShift) = SpatialShift(sh.lat, -sh.R)
 

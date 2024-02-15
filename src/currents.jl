@@ -115,12 +115,14 @@ Base.isapprox(c1::Currents, c2::Currents; kw...) =
     c1.lattice == c2.lattice && isapprox(c1.currents, c2.currents; kw...)
 
 Base.getindex(mcurr::Currents, i::Int, j::Int) = mcurr.currents[i, j]
-function Base.setindex!(curr::Currents, rhs, s1::AbstractSite, s2::AbstractSite)
+function Base.setindex!(curr::Currents, rhs, site1::AbstractSite, site2::AbstractSite)
     l = lattice(curr)
-    ns1 = shift_site(l, s1)[2]
-    ns2 = shift_site(l, s2)[2]
-    i = site_index(l, ns1)
-    j = site_index(l, ns2)
+    s1 = resolve_site(l, site1)
+    s2 = resolve_site(l, site2)
+    s1 === nothing && return
+    s2 === nothing && return
+    i = s1.index
+    j = s2.index
     if i == j
         @warn "matching source and destination sites"
         return
@@ -156,11 +158,23 @@ Creates a `Currents` instance for `currents`.
     because  this requires evaluation of the current between all pairs.
 - `adjacency_matrix`: If provided, the current will be evaluated only between adjacent sites.
 """
-function Currents(curr::AbstractCurrents, am::Nullable{AdjacencyMatrix}=nothing)
+function Currents(curr::AbstractCurrents)
     l = lattice(curr)
     m = Currents(l)
     for i in eachindex(l), j in 1:i-1
-        am !== nothing && !(am[l[i], l[j]] || am[l[j], l[i]]) && continue
+        ij_curr = curr[i, j]
+        m.currents[i, j] = ij_curr
+        m.currents[j, i] = -ij_curr
+    end
+    m
+end
+function Currents(curr::AbstractCurrents, bonds::AbstractBonds)
+    l = lattice(curr)
+    m = Currents(l)
+    new_bonds = apply_lattice(bonds, l)
+    for (s1, s2) in new_bonds
+        i = s1.index
+        j = s2.index
         ij_curr = curr[i, j]
         m.currents[i, j] = ij_curr
         m.currents[j, i] = -ij_curr
