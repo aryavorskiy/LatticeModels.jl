@@ -7,7 +7,7 @@ Base.show(io::IO, ::MIME"text/plain", site::AbstractSite{N}) where N =
     print(io, "Site of a ", N, "-dim lattice @ x = $(site.coords)")
 
 struct NoSite <: AbstractSite{0} end
-Base.show(op::IO, ::NoSite) = print(io, "LatticeModels.NoSite()")
+Base.show(io::IO, ::NoSite) = print(io, "LatticeModels.NoSite()")
 
 # Site parameters
 abstract type SiteProperty end
@@ -207,13 +207,13 @@ This notation can be handy when passing this function as an argument.
 """
 site_distance() = (site1, site2) -> site_distance(site1, site2)
 
-struct ResolvedSite{ST, T}
+struct ResolvedSite{ST}
     site::ST
     index::Int
-    factor::T
+    factor::Float64
 end
 function ResolvedSite(site::ST, index::Int) where {ST}
-    ResolvedSite{ST, Int}(site, index, 1)
+    ResolvedSite{ST}(site, index, 1.0)
 end
 function resolve_site(l::AbstractLattice, site::AbstractSite)
     index = site_index(l, site)

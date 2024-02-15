@@ -4,6 +4,8 @@ abstract type AbstractBonds{LatticeT} end
 lattice(bonds::AbstractBonds) = bonds.lat
 dims(bonds::AbstractBonds) = dims(lattice(bonds))
 function isadjacent end
+isadjacent(bonds::AbstractBonds, s1::ResolvedSite, s2::ResolvedSite) =
+    isadjacent(bonds, s1.site, s2.site)
 Base.getindex(bonds::AbstractBonds, site1::AbstractSite, site2::AbstractSite) =
     isadjacent(bonds, site1, site2)
 
@@ -16,9 +18,10 @@ function Base.iterate(bonds::AbstractBonds, ind_pair = 1 => 1)
         j = i + 1
         j > length(l) && return nothing
     end
-    site1, site2 = l[i], l[j]
-    if isadjacent(bonds, site1, site2)
-        return ResolvedSite(site1, i) => ResolvedSite(site2, j), i => j
+    rs1 = ResolvedSite(l[i], i)
+    rs2 = ResolvedSite(l[j], j)
+    if isadjacent(bonds, rs1, rs2)
+        return rs1 => rs2, i => j
     else
         return iterate(bonds, i => j)
     end
@@ -47,22 +50,32 @@ struct AdjacencyMatrix{LT,MT} <: AbstractBonds{LT}
     end
 end
 function apply_lattice(b::AdjacencyMatrix, l::AbstractLattice)
-    check_issublattice(l, lattice(b))
     if l == lattice(b)
         return b
     else
-        inds = Int[site_index(lattice(b), site) for site in l]
-        return AdjacencyMatrix(l, b.mat[inds, inds])
+        inds = Int[]
+        ext_inds = Int[]
+        for (i, site) in enumerate(lattice(b))
+            j = site_index(l, site)
+            if j !== nothing
+                push!(inds, i)
+                push!(ext_inds, j)
+            end
+        end
+        new_mat = spzeros(Bool, length(l), length(l))
+        new_mat[ext_inds, ext_inds] = b.mat[inds, inds]
+        return AdjacencyMatrix(l, new_mat)
     end
 end
 
 function isadjacent(am::AdjacencyMatrix, site1::AbstractSite, site2::AbstractSite)
-    i = site_index(am.lat, site1)
-    i === nothing && return false
-    j = site_index(am.lat, site2)
-    j === nothing && return false
-    return i < j && am.mat[i, j]
+    rs1 = resolve_site(am.lat, site1)
+    rs1 === nothing && return false
+    rs2 = resolve_site(am.lat, site2)
+    rs2 === nothing && return false
+    return isadjacent(am, rs1, rs2)
 end
+isadjacent(am::AdjacencyMatrix, s1::ResolvedSite, s2::ResolvedSite) = am.mat[s1.index, s2.index]
 
 nhops(am::AdjacencyMatrix, n::Int) =
     AdjacencyMatrix(am.lat, am.mat^n .!= 0)
@@ -99,13 +112,13 @@ Base.length(::UndefinedLattice) = 0
 abstract type AbstractTranslation{LT} <: AbstractBonds{LT} end
 isadjacent(bonds::AbstractTranslation, site1::AbstractSite, site2::AbstractSite) =
     site2 === destination(bonds, site1) || site1 === destination(bonds, site2)
-function Base.iterate(bonds::AbstractTranslation, i = 1)
+@inline function Base.iterate(bonds::AbstractTranslation, i = 1)
     l = lattice(bonds)
     i > length(l) && return nothing
     dest = destination(bonds, l[i])
-    j = site_index(l, dest)
-    j === nothing && return iterate(bonds, i + 1)
-    return ResolvedSite(l[i], i) => ResolvedSite(dest, j), i + 1
+    s2 = resolve_site(l, dest)
+    s2 === nothing && return iterate(bonds, i + 1)
+    return ResolvedSite(l[i], i) => s2, i + 1
 end
 function apply_lattice(bonds::AbstractBonds{<:AbstractLattice}, l::AbstractLattice)
     check_samelattice(l, lattice(bonds))
@@ -114,7 +127,8 @@ end
 
 Base.:(+)(site::AbstractSite, bonds::AbstractTranslation) = destination(bonds, site)
 Base.:(+)(::AbstractSite, ::AbstractTranslation{UndefinedLattice}) =
-    throw(ArgumentError("Using a `Bonds`-type object on undefined lattice is allowed only in `build_operator`. Please define the lattice."))
+    throw(ArgumentError("Using a `AbstractBonds`-type object on undefined lattice is allowed only in `build_operator`. Please define the lattice."))
+Base.inv(::AbstractTranslation) = throw(ArgumentError("Inverse of the translation is not defined."))
 Base.:(-)(bonds::AbstractTranslation) = Base.inv(bonds)
 Base.:(-)(site::AbstractSite, bonds::AbstractTranslation) = destination(Base.inv(bonds), site)
 

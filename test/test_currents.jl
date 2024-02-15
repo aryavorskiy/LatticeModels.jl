@@ -48,9 +48,9 @@
         m2 = Currents(dc[x.<y])
         m3 = Currents(dc, bs)[x.<y]
         m4 = Currents(dc[x.<y], bs)
-        @test m1.currents == m2.currents
-        @test m1.currents == m3.currents
-        @test m1.currents == m4.currents
+        @test m1 ≈ m2
+        @test m1 ≈ m3
+        @test m1 ≈ m4
     end
 
     sys = NParticles(l ⊗ SpinBasis(1//2), 2, statistics=BoseEinstein)
