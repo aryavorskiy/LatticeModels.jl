@@ -1,6 +1,5 @@
 import QuantumOpticsBase: DataOperator
 
-const BondOrPair = Union{BravaisShift, SingleBond}
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:Tuple})
     # Expand 'lattice' part
     opdata, lparts = arg
@@ -62,23 +61,15 @@ end
 arg_to_pair(sample::Sample, arg::AbstractMatrix) = op_to_matrix(sample, arg) => 1
 arg_to_pair(sample::Sample, arg) = _internal_one_mat(sample) => arg
 
-struct Nearest{N}
-    is::NTuple{N, Int}
-    Nearest(is::Vararg{Int, N}) where N = new{N}(is)
-end
-get_bonds(l::AbstractLattice, n::Nearest) = tuple(((default_bonds(l, i) for i in n.is)...)...)
 function arg_to_pair(sample::Sample, arg::Pair)
     op, lpart = arg
     _apply_lattice(b::AbstractBonds) = apply_lattice(b, lattice(sample))
     _apply_lattice(p::SingleBond) = p
-    _apply_lattice(tup::Tuple) = _apply_lattice.(tup)
     if lpart isa LatticeValue
         check_samesites(lpart, sample)
         new_lpart = lpart
-    elseif lpart isa BondOrPair || lpart isa Tuple{Vararg{BondOrPair}}
+    elseif lpart isa Union{AbstractBonds, SingleBond}
         new_lpart = _apply_lattice(lpart)
-    elseif lpart isa Nearest
-        new_lpart = get_bonds(lattice(sample), lpart)
     elseif lpart isa Number
         new_lpart = lpart
     else
@@ -102,6 +93,9 @@ build_hamiltonian(T::Type, sys::System, args...; kw...) =
 @accepts_system_t build_hamiltonian
 
 tightbinding_hamiltonian(T::Type, sys::System; t1=1, t2=0, t3=0, field=NoField()) =
-    build_hamiltonian(T, sys, t1 => Nearest(1), t2 => Nearest(2), t3 => Nearest(3), field=field)
+    build_hamiltonian(T, sys,
+        t1 => NearestNeighbor(1),
+        t2 => NearestNeighbor(2),
+        t3 => NearestNeighbor(3), field=field)
 
 @accepts_system_t tightbinding_hamiltonian

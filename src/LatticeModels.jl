@@ -12,12 +12,12 @@ const Nullable{T} = Union{Nothing,T}
 
 include("core/sarrayutils.jl")
 include("core/lattice.jl")
-export lattice, sublattice, site_index, site_distance, Coord
+export lattice, sublattice, site_index, Coord
 include("core/sites.jl")
 include("core/latticevalue.jl")
 export LatticeValue, siteproperty_value, coord_value, coord_values, project
 include("core/adjacency.jl")
-export adjacency_matrix, nhops
+export adjacency_matrix, site_distance, SiteDistance
 include("core/recipes.jl")
 
 include("lattices/bravais/unitcell.jl")
@@ -26,7 +26,7 @@ export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions
 include("lattices/bravais/lattice.jl")
 export add_boundaries, UnitcellAxis, UnitcellIndex
 include("lattices/bravais/bonds.jl")
-export BravaisShift
+export BravaisShift, NearestNeighbor
 include("lattices/bravais/recipes.jl")
 
 include("operators/bases.jl")
@@ -38,7 +38,7 @@ export MagneticField, LineIntegralMagneticField
 include("operators/constructor.jl")
 export OperatorBuilder
 include("operators/buildoperator.jl")
-export Nearest, tightbinding_hamiltonian, build_operator, build_hamiltonian
+export tightbinding_hamiltonian, build_operator, build_hamiltonian
 include("operators/manybody.jl")
 export interaction
 include("operators/miscoperators.jl")

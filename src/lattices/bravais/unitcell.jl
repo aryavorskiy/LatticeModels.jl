@@ -35,6 +35,9 @@ end
 UnitCell(uc::UnitCell{Sym, N}, offset::SVector{N}) where {Sym, N} =
     UnitCell{Sym}(uc.translation_vectors, uc.basis, offset)
 
+sublatvector(uc::UnitCell, i::Int) = uc.basis[:, i]
+trvectors(uc::UnitCell) = uc.translation_vectors
+
 dims(@nospecialize _::UnitCell{Sym, N} where Sym) where {N} = N
 Base.:(==)(b1::BT, b2::BT) where BT<:UnitCell =
     b1.translation_vectors == b2.translation_vectors && b1.basis == b2.basis

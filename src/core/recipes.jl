@@ -79,19 +79,20 @@ end
     lv.latt, lv.values
 end
 
-@recipe function f(ag::AdjacencyMatrix)
+@recipe function f(ag::AbstractBonds)
     aspect_ratio := :equal
     l = sites(ag)
     pts = NTuple{dims(l), Float64}[]
     br_pt = fill(NaN, dims(l)) |> Tuple
-    for i in eachindex(l), j in eachindex(l)
-        site1 = l[i]
-        site2 = l[j]
-        !ag[site1, site2] && continue
-        A = site1.coords
-        B = site2.coords
+    for (s1, s2) in ag
+        A = s1.site.coords
+        B = s2.site.coords
         push!(pts, Tuple(A), Tuple(B), br_pt)
     end
     label := nothing
     pts
+end
+
+@recipe function f(l::AbstractLattice, b::AbstractBonds{UndefinedLattice})
+    apply_lattice(b, l)
 end

@@ -188,25 +188,6 @@ function check_issublattice(l1::AbstractLattice, l2::AbstractLattice)
         throw(IncompatibleLattices("#1 is expected to be sublattice of #2", l1, l2))
 end
 
-"""
-    site_distance(l::Lattice, site1::LatticeSite, site2::LatticeSite[; pbc=false])
-Returns the distance between two sites on the `l` lattice.
-
-## Keyword arguments:
-- `pbc`: if `true`, the boundary conditions will be considered periodic and
-the distance will be measured on the shortest path.
-"""
-function site_distance(site1::AbstractSite, site2::AbstractSite)
-    norm(site1.coords - site2.coords)
-end
-
-"""
-    site_distance(; pbc)
-Generates a function that finds the distance between sites (see `site_distance(::Lattice, ::LatticeSite, ::LatticeSite)`).
-This notation can be handy when passing this function as an argument.
-"""
-site_distance() = (site1, site2) -> site_distance(site1, site2)
-
 struct ResolvedSite{ST}
     site::ST
     index::Int

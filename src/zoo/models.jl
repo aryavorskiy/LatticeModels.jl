@@ -81,6 +81,14 @@ qwz(sys::System{<:Sample{<:SquareLattice}}, m=1; kw...) =
     [1 -1; 1 -1] / 2 => BravaisShift(axis = 2); kw...)
 @accepts_system qwz SpinBasis(1//2)
 
+const honeycomb_2nn = BravaisTranslations(
+    BravaisShift(1 => 1, axis = 1),
+    BravaisShift(2 => 2, axis = 1, dist=-1),
+    BravaisShift(1 => 1, axis = 2, dist=-1),
+    BravaisShift(2 => 2, axis = 2),
+    BravaisShift(1 => 1, [-1, 1]),
+    BravaisShift(2 => 2, [1, -1]))
+
 @doc raw"""
     haldane(lattice, t1, t2[, m=0; T, μ, field, statistics])
 
@@ -101,8 +109,8 @@ Generates a Haldane topological insulator hamiltonian operator on given lattice 
 haldane(sys::System{<:Sample{<:HoneycombLattice}}, t1::Real, t2::Real, m::Real=0; kw...) =
     build_hamiltonian(sys,
     lattice(sys) .|> (site -> site.index == 1 ? m : -m),
-    t1 => default_bonds(sys),
-    im * t2 => default_bonds(sys, Val(2)); kw...)
+    t1 => NearestNeighbor(1),
+    im * t2 => honeycomb_2nn; kw...)
 @accepts_system haldane
 
 @doc raw"""
@@ -123,5 +131,5 @@ Generates a Kane-Mele hamiltonian operator on given lattice `lattice`\.
 kanemele(sys::System{<:Sample{<:HoneycombLattice}}, t1::Real, t2::Real; kw...) =
     build_hamiltonian(sys,
         t1 => default_bonds(sys),
-        im * t2 * sigmaz(internal_basis) => default_bonds(sys, Val(2)); kw...)
+        im * t2 * sigmaz(internal_basis) => honeycomb_2nn; kw...)
 @accepts_system kanemele SpinBasis(1//2)

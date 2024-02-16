@@ -14,7 +14,6 @@ const SampleWithInternal{LT} = Sample{LT, <:Basis}
 
 Base.length(sample::Sample) = length(sample.latt) * length(sample.internal)
 Base.length(sample::SampleWithoutInternal) = length(sample.latt)
-default_bonds(sample::Sample, arg=Val(1)) = default_bonds(lattice(sample), arg)
 QuantumOpticsBase.basis(sample::SampleWithInternal) = sample.internal ⊗ LatticeBasis(sample.latt)
 QuantumOpticsBase.basis(sample::SampleWithoutInternal) = LatticeBasis(sample.latt)
 
@@ -58,7 +57,6 @@ hasinternal(any) = hasinternal(sample(any))
 abstract type System{SampleT} end
 abstract type OneParticleBasisSystem{SampleT} <: System{SampleT} end
 sample(sys::System) = sys.sample
-default_bonds(sys::System, arg=Val(1)) = default_bonds(lattice(sys.sample), arg)
 struct OneParticleSystem{SampleT} <: OneParticleBasisSystem{SampleT}
     sample::SampleT
     T::Float64

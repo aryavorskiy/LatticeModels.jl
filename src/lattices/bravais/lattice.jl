@@ -1,11 +1,12 @@
 using LinearAlgebra, Logging, StaticArrays
 
-struct BravaisLattice{N, B<:UnitCell{Sym, N} where Sym, BS<:BoundaryConditions} <: AbstractLattice{BravaisSite{N, B}}
+struct BravaisLattice{N, B, BS<:BoundaryConditions} <: AbstractLattice{BravaisSite{N, B}}
     bravais::B
     pointers::Vector{BravaisPointer{N}}
     boundaries::BS
     b_depth::Int
     function BravaisLattice(bravais::B, pointers::Vector{BravaisPointer{N}}, boundaries::BS; b_depth=1) where {N,B,BS}
+        dims(bravais) != N && throw(ArgumentError("Dimension mismatch"))
         new{N,B,BS}(bravais, sort!(pointers), boundaries, b_depth)
     end
 end
@@ -14,6 +15,8 @@ add_boundaries(l::BravaisLattice, bs) = BravaisLattice(l.bravais, l.pointers, to
 add_boundaries(l::BravaisLattice, ::Nothing) = l
 add_boundaries(l::AbstractLattice, ::Nothing) = l
 sites(l::BravaisLattice) = Sites(add_boundaries(l, BoundaryConditions()))
+sublatvector(l::BravaisLattice, i::Int) = sublatvector(l.bravais, i)
+trvectors(l::BravaisLattice) = trvectors(l.bravais)
 b_depth(l::BravaisLattice) = l.b_depth
 cartesian_indices(l::BravaisLattice{N, B, <:BoundaryConditions{<:NTuple{M}}} where {N, B}) where M =
     cartesian_indices(l.b_depth, Val(M))
@@ -28,10 +31,6 @@ lattice_type(::BravaisLattice{<:UnitCell{Sym}}) where {Sym} = Sym
 basis_length(l::BravaisLattice) = length(l.bravais)
 check_samebravais(l::BravaisLattice, site::BravaisSite) =
     @assert l.bravais == site.bravais
-
-default_bonds(::BravaisLattice, ::Val) = ()
-default_bonds(l::BravaisLattice) = default_bonds(l, Val(1))
-default_bonds(l::BravaisLattice, i::Int) = default_bonds(l, Val(i))
 
 get_site(l::BravaisLattice, lp::BravaisPointer) = BravaisSite(lp, l.bravais)
 get_site(::BravaisLattice, site::BravaisSite) = site
@@ -110,7 +109,7 @@ function Base.show(io::IO, mime::MIME"text/plain", l::BravaisLattice)
     end
 end
 
-function BravaisLattice(uc::UnitCell{Sym,N,NB}, sz::NTuple{N,Int};
+function span_unitcells(uc::UnitCell{Sym,N,NB}, sz::NTuple{N,Int};
         boundaries=BoundaryConditions(),
         offset = @SVector zeros(N)) where {Sym,N,NB}
     ptrs = BravaisPointer{N}[]
@@ -130,15 +129,5 @@ function BravaisLattice(uc::UnitCell{Sym,N,NB}, sz::NTuple{N,Int};
         throw(ArgumentError("invalid `offset` keyword argument"))
     end
 end
-
-const InfDimLattice{Sym,N,NB} = BravaisLattice{N, <:UnitCell{Sym,N,NB}}
-const AnyDimLattice{Sym,NB} = BravaisLattice{N, <:UnitCell{Sym,N,NB}} where N
-function InfDimLattice{Sym,N,NB}(sz::Vararg{Int,N}; kw...) where {Sym,N,NB}
-    return BravaisLattice(UnitCell{Sym,N,NB}(), sz; kw...)
-end
-function AnyDimLattice{Sym,NB}(sz::Vararg{Int,N}; kw...) where {Sym,N,NB}
-    return BravaisLattice(UnitCell{Sym,N,NB}(), sz; kw...)
-end
-function (::Type{T})(f::Function, args...; kw...) where T<:BravaisLattice
-    filter(f, T(args...; kw...))
-end
+span_unitcells(uc::UnitCell, sz::Tuple{Vararg{Int}}; kw...) =
+    throw(ArgumentError("Dimension mismatch: $(dims(uc))-dim unit cell, $(length(sz)) lattice dimensions"))

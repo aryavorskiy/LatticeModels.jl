@@ -1,46 +1,137 @@
+function construct_unitcell end
+
+_bravaistranslations_expr(tr::BravaisShift) =
+    :(BravaisShift($(tr.site_indices), SA[$(tr.translate_uc...)]))
+_bravaistranslations_expr(trs::BravaisTranslations) =
+    :(BravaisTranslations($(_bravaistranslations_expr.(trs.translations)...)))
+
+function _precompile_nnhops(LT::Type{<:BravaisLattice})
+    uc = construct_unitcell(LT)
+    trs = detect_nnhops(uc, 3)
+    @eval LatticeModels begin
+        apply_lattice(::NearestNeighbor{1}, l::$LT) =
+            apply_lattice($(_bravaistranslations_expr(trs[1])), l)
+        apply_lattice(::NearestNeighbor{2}, l::$LT) =
+            apply_lattice($(_bravaistranslations_expr(trs[2])), l)
+        apply_lattice(::NearestNeighbor{3}, l::$LT) =
+            apply_lattice($(_bravaistranslations_expr(trs[3])), l)
+    end
+end
+
+function _add_parameter_to_call!(expr, sym)
+    if Meta.isexpr(expr, (:block, :if, :elseif, :return))
+        foreach(e -> _add_parameter_to_call!(e, sym), expr.args)
+    elseif Meta.isexpr(expr, :call)
+        if expr.args[1] == :UnitCell
+            expr.args[1] = :(LatticeModels.UnitCell{$(QuoteNode(sym))})
+        end
+    end
+end
+
+macro bravaisdef(type, expr)
+    type_sym = Symbol(lowercase(string(type)))
+    is_ndep = Meta.isexpr(expr, :->)
+    if is_ndep
+        @assert expr.args[1] isa Symbol "Invalid unitcell constructor; one parameter N expected"
+        N_sym = expr.args[1]
+        type_expr = :($type{$N_sym})
+        type_def = :(const $type_expr = LatticeModels.BravaisLattice{$N_sym,
+            <:LatticeModels.UnitCell{$(QuoteNode(type_sym))}})
+        unitcell_construct = expr.args[2]
+        unitcell_construct_signature =
+            :(LatticeModels.construct_unitcell(::Type{$type_expr}) where $N_sym)
+        lattice_constructor = quote
+            function $type(sz::Vararg{Int,$N_sym}; kw...) where $N_sym
+                return LatticeModels.span_unitcells(
+                    LatticeModels.construct_unitcell($type_expr), sz; kw...)
+            end
+        end
+    else
+        type_expr = type
+        type_def = :(const $type_expr = LatticeModels.BravaisLattice{N,
+            <:LatticeModels.UnitCell{$(QuoteNode(type_sym))}} where N)
+        unitcell_construct = expr
+        unitcell_construct_signature = :(LatticeModels.construct_unitcell(::Type{$type_expr}))
+        lattice_constructor = quote
+            function $type(sz::Vararg{Int}; kw...)
+                return LatticeModels.span_unitcells(
+                    LatticeModels.construct_unitcell($type_expr), sz; kw...)
+            end
+        end
+    end
+    _add_parameter_to_call!(unitcell_construct, type_sym)
+    res = quote
+        Core.@__doc__ $type_def
+        $(Expr(:function, unitcell_construct_signature, unitcell_construct))
+        $lattice_constructor
+    end
+    if is_ndep
+        quote
+            $res
+            LatticeModels._precompile_nnhops($type{1})
+            LatticeModels._precompile_nnhops($type{2})
+            LatticeModels._precompile_nnhops($type{3})
+        end |> esc
+    else
+        quote
+            $res
+            LatticeModels._precompile_nnhops($type)
+        end |> esc
+    end
+end
+function (::Type{T})(f::Function, args...; kw...) where T<:BravaisLattice
+    filter(f, T(args...; kw...))
+end
+
 """
     SquareLattice{N}
-Type alias for `Lattice{:square,N,1}`.
+Represents a square lattice in `N` dimensions.
 
 ---
     SquareLattice(sz::Int...)
 
-Constructs a square lattice of size `sz`.
+Construct a square lattice of size `sz`.
 """
-const SquareLattice{N} = BravaisLattice{N, <:UnitCell{:square,N,1}}
-UnitCell{:square,N,1}() where N = UnitCell{:square}(SMatrix{N,N}(I))
-default_bonds(::SquareLattice{N}, ::Val{1}) where {N} = Tuple(BravaisShift(axis=i) for i in 1:N)
-default_bonds(::SquareLattice{N}, ::Val{2}) where {N} = Tuple(BravaisShift(one_hot(i, Val(N)) + k * one_hot(j, Val(N))) for i in 1:N for j in 1:i-1 for k in (-1, 1))
-default_bonds(::SquareLattice{N}, ::Val{3}) where {N} = Tuple(BravaisShift(axis=i, dist=2) for i in 1:N)
-LatticeModels.site_coords(b::UnitCell{:square,N,1}, lp::BravaisPointer{N}) where {N} =
+@bravaisdef SquareLattice N -> UnitCell(SMatrix{N,N}(I))
+LatticeModels.site_coords(b::UnitCell{:squarelattice,N,1}, lp::BravaisPointer{N}) where {N} =
     vec(b.basis) + lp.unit_cell
 
-const TriangularLattice = BravaisLattice{2, <:UnitCell{:triangular,2,1}}
-UnitCell{:triangular,2,1}() = UnitCell{:triangular}([1 0.5; 0 √3/2])
-default_bonds(::TriangularLattice, ::Val{1}) = BravaisShift([0, 1]), BravaisShift([-1, 0]), BravaisShift([1, -1])
-default_bonds(::TriangularLattice, ::Val{2}) = BravaisShift([1, 1]), BravaisShift([-2, 1]), BravaisShift([1, -2])
-default_bonds(::TriangularLattice, ::Val{3}) = BravaisShift([0, 2]), BravaisShift([-2, 0]), BravaisShift([2, -2])
+"""
+    TriangularLattice
+Represents a triangular lattice.
+Lattice vectors: `[1, 0]` and `[0.5, √3/2]`.
+
+---
+    TriangularLattice(a, b)
+
+Construct a triangular lattice of a×b spanned unit cells.
+"""
+@bravaisdef TriangularLattice UnitCell([1 0.5; 0 √3/2])
 
 """
     HoneycombLattice
-Type alias for `Lattice{:honeycomb,2,2}`.
+Represents a honeycomb lattice.
+
+Lattice vectors: `[1, 0]` and `[0.5, √3/2]`,
+two sites at `[0, 0]` and `[0.5, √3/6]` in each unit cell.
 
 ---
-    HoneycombLattice(sz::Vararg{Int, 2})
+    HoneycombLattice(a, b)
 
-Constructs a honeycomb lattice with a `sz`-size macrocell.
+Construct a honeycomb lattice of a×b spanned unit cells.
 """
-const HoneycombLattice = BravaisLattice{2, <:UnitCell{:honeycomb,2,2}}
-UnitCell{:honeycomb,2,2}() = UnitCell{:honeycomb}([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])
-default_bonds(::HoneycombLattice, ::Val{1}) = (BravaisShift(2 => 1), BravaisShift(2 => 1, axis=1), BravaisShift(2 => 1, axis=2))
-default_bonds(::HoneycombLattice, ::Val{2}) = (
-    BravaisShift(1 => 1, axis = 1),
-    BravaisShift(2 => 2, axis = 1, dist=-1),
-    BravaisShift(1 => 1, axis = 2, dist=-1),
-    BravaisShift(2 => 2, axis = 2),
-    BravaisShift(1 => 1, [-1, 1]),
-    BravaisShift(2 => 2, [1, -1]))
-default_bonds(::HoneycombLattice, ::Val{3}) = (
-    BravaisShift(2 => 1, SA[1, 1]),
-    BravaisShift(2 => 1, SA[1, -1]),
-    BravaisShift(2 => 1, SA[-1, 1]))
+@bravaisdef HoneycombLattice UnitCell([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])
+
+"""
+    KagomeLattice
+Represents a kagome lattice.
+
+Lattice vectors: `[1, 0]` and `[0.5, √3/2]`,
+three sites at `[0, 0]`, `[0.5, 0]` and `[0.25, √3/4]` in each unit cell.
+
+---
+    KagomeLattice(a, b)
+
+Construct a kagome lattice of a×b spanned unit cells.
+"""
+@bravaisdef KagomeLattice UnitCell([1 0.5; 0 √3/2], [0 0.5 0.25; 0 0 √3/4])

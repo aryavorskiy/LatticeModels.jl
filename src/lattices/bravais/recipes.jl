@@ -5,21 +5,21 @@ using RecipesBase
     1 in bonds && @series begin   # The bonds
         seriestype := :path
         label := ""
-        l, default_bonds(l)
+        l, NearestNeighbor(1)
     end
     2 in bonds && @series begin   # The nnbonds
         seriestype := :path
         linestyle := :dash
         linealpha := 0.5
         label := ""
-        l, default_bonds(l, Val(2))
+        l, NearestNeighbor(2)
     end
     3 in bonds && @series begin   # The nnnbonds
         seriestype := :path
         linestyle := :dot
         linealpha := 0.5
         label := ""
-        l, default_bonds(l, Val(3))
+        l, NearestNeighbor(3)
     end
 end
 
@@ -48,36 +48,6 @@ end
     @series l, :bonds
     showboundaries && @series l, :boundaries
 end
-
-function tr_vector(l::BravaisLattice, hop::BravaisShift{<:Pair})
-    i, j = hop.site_indices
-    return l.bravais.basis[:, j] - l.bravais.basis[:, i] +
-     mm_assuming_zeros(l.bravais.translation_vectors, hop.translate_uc)
-end
-tr_vector(l::BravaisLattice, hop::BravaisShift{Nothing}) =
-    mm_assuming_zeros(l.bravais.translation_vectors, hop.translate_uc)
-@recipe function f(l::BravaisLattice{N, B}, bss::NTuple{M, BravaisShift} where M) where {N, B}
-    aspect_ratio := :equal
-    pts = NTuple{N, Float64}[]
-    br_pt = fill(NaN, dims(l)) |> Tuple
-    for bs in bss
-        T = tr_vector(l, bs)
-        for i in eachindex(l)
-            site1 = l[i]
-            p = resolve_site(l, site1 + bs)
-            p === nothing && continue
-            site2 = p.site
-            site2 in l || continue
-
-            a = site1.coords
-            b = site2.coords
-            push!(pts, Tuple(a), Tuple(a + T / 2), br_pt, Tuple(b), Tuple(b - T / 2), br_pt)
-        end
-    end
-    label := nothing
-    pts
-end
-@recipe f(l::BravaisLattice, bs::BravaisShift, bss::BravaisShift...) = (l, (bs, bss...))
 
 const BravaisLatticeValue{Sym, N} = LatticeValue{<:Number, <:BravaisLattice{N, <:UnitCell{Sym, N}}}
 raw"""
@@ -113,7 +83,8 @@ Use it to invoke the default plot recipe for `LatticeValues` when defining a cus
 """
 function plot_fallback(lv::BravaisLatticeValue)
     l = sites(lv).latt
-    new_l = BravaisLattice(UnitCell{:plot_fallback}(l.bravais.translation_vectors, l.bravais.basis),
+    new_l = BravaisLattice(
+        UnitCell{:plot_fallback}(l.bravais.translation_vectors, l.bravais.basis),
         l.pointers)
     LatticeValue(new_l, lv.values)
 end

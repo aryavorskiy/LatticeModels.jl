@@ -28,6 +28,35 @@ function Base.iterate(bonds::AbstractBonds, ind_pair = 1 => 1)
 end
 
 """
+    site_distance([l::Lattice, ]site1::LatticeSite, site2::LatticeSite)
+Returns the distance between two sites on the `l` lattice.
+
+# Arguments
+- `l::Lattice`: The lattice where the sites are defined.
+- `site1::LatticeSite`: The first site.
+"""
+site_distance(::AbstractLattice, site1::AbstractSite, site2::AbstractSite) =
+    norm(site1.coords - site2.coords)
+site_distance(site1, site2) = site_distance(UndefinedLattice(), site1, site2)
+
+"""
+    SiteDistance{FT}
+
+A bonds type that connects sites based on the distance between them.
+
+# Arguments
+- `f::Function`: A function that takes a distance and returns if the distance is allowed.
+"""
+struct SiteDistance{LT, FT} <: AbstractBonds{LT}
+    lat::LT
+    f::Function
+end
+
+isadjacent(bonds::SiteDistance, s1::AbstractSite, s2::AbstractSite) =
+    bonds.f(site_distance(bonds.lat, s1, s2))
+apply_lattice(bonds::SiteDistance, ::AbstractLattice) = bonds
+
+"""
     AdjacencyMatrix{LT} where {LT<:Lattice}
 
 Represents the bonds on some lattice.
@@ -77,8 +106,6 @@ function isadjacent(am::AdjacencyMatrix, site1::AbstractSite, site2::AbstractSit
 end
 isadjacent(am::AdjacencyMatrix, s1::ResolvedSite, s2::ResolvedSite) = am.mat[s1.index, s2.index]
 
-nhops(am::AdjacencyMatrix, n::Int) =
-    AdjacencyMatrix(am.lat, am.mat^n .!= 0)
 function Base.union(am::AdjacencyMatrix, ams::AdjacencyMatrix...)
     l = lattice(am)
     for _am in ams
@@ -140,10 +167,10 @@ struct SpatialShift{LT, N} <: AbstractTranslation{LT}
         @check_size R N
         new{LT, N}(latt, SVector{N}(R))
     end
-end
-function SpatialShift(R::AbstractVector{<:Number})
-    n = length(R)
-    new{UndefinedLattice, n}(UndefinedLattice(), SVector{n}(R))
+    function SpatialShift(R::AbstractVector{<:Number})
+        n = length(R)
+        new{UndefinedLattice, n}(UndefinedLattice(), SVector{n}(R))
+    end
 end
 apply_lattice(bonds::SpatialShift, l::AbstractLattice) =
     SpatialShift(l, bonds.R)
