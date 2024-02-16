@@ -42,20 +42,20 @@ Use it as a default magnetic field argument in functions - this will not cause a
 struct NoField <: AbstractField end
 line_integral(::NoField, p1, p2) = 0
 
-struct MagneticField{FuncT<:Function} <: AbstractField
+struct GaugeField{FuncT<:Function} <: AbstractField
     func::FuncT
     n::Int
-    MagneticField(func::FuncT; n::Int) where FuncT = new{FuncT}(func, n)
+    GaugeField(func::FuncT; n::Int) where FuncT = new{FuncT}(func, n)
 end
-vector_potential(field::MagneticField, p1::SVector) = field.func(p1)
-line_integral(field::MagneticField, p1, p2) =
+vector_potential(field::GaugeField, p1::SVector) = field.func(p1)
+line_integral(field::GaugeField, p1, p2) =
     line_integral(field, p1, p2, field.n)
 
-struct LineIntegralMagneticField{FuncT<:Function} <: AbstractField
+struct LineIntegralGaugeField{FuncT<:Function} <: AbstractField
     func::FuncT
-    LineIntegralMagneticField(func::FuncT) where FuncT = new{FuncT}(func)
+    LineIntegralGaugeField(func::FuncT) where FuncT = new{FuncT}(func)
 end
-line_integral(field::LineIntegralMagneticField, p1, p2) = field.func(p1, p2)
+line_integral(field::LineIntegralGaugeField, p1, p2) = field.func(p1, p2)
 
 struct FieldSum{FT<:Tuple} <: AbstractField
     fields::FT

@@ -141,13 +141,13 @@ Base.@propagate_inbounds function Base.setindex!(opbuilder::OperatorBuilder, rhs
     return nothing
 end
 
-_build_manybody_maybe(sys::ManyBodySystem, op::AbstractOperator) = manybodyoperator(sys, op)
-_build_manybody_maybe(::OneParticleBasisSystem, op::AbstractOperator) = op
+_construct_manybody_maybe(sys::ManyBodySystem, op::AbstractOperator) = manybodyoperator(sys, op)
+_construct_manybody_maybe(::OneParticleBasisSystem, op::AbstractOperator) = op
 function QuantumOpticsBase.Operator(opb::OperatorBuilder; warning=true)
     op = Operator(onebodybasis(opb.sys), to_matrix(opb.mat_builder))
     if warning && !opb.auto_hermitian && !ishermitian(op)
         @warn "The resulting operator is not hermitian. Set `warning=false` to hide this message or add `auto_hermitian=true` to the `OperatorBuilder` constructor."
     end
-    return _build_manybody_maybe(opb.sys, op)
+    return _construct_manybody_maybe(opb.sys, op)
 end
 Hamiltonian(opb::OperatorBuilder; kw...) = Hamiltonian(opb.sys, Operator(opb; kw...))

@@ -1,21 +1,21 @@
 @testset "Field" begin
-    struct LazyLandauField <: LatticeModels.AbstractField
+    struct LazyLandauGauge <: LatticeModels.AbstractField
         B::Number
     end
-    LatticeModels.vector_potential(field::LazyLandauField, p1) = (0, p1[1] * field.B)
-    struct StrangeLandauField <: LatticeModels.AbstractField end
-    LatticeModels.vector_potential(::StrangeLandauField, point) = (0, point[1] * 0.1)
-    LatticeModels.line_integral(::StrangeLandauField, p1, p2) = 123
+    LatticeModels.vector_potential(field::LazyLandauGauge, p1) = (0, p1[1] * field.B)
+    struct StrangeLandauGauge <: LatticeModels.AbstractField end
+    LatticeModels.vector_potential(::StrangeLandauGauge, point) = (0, point[1] * 0.1)
+    LatticeModels.line_integral(::StrangeLandauGauge, p1, p2) = 123
     struct EmptyField <: LatticeModels.AbstractField end
     l = SquareLattice(10, 10)
-    la = LandauField(0.1)
-    lla = LazyLandauField(0.1)
-    sla = StrangeLandauField()
-    sym = SymmetricField(0.1)
-    flx = FluxField(0.1)
+    la = LandauGauge(0.1)
+    lla = LazyLandauGauge(0.1)
+    sla = StrangeLandauGauge()
+    sym = SymmetricGauge(0.1)
+    flx = PointFlux(0.1)
     @test flx.P == (0, 0)
     emf = EmptyField()
-    fla = MagneticField(n = 10) do (x,)
+    fla = GaugeField(n = 10) do (x,)
         (0, x * 0.1)
     end
     @testset "Line integral" begin
@@ -48,9 +48,9 @@
     end
 
     @testset "Field application" begin
-        H1 = build_operator(l, BravaisShift(axis=1), BravaisShift(axis=2), field = la)
-        H2 = build_operator(l, BravaisShift(axis=1), BravaisShift(axis=2), field = lla)
-        H3 = build_operator(l, BravaisShift(axis=1), BravaisShift(axis=2))
+        H1 = construct_operator(l, BravaisTranslation(axis=1), BravaisTranslation(axis=2), field = la)
+        H2 = construct_operator(l, BravaisTranslation(axis=1), BravaisTranslation(axis=2), field = lla)
+        H3 = construct_operator(l, BravaisTranslation(axis=1), BravaisTranslation(axis=2))
         H4 = copy(H3)
         apply_field!(H3, la)
         apply_field!(H4, lla)

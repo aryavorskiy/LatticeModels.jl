@@ -78,7 +78,7 @@ function arg_to_pair(sample::Sample, arg::Pair)
     return op_to_matrix(sample, op) => new_lpart
 end
 
-function build_operator(T::Type, sys::System, args...; field=NoField())
+function construct_operator(T::Type, sys::System, args...; field=NoField())
     sample = sys.sample
     builder = OperatorBuilder(T, sys; field=field, auto_hermitian=true)
     for arg in args
@@ -86,14 +86,14 @@ function build_operator(T::Type, sys::System, args...; field=NoField())
     end
     Operator(builder)
 end
-@accepts_system_t build_operator
+@accepts_system_t construct_operator
 
-build_hamiltonian(T::Type, sys::System, args...; kw...) =
-    Hamiltonian(sys, build_operator(T, sys, args...; kw...))
-@accepts_system_t build_hamiltonian
+construct_hamiltonian(T::Type, sys::System, args...; kw...) =
+    Hamiltonian(sys, construct_operator(T, sys, args...; kw...))
+@accepts_system_t construct_hamiltonian
 
 tightbinding_hamiltonian(T::Type, sys::System; t1=1, t2=0, t3=0, field=NoField()) =
-    build_hamiltonian(T, sys,
+    construct_hamiltonian(T, sys,
         t1 => NearestNeighbor(1),
         t2 => NearestNeighbor(2),
         t3 => NearestNeighbor(3), field=field)

@@ -75,19 +75,19 @@ Generates a QWZ model hamiltonian operator on given square lattice `lattice`.
 """
 qwz(m::LatticeValue; kw...) = qwz(lattice(m), m; kw...)
 qwz(sys::System{<:Sample{<:SquareLattice}}, m=1; kw...) =
-    build_hamiltonian(sys,
+    construct_hamiltonian(sys,
     [1 0; 0 -1] => m,
-    [1 -im; -im -1] / 2 => BravaisShift(axis = 1),
-    [1 -1; 1 -1] / 2 => BravaisShift(axis = 2); kw...)
+    [1 -im; -im -1] / 2 => BravaisTranslation(axis = 1),
+    [1 -1; 1 -1] / 2 => BravaisTranslation(axis = 2); kw...)
 @accepts_system qwz SpinBasis(1//2)
 
-const honeycomb_2nn = BravaisTranslations(
-    BravaisShift(1 => 1, axis = 1),
-    BravaisShift(2 => 2, axis = 1, dist=-1),
-    BravaisShift(1 => 1, axis = 2, dist=-1),
-    BravaisShift(2 => 2, axis = 2),
-    BravaisShift(1 => 1, [-1, 1]),
-    BravaisShift(2 => 2, [1, -1]))
+const honeycomb_2nn = BravaisSiteMapping(
+    BravaisTranslation(1 => 1, axis = 1),
+    BravaisTranslation(2 => 2, axis = 1, dist=-1),
+    BravaisTranslation(1 => 1, axis = 2, dist=-1),
+    BravaisTranslation(2 => 2, axis = 2),
+    BravaisTranslation(1 => 1, [-1, 1]),
+    BravaisTranslation(2 => 2, [1, -1]))
 
 @doc raw"""
     haldane(lattice, t1, t2[, m=0; T, μ, field, statistics])
@@ -107,7 +107,7 @@ Generates a Haldane topological insulator hamiltonian operator on given lattice 
 - `statistics` defines the particle statistics, either `FermiDirac` or `BoseEinstein`.
 """
 haldane(sys::System{<:Sample{<:HoneycombLattice}}, t1::Real, t2::Real, m::Real=0; kw...) =
-    build_hamiltonian(sys,
+    construct_hamiltonian(sys,
     lattice(sys) .|> (site -> site.index == 1 ? m : -m),
     t1 => NearestNeighbor(1),
     im * t2 => honeycomb_2nn; kw...)
@@ -129,7 +129,7 @@ Generates a Kane-Mele hamiltonian operator on given lattice `lattice`\.
 - `statistics` defines the particle statistics, either `FermiDirac` or `BoseEinstein`.
 """
 kanemele(sys::System{<:Sample{<:HoneycombLattice}}, t1::Real, t2::Real; kw...) =
-    build_hamiltonian(sys,
+    construct_hamiltonian(sys,
         t1 => default_bonds(sys),
         im * t2 * sigmaz(internal_basis) => honeycomb_2nn; kw...)
 @accepts_system kanemele SpinBasis(1//2)

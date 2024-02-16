@@ -1,9 +1,9 @@
 function construct_unitcell end
 
-_bravaistranslations_expr(tr::BravaisShift) =
-    :(BravaisShift($(tr.site_indices), SA[$(tr.translate_uc...)]))
-_bravaistranslations_expr(trs::BravaisTranslations) =
-    :(BravaisTranslations($(_bravaistranslations_expr.(trs.translations)...)))
+_bravaistranslations_expr(tr::BravaisTranslation) =
+    :(BravaisTranslation($(tr.site_indices), SA[$(tr.translate_uc...)]))
+_bravaistranslations_expr(trs::BravaisSiteMapping) =
+    :(BravaisSiteMapping($(_bravaistranslations_expr.(trs.translations)...)))
 
 function _precompile_nnhops(LT::Type{<:BravaisLattice})
     uc = construct_unitcell(LT)
@@ -29,7 +29,7 @@ function _add_parameter_to_call!(expr, sym)
 end
 
 macro bravaisdef(type, expr)
-    type_sym = Symbol(lowercase(string(type)))
+    type_sym = type
     is_ndep = Meta.isexpr(expr, :->)
     if is_ndep
         @assert expr.args[1] isa Symbol "Invalid unitcell constructor; one parameter N expected"

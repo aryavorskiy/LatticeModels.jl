@@ -154,27 +154,27 @@ end
 
 Base.:(+)(site::AbstractSite, bonds::AbstractTranslation) = destination(bonds, site)
 Base.:(+)(::AbstractSite, ::AbstractTranslation{UndefinedLattice}) =
-    throw(ArgumentError("Using a `AbstractBonds`-type object on undefined lattice is allowed only in `build_operator`. Please define the lattice."))
+    throw(ArgumentError("Using a `AbstractBonds`-type object on undefined lattice is allowed only in `construct_operator`. Please define the lattice."))
 Base.inv(::AbstractTranslation) = throw(ArgumentError("Inverse of the translation is not defined."))
 Base.:(-)(bonds::AbstractTranslation) = Base.inv(bonds)
 Base.:(-)(site::AbstractSite, bonds::AbstractTranslation) = destination(Base.inv(bonds), site)
 
-struct SpatialShift{LT, N} <: AbstractTranslation{LT}
+struct Translation{LT, N} <: AbstractTranslation{LT}
     lat::LT
     R::SVector{N, Float64}
-    function SpatialShift(latt::LT, R::AbstractVector{<:Number}) where
+    function Translation(latt::LT, R::AbstractVector{<:Number}) where
             {N, LT<:AbstractLattice{<:AbstractSite{N}}}
         @check_size R N
         new{LT, N}(latt, SVector{N}(R))
     end
-    function SpatialShift(R::AbstractVector{<:Number})
+    function Translation(R::AbstractVector{<:Number})
         n = length(R)
         new{UndefinedLattice, n}(UndefinedLattice(), SVector{n}(R))
     end
 end
-apply_lattice(bonds::SpatialShift, l::AbstractLattice) =
-    SpatialShift(l, bonds.R)
-function destination(sh::SpatialShift, site::AbstractSite)
+apply_lattice(bonds::Translation, l::AbstractLattice) =
+    Translation(l, bonds.R)
+function destination(sh::Translation, site::AbstractSite)
     for dest in lattice(sh)
         if isapprox(site.coords + sh.R, dest.coords, atol=√eps())
             return dest
@@ -182,14 +182,14 @@ function destination(sh::SpatialShift, site::AbstractSite)
     end
     return NoSite()
 end
-dims(::SpatialShift{UndefinedLattice, N}) where N = N
+dims(::Translation{UndefinedLattice, N}) where N = N
 
-isadjacent(sh::SpatialShift, site1::AbstractSite, site2::AbstractSite) =
+isadjacent(sh::Translation, site1::AbstractSite, site2::AbstractSite) =
     isapprox(site2.coords - site1.coords, sh.R, atol=√eps())
-Base.inv(sh::SpatialShift) = SpatialShift(sh.lat, -sh.R)
+Base.inv(sh::Translation) = Translation(sh.lat, -sh.R)
 
-Base.summary(io::IO, sh::SpatialShift) = print(io, "Spatial shift with vector R = $(sh.R)")
-function Base.show(io::IO, mime::MIME"text/plain", sh::SpatialShift)
+Base.summary(io::IO, sh::Translation) = print(io, "Spatial shift with vector R = $(sh.R)")
+function Base.show(io::IO, mime::MIME"text/plain", sh::Translation)
     summary(io, sh)
     if !(sh.lat isa UndefinedLattice)
         print(io, "\n on ")

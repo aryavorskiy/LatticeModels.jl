@@ -109,14 +109,14 @@ end
 
 @testset "Bonds" begin
     @testset "Constructor" begin
-        @test BravaisShift(axis=1) == BravaisShift([1])
-        @test BravaisShift(axis=1) != BravaisShift([1, 0])
-        @test_throws ArgumentError BravaisShift(2 => 2, [0, 0])
+        @test BravaisTranslation(axis=1) == BravaisTranslation([1])
+        @test BravaisTranslation(axis=1) != BravaisTranslation([1, 0])
+        @test_throws ArgumentError BravaisTranslation(2 => 2, [0, 0])
     end
     @testset "Hopping matching" begin
         l = SquareLattice(6, 5)
-        hx = BravaisShift(l, axis=1)
-        hxmy = BravaisShift(l, [1, -1])
+        hx = BravaisTranslation(l, axis=1)
+        hxmy = BravaisTranslation(l, [1, -1])
         pbc = BoundaryConditions([6, 0] => true)
         for site in l
             ucx, ucy = site.lp.unit_cell
@@ -130,8 +130,8 @@ end
     @testset "Bonds" begin
         l = SquareLattice(2, 2)
         ls1, _, ls3, ls4 = l
-        bs = adjacency_matrix(l, BravaisShift(axis=1), BravaisShift(axis=2))
-        bs1 = union(adjacency_matrix(l, BravaisShift(axis=1)), adjacency_matrix(l, BravaisShift(axis=2)))
+        bs = adjacency_matrix(l, BravaisTranslation(axis=1), BravaisTranslation(axis=2))
+        bs1 = union(adjacency_matrix(l, BravaisTranslation(axis=1)), adjacency_matrix(l, BravaisTranslation(axis=2)))
         @test bs.mat == bs1.mat
         @test bs[ls1, ls3]
         @test !bs[ls1, ls4]

@@ -93,7 +93,7 @@ function Base.iterate(l::BravaisLattice, state = (1, length(l)))
 end
 
 function Base.summary(io::IO, l::BravaisLattice{N, <:UnitCell{Sym}}) where {N,Sym}
-    print(io, length(l), "-site ", N, "-dim ", Sym, " lattice")
+    print(io, length(l), "-site ", N, "-dim ", Sym)
     if basis_length(l) > 1
         print(io, " (", basis_length(l), "-site basis)")
     end

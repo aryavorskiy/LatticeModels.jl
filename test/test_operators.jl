@@ -2,7 +2,7 @@
     @testset "Basics" begin
         l = SquareLattice(10, 10)
         H_0 = qwz(l)
-        H_1 = qwz(l, field=LandauField(0.1))
+        H_1 = qwz(l, field=LandauGauge(0.1))
         P = densitymatrix(H_0, statistics=FermiDirac)
 
         # Check Heisenberg and von Neumann equation
@@ -18,13 +18,13 @@
     @testset "Operator builder" begin
         l = SquareLattice(10, 10)
         spin = SpinBasis(1//2)
-        builder = OperatorBuilder(l, spin, auto_hermitian=true, field=LandauField(0.1))
-        builder2 = OperatorBuilder(l ⊗ spin, field=LandauField(0.1))
-        builder3 = OperatorBuilder(ComplexF16, l, spin, auto_hermitian=true, field=LandauField(0.1))
+        builder = OperatorBuilder(l, spin, auto_hermitian=true, field=LandauGauge(0.1))
+        builder2 = OperatorBuilder(l ⊗ spin, field=LandauGauge(0.1))
+        builder3 = OperatorBuilder(ComplexF16, l, spin, auto_hermitian=true, field=LandauGauge(0.1))
 
         for site in l
-            site_hx = site + BravaisShift(l, axis = 1)
-            site_hy = site + BravaisShift(l, axis = 2)
+            site_hx = site + BravaisTranslation(l, axis = 1)
+            site_hy = site + BravaisTranslation(l, axis = 2)
 
             builder[site, site] = sigmaz(spin)
             builder[site, site_hx] = (sigmaz(spin) - im * sigmax(spin)) / 2
@@ -40,13 +40,13 @@
             builder3[site, site_hx] += (sigmaz(spin) - im * sigmax(spin)) / 2
             builder3[site, site_hy] += (sigmaz(spin) - im * sigmay(spin)) / 2
         end
-        H = qwz(l, field=LandauField(0.1))
+        H = qwz(l, field=LandauGauge(0.1))
         H1 = Hamiltonian(builder)
         H2 = Hamiltonian(builder2)
         H3 = Hamiltonian(builder3)
-        H4 = build_hamiltonian(l, spin, field=LandauField(0.1), sigmaz(spin) => 1,
-            (sigmaz(spin) - im * sigmax(spin)) / 2 => BravaisShift(axis = 1),
-            (sigmaz(spin) - im * sigmay(spin)) / 2 => BravaisShift(axis = 2))
+        H4 = construct_hamiltonian(l, spin, field=LandauGauge(0.1), sigmaz(spin) => 1,
+            (sigmaz(spin) - im * sigmax(spin)) / 2 => BravaisTranslation(axis = 1),
+            (sigmaz(spin) - im * sigmay(spin)) / 2 => BravaisTranslation(axis = 2))
         @test H ≈ H1
         @test H ≈ H2
         @test H ≈ H3
