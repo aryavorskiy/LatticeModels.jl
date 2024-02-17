@@ -1,38 +1,42 @@
 using LinearAlgebra, Logging, StaticArrays
 
-struct BravaisLattice{N, B, BS<:BoundaryConditions} <: AbstractLattice{BravaisSite{N, B}}
-    bravais::B
+struct BravaisLattice{N, UnitcellT, BS<:BoundaryConditions} <:
+        AbstractLattice{BravaisSite{N, UnitcellT}}
+    unitcell::UnitcellT
     pointers::Vector{BravaisPointer{N}}
     boundaries::BS
     b_depth::Int
-    function BravaisLattice(bravais::B, pointers::Vector{BravaisPointer{N}}, boundaries::BS; b_depth=1) where {N,B,BS}
-        dims(bravais) != N && throw(ArgumentError("Dimension mismatch"))
-        new{N,B,BS}(bravais, sort!(pointers), boundaries, b_depth)
+    function BravaisLattice(unitcell::UnitcellT, pointers::Vector{BravaisPointer{N}}, boundaries::BoundariesT;
+            b_depth=1) where {N,UnitcellT,BoundariesT}
+        dims(unitcell) != N && throw(ArgumentError("Dimension mismatch"))
+        new{N,UnitcellT,BoundariesT}(unitcell, sort!(pointers), boundaries, b_depth)
     end
 end
-BravaisLattice(bravais, pointers) = BravaisLattice(bravais, pointers, BoundaryConditions())
-add_boundaries(l::BravaisLattice, bs) = BravaisLattice(l.bravais, l.pointers, to_boundaries(bs))
+BravaisLattice(unitcell, pointers) = BravaisLattice(unitcell, pointers, BoundaryConditions())
+add_boundaries(l::BravaisLattice, bs) = BravaisLattice(l.unitcell, l.pointers, to_boundaries(bs))
 add_boundaries(l::BravaisLattice, ::Nothing) = l
 add_boundaries(l::AbstractLattice, ::Nothing) = l
 sites(l::BravaisLattice) = Sites(add_boundaries(l, BoundaryConditions()))
-sublatvector(l::BravaisLattice, i::Int) = sublatvector(l.bravais, i)
-trvectors(l::BravaisLattice) = trvectors(l.bravais)
+sublatvector(l::BravaisLattice, i::Int) = sublatvector(l.unitcell, i)
+trvectors(l::BravaisLattice) = trvectors(l.unitcell)
 b_depth(l::BravaisLattice) = l.b_depth
 cartesian_indices(l::BravaisLattice{N, B, <:BoundaryConditions{<:NTuple{M}}} where {N, B}) where M =
     cartesian_indices(l.b_depth, Val(M))
 
-Base.:(==)(l1::BravaisLattice, l2::BravaisLattice) = (l1.pointers == l2.pointers) && (l1.bravais == l2.bravais)
+Base.:(==)(l1::BravaisLattice, l2::BravaisLattice) =
+    (l1.pointers == l2.pointers) && (l1.unitcell == l2.unitcell)
 
+# Set functions
 Base.emptymutable(l::BravaisLattice{N, B}, ::Type{BravaisSite{N, B}}) where {N, B} =
-    BravaisLattice(l.bravais, BravaisPointer{N}[])
-Base.copymutable(l::BravaisLattice) = BravaisLattice(l.bravais, copy(l.pointers))
+    BravaisLattice(l.unitcell, BravaisPointer{N}[])
+Base.copymutable(l::BravaisLattice) = BravaisLattice(l.unitcell, copy(l.pointers))
 Base.length(l::BravaisLattice) = length(l.pointers)
-lattice_type(::BravaisLattice{<:UnitCell{Sym}}) where {Sym} = Sym
-basis_length(l::BravaisLattice) = length(l.bravais)
-check_samebravais(l::BravaisLattice, site::BravaisSite) =
-    @assert l.bravais == site.bravais
+basis_length(l::BravaisLattice) = length(l.unitcell)
+function check_sameunitcell(l::BravaisLattice, site::BravaisSite)
+    l.unitcell != site.unitcell && throw(ArgumentError("Unit cell mismatch: $(l.unitcell) ≠ $(site.unitcell)"))
+end
 
-get_site(l::BravaisLattice, lp::BravaisPointer) = BravaisSite(lp, l.bravais)
+get_site(l::BravaisLattice, lp::BravaisPointer) = BravaisSite(lp, l.unitcell)
 get_site(::BravaisLattice, site::BravaisSite) = site
 get_site(::BravaisLattice, ::NoSite) = NoSite()
 
@@ -45,7 +49,7 @@ end
 
 Base.in(lp::BravaisPointer, l::BravaisLattice) = insorted(lp, l.pointers)
 function Base.in(site::BravaisSite{N, B}, l::BravaisLattice{N, B}) where {N, B}
-    @boundscheck check_samebravais(l, site)
+    @boundscheck check_sameunitcell(l, site)
     return in(site.lp, l)
 end
 
@@ -55,7 +59,7 @@ Base.@propagate_inbounds function Base.getindex(l::BravaisLattice, i::Int)
 end
 Base.@propagate_inbounds function Base.getindex(l::BravaisLattice, is::AbstractVector{Int})
     @boundscheck checkbounds(l, is)
-    return BravaisLattice(l.bravais, l.pointers[sort(is)])
+    return BravaisLattice(l.unitcell, l.pointers[sort(is)])
 end
 Base.@propagate_inbounds function Base.delete!(l::BravaisLattice, lp::BravaisPointer)
     i = site_index(l, lp)
@@ -83,13 +87,8 @@ Base.@propagate_inbounds function site_index(l::BravaisLattice, lp::BravaisPoint
     return l.pointers[i] == lp ? i : nothing
 end
 Base.@propagate_inbounds function site_index(l::BravaisLattice, site::BravaisSite)
-    @boundscheck check_samebravais(l, site)
+    @boundscheck check_sameunitcell(l, site)
     site_index(l, site.lp)
-end
-
-function Base.iterate(l::BravaisLattice, state = (1, length(l)))
-    i, len = state
-    return i > len ? nothing : (l[i], (i+1, len))
 end
 
 function Base.summary(io::IO, l::BravaisLattice{N, <:UnitCell{Sym}}) where {N,Sym}
@@ -109,25 +108,52 @@ function Base.show(io::IO, mime::MIME"text/plain", l::BravaisLattice)
     end
 end
 
-function span_unitcells(uc::UnitCell{Sym,N,NB}, sz::NTuple{N,Int};
-        boundaries=BoundaryConditions(),
-        offset = @SVector zeros(N)) where {Sym,N,NB}
+const RangeT = Union{Integer, OrdinalRange{<:Integer, <:Integer}}
+function _sort(i::Integer)
+    i > 0 && return i
+    throw(ArgumentError("Invalid range: $i; must be positive"))
+end
+function _sort(r::OrdinalRange)
+    if step(r) > 0
+        return r
+    else
+        return reverse(r)
+    end
+end
+
+"""
+    span_unitcells(unitcell, dims...[; kw...])
+
+Construct a Bravais lattice by spanning `unitcell` in `dims` dimensions.
+
+## Arguments
+- `unitcell`: a `UnitCell` object.
+- `dims`: a list of `Integer`s or `Range`s specifying the size of the lattice in each dimension.
+
+## Keyword arguments
+- `boundaries`: a `BoundaryConditions` object specifying the boundary conditions of the lattice.
+- `offset`: the offset of the lattice from the origin. See `UnitCell` for details.
+
+## Examples
+```jldoctest
+julia> using LatticeModels
+
+julia> uc = UnitCell([[1, 0]; [0, 1]]);
+
+julia> span_unitcells(uc, 3, 3) == SquareLattice(3, 3)
+true
+```
+"""
+function span_unitcells(unitcell::UnitCell{Sym,N,NB}, sz::Vararg{RangeT, N};
+        boundaries=BoundaryConditions(), offset = :origin) where {Sym,N,NB}
     ptrs = BravaisPointer{N}[]
-    for unit_cell in CartesianIndex{N}():CartesianIndex(reverse(sz))
+    for unit_cell in CartesianIndices(reverse(_sort.(sz)))
         svec = reverse(SVector{N}(Tuple(unit_cell)))
         for i in 1:NB
             push!(ptrs, BravaisPointer(svec, i))
         end
     end
-    if offset === :center
-        basis_com = vec(sum(uc.basis, dims=2) / NB)
-        center_offset = uc.translation_vectors * SVector{N}(@. (sz + 1) / 2) + basis_com
-        BravaisLattice(UnitCell(uc, -center_offset), ptrs, to_boundaries(boundaries))
-    elseif offset isa AbstractVector{<:Number}
-        BravaisLattice(UnitCell(uc, offset), ptrs, to_boundaries(boundaries))
-    else
-        throw(ArgumentError("invalid `offset` keyword argument"))
-    end
+    return BravaisLattice(offset_unitcell(unitcell, offset), ptrs, to_boundaries(boundaries))
 end
-span_unitcells(uc::UnitCell, sz::Tuple{Vararg{Int}}; kw...) =
+span_unitcells(uc::UnitCell, sz::Tuple{Vararg{RangeT}}; kw...) =
     throw(ArgumentError("Dimension mismatch: $(dims(uc))-dim unit cell, $(length(sz)) lattice dimensions"))

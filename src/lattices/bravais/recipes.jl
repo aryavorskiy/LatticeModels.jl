@@ -33,7 +33,7 @@ end
             tr_vec += tup[i] * l.boundaries.bcs[i].R
         end
         shifted_pointers = [shift_site(tr_vec, lp) for lp in l.pointers]
-        shifted_lattice = BravaisLattice(l.bravais, shifted_pointers)
+        shifted_lattice = BravaisLattice(l.unitcell, shifted_pointers)
         @series begin
             seriesalpha := 0.2
             sites(shifted_lattice)
@@ -78,23 +78,23 @@ end
 """
     plot_fallback(lv::BravaisLatticeValue)
 
-Creates a copy of `lv` lattice value with the underlying `LatticeSym` overwritten to `:plot_fallback`.
+Creates a copy of `lv` lattice value with the underlying `LatticeSym` overwritten to `:GenericBravaisLattice`.
 Use it to invoke the default plot recipe for `LatticeValues` when defining a custom one.
 """
 function plot_fallback(lv::BravaisLatticeValue)
     l = sites(lv).latt
     new_l = BravaisLattice(
-        UnitCell{:plot_fallback}(l.bravais.translation_vectors, l.bravais.basis),
+        UnitCell{:GenericBravaisLattice}(l.unitcell.translations, l.unitcell.basissites),
         l.pointers)
     LatticeValue(new_l, lv.values)
 end
 
-@recipe function f(lv::BravaisLatticeValue{:square, N}) where N
+@recipe function f(lv::BravaisLatticeValue{:SquareLattice, N}) where N
     N < 3 && (seriestype --> :heatmap)
-    unitcell = sites(lv).latt.bravais
+    unitcell = lattice(lv).unitcell
     if plotattributes[:seriestype] === :heatmap
         axes, heatmap_values = rectified_values(lv)
-        c_axes = Tuple(axes[i] .+ unitcell.basis[i, 1] for i in 1:N)
+        c_axes = Tuple(axes[i] .+ unitcell.basissites[i, 1] for i in 1:N)
         aspect_ratio := :equal
         c_axes..., transpose(heatmap_values)
     else

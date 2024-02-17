@@ -21,10 +21,11 @@ export LatticeValue, siteproperty_value, coord_value, coord_values, project
 include("core/recipes.jl")
 
 include("lattices/bravais/unitcell.jl")
+export UnitCell, UnitcellAxis, UnitcellIndex
 include("lattices/bravais/boundaries.jl")
 export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions
 include("lattices/bravais/lattice.jl")
-export add_boundaries, UnitcellAxis, UnitcellIndex
+export add_boundaries, span_unitcells
 include("lattices/bravais/bonds.jl")
 export BravaisTranslation, NearestNeighbor
 include("lattices/bravais/recipes.jl")

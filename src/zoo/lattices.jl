@@ -41,9 +41,9 @@ macro bravaisdef(type, expr)
         unitcell_construct_signature =
             :(LatticeModels.construct_unitcell(::Type{$type_expr}) where $N_sym)
         lattice_constructor = quote
-            function $type(sz::Vararg{Int,$N_sym}; kw...) where $N_sym
+            function $type(sz::Vararg{LatticeModels.RangeT,$N_sym}; kw...) where $N_sym
                 return LatticeModels.span_unitcells(
-                    LatticeModels.construct_unitcell($type_expr), sz; kw...)
+                    LatticeModels.construct_unitcell($type_expr), sz...; kw...)
             end
         end
     else
@@ -53,9 +53,9 @@ macro bravaisdef(type, expr)
         unitcell_construct = expr
         unitcell_construct_signature = :(LatticeModels.construct_unitcell(::Type{$type_expr}))
         lattice_constructor = quote
-            function $type(sz::Vararg{Int}; kw...)
+            function $type(sz::Vararg{LatticeModels.RangeT}; kw...)
                 return LatticeModels.span_unitcells(
-                    LatticeModels.construct_unitcell($type_expr), sz; kw...)
+                    LatticeModels.construct_unitcell($type_expr), sz...; kw...)
             end
         end
     end
@@ -94,7 +94,7 @@ Construct a square lattice of size `sz`.
 """
 @bravaisdef SquareLattice N -> UnitCell(SMatrix{N,N}(I))
 LatticeModels.site_coords(b::UnitCell{:squarelattice,N,1}, lp::BravaisPointer{N}) where {N} =
-    vec(b.basis) + lp.unit_cell
+    vec(b.basissites) + lp.unit_cell
 
 """
     TriangularLattice

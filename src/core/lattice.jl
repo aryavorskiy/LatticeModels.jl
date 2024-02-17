@@ -77,13 +77,20 @@ function Base.delete!(l::AbstractLattice{ST}, site::ST) where ST<:AbstractSite
     return l
 end
 
+# iteration (assume that the lattice has fast indexing - usually it does)
+function Base.iterate(l::AbstractLattice, state = (1, length(l)))
+    i, len = state
+    return i > len ? nothing : (l[i], (i+1, len))
+end
+
 # Indexing
 Base.firstindex(::AbstractLattice) = 1
 Base.lastindex(l::AbstractLattice) = length(l)
 Base.eachindex(l::AbstractLattice) = firstindex(l):lastindex(l)
-Base.checkbounds(::Type{Bool}, l::AbstractLattice, is) = all(1 .≤ is .≤ length(l))
+Base.checkbounds(::Type{Bool}, l::AbstractLattice, is::Union{Int,AbstractVector{Int}}) =
+    all(1 .≤ is .≤ length(l))
 Base.checkbounds(l::AbstractLattice, is) =
-    !Base.checkbounds(Bool, l, is) && throw(BoundsError(l, is))
+    !checkbounds(Bool, l, is) && throw(BoundsError(l, is))
 Base.pop!(l::AbstractLattice) = Base.deleteat!(l, lastindex(l))
 Base.popfirst!(l::AbstractLattice) = Base.deleteat!(l, firstindex(l))
 

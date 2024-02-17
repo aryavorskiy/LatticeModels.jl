@@ -82,7 +82,7 @@ end
     return BravaisPointer(add_assuming_zeros(lp.unit_cell, bsh.translate_uc), new_basindex)
 end
 @inline destination(bs::BravaisTranslation, site::BravaisSite) =
-    BravaisSite(_destination_bp(bs, site.lp), site.bravais)
+    BravaisSite(_destination_bp(bs, site.lp), site.unitcell)
 
 struct BravaisSiteMapping{LT, TupleT} <: AbstractBonds{LT}
     lat::LT
@@ -219,6 +219,6 @@ function detect_nnhops(uc::UnitCell{Sym, N} where Sym, depth=3) where N
 end
 
 function apply_lattice(::NearestNeighbor{N}, l::BravaisLattice) where N
-    apply_lattice(detect_nnhops(l.bravais, 3)[N], l)
+    apply_lattice(detect_nnhops(l.unitcell, 3)[N], l)
 end
 NearestNeighbor(l::BravaisLattice, N) = apply_lattice(NearestNeighbor(N), l)

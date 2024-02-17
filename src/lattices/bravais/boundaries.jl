@@ -4,7 +4,7 @@ abstract type Boundary{N} end
 shift_site(js::SVector{N, Int}, lp::BravaisPointer{N}) where N =
     BravaisPointer(lp.unit_cell + js, lp.basis_index)
 shift_site(js::SVector{N}, site::BravaisSite{N}) where N =
-    BravaisSite(shift_site(js, site.lp), site.bravais)
+    BravaisSite(shift_site(js, site.lp), site.unitcell)
 
 struct TwistedBoundary{N} <: Boundary{N}
     R::SVector{N, Int}
