@@ -106,12 +106,35 @@ function isadjacent(am::AdjacencyMatrix, site1::AbstractSite, site2::AbstractSit
 end
 isadjacent(am::AdjacencyMatrix, s1::ResolvedSite, s2::ResolvedSite) = am.mat[s1.index, s2.index]
 
+function Base.setindex!(b::AdjacencyMatrix, v, site1::AbstractSite, site2::AbstractSite)
+    rs1 = resolve_site(b.lat, site1)
+    rs1 === nothing && return nothing
+    rs2 = resolve_site(b.lat, site2)
+    rs2 === nothing && return nothing
+    setindex!(b, v, rs1, rs2)
+end
+function Base.setindex!(b::AdjacencyMatrix, v, s1::ResolvedSite, s2::ResolvedSite)
+    b.mat[s1.index, s2.index] = v
+    b.mat[s2.index, s1.index] = v
+end
+
 function Base.union(am::AdjacencyMatrix, ams::AdjacencyMatrix...)
     l = lattice(am)
     for _am in ams
         check_samelattice(l, lattice(_am))
     end
     return AdjacencyMatrix(l, .|(am.mat, getfield.(ams, :mat)...))
+end
+
+function target_sites(am::AdjacencyMatrix, site::AbstractSite)
+    SiteT = eltype(lattice(am))
+    rs = resolve_site(am.lat, site)
+    rs === nothing && return SiteT[]
+    return [rs2.site for rs2 in target_sites(am, rs)]
+end
+function target_sites(am::AdjacencyMatrix, rs::ResolvedSite)
+    l = lattice(am)
+    return [ResolvedSite(l[i], i) for i in findall(i->am.mat[rs.index, i], eachindex(l))]
 end
 
 function adjacency_matrix(bonds::AbstractBonds, more_bonds::AbstractBonds...)

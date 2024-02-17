@@ -14,7 +14,7 @@ include("core/sarrayutils.jl")
 include("core/lattice.jl")
 export lattice, sublattice, site_index, Coord
 include("core/bonds.jl")
-export adjacency_matrix, site_distance, SiteDistance, Translation
+export adjacency_matrix, site_distance, target_sites, SiteDistance, Translation
 include("core/sites.jl")
 include("core/latticevalue.jl")
 export LatticeValue, siteproperty_value, coord_value, coord_values, project

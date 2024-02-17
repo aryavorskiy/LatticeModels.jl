@@ -22,6 +22,9 @@ end
     end
 end
 
+@generated cartesian_indices(depth::Int, ::Val{M}) where M = quote
+    CartesianIndex($((:(-depth) for _ in 1:M)...)):CartesianIndex($((:depth for _ in 1:M)...))
+end
 
 function check_size(arr, expected_size::Tuple, var::Symbol)
     if size(arr) != expected_size

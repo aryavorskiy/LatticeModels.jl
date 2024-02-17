@@ -98,9 +98,6 @@ function Base.show(io::IO, mime::MIME"text/plain", bcs::BoundaryConditions)
     end
 end
 
-@generated cartesian_indices(depth::Int, ::Val{M}) where M = quote
-    CartesianIndex($((:(-depth) for _ in 1:M)...)):CartesianIndex($((:depth for _ in 1:M)...))
-end
 b_depth(::AbstractLattice) = 1
 function route(bcs::BoundaryConditions{<:NTuple{M}}, l::AbstractLattice, lp::BravaisPointer{N}) where {M, N}
     for cind in cartesian_indices(b_depth(l), Val(M))
