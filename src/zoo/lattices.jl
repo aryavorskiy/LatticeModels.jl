@@ -83,6 +83,13 @@ function (::Type{T})(f::Function, args...; kw...) where T<:BravaisLattice
     filter(f, T(args...; kw...))
 end
 
+lattice_name(::Type{<:BravaisLattice{N, <:UnitCell{Sym}} where N}) where Sym = Sym
+function (::Type{T})(::Val{LatticeRecipe}, args...; kw...) where {T<:BravaisLattice,LatticeRecipe}
+    throw(ArgumentError("Recipe `$LatticeRecipe` not supported for $(lattice_name(T))"))
+end
+(::Type{T})(sym::Symbol, args...; kw...) where T<:BravaisLattice =
+    T(Val(sym), args...; kw...)
+
 """
     SquareLattice{N}
 Represents a square lattice in `N` dimensions.
@@ -109,6 +116,50 @@ Construct a triangular lattice of a×b spanned unit cells.
 @bravaisdef TriangularLattice UnitCell([1 0.5; 0 √3/2])
 
 """
+    TriangularLattice(:hex, hex_size[; center, kw...])
+
+Construct a hexagon-shaped sample of a triangular lattice.
+
+## Arguments:
+- `hex_size`: the size of the hexagon.
+
+## Keyword arguments:
+- `center`: the center of the hexagon (in unit cell coordinates). Default is `(0, 0)`.
+
+All other keyword arguments are passed to `span_unitcells` (see its documentation for details).
+"""
+function TriangularLattice(::Val{:hex}, hex_size, center=(0, 0); kw...)
+    j1ind = -hex_size + 1 + center[1]:hex_size - 1 + center[1]
+    j2ind = -hex_size + 1 + center[2]:hex_size - 1 + center[2]
+    TriangularLattice(j1ind, j2ind; kw...) do site
+        j1, j2 = site.lp.unit_cell
+        return -hex_size + 1 + sum(center) ≤ j1 + j2 ≤ hex_size - 1 + sum(center)
+    end
+end
+
+"""
+    TriangularLattice(:triangle, triangle_size[, center; kw...])
+
+Construct a triangle-shaped sample of a triangular lattice.
+
+## Arguments:
+- `triangle_size`: the size of the triangle.
+
+## Keyword arguments:
+- `center`: the center of the triangle (in unit cell coordinates). Default is `(1, 1)`.
+
+All other keyword arguments are passed to `span_unitcells` (see its documentation for details).
+"""
+function TriangularLattice(::Val{:triangle}, triangle_size, center=(1, 1); kw...)
+    j1ind = center[1]:triangle_size + center[1] - 1
+    j2ind = center[2]:triangle_size + center[2] - 1
+    TriangularLattice(j1ind, j2ind; kw...) do site
+        j1, j2 = site.lp.unit_cell
+        return j1 + j2 ≤ triangle_size - 1 + sum(center)
+    end
+end
+
+"""
     HoneycombLattice
 Represents a honeycomb lattice.
 
@@ -121,6 +172,90 @@ two sites at `[0, 0]` and `[0.5, √3/6]` in each unit cell.
 Construct a honeycomb lattice of a×b spanned unit cells.
 """
 @bravaisdef HoneycombLattice UnitCell([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])
+
+"""
+    HoneycombLattice(:hex, hex_size[, center; kw...])
+
+Construct a hexagon-shaped sample of a honeycomb lattice.
+
+## Arguments:
+- `hex_size`: the size of the hexagon.
+- `center`: the center of the hexagon (in unit cell coordinates). Default is `(0, 0)`.
+
+All other keyword arguments are passed to `span_unitcells` (see its documentation for details).
+"""
+function HoneycombLattice(::Val{:hex}, hex_size, center=(0, 0); kw...)
+    j1ind = -hex_size + center[1]:hex_size - 1 + center[1]
+    j2ind = -hex_size + 1 + center[2]:hex_size + center[2]
+    HoneycombLattice(j1ind, j2ind; kw...) do site
+        j1, j2 = site.lp.unit_cell .- center
+        j_prj = j1 + j2
+        if -hex_size ≤ j_prj ≤ hex_size
+            return !(site.lp.basis_index == 2 && j_prj == hex_size ||
+                site.lp.basis_index == 1 && j_prj == -hex_size)
+        else
+            return false
+        end
+    end
+end
+
+"""
+    HoneycombLattice(:triangle, triangle_size[, center; kw...])
+
+Construct a triangle-shaped sample of a honeycomb lattice.
+
+## Arguments:
+- `triangle_size`: the size of the triangle (number of hexagonal plaquettes).
+- `center`: the center of the triangle (in unit cell coordinates). Default is `(1, 1)`.
+
+All other keyword arguments are passed to `span_unitcells` (see its documentation for details).
+"""
+function HoneycombLattice(::Val{:triangle}, triangle_size, center=(1, 1); preserve_tails=true, kw...)
+    j1ind = center[1]:triangle_size + 1 + center[1]
+    j2ind = center[2]:triangle_size + 1 + center[2]
+    HoneycombLattice(j1ind, j2ind; kw...) do site
+        j1, j2 = site.lp.unit_cell .- center
+        j_prj = j1 + j2
+        if j_prj ≤ triangle_size + 1
+            if !preserve_tails && site.lp.basis_index == 1
+                j1 == 0 && j2 == 0 && return false
+                j1 == 0 && j2 == triangle_size + 1 && return false
+                j1 == triangle_size + 1 && j2 == 0 && return false
+            end
+            return !(site.lp.basis_index == 2 && j_prj == triangle_size + 1)
+        else
+            return false
+        end
+    end
+end
+
+"""
+    HoneycombLattice(:ribbon, r1, r2[, center; kw...])
+
+Construct a graphene ribbon sample with zigzag edges.
+To get armchair edges, simply rotate the lattice by 90 degrees.
+
+## Arguments:
+- `len`: the length of the ribbon.
+- `wid`: the width of the ribbon.
+- `center`: the unit cell coordinates of the bottom-left corner of the ribbon. Default is `(0, 0)`.
+
+All other keyword arguments are passed to `span_unitcells` (see its documentation for details).
+"""
+function HoneycombLattice(::Val{:ribbon}, len, wid, center=(0, 0); kw...)
+    j1ind = center[1] - wid:len + center[1] - 1
+    j2ind = center[2]:wid + center[2] - 1
+    HoneycombLattice(j1ind, j2ind; kw...) do site
+        j1, j2 = site.lp.unit_cell .- center
+        j_prj = j1 + j2 / 2
+        if -0.5 ≤ j_prj ≤ len - 0.5
+            return !(site.lp.basis_index == 2 && j_prj == len - 0.5 ||
+                site.lp.basis_index == 1 && j_prj == -0.5)
+        else
+            return false
+        end
+    end
+end
 
 """
     KagomeLattice
