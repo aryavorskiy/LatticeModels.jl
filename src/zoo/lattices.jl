@@ -1,23 +1,5 @@
 function construct_unitcell end
 
-_bravaistranslations_expr(tr::BravaisTranslation) =
-    :(BravaisTranslation($(tr.site_indices), SA[$(tr.translate_uc...)]))
-_bravaistranslations_expr(trs::BravaisSiteMapping) =
-    :(BravaisSiteMapping($(_bravaistranslations_expr.(trs.translations)...)))
-
-function _precompile_nnhops(LT::Type{<:BravaisLattice})
-    uc = construct_unitcell(LT)
-    trs = detect_nnhops(uc, 3)
-    @eval LatticeModels begin
-        adapt_bonds(::NearestNeighbor{1}, l::$LT) =
-            adapt_bonds($(_bravaistranslations_expr(trs[1])), l)
-        adapt_bonds(::NearestNeighbor{2}, l::$LT) =
-            adapt_bonds($(_bravaistranslations_expr(trs[2])), l)
-        adapt_bonds(::NearestNeighbor{3}, l::$LT) =
-            adapt_bonds($(_bravaistranslations_expr(trs[3])), l)
-    end
-end
-
 function _add_parameter_to_call!(expr, sym)
     if Meta.isexpr(expr, (:block, :if, :elseif, :return))
         foreach(e -> _add_parameter_to_call!(e, sym), expr.args)
@@ -28,6 +10,35 @@ function _add_parameter_to_call!(expr, sym)
     end
 end
 
+"""
+    @bravaisdef MyBravaisLattice UnitCell(...)
+    @bravaisdef MyBravaisLattice N -> UnitCell(...)
+
+Define a new Bravais lattice type `MyBravaisLattice` with a unit cell constructor `UnitCell(expr)`.
+If the notation is `N -> UnitCell(expr)`, the unit cell constructor will be dependent on the dimensionality `N`.
+otherwise, the dimensionality will be inferred from the unit cell.
+`N` is the dimensionality of the lattice.
+
+## Examples
+
+```jldoctest
+julia> @bravaisdef MyBravaisLattice UnitCell([1 0; 0 1]);   # 2D square lattice
+
+julia> MyBravaisLattice(3, 3)
+9-site 2-dim MyBravaisLattice
+boundaries: (none)
+nnbonds:
+1.0 =>
+ 1 => 1, [1, 0]
+ 1 => 1, [0, 1]
+1.41421 =>
+ 1 => 1, [1, -1]
+ 1 => 1, [1, 1]
+2.0 =>
+ 1 => 1, [2, 0]
+ 1 => 1, [0, 2]
+```
+"""
 macro bravaisdef(type, expr)
     type_sym = type
     is_ndep = Meta.isexpr(expr, :->)
@@ -60,24 +71,11 @@ macro bravaisdef(type, expr)
         end
     end
     _add_parameter_to_call!(unitcell_construct, type_sym)
-    res = quote
+    return quote
         Core.@__doc__ $type_def
         $(Expr(:function, unitcell_construct_signature, unitcell_construct))
         $lattice_constructor
-    end
-    if is_ndep
-        quote
-            $res
-            LatticeModels._precompile_nnhops($type{1})
-            LatticeModels._precompile_nnhops($type{2})
-            LatticeModels._precompile_nnhops($type{3})
-        end |> esc
-    else
-        quote
-            $res
-            LatticeModels._precompile_nnhops($type)
-        end |> esc
-    end
+    end |> esc
 end
 function (::Type{T})(f::Function, args...; kw...) where T<:BravaisLattice
     filter(f, T(args...; kw...))

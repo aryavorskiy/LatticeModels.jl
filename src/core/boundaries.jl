@@ -150,7 +150,9 @@ Base.getindex(bcs::BoundaryConditions, i::Int) = bcs.bcs[i]
 
 function Base.show(io::IO, mime::MIME"text/plain", bcs::BoundaryConditions)
     get(io, :inline, false) || println(io, "Boundary conditions:")
+    length(bcs.bcs) == 0 && return print(io, "(none)")
     for i in 1:length(bcs.bcs)
+        get(io, :inline, false) && print(io, " ")
         show(io, mime, bcs[i])
         println(io)
     end
@@ -209,5 +211,5 @@ function translate_to_nearest(l::AbstractLattice, site1::AbstractSite, site2::Ab
     end
     return min_site
 end
-site_distance(l::AbstractLattice, site1::AbstractSite, site2::AbstractSite) =
+site_distance(l::LatticeWithParams, site1::AbstractSite, site2::AbstractSite) =
     norm(translate_to_nearest(l, site1, site2).coords - site1.coords)

@@ -58,7 +58,7 @@ Returns the distance between two sites on the `l` lattice, taking boundary condi
 - `l::Lattice`: The lattice where the sites are defined.
 - `site1::LatticeSite`: The first site.
 """
-site_distance(::UndefinedLattice, site1::AbstractSite, site2::AbstractSite) =
+site_distance(::AbstractLattice, site1::AbstractSite, site2::AbstractSite) =
     norm(site1.coords - site2.coords)
 site_distance(site1, site2) = site_distance(UndefinedLattice(), site1, site2)
 
@@ -282,4 +282,35 @@ struct NearestNeighbor{N} <: AbstractBonds{UndefinedLattice}
 end
 NearestNeighbor(N::Int) = NearestNeighbor(Val(N))
 
-adapt_bonds(b::NearestNeighbor, l::LatticeWithParams) = adapt_bonds(b, l.lat)
+struct DefaultNNBonds{M, TupleT}
+    dists::NTuple{M, Float64}
+    nnbonds::TupleT
+    function DefaultNNBonds(dists::NTuple{M, Float64}, nnbonds::TupleT) where {M, TupleT}
+        length(dists) == length(nnbonds) ||
+            throw(ArgumentError("The number of distances and the number of hops must be the same."))
+        new{M, TupleT}(dists, nnbonds)
+    end
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", dnn::DefaultNNBonds)
+    io = IOContext(io, :inline => true)
+    for i in 1:length(dnn.dists)
+        println(io, "\n", dnn.dists[i], " =>")
+        show(io, mime, dnn.nnbonds[i])
+    end
+end
+
+Base.getindex(dnn::DefaultNNBonds, i::Int) = dnn.nnbonds[i]
+Base.length(dnn::DefaultNNBonds) = length(dnn.nnbonds)
+
+getnnbonds(l::AbstractLattice) = getparam(l, :nnbonds, DefaultNNBonds((), ()))
+setnnbonds(l::AbstractLattice, dnn::DefaultNNBonds) = setparam(l, :nnbonds, dnn)
+
+function adapt_bonds(b::NearestNeighbor{N}, l::LatticeWithParams) where {N}
+    default_nnhops = getnnbonds(l)
+    if default_nnhops === nothing || N > length(default_nnhops)
+        return adapt_bonds(b, l.lat)
+    else
+        return default_nnhops[N]
+    end
+end

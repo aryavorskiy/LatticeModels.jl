@@ -99,7 +99,7 @@ function _sort(r::OrdinalRange)
 end
 
 """
-    span_unitcells(unitcell, dims...[; kw...])
+    span_unitcells(unitcell, dims...[; boundaries, offset])
 
 Construct a Bravais lattice by spanning `unitcell` in `dims` dimensions.
 
@@ -115,7 +115,7 @@ Construct a Bravais lattice by spanning `unitcell` in `dims` dimensions.
 ```jldoctest
 julia> using LatticeModels
 
-julia> uc = UnitCell([[1, 0]; [0, 1]]);
+julia> uc = UnitCell([[1, 0] [0, 1]]);
 
 julia> span_unitcells(uc, 3, 3) == SquareLattice(3, 3)
 true
@@ -131,7 +131,9 @@ function span_unitcells(unitcell::UnitCell{Sym,N,NB}, sz::Vararg{RangeT, N};
         end
     end
     b = BravaisLattice(offset_unitcell(unitcell, offset), ptrs)
-    return setboundaries(b, to_boundaries(boundaries))
+    b = setboundaries(b, to_boundaries(boundaries))
+    b = setnnbonds(b, getnnbonds(stripparams(b)))
+    return b
 end
 span_unitcells(uc::UnitCell, sz::Tuple{Vararg{RangeT}}; kw...) =
     throw(ArgumentError("Dimension mismatch: $(dims(uc))-dim unit cell, $(length(sz)) lattice dimensions"))

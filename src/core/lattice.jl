@@ -300,7 +300,7 @@ function Base.show(io::IO, mime::MIME"text/plain", lw::LatticeWithParams)
     if !get(io, :compact, false)
         io = IOContext(io, :inline => true, :compact => true)
         for (k, v) in pairs(lw.params)
-            print(io, "\n", k, ":")
+            print(io, "\n", k, ": ")
             show(io, mime, v)
         end
     end

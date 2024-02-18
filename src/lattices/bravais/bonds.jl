@@ -166,12 +166,13 @@ Base.union(trs::BravaisSiteMapping, trs2::BravaisSiteMapping) =
 
 function Base.summary(io::IO, trs::BravaisSiteMapping)
     for i in 1:length(trs.translations)
+        get(io, :inline, false) && print(io, " ")
         summary(io, trs.translations[i])
         i < length(trs.translations) && println(io)
     end
 end
 function Base.show(io::IO, mime::MIME"text/plain", trs::BravaisSiteMapping)
-    println(io, "Bravais site mapping:")
+    get(io, :inline, false) || println(io, "Bravais site mapping:")
     summary(io, trs)
     if !(trs.lat isa UndefinedLattice)
         print(io, "\n on ")
@@ -196,7 +197,7 @@ function adapt_bonds(tr::Translation{UndefinedLattice, N}, l::BravaisLattice) wh
 end
 Translation(l::OnSites{BravaisLattice}, R::AbstractVector) = adapt_bonds(Translation(R), l)
 
-function detect_nnhops(uc::UnitCell{Sym, N} where Sym, depth=3) where N
+function detect_nnhops(uc::UnitCell{Sym, N} where Sym, depth=2) where N
     lens = Float64[]
     TranslationT = BravaisTranslation{UndefinedLattice, N}
     translation_lists = Vector{TranslationT}[]
@@ -207,7 +208,7 @@ function detect_nnhops(uc::UnitCell{Sym, N} where Sym, depth=3) where N
                 if i == j
                     nzc = findfirst(!=(0), C)
                     nzc === nothing && continue # skip self-hops
-                    nzc < 1 && continue # avoid double-counting
+                    C[nzc] < 1 && continue # avoid double-counting
                 end
                 R = trvectors(uc) * C - sublatvector(uc, i) + sublatvector(uc, j)
                 r = norm(R)
@@ -230,10 +231,15 @@ function detect_nnhops(uc::UnitCell{Sym, N} where Sym, depth=3) where N
             end
         end
     end
-    return [BravaisSiteMapping(UndefinedLattice(), trs...) for trs in translation_lists]
+    return lens, [BravaisSiteMapping(UndefinedLattice(), trs...) for trs in translation_lists]
 end
 
 function adapt_bonds(::NearestNeighbor{N}, l::BravaisLattice) where N
-    adapt_bonds(detect_nnhops(l.unitcell, 3)[N], l)
+    adapt_bonds(detect_nnhops(l.unitcell, 1 + ceil(Int, √N))[2][N], l)
 end
 NearestNeighbor(l::BravaisLattice, N) = adapt_bonds(NearestNeighbor(N), l)
+
+function getnnbonds(l::BravaisLattice)
+    lens, trs = detect_nnhops(l.unitcell)
+    return DefaultNNBonds(Tuple(lens[1:3]), Tuple(trs[1:3]))
+end
