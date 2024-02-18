@@ -13,9 +13,7 @@ An abstract type for bonds on some lattice.
     Returns if the sites are connected by the bonds.
 
 ## Optional methods for subtypes to implement
-- `adapt_bonds(bonds::AbstractBonds, l::AbstractLattice)`:
-    Adapt the translation to the lattice `l`. The output can be a different type of
-    translation, more fitting for the concrete type of lattice.
+- `adapt_bonds(bonds::AbstractBonds, l::AbstractLattice)`
 """
 abstract type AbstractBonds{LatticeT} end
 lattice(bonds::AbstractBonds) = bonds.lat
@@ -25,6 +23,13 @@ isadjacent(bonds::AbstractBonds, s1::ResolvedSite, s2::ResolvedSite) =
     isadjacent(bonds, s1.site, s2.site)
 Base.getindex(bonds::AbstractBonds, site1::AbstractSite, site2::AbstractSite) =
     isadjacent(bonds, site1, site2)
+
+"""
+    adapt_bonds(bonds, lat)
+
+Adapt the bonds to the lattice `lat`. The output can be a different type of
+bonds, more fitting for the concrete type of lattice.
+"""
 adapt_bonds(any, l::AbstractLattice) = throw(ArgumentError("$any cannot be interpreted as bonds on lattice $l"))
 
 function Base.iterate(bonds::AbstractBonds, ind_pair = 1 => 1)
@@ -46,14 +51,14 @@ function Base.iterate(bonds::AbstractBonds, ind_pair = 1 => 1)
 end
 
 """
-    site_distance([l::Lattice, ]site1::LatticeSite, site2::LatticeSite)
-Returns the distance between two sites on the `l` lattice.
+    site_distance([lat, ]site1, site2)
+Returns the distance between two sites on the `l` lattice, taking boundary conditions into account.
 
 # Arguments
 - `l::Lattice`: The lattice where the sites are defined.
 - `site1::LatticeSite`: The first site.
 """
-site_distance(::AbstractLattice, site1::AbstractSite, site2::AbstractSite) =
+site_distance(::UndefinedLattice, site1::AbstractSite, site2::AbstractSite) =
     norm(site1.coords - site2.coords)
 site_distance(site1, site2) = site_distance(UndefinedLattice(), site1, site2)
 
@@ -261,7 +266,7 @@ function Base.show(io::IO, mime::MIME"text/plain", sh::Translation)
     summary(io, sh)
     if !(sh.lat isa UndefinedLattice)
         print(io, "\n on ")
-        show(io, mime, sh.lat)
+        summary(io, sh.lat)
     end
 end
 

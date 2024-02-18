@@ -26,7 +26,7 @@ export UnitCell, LatticeCoord, BasisIndex
 include("lattices/bravais/lattice.jl")
 export add_boundaries, span_unitcells
 include("lattices/bravais/bonds.jl")
-export BravaisTranslation, NearestNeighbor
+export BravaisTranslation, Bravais, NearestNeighbor
 include("lattices/bravais/recipes.jl")
 
 include("operators/bases.jl")

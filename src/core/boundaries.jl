@@ -59,7 +59,8 @@ to_boundary(p::Pair{<:Any, Bool}) =
 to_boundary(p::Pair{<:Any, <:Real}) =
     TwistedBoundary(p[1], p[2])
 function Base.show(io::IO, ::MIME"text/plain", bc::TwistedBoundary)
-    print(io, bc.translation, " → ")
+    summary(io, bc.translation)
+    print(io, " → ")
     if bc.Θ % 2π ≈ 0
         print("periodic")
     else
@@ -93,8 +94,10 @@ end
 FunctionBoundary(f::F, tr::AbstractArray) where F<:Function =
     FunctionBoundary(f, Translation(tr))
 to_boundary(p::Pair{<:Any, <:Function}) = FunctionBoundary(p[2], p[1])
-Base.show(io::IO, ::MIME"text/plain", bc::FunctionBoundary) =
-    print(io, bc.R, " → function '", bc.condition, "'")
+function Base.show(io::IO, ::MIME"text/plain", bc::FunctionBoundary)
+    summary(io, bc.translation)
+    print(io, " → function '", bc.condition, "'")
+end
 
 phasefactor(b::FunctionBoundary, site::AbstractSite) = b.condition(site)
 
@@ -146,11 +149,12 @@ setboundaries(l::AbstractLattice, bcs) = setboundaries(l, to_boundaries(bcs))
 Base.getindex(bcs::BoundaryConditions, i::Int) = bcs.bcs[i]
 
 function Base.show(io::IO, mime::MIME"text/plain", bcs::BoundaryConditions)
-    print(io, "Boundary conditions:")
-    for bc in bcs.bcs
-        println()
-        show(io, mime, bc)
+    get(io, :inline, false) || println(io, "Boundary conditions:")
+    for i in 1:length(bcs.bcs)
+        show(io, mime, bcs[i])
+        println(io)
     end
+    print("depth = ", bcs.depth)
 end
 
 cartesian_indices(b::BoundaryConditions{<:NTuple{M}}) where M =
@@ -183,6 +187,12 @@ function resolve_site(l::LatticeWithParams, site::AbstractSite)
     return ResolvedSite(site, ind, factor)
 end
 
+"""
+    translate_to_nearest(lat, site1, site2)
+
+Translate `site2` to its equivalent nearest to `site1` in the lattice `lat`, taking the
+boundary conditions into account.
+"""
 function translate_to_nearest(l::AbstractLattice, site1::AbstractSite, site2::AbstractSite)
     min_site = site2
     min_dist = norm(site1.coords - site2.coords)
@@ -192,10 +202,12 @@ function translate_to_nearest(l::AbstractLattice, site1::AbstractSite, site2::Ab
         for i in eachindex(tup)
             new_site = nshifts(new_site, getboundaries(l)[i].translation, tup[i])
         end
-        if norm(new_site.latcoords - site1.latcoords) < min_dist
-            min_dist = norm(new_site.latcoords - site1.latcoords)
+        if norm(new_site.coords - site1.coords) < min_dist
+            min_dist = norm(new_site.coords - site1.coords)
             min_site = new_site
         end
     end
     return min_site
 end
+site_distance(l::AbstractLattice, site1::AbstractSite, site2::AbstractSite) =
+    norm(translate_to_nearest(l, site1, site2).coords - site1.coords)

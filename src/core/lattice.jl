@@ -1,3 +1,12 @@
+"""
+    AbstractSite{N}
+
+An abstract type for a site of a `N`-dimensional lattice.
+
+## Fields
+- `coords`: A `SVector` of size `N` representing the spatial coordinates of the site.
+    All subtypes are expected to have this field.
+"""
 abstract type AbstractSite{N} end
 
 dims(::AbstractSite{N}) where N = N
@@ -9,7 +18,32 @@ Base.show(io::IO, ::MIME"text/plain", site::AbstractSite{N}) where N =
 struct NoSite <: AbstractSite{0} end
 Base.show(io::IO, ::NoSite) = print(io, "LatticeModels.NoSite()")
 
-# Site parameters
+"""
+    SiteProperty
+
+An abstract type for a property of a site.
+
+This interface is used to define various properties of a site. They can be accessed using
+`getsiteproperty`. This interface is used in following places:
+- `lattice[...]` syntax to access sites with specific properties.
+- `lattice_value[...]` syntax to access values defined on sites with specific properties.
+- `siteproperty_value` function to generate `LatticeValue` objects for specific properties.
+- `siteproperty_operator` function to generate operators for specific properties.
+
+## Examples
+```jldoctest
+julia> l = SquareLattice(3, 3)
+
+julia> l[x = 1, y = 2]          # Get site with x = 1 and y = 2
+Site of a 2-dim lattice @ [1.0, 2.0]
+
+julia> l[x = 1]                 # Get sublattice with x = 1
+3-site 2-dim SquareLattice
+
+julia> l[x = 1, y = 2, z = 3]   # No site with defined z property on a 2D lattice
+ERROR: ArgumentError: Invalid axis index 3 of a 2-dim site
+```
+"""
 abstract type SiteProperty end
 getsiteproperty(::AbstractSite, p::SiteProperty) = throw(ArgumentError("Site has no property `$p`"))
 
@@ -177,6 +211,11 @@ function collect_coords(l::AbstractLattice)
     pts
 end
 
+"""
+    IncompatibleLattices([header, ]lat1, lat2)
+
+An exception thrown when two lattices are incompatible.
+"""
 struct IncompatibleLattices <: Exception
     header::String
     l1::AbstractLattice
@@ -231,12 +270,6 @@ function resolve_site(l::AbstractLattice, site::AbstractSite)
     ResolvedSite(site, index)
 end
 
-"""
-    LatticeWithParams
-
-A wrapper around a lattice that includes parameters.
-This is useful for storing parameters that are specific to a lattice, such as its boundary conditions.
-"""
 struct LatticeWithParams{LT,ParamsT,SiteT} <: AbstractLattice{SiteT}
     lat::LT
     params::ParamsT
@@ -261,9 +294,11 @@ Base.copymutable(lw::LatticeWithParams) = LatticeWithParams(copymutable(lw.lat),
 Base.deleteat!(lw::LatticeWithParams, is) = (deleteat!(lw.lat, is); return lw)
 Base.push!(lw::LatticeWithParams, site) = (push!(lw.lat, site); return lw)
 
+Base.summary(io::IO, lw::LatticeWithParams) = summary(io, lw.lat)
 function Base.show(io::IO, mime::MIME"text/plain", lw::LatticeWithParams)
     show(io, mime, lw.lat)
     if !get(io, :compact, false)
+        io = IOContext(io, :inline => true, :compact => true)
         for (k, v) in pairs(lw.params)
             print(io, "\n", k, ":")
             show(io, mime, v)

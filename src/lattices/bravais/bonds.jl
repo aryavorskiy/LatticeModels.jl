@@ -26,6 +26,9 @@ adapt_bonds(bsh::BravaisTranslation{UndefinedLattice}, l::AbstractLattice) =
     BravaisTranslation(l, bsh.site_indices, bsh.translate_uc)
 dims(::BravaisTranslation{UndefinedLattice, N}) where N = N
 
+struct Bravais end
+Base.getindex(::Type{Bravais}, I::Int...) = BravaisTranslation(UndefinedLattice(), 0=>0, SVector(I))
+
 """
     BravaisTranslation([site_indices, ]translate_uc)
     BravaisTranslation(site_indices)
@@ -58,14 +61,17 @@ function Base.inv(bsh::BravaisTranslation)
 end
 
 function Base.summary(io::IO, bsh::BravaisTranslation)
-    print(io, (bsh.site_indices == (0=>0)) ? "all => all" : "$(bsh.site_indices)",
-        ", $(bsh.translate_uc)")
+    if bsh.site_indices == (0=>0)
+        print(io, "Bravais", bsh.translate_uc)
+    else
+        print(io, "$(bsh.site_indices), $(bsh.translate_uc)")
+    end
 end
 
 function Base.show(io::IO, mime::MIME"text/plain", bsh::BravaisTranslation)
     print(io, "BravaisTranslation:\n")
     summary(io, bsh)
-    if !(bsh.lat isa UndefinedLattice)
+    if !(bsh.lat isa UndefinedLattice) || get(io, :compact, false)
         print(io, "\n on ")
         show(io, mime, bsh.lat)
     end
@@ -158,12 +164,15 @@ Base.union(tr::BravaisTranslation, trs::BravaisSiteMapping) = union(trs, tr)
 Base.union(trs::BravaisSiteMapping, trs2::BravaisSiteMapping) =
     foldl(union, trs2.translations, init=trs)
 
-function Base.show(io::IO, mime::MIME"text/plain", trs::BravaisSiteMapping)
-    print(io, "Bravais site mapping:")
-    for tr in trs.translations
-        println(io)
-        summary(io, tr)
+function Base.summary(io::IO, trs::BravaisSiteMapping)
+    for i in 1:length(trs.translations)
+        summary(io, trs.translations[i])
+        i < length(trs.translations) && println(io)
     end
+end
+function Base.show(io::IO, mime::MIME"text/plain", trs::BravaisSiteMapping)
+    println(io, "Bravais site mapping:")
+    summary(io, trs)
     if !(trs.lat isa UndefinedLattice)
         print(io, "\n on ")
         show(io, mime, trs.lat)

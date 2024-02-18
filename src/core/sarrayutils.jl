@@ -41,7 +41,7 @@ function check_size(arr, expected_size::Symbol, var::Symbol)
     if expected_size === :square
         length(size(arr)) == 2 && size(arr, 1) == size(arr, 2) && return
         throw(ArgumentError(string(
-            "invalid size of `$var`; expected square matrix, got ", join(size(arr), "×"))))
+            "invalid size of `$var`; expected square matrix, got size ", join(size(arr), "×"))))
     end
 end
 

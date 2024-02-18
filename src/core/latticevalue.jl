@@ -35,18 +35,22 @@ Base.values(lvw::LatticeValueWrapper) = lvw.values
 """
     LatticeValue{T, LT}
 
-Represents a value of type `T` on a `Lattice{LatticeSym}` lattice.
+Represents a value of type `T` on a `LT` lattice.
 
-Fields:
-- lattice: the `Lattice` object the value is defined on
+## Fields
+- lattice: the `AbstractLattice` object the value is defined on
 - values: the values on different sites
 """
 const LatticeValue{T, LT} = LatticeValueWrapper{LT, Vector{T}}
 
 """
-    LatticeValue(l::Lattice, v::AbstractVector)
+    LatticeValue(lat, values)
 
 Constructs a LatticeValue object.
+
+## Arguments
+- `lat`: the lattice the value is defined on.
+- `values`: an `AbstractVector` of values on the lattice.
 """
 LatticeValue(l::AbstractLattice, v::AbstractVector) = LatticeValueWrapper(l, convert(Vector, v))
 LatticeValue(lf, l::AbstractLattice) = LatticeValueWrapper(l, [lf(site) for site in l])
@@ -191,10 +195,13 @@ function Base.setindex!(lvw::LatticeValueWrapper, rhs, ::typeof(!), pairs::Pair.
 end
 
 """
-    project(lv::LatticeValue, axis)
+    project(lv, axis)
 
-Creates a mapping from site coordinates to values of `lv`.
-The coordinate axis to project the sites onto can be set with the `axis` argument.
+Projects the `lv::LatticeValue` along the given axis.
+
+## Arguments
+- `lv`: the `LatticeValue` to be projected.
+- `axis`: the `SiteProperty` describing the axis to be projected along.
 """
 function project(lv::LatticeValue, param::SiteProperty)
     pr_crds = [getsiteproperty(site, param) for site in lattice(lv)]
@@ -203,7 +210,18 @@ function project(lv::LatticeValue, param::SiteProperty)
 end
 project(any, param::Symbol) = project(any, SitePropertyAlias{param}())
 
+"""
+    ketstate(lv)
+
+Converts a `LatticeValue` to a `Ket` wavefunction vector.
+"""
 ketstate(lv::LatticeValue) = Ket(LatticeBasis(lattice(lv)), lv.values)
+
+"""
+    brastate(lv)
+
+Converts a `LatticeValue` to a `Bra` wavefunction vector.
+"""
 brastate(lv::LatticeValue) = Bra(LatticeBasis(lattice(lv)), lv.values)
 QuantumOpticsBase.tensor(ket::Ket, lv::LatticeValue) = ket ⊗ ketstate(lv)
 QuantumOpticsBase.tensor(bra::Bra, lv::LatticeValue) = bra ⊗ brastate(lv)
