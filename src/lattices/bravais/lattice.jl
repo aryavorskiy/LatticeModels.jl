@@ -147,8 +147,8 @@ true
 function span_unitcells(unitcell::UnitCell{Sym,N,NB}, sz::Vararg{RangeT, N};
         boundaries=BoundaryConditions(), offset = :origin) where {Sym,N,NB}
     ptrs = BravaisPointer{N}[]
-    for unit_cell in CartesianIndices(reverse(_sort.(sz)))
-        svec = reverse(SVector{N}(Tuple(unit_cell)))
+    for unitcell_indices in CartesianIndices(reverse(_sort.(sz)))
+        svec = reverse(SVector{N}(Tuple(unitcell_indices)))
         for i in 1:NB
             push!(ptrs, BravaisPointer(svec, i))
         end

@@ -101,7 +101,7 @@ Construct a square lattice of size `sz`.
 """
 @bravaisdef SquareLattice N -> UnitCell(SMatrix{N,N}(I))
 LatticeModels.site_coords(b::UnitCell{:squarelattice,N,1}, lp::BravaisPointer{N}) where {N} =
-    vec(b.basissites) + lp.unit_cell
+    vec(b.basissites) + lp.unitcell_indices
 
 """
     TriangularLattice
@@ -132,7 +132,7 @@ function TriangularLattice(::Val{:hex}, hex_size, center=(0, 0); kw...)
     j1ind = -hex_size + 1 + center[1]:hex_size - 1 + center[1]
     j2ind = -hex_size + 1 + center[2]:hex_size - 1 + center[2]
     TriangularLattice(j1ind, j2ind; kw...) do site
-        j1, j2 = site.lp.unit_cell
+        j1, j2 = site.J
         return -hex_size + 1 + sum(center) ≤ j1 + j2 ≤ hex_size - 1 + sum(center)
     end
 end
@@ -154,7 +154,7 @@ function TriangularLattice(::Val{:triangle}, triangle_size, center=(1, 1); kw...
     j1ind = center[1]:triangle_size + center[1] - 1
     j2ind = center[2]:triangle_size + center[2] - 1
     TriangularLattice(j1ind, j2ind; kw...) do site
-        j1, j2 = site.lp.unit_cell
+        j1, j2 = site.J
         return j1 + j2 ≤ triangle_size - 1 + sum(center)
     end
 end
@@ -188,7 +188,7 @@ function HoneycombLattice(::Val{:hex}, hex_size, center=(0, 0); kw...)
     j1ind = -hex_size + center[1]:hex_size - 1 + center[1]
     j2ind = -hex_size + 1 + center[2]:hex_size + center[2]
     HoneycombLattice(j1ind, j2ind; kw...) do site
-        j1, j2 = site.lp.unit_cell .- center
+        j1, j2 = site.J .- center
         j_prj = j1 + j2
         if -hex_size ≤ j_prj ≤ hex_size
             return !(site.lp.basis_index == 2 && j_prj == hex_size ||
@@ -214,7 +214,7 @@ function HoneycombLattice(::Val{:triangle}, triangle_size, center=(1, 1); preser
     j1ind = center[1]:triangle_size + 1 + center[1]
     j2ind = center[2]:triangle_size + 1 + center[2]
     HoneycombLattice(j1ind, j2ind; kw...) do site
-        j1, j2 = site.lp.unit_cell .- center
+        j1, j2 = site.J .- center
         j_prj = j1 + j2
         if j_prj ≤ triangle_size + 1
             if !preserve_tails && site.lp.basis_index == 1
@@ -246,7 +246,7 @@ function HoneycombLattice(::Val{:ribbon}, len, wid, center=(0, 0); kw...)
     j1ind = center[1] - wid:len + center[1] - 1
     j2ind = center[2]:wid + center[2] - 1
     HoneycombLattice(j1ind, j2ind; kw...) do site
-        j1, j2 = site.lp.unit_cell .- center
+        j1, j2 = site.J .- center
         j_prj = j1 + j2 / 2
         if -0.5 ≤ j_prj ≤ len - 0.5
             return !(site.lp.basis_index == 2 && j_prj == len - 0.5 ||

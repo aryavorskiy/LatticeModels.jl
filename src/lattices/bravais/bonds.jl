@@ -79,7 +79,7 @@ end
         new_basindex = bsh.site_indices[2]
     end
     N > M && any(!=(0), @view bsh.translate_uc[M+1:N]) && return nothing
-    return BravaisPointer(add_assuming_zeros(lp.unit_cell, bsh.translate_uc), new_basindex)
+    return BravaisPointer(add_assuming_zeros(lp.unitcell_indices, bsh.translate_uc), new_basindex)
 end
 @inline destination(bs::BravaisTranslation, site::BravaisSite) =
     BravaisSite(_destination_bp(bs, site.lp), site.unitcell)

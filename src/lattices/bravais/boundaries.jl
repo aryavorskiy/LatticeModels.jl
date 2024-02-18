@@ -2,7 +2,7 @@ import QuantumOpticsBase: Basis, AbstractOperator, basis, check_samebases
 abstract type Boundary{N} end
 
 shift_site(js::SVector{N, Int}, lp::BravaisPointer{N}) where N =
-    BravaisPointer(lp.unit_cell + js, lp.basis_index)
+    BravaisPointer(lp.unitcell_indices + js, lp.basis_index)
 shift_site(js::SVector{N}, site::BravaisSite{N}) where N =
     BravaisSite(shift_site(js, site.lp), site.unitcell)
 

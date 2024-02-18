@@ -52,7 +52,7 @@ Constructs a Bravais lattice unit cell with given translation vectors and locati
 - `offset`: a keyword argument that specifies how to shift the lattice basis.
     Possible values:
     - `:origin`: no shift (default).
-    - `:center`: shift the lattice so that the center of the basis is at the origin.
+    - `:center`: shift the lattice so that the center of the basis is at the origin of the unit cell.
     - `:centeralign`: shift the lattice so that the center of the basis is at the center of the unit cell.
     - Also accepts an `AbstractVector` of size `N` to shift the lattice by a custom vector.
 """
@@ -72,15 +72,14 @@ Base.:(==)(b1::UnitCell, b2::UnitCell) =
     b1.translations == b2.translations && b1.basissites == b2.basissites
 
 function println_vectors(io::IO, a::AbstractMatrix)
-    println(io, "┌     ┐ " ^ size(a, 2))
+    println(io, "┌      ┐ " ^ size(a, 2))
     for i in 1:size(a, 1)
         for j in 1:size(a, 2)
-            s = @sprintf("%.3f", a[i, j])
-            print(io, "│$(s)│ ")
+            print(io, @sprintf("│%6.3f│ ", a[i, j]))
         end
         println(io)
     end
-    println(io, "└     ┘ " ^ size(a, 2))
+    println(io, "└      ┘ " ^ size(a, 2))
 end
 function Base.show(io::IO, ::MIME"text/plain", b::UnitCell{Sym,N,NB}) where {Sym,N,NB}
     print(io, "Unit cell of a ", N, "-dim ", Sym, " (Bravais) with ",
@@ -98,23 +97,23 @@ function Base.show(io::IO, ::MIME"text/plain", b::UnitCell{Sym,N,NB}) where {Sym
 end
 
 struct BravaisPointer{N}
-    unit_cell::SVector{N,Int}
+    unitcell_indices::SVector{N,Int}
     basis_index::Int
 end
 dims(::BravaisPointer{N}) where N = N
 
 @inline site_coords(uc::UnitCell, lp::BravaisPointer) =
-    uc.basissites[:, lp.basis_index] + uc.translations * lp.unit_cell
+    uc.basissites[:, lp.basis_index] + uc.translations * lp.unitcell_indices
 @inline site_coords(b::UnitCell{Sym,N,1} where {Sym}, lp::BravaisPointer{N}) where {N} =
-    vec(b.basissites) + b.translations * lp.unit_cell
+    vec(b.basissites) + b.translations * lp.unitcell_indices
 
 Base.:(==)(lp1::BravaisPointer, lp2::BravaisPointer) =
-    lp1.basis_index == lp2.basis_index && lp1.unit_cell == lp2.unit_cell
+    lp1.basis_index == lp2.basis_index && lp1.unitcell_indices == lp2.unitcell_indices
 function Base.isless(lp1::BravaisPointer, lp2::BravaisPointer)
-    if lp1.unit_cell == lp2.unit_cell
+    if lp1.unitcell_indices == lp2.unitcell_indices
         return isless(lp1.basis_index, lp2.basis_index)
     else
-        return isless(lp1.unit_cell, lp2.unit_cell)
+        return isless(lp1.unitcell_indices, lp2.unitcell_indices)
     end
 end
 
@@ -124,7 +123,7 @@ A site of a `BravaisLattice{N, B}` lattice.
 
 Fields:
 - `lp`: a `BravaisPointer` object representing the location of the site in the Bravais lattice.
-- `unit_cell`: a `UnitCell` object representing the lattice unit cell.
+- `unitcell`: a `UnitCell` object representing the lattice unit cell.
 - `coords`: a `SVector` of size `N` representing the spatial coordinates of the site.
 """
 struct BravaisSite{N,UnitcellT} <: AbstractSite{N}
@@ -139,18 +138,22 @@ BravaisSite(::Nothing, ::UnitCell) = NoSite()
 Base.show(io::IO, ::MIME"text/plain", site::BravaisSite{N, <:UnitCell{Sym}}) where {N, Sym} =
     print(io, "Site of a ", N, "-dim ", Sym, " (Bravais) @ x = $(site.coords)")
 
-struct UnitcellAxis <: SiteProperty axis::Int end
-function getsiteproperty(site::BravaisSite, c::UnitcellAxis)
+struct UnitcellIndex <: SiteProperty axis::Int end
+function getsiteproperty(site::BravaisSite, c::UnitcellIndex)
     @assert 1 ≤ c.axis ≤ dims(site)
-    return getfield(site, :lp).unit_cell[c.axis]
+    return getfield(site, :lp).unitcell_indices[c.axis]
 end
 for i in 1:32
-    @eval SitePropertyAlias{$(QuoteNode(Symbol("j$i")))}() = UnitcellAxis($i)
+    @eval SitePropertyAlias{$(QuoteNode(Symbol("j$i")))}() = UnitcellIndex($i)
 end
 
-struct UnitcellIndex <: SiteProperty end
-getsiteproperty(site::BravaisSite, ::UnitcellIndex) = getfield(site, :lp).basis_index
-SitePropertyAlias{:index}() = UnitcellIndex()
+struct UnitCellIndices <: SiteProperty end
+getsiteproperty(site::BravaisSite, ::UnitCellIndices) = getfield(site, :lp).unitcell_indices
+SitePropertyAlias{:J}() = UnitCellIndices()
+
+struct BasisIndex <: SiteProperty end
+getsiteproperty(site::BravaisSite, ::BasisIndex) = getfield(site, :lp).basis_index
+SitePropertyAlias{:index}() = BasisIndex()
 
 Base.:(==)(site1::BravaisSite, site2::BravaisSite) =
     site1.lp == site2.lp && site1.coords == site2.coords
