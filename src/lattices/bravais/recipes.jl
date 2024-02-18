@@ -61,16 +61,16 @@ This function might be quite useful in custom plot recipes.
 """
 function rectified_values(lv::BravaisLatticeValue{Sym, N} where Sym) where N
     s = sites(lv)
-    mins = Vector(s[1].lp.unitcell_indices)
-    maxs = Vector(s[1].lp.unitcell_indices)
+    mins = Vector(s[1].latcoords)
+    maxs = Vector(s[1].latcoords)
     for lp in s.latt.pointers
-        @. mins = min(mins, lp.unitcell_indices)
-        @. maxs = max(maxs, lp.unitcell_indices)
+        @. mins = min(mins, lp.latcoords)
+        @. maxs = max(maxs, lp.latcoords)
     end
     newvals = fill(NaN, Tuple(@. maxs - mins + 1))
     smins = SVector{N}(mins) .- 1
     for (i, lp) in enumerate(s.latt.pointers)
-        newvals[(lp.unitcell_indices - smins)...] = lv.values[i]
+        newvals[(lp.latcoords - smins)...] = lv.values[i]
     end
     Tuple(mins[i]:maxs[i] for i in 1:N), newvals
 end

@@ -1,7 +1,7 @@
 using Logging, StaticArrays, Printf
 
 """
-    UnitCell{Sym, N, NB}
+    UnitCell{Sym,N,NB}
 `N`-dimensional infinite Bravais lattice unit cell with `NB` sites in basis.
 `Sym` is a `Symbol` which represents
 the type of the lattice (e. g. `:square`, `:honeycomb`).
@@ -97,23 +97,23 @@ function Base.show(io::IO, ::MIME"text/plain", b::UnitCell{Sym,N,NB}) where {Sym
 end
 
 struct BravaisPointer{N}
-    unitcell_indices::SVector{N,Int}
-    basis_index::Int
+    latcoords::SVector{N,Int}
+    basindex::Int
 end
 dims(::BravaisPointer{N}) where N = N
 
 @inline site_coords(uc::UnitCell, lp::BravaisPointer) =
-    uc.basissites[:, lp.basis_index] + uc.translations * lp.unitcell_indices
+    uc.basissites[:, lp.basindex] + uc.translations * lp.latcoords
 @inline site_coords(b::UnitCell{Sym,N,1} where {Sym}, lp::BravaisPointer{N}) where {N} =
-    vec(b.basissites) + b.translations * lp.unitcell_indices
+    vec(b.basissites) + b.translations * lp.latcoords
 
 Base.:(==)(lp1::BravaisPointer, lp2::BravaisPointer) =
-    lp1.basis_index == lp2.basis_index && lp1.unitcell_indices == lp2.unitcell_indices
+    lp1.basindex == lp2.basindex && lp1.latcoords == lp2.latcoords
 function Base.isless(lp1::BravaisPointer, lp2::BravaisPointer)
-    if lp1.unitcell_indices == lp2.unitcell_indices
-        return isless(lp1.basis_index, lp2.basis_index)
+    if lp1.latcoords == lp2.latcoords
+        return isless(lp1.basindex, lp2.basindex)
     else
-        return isless(lp1.unitcell_indices, lp2.unitcell_indices)
+        return isless(lp1.latcoords, lp2.latcoords)
     end
 end
 
@@ -122,40 +122,39 @@ end
 A site of a `BravaisLattice{N, B}` lattice.
 
 Fields:
-- `lp`: a `BravaisPointer` object representing the location of the site in the Bravais lattice.
 - `unitcell`: a `UnitCell` object representing the lattice unit cell.
+- `latcoords`: a `SVector` of size `N` representing the lattice coordinates of the site.
+- `basindex`: an `Int` representing the index of the site in the lattice basis.
 - `coords`: a `SVector` of size `N` representing the spatial coordinates of the site.
 """
 struct BravaisSite{N,UnitcellT} <: AbstractSite{N}
-    lp::BravaisPointer{N}
     unitcell::UnitcellT
+    latcoords::SVector{N,Int}
+    basindex::Int
     coords::SVector{N,Float64}
     BravaisSite(lp::BravaisPointer{N}, b::UnitcellT) where {N,UnitcellT<:UnitCell} =
-        new{N,UnitcellT}(lp, b, site_coords(b, lp))
+        new{N,UnitcellT}(b, lp.latcoords, lp.basindex, site_coords(b, lp))
 end
 BravaisSite(::Nothing, ::UnitCell) = NoSite()
+bravaispointer(site::BravaisSite) = BravaisPointer(site.latcoords, site.basindex)
 
 Base.show(io::IO, ::MIME"text/plain", site::BravaisSite{N, <:UnitCell{Sym}}) where {N, Sym} =
     print(io, "Site of a ", N, "-dim ", Sym, " (Bravais) @ x = $(site.coords)")
 
-struct UnitcellIndex <: SiteProperty axis::Int end
-function getsiteproperty(site::BravaisSite, c::UnitcellIndex)
+struct LatticeCoord <: SiteProperty axis::Int end
+function getsiteproperty(site::BravaisSite, c::LatticeCoord)
     @assert 1 ≤ c.axis ≤ dims(site)
-    return getfield(site, :lp).unitcell_indices[c.axis]
+    return getfield(site, :latcoords)[c.axis]
 end
 for i in 1:32
-    @eval SitePropertyAlias{$(QuoteNode(Symbol("j$i")))}() = UnitcellIndex($i)
+    @eval SitePropertyAlias{$(QuoteNode(Symbol("j$i")))}() = LatticeCoord($i)
 end
 
-struct UnitCellIndices <: SiteProperty end
-getsiteproperty(site::BravaisSite, ::UnitCellIndices) = getfield(site, :lp).unitcell_indices
-SitePropertyAlias{:J}() = UnitCellIndices()
-
 struct BasisIndex <: SiteProperty end
-getsiteproperty(site::BravaisSite, ::BasisIndex) = getfield(site, :lp).basis_index
+getsiteproperty(site::BravaisSite, ::BasisIndex) = getfield(site, :basindex)
 SitePropertyAlias{:index}() = BasisIndex()
 
 Base.:(==)(site1::BravaisSite, site2::BravaisSite) =
-    site1.lp == site2.lp && site1.coords == site2.coords
+    site1.latcoords == site2.latcoords && site1.basindex == site2.basindex && site1.coords == site2.coords
 Base.isless(site1::BravaisSite, site2::BravaisSite) =
-    isless(site1.lp, site2.lp)
+    isless(bravaispointer(site1), bravaispointer(site2))

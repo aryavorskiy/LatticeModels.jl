@@ -73,16 +73,16 @@ end
 
 @inline function _destination_bp(bsh::BravaisTranslation{LT, N} where LT, lp::BravaisPointer{M}) where {N, M}
     if bsh.site_indices == (0=>0)
-        new_basindex = lp.basis_index
+        new_basindex = lp.basindex
     else
-        bsh.site_indices[1] != lp.basis_index && return nothing
+        bsh.site_indices[1] != lp.basindex && return nothing
         new_basindex = bsh.site_indices[2]
     end
     N > M && any(!=(0), @view bsh.translate_uc[M+1:N]) && return nothing
-    return BravaisPointer(add_assuming_zeros(lp.unitcell_indices, bsh.translate_uc), new_basindex)
+    return BravaisPointer(add_assuming_zeros(lp.latcoords, bsh.translate_uc), new_basindex)
 end
 @inline destination(bs::BravaisTranslation, site::BravaisSite) =
-    BravaisSite(_destination_bp(bs, site.lp), site.unitcell)
+    BravaisSite(_destination_bp(bs, bravaispointer(site)), site.unitcell)
 
 struct BravaisSiteMapping{LT, TupleT} <: AbstractBonds{LT}
     lat::LT

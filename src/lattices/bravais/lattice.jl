@@ -50,7 +50,7 @@ end
 Base.in(lp::BravaisPointer, l::BravaisLattice) = insorted(lp, l.pointers)
 function Base.in(site::BravaisSite{N, B}, l::BravaisLattice{N, B}) where {N, B}
     @boundscheck check_sameunitcell(l, site)
-    return in(site.lp, l)
+    return in(bravaispointer(site), l)
 end
 
 Base.@propagate_inbounds function Base.getindex(l::BravaisLattice, i::Int)
@@ -73,13 +73,13 @@ Base.@propagate_inbounds function Base.deleteat!(l::BravaisLattice, inds)
 end
 
 function Base.push!(l::BravaisLattice, lp::BravaisPointer)
-    @assert 1 ≤ lp.basis_index ≤ basis_length(l) "invalid basis index $(lp.basis_index)"
+    @assert 1 ≤ lp.basindex ≤ basis_length(l) "invalid basis index $(lp.basindex)"
     i = searchsortedfirst(l.pointers, lp)
     i ≤ length(l) && l.pointers[i] == lp && return l
     insert!(l.pointers, i, lp)
 end
 Base.push!(l::BravaisLattice{N, B}, site::BravaisSite{N, B}) where {N, B} =
-    push!(l, site.lp)
+    push!(l, bravaispointer(site))
 
 Base.@propagate_inbounds function site_index(l::BravaisLattice, lp::BravaisPointer)
     i = searchsortedfirst(l.pointers, lp)
@@ -88,7 +88,7 @@ Base.@propagate_inbounds function site_index(l::BravaisLattice, lp::BravaisPoint
 end
 Base.@propagate_inbounds function site_index(l::BravaisLattice, site::BravaisSite)
     @boundscheck check_sameunitcell(l, site)
-    site_index(l, site.lp)
+    site_index(l, bravaispointer(site))
 end
 
 function Base.summary(io::IO, l::BravaisLattice{N, <:UnitCell{Sym}}) where {N,Sym}
@@ -147,8 +147,8 @@ true
 function span_unitcells(unitcell::UnitCell{Sym,N,NB}, sz::Vararg{RangeT, N};
         boundaries=BoundaryConditions(), offset = :origin) where {Sym,N,NB}
     ptrs = BravaisPointer{N}[]
-    for unitcell_indices in CartesianIndices(reverse(_sort.(sz)))
-        svec = reverse(SVector{N}(Tuple(unitcell_indices)))
+    for latcoords in CartesianIndices(reverse(_sort.(sz)))
+        svec = reverse(SVector{N}(Tuple(latcoords)))
         for i in 1:NB
             push!(ptrs, BravaisPointer(svec, i))
         end

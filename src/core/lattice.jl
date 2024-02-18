@@ -19,21 +19,24 @@ getsiteproperty(::AbstractSite, ::SitePropertyAlias{Symb}) where Symb =
 @inline getsiteproperty(site::AbstractSite, sym::Symbol) =
     getsiteproperty(site, SitePropertyAlias{sym}())
 
-@inline function Base.getproperty(site::AbstractSite, sym::Symbol)
-    if sym in fieldnames(typeof(site))
+@static if VERSION ≥ v"1.8"
+    @inline function Base.getproperty(site::AbstractSite, sym::Symbol)
+        if sym in fieldnames(typeof(site))
+            return getfield(site, sym)
+        end
+        prop = SitePropertyAlias{sym}()
+        if !(prop isa SitePropertyAlias)
+            # If the constructor was overridden, then get site property
+            return getsiteproperty(site, prop)
+        end
         return getfield(site, sym)
     end
-    prop = SitePropertyAlias{sym}()
-    if !(prop isa SitePropertyAlias)
-        # If the constructor was overridden, then get site property
-        return getsiteproperty(site, prop)
-    end
-    return getfield(site, sym)
 end
 
 struct Coord <: SiteProperty axis::Int end
 @inline function getsiteproperty(site::AbstractSite, c::Coord)
-    @assert 1 ≤ c.axis ≤ dims(site)
+    1 ≤ c.axis ≤ dims(site) ||
+        throw(ArgumentError("Invalid axis index $(c.axis) of a $(dims(site))-dim site"))
     return getfield(site, :coords)[c.axis]
 end
 SitePropertyAlias{:x}() = Coord(1)

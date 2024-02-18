@@ -108,7 +108,7 @@ Generates a Haldane topological insulator hamiltonian operator on given lattice 
 """
 haldane(sys::System{<:Sample{<:HoneycombLattice}}, t1::Real, t2::Real, m::Real=0; kw...) =
     construct_hamiltonian(sys,
-    lattice(sys) .|> (site -> site.index == 1 ? m : -m),
+    lattice(sys) .|> (site -> site.basindex == 1 ? m : -m),
     t1 => NearestNeighbor(1),
     im * t2 => honeycomb_2nn; kw...)
 @accepts_system haldane

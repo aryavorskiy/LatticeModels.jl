@@ -25,7 +25,7 @@
         @test s_3 == s_4
         @test s_4 == s_5
         @test_throws LatticeModels.IncompatibleLattices hl[x.<y]
-        @test hl[!, UnitcellIndex(1) => 3, j2 = 2, index = 1] ==
+        @test hl[!, LatticeCoord(1) => 3, j2 = 2, index = 1] ==
             LatticeModels.get_site(hl, LatticeModels.BravaisPointer(SA[3, 2], 1))
         xb, yb = coord_values(SquareLattice(5, 40))
         @test_throws LatticeModels.IncompatibleLattices sql[xb.<yb]
@@ -46,7 +46,7 @@
         y
     end
     xy = LatticeValue(l) do site
-        site.x * site.y
+        site.coords[1] * site.coords[2]
     end
     idxs = LatticeValue(l) do site
         site_index(l, site)
@@ -74,7 +74,7 @@
     end
 
     @testset "Broadcast" begin
-        x4 = l .|> (site -> site.x)
+        x4 = l .|> (site -> site.coords[1])
         @test x == x4
         @test x .* y == xy
         @test x .* 2 == xm2
@@ -119,7 +119,7 @@ end
         hxmy = BravaisTranslation(l, [1, -1])
         pbc = BoundaryConditions([6, 0] => true)
         for site in l
-            ucx, ucy = site.J
+            ucx, ucy = site.latcoords
             dst_dx = LatticeModels.shift_site(BoundaryConditions(), l, site + hx)[2]
             dst_dxmy = LatticeModels.shift_site(pbc, l, site + hxmy)[2]
             @test !(dst_dx in l) == (ucx == 6)
