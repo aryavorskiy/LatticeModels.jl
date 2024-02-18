@@ -217,10 +217,13 @@ end
 struct ResolvedSite{ST}
     site::ST
     index::Int
-    factor::Float64
+    factor::ComplexF64
+    function ResolvedSite(site::ST, index::Int, factor) where ST<:AbstractSite
+        new{ST}(site, index, ComplexF64(factor))
+    end
 end
-function ResolvedSite(site::ST, index::Int) where {ST}
-    ResolvedSite{ST}(site, index, 1.0)
+function ResolvedSite(site::AbstractSite, index::Int)
+    ResolvedSite(site, index, 1)
 end
 function resolve_site(l::AbstractLattice, site::AbstractSite)
     index = site_index(l, site)

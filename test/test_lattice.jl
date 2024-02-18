@@ -115,17 +115,16 @@ end
         @test_throws ArgumentError BravaisTranslation(2 => 2, [0, 0])
     end
     @testset "Hopping matching" begin
-        pbc = BoundaryConditions([6, 0] => true)
-        l = SquareLattice(6, 5, boundaries = pbc)
-        hx = BravaisTranslation(l, axis=1)
-        hxmy = BravaisTranslation(l, [1, -1])
-        for site in l
+        l1 = SquareLattice(6, 5)
+        l2 = SquareLattice(6, 5, boundaries = ([6, 0] => true))
+        hx = BravaisTranslation(l1, axis=1)
+        hxmy = BravaisTranslation(l2, [1, -1])
+        for site in l1
             ucx, ucy = site.latcoords
-            dst_dx = LatticeModels.resolve_site(l, site + hx)
-            dst_dxmy = LatticeModels.resolve_site(l, site + hxmy)
+            dst_dx = LatticeModels.resolve_site(l1, site + hx)
+            dst_dxmy = LatticeModels.resolve_site(l2, site + hxmy)
             @test (dst_dx === nothing) == (ucx == 6)
             @test (dst_dxmy === nothing) == (ucy == 1)
-            !(dst_dxmy in l) != (ucy == 1) && @show site, dst_dxmy
         end
     end
     @testset "Bonds" begin

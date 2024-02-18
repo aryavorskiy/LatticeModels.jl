@@ -1,13 +1,13 @@
 abstract type Boundary{TranslationT} end
 function phasefactor end
 
-function nshifts(site::AbstractSite, tr::Translation, n::Int)
+function nshifts(site::AbstractSite, tr::AbstractTranslation, n::Int)
     n == 0 && site
     n < 0 && (tr = -tr)
     for _ in 1:abs(n)
         site -= tr
     end
-    factor, site
+    site
 end
 function nshifts_phase(site::AbstractSite, b::Boundary, n::Int)
     n == 0 && return 1., site
@@ -59,7 +59,7 @@ to_boundary(p::Pair{<:Any, Bool}) =
 to_boundary(p::Pair{<:Any, <:Real}) =
     TwistedBoundary(p[1], p[2])
 function Base.show(io::IO, ::MIME"text/plain", bc::TwistedBoundary)
-    print(io, bc.R, " → ")
+    print(io, bc.translation, " → ")
     if bc.Θ % 2π ≈ 0
         print("periodic")
     else
@@ -197,5 +197,5 @@ function translate_to_nearest(l::AbstractLattice, site1::AbstractSite, site2::Ab
             min_site = new_site
         end
     end
-    return new_site
+    return min_site
 end

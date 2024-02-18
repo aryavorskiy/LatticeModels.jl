@@ -84,18 +84,31 @@ end
 @inline destination(bs::BravaisTranslation, site::BravaisSite) =
     BravaisSite(_destination_bp(bs, bravaispointer(site)), site.unitcell)
 
-struct BravaisSiteMapping{LT, TupleT} <: AbstractBonds{LT}
+struct BravaisSiteMapping{LT, TupleT} <: AbstractTranslation{LT}
     lat::LT
     translations::TupleT
     function BravaisSiteMapping(latt::LT, translations::Vararg{BravaisTranslation{UndefinedLattice}}) where LT<:AbstractLattice
-        new_translations = Tuple(unique(translations))
-        new{LT, typeof(new_translations)}(latt, new_translations)
+        new{LT, typeof(translations)}(latt, translations)
     end
 end
 BravaisSiteMapping(trs::BravaisTranslation{UndefinedLattice}...) =
     BravaisSiteMapping(UndefinedLattice(), trs...)
 adapt_bonds(bts::BravaisSiteMapping{UndefinedLattice}, l::AbstractLattice) =
     BravaisSiteMapping(l, bts.translations...)
+
+function istranslation(bsm::BravaisSiteMapping)
+    starts = Tuple(tr.site_indices[1] for tr in bsm.translations)
+    return allunique(starts)
+end
+Base.inv(bsm::BravaisSiteMapping) = BravaisSiteMapping(bsm.lat, inv.(bsm.translations)...)
+function destination(bsm::BravaisSiteMapping, site::BravaisSite)
+    istranslation(bsm) || throw(ArgumentError("BravaisSiteMapping is not a translation"))
+    for tr in bsm.translations
+        site = destination(tr, site)
+        site == NoSite() || return site
+    end
+    return NoSite()
+end
 
 function Base.iterate(bonds::BravaisSiteMapping, state=(1, 1))
     i, j = state
