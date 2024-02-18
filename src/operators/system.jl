@@ -6,7 +6,7 @@ struct Sample{LT, BasisT}
 end
 function Sample(l::AbstractLattice, internal::IT=nothing;
         boundaries=nothing) where {IT<:Nullable{Basis}}
-    new_l = add_boundaries(l, boundaries)
+    new_l = setboundaries(l, boundaries)
     Sample{typeof(new_l), IT}(new_l, internal)
 end
 const SampleWithoutInternal{LT} = Sample{LT, Nothing}
@@ -34,8 +34,8 @@ Define this function for your type to implement `Sample` API.
 !!! info
     This function can be considered stable internal API. Feel free to use it in your packages.
 """
-sample(lb::LatticeBasis) = Sample(lb.sites)
-sample(b::CompositeLatticeBasis) = Sample(b.bases[2].sites, b.bases[1])
+sample(lb::LatticeBasis) = Sample(lb.lat)
+sample(b::CompositeLatticeBasis) = Sample(b.bases[2].lat, b.bases[1])
 sample(mb::ManyBodyBasis) = sample(mb.onebodybasis)
 sample(state::StateType) = sample(basis(state))
 sample(op::AbstractLatticeOperator) = sample(basis(op))

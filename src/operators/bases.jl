@@ -2,24 +2,24 @@ using SparseArrays
 import QuantumOpticsBase
 import QuantumOpticsBase: basis
 
-struct LatticeBasis{ST<:Sites} <: QuantumOpticsBase.Basis
+struct LatticeBasis{LT} <: QuantumOpticsBase.Basis
     shape::Int
-    sites::ST
+    lat::LT
     function LatticeBasis(l::LT) where LT<:AbstractLattice
-        new_l = sites(l)
+        new_l = stripparams(l)
         return new{typeof(new_l)}(length(l), new_l)
     end
 end
-Base.:(==)(lb1::LatticeBasis, lb2::LatticeBasis) = lb1.sites == lb2.sites
+Base.:(==)(lb1::LatticeBasis, lb2::LatticeBasis) = lb1.lat == lb2.lat
 
 function Base.show(io::IO, ::MIME"text/plain", bas::LatticeBasis)
     print(io, "LatticeBasis(")
-    summary(io, bas.sites.latt)
+    summary(io, bas.lat.latt)
     print(io, ")")
 end
 
 QuantumOpticsBase.basisstate(T::Type, b::LatticeBasis, site::AbstractSite) =
-    basisstate(T, b, site_index(b.sites, site))
+    basisstate(T, b, site_index(b.lat, site))
 QuantumOpticsBase.basisstate(T::Type, l::AbstractLattice, site::AbstractSite) =
     basisstate(T, LatticeBasis(l), site)
 QuantumOpticsBase.basisstate(l::AbstractLattice, site::AbstractSite) =
@@ -40,7 +40,7 @@ const StateType{BT<:Basis} = Union{DataOperator{BT,BT}, Ket{BT}, Bra{BT}}
 @inline matrix_element(ket::Ket, i, j) = ket.data[i] * ket.data[j]'
 @inline matrix_element(bra::Bra, i, j) = bra.data[j] * bra.data[i]'
 
-sites(lb::LatticeBasis) = lb.sites
-sites(lb::CompositeLatticeBasis) = sites(lb.bases[end])
-sites(ms::ManyBodyBasis{<:OneParticleBasis}) = sites(ms.onebodybasis)
-sites(state::StateType) = sites(basis(state))
+lattice(lb::LatticeBasis) = lb.lat
+lattice(lb::CompositeLatticeBasis) = lattice(lb.bases[end])
+lattice(ms::ManyBodyBasis{<:OneParticleBasis}) = lattice(ms.onebodybasis)
+lattice(state::StateType) = lattice(basis(state))

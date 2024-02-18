@@ -30,26 +30,26 @@ end
         all(==(0), tup) && continue
         tr_vec = @SVector zeros(Int, N)
         for i in eachindex(tup)
-            tr_vec += tup[i] * l.boundaries.bcs[i].R
+            tr_vec += tup[i] * getboundaries(l)[i].R
         end
         shifted_pointers = [shift_site(tr_vec, lp) for lp in l.pointers]
         shifted_lattice = BravaisLattice(l.unitcell, shifted_pointers)
         @series begin
             seriesalpha := 0.2
-            sites(shifted_lattice)
+            shifted_lattice, :sites
         end
     end
 end
 
 @recipe function f(l::BravaisLattice; showboundaries=false, showbonds=false)
     shownumbers --> showboundaries
-    @series sites(l)
+    @series l, :sites
     !showbonds && (bonds --> ())
     @series l, :bonds
     showboundaries && @series l, :boundaries
 end
 
-const BravaisLatticeValue{Sym, N} = LatticeValue{<:Number, <:BravaisLattice{N, <:UnitCell{Sym, N}}}
+const BravaisLatticeValue{Sym, N} = LatticeValue{<:Number, <:OnSites{BravaisLattice{N, <:UnitCell{Sym, N}}}}
 raw"""
     rectified_values(lv::LatticeValue)
 
@@ -60,16 +60,16 @@ If the element is `NaN`, it means that the corresponding site is not present in 
 This function might be quite useful in custom plot recipes.
 """
 function rectified_values(lv::BravaisLatticeValue{Sym, N} where Sym) where N
-    s = sites(lv)
-    mins = Vector(s[1].latcoords)
-    maxs = Vector(s[1].latcoords)
-    for lp in s.latt.pointers
+    l = stripparams(lattice(lv))
+    mins = Vector(l[1].latcoords)
+    maxs = Vector(l[1].latcoords)
+    for lp in l.pointers
         @. mins = min(mins, lp.latcoords)
         @. maxs = max(maxs, lp.latcoords)
     end
     newvals = fill(NaN, Tuple(@. maxs - mins + 1))
     smins = SVector{N}(mins) .- 1
-    for (i, lp) in enumerate(s.latt.pointers)
+    for (i, lp) in enumerate(l.pointers)
         newvals[(lp.latcoords - smins)...] = lv.values[i]
     end
     Tuple(mins[i]:maxs[i] for i in 1:N), newvals
@@ -82,7 +82,7 @@ Creates a copy of `lv` lattice value with the underlying `LatticeSym` overwritte
 Use it to invoke the default plot recipe for `LatticeValues` when defining a custom one.
 """
 function plot_fallback(lv::BravaisLatticeValue)
-    l = sites(lv).latt
+    l = stripparams(lattice(lv))
     new_l = BravaisLattice(
         UnitCell{:GenericBravaisLattice}(l.unitcell.translations, l.unitcell.basissites),
         l.pointers)
@@ -91,16 +91,13 @@ end
 
 @recipe function f(lv::BravaisLatticeValue{:SquareLattice, N}) where N
     N < 3 && (seriestype --> :heatmap)
-    unitcell = lattice(lv).unitcell
+    uc = unitcell(lattice(lv))
     if plotattributes[:seriestype] === :heatmap
         axes, heatmap_values = rectified_values(lv)
-        c_axes = Tuple(axes[i] .+ unitcell.basissites[i, 1] for i in 1:N)
+        c_axes = Tuple(axes[i] .+ uc.basissites[i, 1] for i in 1:N)
         aspect_ratio := :equal
         c_axes..., transpose(heatmap_values)
     else
         plot_fallback(lv)
     end
-end
-@recipe function f(lv::LatticeValue{<:Number, <:Sites})
-    LatticeValue(lattice(lv).latt, lv.values)
 end

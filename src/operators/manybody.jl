@@ -1,13 +1,13 @@
 import QuantumOpticsBase: Basis, SparseOperator
 
-function translate_to_nearest(l::BravaisLattice{N}, site1::BravaisSite{N}, site2::BravaisSite{N}) where N
+function translate_to_nearest(l::AbstractLattice, site1::BravaisSite{N}, site2::BravaisSite{N}) where N
     min_lp = bravaispointer(site2)
     min_dist = norm(min_lp.latcoords - site1.latcoords)
     for cind in cartesian_indices(l)
         tup = Tuple(cind)
         tr_vec = @SVector zeros(Int, N)
         for i in eachindex(tup)
-            tr_vec += tup[i] * l.boundaries.bcs[i].R
+            tr_vec += tup[i] * getboundaries(l)[i].R
         end
         new_lp = shift_site(tr_vec, bravaispointer(site2))
         if norm(new_lp.latcoords - site1.latcoords) < min_dist

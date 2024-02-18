@@ -26,7 +26,8 @@
         @test s_4 == s_5
         @test_throws LatticeModels.IncompatibleLattices hl[x.<y]
         @test hl[!, LatticeCoord(1) => 3, j2 = 2, index = 1] ==
-            LatticeModels.get_site(hl, LatticeModels.BravaisPointer(SA[3, 2], 1))
+            LatticeModels.get_site(LatticeModels.stripparams(hl),
+            LatticeModels.BravaisPointer(SA[3, 2], 1))
         xb, yb = coord_values(SquareLattice(5, 40))
         @test_throws LatticeModels.IncompatibleLattices sql[xb.<yb]
         sql2 = filter(sql) do site

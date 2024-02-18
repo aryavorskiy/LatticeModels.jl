@@ -63,14 +63,12 @@ arg_to_pair(sample::Sample, arg) = _internal_one_mat(sample) => arg
 
 function arg_to_pair(sample::Sample, arg::Pair)
     op, lpart = arg
-    _apply_lattice(b::AbstractBonds) = apply_lattice(b, lattice(sample))
-    _apply_lattice(p::SingleBond) = p
     if lpart isa LatticeValue
         check_samesites(lpart, sample)
         new_lpart = lpart
-    elseif lpart isa Union{AbstractBonds, SingleBond}
-        new_lpart = _apply_lattice(lpart)
-    elseif lpart isa Number
+    elseif lpart isa AbstractBonds
+        new_lpart = adapt_bonds(lpart, lattice(sample))
+    elseif lpart isa Union{Number, SingleBond}
         new_lpart = lpart
     else
         throw(ArgumentError("cannot interpret $(typeof(lpart)) as on-lattice operator"))

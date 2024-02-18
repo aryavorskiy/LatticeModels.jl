@@ -15,7 +15,8 @@ include("core/lattice.jl")
 export lattice, sublattice, site_index, Coord
 include("core/bonds.jl")
 export adjacency_matrix, site_distance, target_sites, SiteDistance, Translation
-include("core/sites.jl")
+include("core/boundaries.jl")
+export BoundaryConditions
 include("core/latticevalue.jl")
 export LatticeValue, siteproperty_value, coord_value, coord_values, project
 include("core/recipes.jl")
@@ -23,7 +24,7 @@ include("core/recipes.jl")
 include("lattices/bravais/unitcell.jl")
 export UnitCell, LatticeCoord, BasisIndex
 include("lattices/bravais/boundaries.jl")
-export PeriodicBoundary, TwistedBoundary, FunctionBoundary, BoundaryConditions
+export PeriodicBoundary, TwistedBoundary, FunctionBoundary
 include("lattices/bravais/lattice.jl")
 export add_boundaries, span_unitcells
 include("lattices/bravais/bonds.jl")

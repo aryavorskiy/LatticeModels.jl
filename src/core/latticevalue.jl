@@ -203,8 +203,8 @@ function project(lv::LatticeValue, param::SiteProperty)
 end
 project(any, param::Symbol) = project(any, SitePropertyAlias{param}())
 
-ketstate(lv::LatticeValue) = Ket(LatticeBasis(sites(lv)), lv.values)
-brastate(lv::LatticeValue) = Bra(LatticeBasis(sites(lv)), lv.values)
+ketstate(lv::LatticeValue) = Ket(LatticeBasis(lattice(lv)), lv.values)
+brastate(lv::LatticeValue) = Bra(LatticeBasis(lattice(lv)), lv.values)
 QuantumOpticsBase.tensor(ket::Ket, lv::LatticeValue) = ket ⊗ ketstate(lv)
 QuantumOpticsBase.tensor(bra::Bra, lv::LatticeValue) = bra ⊗ brastate(lv)
 QuantumOpticsBase.tensor(lv::LatticeValue, state::QuantumOpticsBase.StateVector) = state ⊗ lv

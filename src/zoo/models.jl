@@ -74,7 +74,7 @@ Generates a QWZ model hamiltonian operator on given square lattice `lattice`.
 - `statistics` defines the particle statistics, either `FermiDirac` or `BoseEinstein`.
 """
 qwz(m::LatticeValue; kw...) = qwz(lattice(m), m; kw...)
-qwz(sys::System{<:Sample{<:SquareLattice}}, m=1; kw...) =
+qwz(sys::System{<:Sample{<:OnSites{SquareLattice}}}, m=1; kw...) =
     construct_hamiltonian(sys,
     [1 0; 0 -1] => m,
     [1 -im; -im -1] / 2 => BravaisTranslation(axis = 1),
@@ -106,7 +106,7 @@ Generates a Haldane topological insulator hamiltonian operator on given lattice 
 - `field`: The magnetic field. Default is `NoField()`.
 - `statistics` defines the particle statistics, either `FermiDirac` or `BoseEinstein`.
 """
-haldane(sys::System{<:Sample{<:HoneycombLattice}}, t1::Real, t2::Real, m::Real=0; kw...) =
+haldane(sys::System{<:Sample{<:OnSites{HoneycombLattice}}}, t1::Real, t2::Real, m::Real=0; kw...) =
     construct_hamiltonian(sys,
     lattice(sys) .|> (site -> site.basindex == 1 ? m : -m),
     t1 => NearestNeighbor(1),
@@ -128,7 +128,7 @@ Generates a Kane-Mele hamiltonian operator on given lattice `lattice`\.
 - `field`: The magnetic field. Default is `NoField()`.
 - `statistics` defines the particle statistics, either `FermiDirac` or `BoseEinstein`.
 """
-kanemele(sys::System{<:Sample{<:HoneycombLattice}}, t1::Real, t2::Real; kw...) =
+kanemele(sys::System{<:Sample{<:OnSites{HoneycombLattice}}}, t1::Real, t2::Real; kw...) =
     construct_hamiltonian(sys,
         t1 => default_bonds(sys),
         im * t2 * sigmaz(internal_basis) => honeycomb_2nn; kw...)

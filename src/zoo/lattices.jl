@@ -9,12 +9,12 @@ function _precompile_nnhops(LT::Type{<:BravaisLattice})
     uc = construct_unitcell(LT)
     trs = detect_nnhops(uc, 3)
     @eval LatticeModels begin
-        apply_lattice(::NearestNeighbor{1}, l::$LT) =
-            apply_lattice($(_bravaistranslations_expr(trs[1])), l)
-        apply_lattice(::NearestNeighbor{2}, l::$LT) =
-            apply_lattice($(_bravaistranslations_expr(trs[2])), l)
-        apply_lattice(::NearestNeighbor{3}, l::$LT) =
-            apply_lattice($(_bravaistranslations_expr(trs[3])), l)
+        adapt_bonds(::NearestNeighbor{1}, l::$LT) =
+            adapt_bonds($(_bravaistranslations_expr(trs[1])), l)
+        adapt_bonds(::NearestNeighbor{2}, l::$LT) =
+            adapt_bonds($(_bravaistranslations_expr(trs[2])), l)
+        adapt_bonds(::NearestNeighbor{3}, l::$LT) =
+            adapt_bonds($(_bravaistranslations_expr(trs[3])), l)
     end
 end
 

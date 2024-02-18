@@ -22,7 +22,7 @@ struct BravaisTranslation{LT, N} <: AbstractTranslation{LT}
 end
 BravaisTranslation(lat::AbstractLattice, tr_uc::AbstractVector) = BravaisTranslation(lat, 0=>0, tr_uc)
 BravaisTranslation(args...; kw...) = BravaisTranslation(UndefinedLattice(), args...; kw...)
-apply_lattice(bsh::BravaisTranslation{UndefinedLattice}, l::AbstractLattice) =
+adapt_bonds(bsh::BravaisTranslation{UndefinedLattice}, l::AbstractLattice) =
     BravaisTranslation(l, bsh.site_indices, bsh.translate_uc)
 dims(::BravaisTranslation{UndefinedLattice, N}) where N = N
 
@@ -94,7 +94,7 @@ struct BravaisSiteMapping{LT, TupleT} <: AbstractBonds{LT}
 end
 BravaisSiteMapping(trs::BravaisTranslation{UndefinedLattice}...) =
     BravaisSiteMapping(UndefinedLattice(), trs...)
-apply_lattice(bts::BravaisSiteMapping{UndefinedLattice}, l::AbstractLattice) =
+adapt_bonds(bts::BravaisSiteMapping{UndefinedLattice}, l::AbstractLattice) =
     BravaisSiteMapping(l, bts.translations...)
 
 function Base.iterate(bonds::BravaisSiteMapping, state=(1, 1))
@@ -123,8 +123,8 @@ merge_lats(l::AbstractLattice, ::UndefinedLattice) = l
 merge_lats(::UndefinedLattice, l::AbstractLattice) = l
 
 function Base.union(tr1::BravaisTranslation, tr2::BravaisTranslation)
-    u_tr1 = apply_lattice(tr1, UndefinedLattice())
-    u_tr2 = apply_lattice(tr2, UndefinedLattice())
+    u_tr1 = adapt_bonds(tr1, UndefinedLattice())
+    u_tr2 = adapt_bonds(tr2, UndefinedLattice())
     l = merge_lats(tr1.lat, tr2.lat)
     if u_tr1 == u_tr2
         return BravaisSiteMapping(l, u_tr1)
@@ -133,7 +133,7 @@ function Base.union(tr1::BravaisTranslation, tr2::BravaisTranslation)
     end
 end
 function Base.union(trs::BravaisSiteMapping, tr::BravaisTranslation)
-    u_tr = apply_lattice(tr, UndefinedLattice())
+    u_tr = adapt_bonds(tr, UndefinedLattice())
     l = merge_lats(trs.lat, tr.lat)
     if u_tr in trs.translations
         return trs
@@ -157,7 +157,7 @@ function Base.show(io::IO, mime::MIME"text/plain", trs::BravaisSiteMapping)
     end
 end
 
-function apply_lattice(tr::Translation{UndefinedLattice, N}, l::BravaisLattice) where N
+function adapt_bonds(tr::Translation{UndefinedLattice, N}, l::BravaisLattice) where N
     shifts = BravaisTranslation{UndefinedLattice, N}[]
     for i in 1:basis_length(l)
         for j in 1:basis_length(l)
@@ -172,14 +172,7 @@ function apply_lattice(tr::Translation{UndefinedLattice, N}, l::BravaisLattice) 
     end
     return BravaisSiteMapping(l, shifts...)
 end
-Translation(l::BravaisLattice, R::AbstractVector) = apply_lattice(Translation(R), l)
-
-struct NearestNeighbor{N} <: AbstractBonds{UndefinedLattice}
-    function NearestNeighbor(::Val{N}) where {N}
-        new{N}()
-    end
-end
-NearestNeighbor(N::Int) = NearestNeighbor(Val(N))
+Translation(l::OnSites{BravaisLattice}, R::AbstractVector) = adapt_bonds(Translation(R), l)
 
 function detect_nnhops(uc::UnitCell{Sym, N} where Sym, depth=3) where N
     lens = Float64[]
@@ -218,7 +211,7 @@ function detect_nnhops(uc::UnitCell{Sym, N} where Sym, depth=3) where N
     return [BravaisSiteMapping(UndefinedLattice(), trs...) for trs in translation_lists]
 end
 
-function apply_lattice(::NearestNeighbor{N}, l::BravaisLattice) where N
-    apply_lattice(detect_nnhops(l.unitcell, 3)[N], l)
+function adapt_bonds(::NearestNeighbor{N}, l::BravaisLattice) where N
+    adapt_bonds(detect_nnhops(l.unitcell, 3)[N], l)
 end
-NearestNeighbor(l::BravaisLattice, N) = apply_lattice(NearestNeighbor(N), l)
+NearestNeighbor(l::BravaisLattice, N) = adapt_bonds(NearestNeighbor(N), l)

@@ -1,5 +1,4 @@
 import QuantumOpticsBase: Basis, AbstractOperator, basis, check_samebases
-abstract type Boundary{N} end
 
 shift_site(js::SVector{N, Int}, lp::BravaisPointer{N}) where N =
     BravaisPointer(lp.latcoords + js, lp.basindex)
@@ -48,55 +47,12 @@ end
 Base.show(io::IO, ::MIME"text/plain", bc::FunctionBoundary) =
     print(io, bc.R, " → function '", bc.condition, "'")
 
-struct BoundaryConditions{CondsTuple}
-    bcs::CondsTuple
-    function BoundaryConditions(bcs::CondsTuple) where CondsTuple<:Tuple{Vararg{Boundary{N}}} where {N}
-        new{CondsTuple}(bcs)
-    end
-end
-BoundaryConditions(::Tuple{Vararg{Boundary}}) =
-    throw(ArgumentError("Dimension inconsistency. Check that dimension count for all boundaries is the same"))
-
-BoundaryConditions(args...) =
-    _construct_boundary_conditions(args)
-
-_construct_boundary_conditions(args::Tuple) =
-    _construct_boundary_conditions((), args)
-_construct_boundary_conditions(pre_args::Tuple, post_args::Tuple) =
-    _construct_boundary_conditions(pre_args::Tuple, to_boundary(post_args[1]), Base.tail(post_args))
-_construct_boundary_conditions(pre_args::Tuple, ::Tuple{}) = BoundaryConditions(pre_args)
-_construct_boundary_conditions(pre_args::Tuple, ::Nothing, post_args::Tuple) =
-    _construct_boundary_conditions(pre_args, post_args)
-_construct_boundary_conditions(pre_args::Tuple, arg, post_args::Tuple) =
-    _construct_boundary_conditions((pre_args..., arg), post_args)
-
 to_boundary(p::Pair{<:AbstractVector, Bool}) =
     p[2] ? PeriodicBoundary(p[1]) : nothing
 to_boundary(p::Pair{<:AbstractVector, <:Real}) =
     TwistedBoundary(p[1], p[2])
 to_boundary(p::Pair{<:AbstractVector, <:Function}) =
     FunctionBoundary(p[2], p[1])
-to_boundary(b::Boundary) = b
-to_boundary(b) = throw(ArgumentError("Could not convert `$b` to Boundary"))
-
-function to_boundaries(arg)
-    if arg isa Tuple
-        return _construct_boundary_conditions(arg)
-    elseif arg isa Boundary
-        return BoundaryConditions(arg)
-    elseif !(arg isa BoundaryConditions)
-        return BoundaryConditions(to_boundary(arg))
-    else return arg
-    end
-end
-
-function Base.show(io::IO, mime::MIME"text/plain", bcs::BoundaryConditions)
-    print(io, "Boundary conditions:")
-    for bc in bcs.bcs
-        println()
-        show(io, mime, bc)
-    end
-end
 
 b_depth(::AbstractLattice) = 1
 function route(bcs::BoundaryConditions{<:NTuple{M}}, l::AbstractLattice, lp::BravaisPointer{N}) where {M, N}

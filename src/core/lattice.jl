@@ -46,6 +46,23 @@ for i in 1:32
     @eval SitePropertyAlias{$(QuoteNode(Symbol("x$i")))}() = Coord($i)
 end
 
+"""
+    AbstractLattice{SiteT}
+
+An abstract type for a lattice of `SiteT` sites.
+
+## Methods for subtypes to implement
+- `length(l::AbstractLattice)`: Return the number of sites in the lattice.
+- `site_index(l::AbstractLattice, site::SiteT)`: Return the index of the site in the lattice.
+- `getindex(l::AbstractLattice, i::Int)`: Return the site with the given index.
+- `getindex(l::AbstractLattice, is::AbstractVector{Int})`: Return an `AbstractLattice` with the sites at the given indices.
+
+## Optional methods for mutable lattices
+- `emptymutable(l::AbstractLattice, ::Type{SiteT})`: Return an empty mutable instance of lattice.
+- `copymutable(l::AbstractLattice)`: Return a mutable copy of the lattice.
+- `push!(l::AbstractLattice, site::SiteT)`: Add a site to the lattice.
+- `deleteat!(l::AbstractLattice, is::AbstractVector{Int})`: Remove the sites with the given indices from the lattice.
+"""
 abstract type AbstractLattice{SiteT} <: AbstractSet{SiteT} end
 lattice(l::AbstractLattice) = l
 dims(::AbstractLattice{<:AbstractSite{N}}) where {N} = N
@@ -73,7 +90,6 @@ end
 Base.copy(l::AbstractLattice) = Base.copymutable(l)
 Base.in(site::SiteT, l::AbstractLattice{SiteT}) where {SiteT} =
     site_index(l, site) !== nothing
-Base.hasfastin(::Type{<:AbstractLattice}) = true
 function Base.delete!(l::AbstractLattice{ST}, site::ST) where ST<:AbstractSite
     i = site_index(l, site)
     i !== nothing && Base.deleteat!(l, i)
@@ -186,7 +202,7 @@ end
 Checks if `l1` and `l2` objects are defined on the same sites. Throws an error if not.
 """
 function check_samesites(l1, l2)
-    sites(l1) != sites(l2) &&
+    stripparams(lattice(l1)) != stripparams(lattice(l2)) &&
         throw(IncompatibleLattices("Matching sets of sites expected", l1, l2))
 end
 
@@ -212,4 +228,56 @@ function resolve_site(l::AbstractLattice, site::AbstractSite)
     ResolvedSite(site, index)
 end
 
-const SingleBond{LT<:AbstractSite} = Pair{LT, LT}
+"""
+    LatticeWithParams
+
+A wrapper around a lattice that includes parameters.
+This is useful for storing parameters that are specific to a lattice, such as its boundary conditions.
+"""
+struct LatticeWithParams{LT,ParamsT,SiteT} <: AbstractLattice{SiteT}
+    lat::LT
+    params::ParamsT
+    function LatticeWithParams(latt::LT, params::ParamsT) where
+            {SiteT,LT<:AbstractLattice{SiteT},ParamsT<:NamedTuple}
+        new{LT,ParamsT,SiteT}(latt, params)
+    end
+end
+LatticeWithParams(lw::LatticeWithParams, params::NamedTuple) =
+    LatticeWithParams(lw.lat, merge(lw.params, params))
+
+Base.length(lw::LatticeWithParams) = length(lw.lat)
+Base.getindex(::LatticeWithParams, ::Nothing) = NoSite()
+Base.getindex(lw::LatticeWithParams, i::Int) = lw.lat[i]
+Base.getindex(lw::LatticeWithParams, is::AbstractVector{Int}) = LatticeWithParams(lw.lat[is], lw.params)
+site_index(lw::LatticeWithParams, site::AbstractSite) = site_index(lw.lat, site)
+site_index(::LatticeWithParams, ::NoSite) = nothing
+
+Base.emptymutable(l::LatticeWithParams, ::Type{T}) where {T <: AbstractSite} =
+    LatticeWithParams(Base.emptymutable(l.lat, T), l.params)
+Base.copymutable(lw::LatticeWithParams) = LatticeWithParams(copymutable(lw.lat), lw.params)
+Base.deleteat!(lw::LatticeWithParams, is) = (deleteat!(lw.lat, is); return lw)
+Base.push!(lw::LatticeWithParams, site) = (push!(lw.lat, site); return lw)
+
+function Base.show(io::IO, mime::MIME"text/plain", lw::LatticeWithParams)
+    show(io, mime, lw.lat)
+    if !get(io, :compact, false)
+        for (k, v) in pairs(lw.params)
+            print(io, "\n", k, ":")
+            show(io, mime, v)
+        end
+    end
+end
+
+const Lattice = LatticeWithParams
+Lattice(l::AbstractLattice; kw...) = LatticeWithParams(l, NamedTuple(kw))
+
+hasparam(::AbstractLattice, ::Symbol) = false
+hasparam(l::LatticeWithParams, param::Symbol) = haskey(l.params, param)
+getparam(::AbstractLattice, ::Symbol, default=nothong) = default
+getparam(l::LatticeWithParams, param::Symbol, default=nothing) = get(l.params, param, default)
+setparam(l::AbstractLattice, param::Symbol, val) = Lattice(l, NamedTuple{(param,)}((val,)))
+
+stripparams(l::AbstractLattice) = l
+stripparams(l::LatticeWithParams) = l.lat
+
+const OnSites{LT} = Union{LT, LatticeWithParams{<:LT}}

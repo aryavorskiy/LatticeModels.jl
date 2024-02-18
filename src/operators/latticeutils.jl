@@ -10,7 +10,7 @@ The output of this function is a `LatticeValue`.
 - `state`: A `Ket` or `Bra` representing the wavefunction or an `Operator` representing the density matrix.
 """
 function lattice_density(state::StateType{<:OneParticleBasis})
-    l = sites(state)
+    l = lattice(state)
     N = internal_length(state)
     LatticeValue(l, [real(sum(matrix_element(state, j, j) for j in (i-1)*N+1:i*N)) for i in eachindex(l)])
 end
@@ -22,12 +22,12 @@ function lattice_density(state::StateType{<:ManyBodyBasis{<:OneParticleBasis}})
         vs .+= real.(occ .* matrix_element(state, i, i))
     end
     N = internal_length(state)
-    l = sites(state)
+    l = lattice(state)
     LatticeValue(l, [sum(@view vs[(i-1)*N+1:i*N]) for i in eachindex(l)])
 end
 
 function diag_reduce(f, op::OneParticleOperator)
-    l = sites(op)
+    l = lattice(op)
     N = internal_length(op)
     LatticeValue(l,
         [f(@view op.data[(i-1)*N+1:i*N, (i-1)*N+1:i*N]) for i in eachindex(l)])
@@ -44,7 +44,7 @@ function QuantumOpticsBase.ptrace(op::LatticeModels.CompositeLatticeOperator, sy
     end
 end
 
-_lattice(op::AbstractLatticeOperator) = sites(op)
+_lattice(op::AbstractLatticeOperator) = lattice(op)
 _lattice(ham::Hamiltonian) = lattice(ham)
 
 """
@@ -66,7 +66,7 @@ function adjacency_matrix(op::CompositeLatticeOperator)
 end
 
 function apply_field!(op::AbstractLatticeOperator, field::AbstractField)
-    l = sites(op)
+    l = lattice(op)
     N = internal_length(op)
     for (i, site1) in enumerate(l)
         for (j, site2) in enumerate(l)

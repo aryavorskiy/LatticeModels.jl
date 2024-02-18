@@ -1,5 +1,22 @@
 using SparseArrays, FillArrays, StaticArrays
 
+const SingleBond{LT<:AbstractSite} = Pair{LT, LT}
+
+"""
+    AbstractBonds{LT}
+
+An abstract type for bonds on some lattice.
+
+## Methods for subtypes to implement
+- `lattice(bonds::AbstractBonds)`: Returns the lattice where the bonds are defined.
+- `isadjacent(bonds::AbstractBonds, site1::AbstractSite, site2::AbstractSite)`:
+    Returns if the sites are connected by the bonds.
+
+## Optional methods for subtypes to implement
+- `adapt_bonds(bonds::AbstractBonds, l::AbstractLattice)`:
+    Adapt the translation to the lattice `l`. The output can be a different type of
+    translation, more fitting for the concrete type of lattice.
+"""
 abstract type AbstractBonds{LatticeT} end
 lattice(bonds::AbstractBonds) = bonds.lat
 dims(bonds::AbstractBonds) = dims(lattice(bonds))
@@ -8,6 +25,7 @@ isadjacent(bonds::AbstractBonds, s1::ResolvedSite, s2::ResolvedSite) =
     isadjacent(bonds, s1.site, s2.site)
 Base.getindex(bonds::AbstractBonds, site1::AbstractSite, site2::AbstractSite) =
     isadjacent(bonds, site1, site2)
+adapt_bonds(any, l::AbstractLattice) = throw(ArgumentError("$any cannot be interpreted as bonds on lattice $l"))
 
 function Base.iterate(bonds::AbstractBonds, ind_pair = 1 => 1)
     l = lattice(bonds)
@@ -54,16 +72,12 @@ end
 
 isadjacent(bonds::SiteDistance, s1::AbstractSite, s2::AbstractSite) =
     bonds.f(site_distance(bonds.lat, s1, s2))
-apply_lattice(bonds::SiteDistance, ::AbstractLattice) = bonds
+adapt_bonds(bonds::SiteDistance, ::AbstractLattice) = bonds
 
 """
     AdjacencyMatrix{LT} where {LT<:Lattice}
 
 Represents the bonds on some lattice.
-
-`AdjacencyMatrix`s can be combined with the `|` operator and negated with the `!` operator.
-Also you can create a `AdjacencyMatrix` which connects sites that were connected by `≤n` bonds of the previous `AdjacencyMatrix`
-by taking its power: `bs2 = bs1 ^ n`.
 """
 struct AdjacencyMatrix{LT,MT} <: AbstractBonds{LT}
     lat::LT
@@ -78,7 +92,7 @@ struct AdjacencyMatrix{LT,MT} <: AbstractBonds{LT}
         AdjacencyMatrix(l, spzeros(length(l), length(l)))
     end
 end
-function apply_lattice(b::AdjacencyMatrix, l::AbstractLattice)
+function adapt_bonds(b::AdjacencyMatrix, l::AbstractLattice)
     if l == lattice(b)
         return b
     else
@@ -153,12 +167,34 @@ function adjacency_matrix(bonds::AbstractBonds, more_bonds::AbstractBonds...)
     return AdjacencyMatrix(l, sparse(Is, Js, Fill(true, length(Is)), length(l), length(l), (i,j)->j))
 end
 adjacency_matrix(l::AbstractLattice, bonds::AbstractBonds...) =
-    adjacency_matrix((apply_lattice(b, l) for b in bonds)...)
+    adjacency_matrix((adapt_bonds(b, l) for b in bonds)...)
 
+"""
+    UndefinedLattice
+
+A lattice that is not defined.
+The bonds can be 'defined' on it in context where the lattice is already defined before,
+e. g. in `construct_operator`.
+"""
 struct UndefinedLattice <: AbstractLattice{NoSite} end
 Base.iterate(::UndefinedLattice) = nothing
 Base.length(::UndefinedLattice) = 0
 
+"""
+    AbstractTranslation{LT}
+
+An abstract type for translations on some lattice.
+
+## Methods for subtypes to implement
+- `lattice(bonds::AbstractTranslation)`: Returns the lattice where the translations are defined.
+- `destination(bonds::AbstractTranslation, site::AbstractSite)`: Returns the site where the `site` is translated to.
+
+## Optional methods for subtypes to implement
+- `adapt_bonds(bonds::AbstractTranslation, l::AbstractLattice)`:
+    Adapt the translation to the lattice `l`. The output can be a different type of
+    translation, more fitting for the concrete type of lattice.
+- `inv(bonds::AbstractTranslation)`: Returns the inverse of the translation, if any.
+"""
 abstract type AbstractTranslation{LT} <: AbstractBonds{LT} end
 isadjacent(bonds::AbstractTranslation, site1::AbstractSite, site2::AbstractSite) =
     site2 === destination(bonds, site1) || site1 === destination(bonds, site2)
@@ -170,7 +206,7 @@ isadjacent(bonds::AbstractTranslation, site1::AbstractSite, site2::AbstractSite)
     s2 === nothing && return iterate(bonds, i + 1)
     return ResolvedSite(l[i], i) => s2, i + 1
 end
-function apply_lattice(bonds::AbstractBonds{<:AbstractLattice}, l::AbstractLattice)
+function adapt_bonds(bonds::AbstractBonds{<:AbstractLattice}, l::AbstractLattice)
     check_samelattice(l, lattice(bonds))
     return bonds
 end
@@ -182,6 +218,15 @@ Base.inv(::AbstractTranslation) = throw(ArgumentError("Inverse of the translatio
 Base.:(-)(bonds::AbstractTranslation) = Base.inv(bonds)
 Base.:(-)(site::AbstractSite, bonds::AbstractTranslation) = destination(Base.inv(bonds), site)
 
+"""
+    Translation <: AbstractTranslation
+
+A spatial translation on some lattice.
+
+## Fields
+- `lat`: The lattice where the translations are defined.
+- `R`: The vector of the translation.
+"""
 struct Translation{LT, N} <: AbstractTranslation{LT}
     lat::LT
     R::SVector{N, Float64}
@@ -195,8 +240,8 @@ struct Translation{LT, N} <: AbstractTranslation{LT}
         new{UndefinedLattice, n}(UndefinedLattice(), SVector{n}(R))
     end
 end
-apply_lattice(bonds::Translation, l::AbstractLattice) =
-    Translation(l, bonds.R)
+adapt_bonds(bonds::Translation, l::AbstractLattice) = Translation(l, bonds.R)
+adapt_bonds(b::Translation, l::LatticeWithParams) = adapt_bonds(b, l.lat)
 function destination(sh::Translation, site::AbstractSite)
     for dest in lattice(sh)
         if isapprox(site.coords + sh.R, dest.coords, atol=√eps())
@@ -219,3 +264,17 @@ function Base.show(io::IO, mime::MIME"text/plain", sh::Translation)
         show(io, mime, sh.lat)
     end
 end
+
+"""
+    NearestNeighbor{N}
+
+A bonds type that connects sites that are nearest neighbors of order `N` on some lattice.
+"""
+struct NearestNeighbor{N} <: AbstractBonds{UndefinedLattice}
+    function NearestNeighbor(::Val{N}) where {N}
+        new{N}()
+    end
+end
+NearestNeighbor(N::Int) = NearestNeighbor(Val(N))
+
+adapt_bonds(b::NearestNeighbor, l::LatticeWithParams) = adapt_bonds(b, l.lat)

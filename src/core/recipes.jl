@@ -81,7 +81,7 @@ end
 
 @recipe function f(ag::AbstractBonds)
     aspect_ratio := :equal
-    l = sites(ag)
+    l = lattice(ag)
     pts = NTuple{dims(l), Float64}[]
     br_pt = fill(NaN, dims(l)) |> Tuple
     for (s1, s2) in ag
@@ -94,5 +94,5 @@ end
 end
 
 @recipe function f(l::AbstractLattice, b::AbstractBonds{UndefinedLattice})
-    apply_lattice(b, l)
+    adapt_bonds(b, l)
 end

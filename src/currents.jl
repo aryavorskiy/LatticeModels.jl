@@ -171,7 +171,7 @@ end
 function Currents(curr::AbstractCurrents, bonds::AbstractBonds)
     l = lattice(curr)
     m = Currents(l)
-    new_bonds = apply_lattice(bonds, l)
+    new_bonds = adapt_bonds(bonds, l)
     for (s1, s2) in new_bonds
         i = s1.index
         j = s2.index
