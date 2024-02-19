@@ -146,6 +146,15 @@ function Base.union(am::AdjacencyMatrix, ams::AdjacencyMatrix...)
     return AdjacencyMatrix(l, .|(am.mat, getfield.(ams, :mat)...))
 end
 
+function Base.show(io::IO, mime::MIME"text/plain", am::AdjacencyMatrix)
+    indent = getindent(io)
+    print(io, indent, "Adjacency matrix on ")
+    summary(io, am.lat)
+    requires_compact(io) && return
+    print(io, "\nValues in a ")
+    show(io, mime, am.mat)
+end
+
 function target_sites(am::AdjacencyMatrix, site::AbstractSite)
     SiteT = eltype(lattice(am))
     rs = resolve_site(am.lat, site)

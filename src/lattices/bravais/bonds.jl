@@ -192,15 +192,19 @@ function Base.show(io::IO, mime::MIME"text/plain", trs::BravaisSiteMapping)
     end
     if !(trs.lat isa UndefinedLattice)
         print(io, "\n on ")
-        show(io, mime, trs.lat)
+        summary(io, trs.lat)
     end
 end
 
-function adapt_bonds(tr::Translation{UndefinedLattice, N}, l::OnSites{BravaisLattice}) where N
+function adapt_bonds(tr::Translation{UndefinedLattice}, l::OnSites{BravaisLattice{N}}) where N
+    M = length(tr.R)
+    if M > N && !all(==(0), @view tr.R[N+1:M])
+        throw(ArgumentError("Cannot adapt a $M-dim translation to a $N-dim lattice"))
+    end
     shifts = BravaisTranslation{UndefinedLattice, N}[]
     for i in 1:baslength(l)
         for j in 1:baslength(l)
-            R′ = tr.R + basvector(l, i) - basvector(l, j)
+            R′ = add_assuming_zeros(basvector(l, i) - basvector(l, j), tr.R)
             J = trvectors(l) \ R′
             if all(<(√eps()), abs.(rem.(J, 1, RoundNearest)))
                 # J is an integer vector
