@@ -84,7 +84,7 @@ function print_vectors(io::IO, a::AbstractMatrix)
     print(io, indent, "└      ┘ " ^ size(a, 2))
 end
 Base.summary(io::IO, ::UnitCell{Sym,N,NB}) where {Sym,N,NB} =
-    print(io, "Unit cell of a $N-dim $Sym (", format_number(NB, "site"), "in basis)")
+    print(io, "Unit cell of a $N-dim $Sym (", fmtnum(NB, "site"), "in basis)")
 function Base.show(io::IO, ::MIME"text/plain", b::UnitCell)
     indent = getindent(io)
     print(io, indent)

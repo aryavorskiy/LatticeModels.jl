@@ -150,18 +150,18 @@ Base.getindex(bcs::BoundaryConditions, i::Int) = bcs.bcs[i]
 
 function Base.show(io::IO, mime::MIME"text/plain", bcs::BoundaryConditions)
     indent = getindent(io)
-    print(io, indent, "Boundary conditions: ")
-    length(bcs.bcs) == 0 && return print(io, "none")
+    print(io, indent, "Boundary conditions")
+    length(bcs.bcs) == 0 && return print(io, ": none")
     if requires_compact(io)
-        print(io, indent, "(", length(bcs.bcs),
+        print(io, ": (", length(bcs.bcs),
         " not shown; depth = ", bcs.depth, ")")
     else
+        print(io, " (depth = ", bcs.depth, "):")
         io = addindent(io, :compact => true)
         for i in 1:length(bcs.bcs)
             println(io)
             show(io, mime, bcs[i])
         end
-        print(io, indent, " (depth = ", bcs.depth, ")")
     end
 end
 

@@ -308,7 +308,7 @@ function Base.show(io::IO, mime::MIME"text/plain", lw::LatticeWithParams)
         return show(io, mime, lw.lat)
     end
     show(io, mime, lw.lat)
-    io = IOContext(io, :showtitle => false)
+    io = IOContext(io, :showtitle => false, :maxlines=>4)
     for v in values(lw.params)
         println(io)
         show(io, mime, v)

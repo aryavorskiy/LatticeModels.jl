@@ -173,18 +173,24 @@ function Base.show(io::IO, mime::MIME"text/plain", trs::BravaisSiteMapping)
         summary(io, trs)
         print(io, ": ")
         requires_compact(io) || println(io)
+        io = addindent(io)
     end
     if requires_compact(io)
-        print(io, getindent(io),
-            "(", format_number(trs.translations, "translation"), " not shown)")
+        return print(io, "($(fmtnum(trs.translations, "translation")) not shown)")
     else
         for i in 1:length(trs.translations)
             print(io, getindent(io))
+            if get(io, :maxlines, typemax(Int)) ≤ i < length(trs.translations)
+                print(io, " ⋮ ")
+                omitted = length(trs.translations) - i + 1
+                get(io, :showtitle, true) || print(io, "($omitted more omitted)")
+                break
+            end
             summary(io, trs.translations[i])
             i < length(trs.translations) && println(io)
         end
     end
-    if !(trs.lat isa UndefinedLattice) && !get(io, :inline, false)
+    if !(trs.lat isa UndefinedLattice)
         print(io, "\n on ")
         show(io, mime, trs.lat)
     end

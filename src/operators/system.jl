@@ -141,7 +141,7 @@ NParticles(onep::OneParticleSystem, n; kw...) = NParticles(onep.sample, n;
 NParticles(l::AbstractLattice, n; kw...) = NParticles(Sample(l, nothing), n; kw...)
 function Base.show(io::IO, mime::MIME"text/plain", sys::NParticles)
     noun = "interacting" * (sys.statistics == FermiDirac ? "fermion" : "boson")
-    print(io, format_number(sys.nparticles, noun), " on ")
+    print(io, fmtnum(sys.nparticles, noun), " on ")
     show(io, mime, sys.sample)
 end
 
