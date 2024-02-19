@@ -63,7 +63,7 @@ function UnitCell(translations::AbstractMatrix,
     return offset_unitcell(uc_without_offset, offset)
 end
 
-sublatvector(uc::UnitCell, i::Int) = uc.basissites[:, i]
+basvector(uc::UnitCell, i::Int) = uc.basissites[:, i]
 trvectors(uc::UnitCell) = uc.translations
 
 dims(::UnitCell{Sym, N} where Sym) where {N} = N

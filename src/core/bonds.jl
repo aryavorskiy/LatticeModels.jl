@@ -30,7 +30,8 @@ Base.getindex(bonds::AbstractBonds, site1::AbstractSite, site2::AbstractSite) =
 Adapt the bonds to the lattice `lat`. The output can be a different type of
 bonds, more fitting for the concrete type of lattice.
 """
-adapt_bonds(any, l::AbstractLattice) = throw(ArgumentError("$any cannot be interpreted as bonds on lattice $l"))
+adapt_bonds(any, l::AbstractLattice) =
+    throw(ArgumentError(sprint(show, "text/plain", any) * " cannot be interpreted as bonds on " * sprint(show, "text/plain", l)))
 
 function Base.iterate(bonds::AbstractBonds, ind_pair = 1 => 1)
     l = lattice(bonds)
@@ -246,7 +247,7 @@ struct Translation{LT, N} <: AbstractTranslation{LT}
     end
 end
 adapt_bonds(bonds::Translation, l::AbstractLattice) = Translation(l, bonds.R)
-adapt_bonds(b::Translation, l::LatticeWithParams) = adapt_bonds(b, l.lat)
+adapt_bonds(bonds::Translation, ::UndefinedLattice) = Translation(bonds.R)
 function destination(sh::Translation, site::AbstractSite)
     for dest in lattice(sh)
         if isapprox(site.coords + sh.R, dest.coords, atol=√eps())
@@ -285,10 +286,11 @@ NearestNeighbor(N::Int) = NearestNeighbor(Val(N))
 struct DefaultNNBonds{M, TupleT}
     dists::NTuple{M, Float64}
     nnbonds::TupleT
-    function DefaultNNBonds(dists::NTuple{M, Float64}, nnbonds::TupleT) where {M, TupleT}
+    function DefaultNNBonds(dists::NTuple{M, Float64}, nnbonds::Tuple) where {M}
         length(dists) == length(nnbonds) ||
             throw(ArgumentError("The number of distances and the number of hops must be the same."))
-        new{M, TupleT}(dists, nnbonds)
+        nnbonds_nolat = Tuple(adapt_bonds(b, UndefinedLattice()) for b in nnbonds)
+        new{M, typeof(nnbonds_nolat)}(dists, nnbonds_nolat)
     end
 end
 
@@ -309,8 +311,18 @@ setnnbonds(l::AbstractLattice, dnn::DefaultNNBonds) = setparam(l, :nnbonds, dnn)
 function adapt_bonds(b::NearestNeighbor{N}, l::LatticeWithParams) where {N}
     default_nnhops = getnnbonds(l)
     if default_nnhops === nothing || N > length(default_nnhops)
-        return adapt_bonds(b, l.lat)
+        return adapt_bonds(adapt_bonds(b, l.lat), l)
     else
-        return default_nnhops[N]
+        return adapt_bonds(default_nnhops[N], l)
     end
 end
+
+function transform_lattice(l::AbstractLattice, tr::AbstractTranslation)
+    e = Base.emptymutable(l, eltype(l))
+    ntr = adapt_bonds(tr, l)
+    for site in l
+        push!(e, destination(ntr, site))
+    end
+    return e
+end
+Base.:(+)(l::AbstractLattice, tr::AbstractTranslation) = transform_lattice(l, tr)

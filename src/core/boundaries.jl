@@ -113,7 +113,7 @@ A collection of boundary conditions for a lattice.
 struct BoundaryConditions{CondsTuple}
     bcs::CondsTuple
     depth::Int
-    function BoundaryConditions(bcs::CondsTuple; depth=2) where CondsTuple<:Tuple{Vararg{Boundary}}
+    function BoundaryConditions(bcs::CondsTuple; depth=1) where CondsTuple<:Tuple{Vararg{Boundary}}
         new{CondsTuple}(bcs, depth)
     end
 end
@@ -142,21 +142,21 @@ end
 
 adapt_boundaries(bcs::BoundaryConditions, l::AbstractLattice) =
     BoundaryConditions(map(b -> adapt_boundary(b, l), bcs.bcs); depth=bcs.depth)
-getboundaries(l::AbstractLattice) = getparam(l, :boundaries, BoundaryConditions())
-setboundaries(l::AbstractLattice, bcs::BoundaryConditions) = setparam(l, :boundaries, adapt_boundaries(bcs, l))
+getboundaries(l::AbstractLattice) = adapt_boundaries(getparam(l, :boundaries, BoundaryConditions()), l)
+setboundaries(l::AbstractLattice, bcs::BoundaryConditions) = setparam(l, :boundaries, adapt_boundaries(bcs, UndefinedLattice()))
 setboundaries(l::AbstractLattice, bcs) = setboundaries(l, to_boundaries(bcs))
 
 Base.getindex(bcs::BoundaryConditions, i::Int) = bcs.bcs[i]
 
 function Base.show(io::IO, mime::MIME"text/plain", bcs::BoundaryConditions)
-    get(io, :inline, false) || println(io, "Boundary conditions:")
+    println(io, get(io, :inline, false) ? "" : "Boundary conditions:")
     length(bcs.bcs) == 0 && return print(io, "(none)")
     for i in 1:length(bcs.bcs)
         get(io, :inline, false) && print(io, " ")
         show(io, mime, bcs[i])
         println(io)
     end
-    print("depth = ", bcs.depth)
+    print(" (depth = ", bcs.depth, ")")
 end
 
 cartesian_indices(b::BoundaryConditions{<:NTuple{M}}) where M =
@@ -167,8 +167,10 @@ function route(bcs::BoundaryConditions, l::AbstractLattice, site::AbstractSite)
     for cind in cartesian_indices(bcs)
         tup = Tuple(cind)
         new_site = site
+        new_site === NoSite() && continue
         for i in eachindex(tup)
             new_site = nshifts(new_site, bcs[i].translation, tup[i])
+            new_site === NoSite() && break
         end
         new_site in stripparams(l) && return tup
     end
@@ -180,13 +182,14 @@ function resolve_site(l::LatticeWithParams, site::AbstractSite)
     tup = route(bcs, l, site)
     tup === nothing && return nothing
     factor = 1.
+    new_site = site
     for i in 1:length(tup)
-        new_factor, site = nshifts_phase(site, bcs[i], tup[i])
+        new_factor, new_site = nshifts_phase(new_site, bcs[i], tup[i])
         factor *= new_factor
     end
-    ind = site_index(l, site)
+    ind = site_index(l, new_site)
     ind === nothing && return nothing
-    return ResolvedSite(site, ind, factor)
+    return ResolvedSite(new_site, site, ind, factor)
 end
 
 """

@@ -11,7 +11,8 @@ end
 unitcell(l::BravaisLattice) = l.unitcell
 unitcell(lw::LatticeWithParams) = unitcell(lw.lat)
 trvectors(l::AbstractLattice) = trvectors(unitcell(l))
-sublatvector(l::AbstractLattice, i::Int) = sublatvector(unitcell(l), i)
+basvector(l::AbstractLattice, i::Int) = basvector(unitcell(l), i)
+baslength(l::AbstractLattice) = length(unitcell(l))
 
 Base.:(==)(l1::BravaisLattice, l2::BravaisLattice) =
     (l1.pointers == l2.pointers) && (l1.unitcell == l2.unitcell)
@@ -21,7 +22,6 @@ Base.emptymutable(l::BravaisLattice{N, B}, ::Type{BravaisSite{N, B}}) where {N, 
     BravaisLattice(l.unitcell, BravaisPointer{N}[])
 Base.copymutable(l::BravaisLattice) = BravaisLattice(l.unitcell, copy(l.pointers))
 Base.length(l::BravaisLattice) = length(l.pointers)
-basis_length(l::BravaisLattice) = length(l.unitcell)
 function check_sameunitcell(l::BravaisLattice, site::BravaisSite)
     l.unitcell != site.unitcell && throw(ArgumentError("Unit cell mismatch: $(l.unitcell) ≠ $(site.unitcell)"))
 end
@@ -56,7 +56,7 @@ Base.@propagate_inbounds function Base.deleteat!(l::BravaisLattice, inds)
 end
 
 function Base.push!(l::BravaisLattice, lp::BravaisPointer)
-    @assert 1 ≤ lp.basindex ≤ basis_length(l) "invalid basis index $(lp.basindex)"
+    @assert 1 ≤ lp.basindex ≤ baslength(l) "invalid basis index $(lp.basindex)"
     i = searchsortedfirst(l.pointers, lp)
     i ≤ length(l) && l.pointers[i] == lp && return l
     insert!(l.pointers, i, lp)
@@ -76,8 +76,8 @@ end
 
 function Base.summary(io::IO, l::BravaisLattice{N, <:UnitCell{Sym}}) where {N,Sym}
     print(io, length(l), "-site ", N, "-dim ", Sym)
-    if basis_length(l) > 1
-        print(io, " (", basis_length(l), "-site basis)")
+    if baslength(l) > 1
+        print(io, " (", baslength(l), "-site basis)")
     end
 end
 

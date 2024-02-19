@@ -1,54 +1,5 @@
 using RecipesBase
 
-@recipe function f(l::BravaisLattice, ::Val{:bonds}; bonds = (1, 2, 3))
-    label := ""
-    1 in bonds && @series begin   # The bonds
-        seriestype := :path
-        label := ""
-        l, NearestNeighbor(1)
-    end
-    2 in bonds && @series begin   # The nnbonds
-        seriestype := :path
-        linestyle := :dash
-        linealpha := 0.5
-        label := ""
-        l, NearestNeighbor(2)
-    end
-    3 in bonds && @series begin   # The nnnbonds
-        seriestype := :path
-        linestyle := :dot
-        linealpha := 0.5
-        label := ""
-        l, NearestNeighbor(3)
-    end
-end
-
-@recipe function f(l::BravaisLattice{N}, ::Val{:boundaries}) where {N}
-    label := ""
-    for cind in cartesian_indices(l)
-        tup = Tuple(cind)
-        all(==(0), tup) && continue
-        tr_vec = @SVector zeros(Int, N)
-        for i in eachindex(tup)
-            tr_vec += tup[i] * getboundaries(l)[i].R
-        end
-        shifted_pointers = [shift_site(tr_vec, lp) for lp in l.pointers]
-        shifted_lattice = BravaisLattice(l.unitcell, shifted_pointers)
-        @series begin
-            seriesalpha := 0.2
-            shifted_lattice, :sites
-        end
-    end
-end
-
-@recipe function f(l::BravaisLattice; showboundaries=false, showbonds=false)
-    shownumbers --> showboundaries
-    @series l, :sites
-    !showbonds && (bonds --> ())
-    @series l, :bonds
-    showboundaries && @series l, :boundaries
-end
-
 const BravaisLatticeValue{Sym, N} = LatticeValue{<:Number, <:OnSites{BravaisLattice{N, <:UnitCell{Sym, N}}}}
 raw"""
     rectified_values(lv::LatticeValue)

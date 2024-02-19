@@ -255,15 +255,16 @@ end
 
 struct ResolvedSite{ST}
     site::ST
+    old_site::ST
     index::Int
     factor::ComplexF64
-    function ResolvedSite(site::ST, index::Int, factor) where ST<:AbstractSite
-        new{ST}(site, index, ComplexF64(factor))
+    function ResolvedSite(site::ST, old_site::ST, index::Int, factor) where ST<:AbstractSite
+        new{ST}(site, old_site, index, ComplexF64(factor))
     end
 end
-function ResolvedSite(site::AbstractSite, index::Int)
-    ResolvedSite(site, index, 1)
-end
+ResolvedSite(site::AbstractSite, old_site::AbstractSite, index::Int) =
+    ResolvedSite(site, old_site, index, 1)
+ResolvedSite(site::AbstractSite, index::Int) = ResolvedSite(site, site, index, 1)
 function resolve_site(l::AbstractLattice, site::AbstractSite)
     index = site_index(l, site)
     index === nothing && return nothing
@@ -305,6 +306,20 @@ function Base.show(io::IO, mime::MIME"text/plain", lw::LatticeWithParams)
         end
     end
 end
+
+function Base.getproperty(lw::LatticeWithParams, sym::Symbol)
+    if sym in fieldnames(typeof(lw))
+        return getfield(lw, sym)
+    end
+    params = getfield(lw, :params)
+    if haskey(params, sym)
+        return params[sym]
+    end
+    return getproperty(getfield(lw, :lat), sym)
+end
+
+Base.propertynames(lw::LatticeWithParams) =
+    tuple(propertynames(lw.lat)..., fieldnames(typeof(lw))..., keys(lw.params)...)
 
 const Lattice = LatticeWithParams
 Lattice(l::AbstractLattice; kw...) = LatticeWithParams(l, NamedTuple(kw))

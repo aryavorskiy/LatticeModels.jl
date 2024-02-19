@@ -22,7 +22,7 @@ struct BravaisTranslation{LT, N} <: AbstractTranslation{LT}
 end
 BravaisTranslation(lat::AbstractLattice, tr_uc::AbstractVector) = BravaisTranslation(lat, 0=>0, tr_uc)
 BravaisTranslation(args...; kw...) = BravaisTranslation(UndefinedLattice(), args...; kw...)
-adapt_bonds(bsh::BravaisTranslation{UndefinedLattice}, l::AbstractLattice) =
+adapt_bonds(bsh::BravaisTranslation, l::AbstractLattice) =
     BravaisTranslation(l, bsh.site_indices, bsh.translate_uc)
 dims(::BravaisTranslation{UndefinedLattice, N}) where N = N
 
@@ -99,7 +99,7 @@ struct BravaisSiteMapping{LT, TupleT} <: AbstractTranslation{LT}
 end
 BravaisSiteMapping(trs::BravaisTranslation{UndefinedLattice}...) =
     BravaisSiteMapping(UndefinedLattice(), trs...)
-adapt_bonds(bts::BravaisSiteMapping{UndefinedLattice}, l::AbstractLattice) =
+adapt_bonds(bts::BravaisSiteMapping, l::AbstractLattice) =
     BravaisSiteMapping(l, bts.translations...)
 
 function istranslation(bsm::BravaisSiteMapping)
@@ -174,17 +174,17 @@ end
 function Base.show(io::IO, mime::MIME"text/plain", trs::BravaisSiteMapping)
     get(io, :inline, false) || println(io, "Bravais site mapping:")
     summary(io, trs)
-    if !(trs.lat isa UndefinedLattice)
+    if !(trs.lat isa UndefinedLattice) && !get(io, :inline, false)
         print(io, "\n on ")
         show(io, mime, trs.lat)
     end
 end
 
-function adapt_bonds(tr::Translation{UndefinedLattice, N}, l::BravaisLattice) where N
+function adapt_bonds(tr::Translation{UndefinedLattice, N}, l::OnSites{BravaisLattice}) where N
     shifts = BravaisTranslation{UndefinedLattice, N}[]
-    for i in 1:basis_length(l)
-        for j in 1:basis_length(l)
-            R′ = tr.R + sublatvector(l, i) - sublatvector(l, j)
+    for i in 1:baslength(l)
+        for j in 1:baslength(l)
+            R′ = tr.R + basvector(l, i) - basvector(l, j)
             J = trvectors(l) \ R′
             if all(<(√eps()), abs.(rem.(J, 1, RoundNearest)))
                 # J is an integer vector
@@ -210,7 +210,7 @@ function detect_nnhops(uc::UnitCell{Sym, N} where Sym, depth=2) where N
                     nzc === nothing && continue # skip self-hops
                     C[nzc] < 1 && continue # avoid double-counting
                 end
-                R = trvectors(uc) * C - sublatvector(uc, i) + sublatvector(uc, j)
+                R = trvectors(uc) * C - basvector(uc, i) + basvector(uc, j)
                 r = norm(R)
                 if isempty(lens)
                     k = 1

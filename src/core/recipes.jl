@@ -42,9 +42,64 @@ end
     end
 end
 
-@recipe function f(l::AbstractLattice; shownumbers=false)
+@recipe function f(l::AbstractLattice, ::Val{:bonds}; bonds = (1, 2, 3))
+    label := ""
+    1 in bonds && @series begin   # The bonds
+        seriestype := :path
+        label := ""
+        l, NearestNeighbor(1)
+    end
+    2 in bonds && @series begin   # The nnbonds
+        seriestype := :path
+        linestyle := :dash
+        linealpha := 0.5
+        label := ""
+        l, NearestNeighbor(2)
+    end
+    3 in bonds && @series begin   # The nnnbonds
+        seriestype := :path
+        linestyle := :dot
+        linealpha := 0.5
+        label := ""
+        l, NearestNeighbor(3)
+    end
+end
+
+@recipe function f(l::AbstractLattice, ::Val{:boundaries})
+    label := ""
+    trs = adapt_boundaries(getboundaries(l), UndefinedLattice())
+    seriescolor --> :lightblue
+    bonds --> ()
+    xmi, xma = extrema(site -> site.coords[1], l)
+    xlims --> (xmi + xma) / 2 .+ (xma - xmi) .* (-1, 1)
+    ymi, yma = extrema(site -> site.coords[2], l)
+    ylims --> (ymi + yma) / 2 .+ (yma - ymi) .* (-1, 1)
+    for cind in cartesian_indices(l)
+        tup = Tuple(cind)
+        all(==(0), tup) && continue
+        l2 = l
+        for i in eachindex(tup)
+            tr = trs[i].translation
+            tup[i] < 0 && (tr = -tr)
+            for _ in 1:abs(tup[i])
+                l2 += tr
+            end
+        end
+        @series begin
+            seriesalpha := 0.2
+            l2, :sites, :bonds
+        end
+    end
+end
+
+@recipe function f(l::AbstractLattice; showboundaries=true, showbonds=false, shownumbers=false)
     label --> ""
+    markercolor --> :lightblue
+    shownumbers --> showboundaries
+    bonds --> (showbonds ? (1,2,3) : ())
+    @series l, :bonds
     @series l, :sites
+    showboundaries && @series l, :boundaries
     shownumbers && @series l, :numbers
 end
 
@@ -85,14 +140,15 @@ end
     pts = NTuple{dims(l), Float64}[]
     br_pt = fill(NaN, dims(l)) |> Tuple
     for (s1, s2) in ag
+        R = s2.old_site.coords - s1.old_site.coords
         A = s1.site.coords
         B = s2.site.coords
-        push!(pts, Tuple(A), Tuple(B), br_pt)
+        push!(pts, Tuple(A), Tuple(A + R / 2), br_pt, Tuple(B - R / 2), Tuple(B), br_pt)
     end
     label := nothing
     pts
 end
 
-@recipe function f(l::AbstractLattice, b::AbstractBonds{UndefinedLattice})
+@recipe function f(l::AbstractLattice, b::AbstractBonds)
     adapt_bonds(b, l)
 end
