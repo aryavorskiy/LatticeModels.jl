@@ -13,7 +13,7 @@
     sla = StrangeLandauGauge()
     sym = SymmetricGauge(0.1)
     flx = PointFlux(0.1)
-    @test flx.P == (0, 0)
+    @test flx.point == (0, 0)
     emf = EmptyField()
     fla = GaugeField(n = 10) do (x,)
         (0, x * 0.1)
