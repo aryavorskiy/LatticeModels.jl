@@ -71,29 +71,33 @@ Base.length(::UnitCell{Sym,N,NB} where {Sym,N}) where {NB} = NB
 Base.:(==)(b1::UnitCell, b2::UnitCell) =
     b1.translations == b2.translations && b1.basissites == b2.basissites
 
-function println_vectors(io::IO, a::AbstractMatrix)
-    println(io, "┌      ┐ " ^ size(a, 2))
+function print_vectors(io::IO, a::AbstractMatrix)
+    indent = getindent(io)
+    println(io, indent, "┌      ┐ " ^ size(a, 2))
     for i in 1:size(a, 1)
+        print(io, indent)
         for j in 1:size(a, 2)
             print(io, @sprintf("│%6.3f│ ", a[i, j]))
         end
         println(io)
     end
-    println(io, "└      ┘ " ^ size(a, 2))
+    print(io, indent, "└      ┘ " ^ size(a, 2))
 end
-function Base.show(io::IO, ::MIME"text/plain", b::UnitCell{Sym,N,NB}) where {Sym,N,NB}
-    print(io, "Unit cell of a ", N, "-dim ", Sym, " (Bravais) with ",
-        NB, " basis site", NB == 1 ? "" : "s")
-    if !get(io, :compact, false)
-        if NB == 1
-            println(";")
-        else
-            println(io, ":")
-            println_vectors(io, b.basissites)
-        end
-        println(io, "Translation vectors:")
-        println_vectors(io, b.translations)
+Base.summary(io::IO, ::UnitCell{Sym,N,NB}) where {Sym,N,NB} =
+    print(io, "Unit cell of a $N-dim $Sym (", format_number(NB, "site"), "in basis)")
+function Base.show(io::IO, ::MIME"text/plain", b::UnitCell)
+    indent = getindent(io)
+    print(io, indent)
+    requires_compact(io) && return summary(io, b)
+    if get(io, :showtitle, true)
+        summary(io, b)
+        println(io, ":")
     end
+    io = addindent(io, 2)
+    println(io, indent, "  Basis site coordinates:")
+    print_vectors(io, b.basissites)
+    println(io, "\n", indent, "  Translation vectors:")
+    print_vectors(io, b.translations)
 end
 
 struct BravaisPointer{N}

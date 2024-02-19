@@ -50,3 +50,19 @@ macro check_size(arr::Symbol, siz)
         check_size($(esc(arr)), $(esc(siz)), $(QuoteNode(arr)))
     end
 end
+
+# Indentation
+getindent(io::IO) = "  " ^ get(io, :indent, 0)
+addindent(io::IO, n::Int, pairs...) = IOContext(io, :indent => get(io, :indent, 0) + n, pairs...)
+addindent(io::IO, pairs...) = addindent(io, 1, pairs...)
+
+# Compact display if requested or if showing a set
+requires_compact(io::IO) = get(io, :compact, false) || get(io, :SHOWN_SET, nothing) !== nothing
+
+# Format a number with a noun properly
+function format_number(n::Int, noun::String, singular::String, plural::String)
+    suffix = (n % 10 == 1 && n % 100 != 11) ? singular : plural
+    return "$n $noun$suffix"
+end
+format_number(n::Int, noun::String) = format_number(n, noun, "", "s")
+format_number(any, args...) = format_number(length(any), args...)

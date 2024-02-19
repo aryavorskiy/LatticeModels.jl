@@ -58,13 +58,13 @@ to_boundary(p::Pair{<:Any, Bool}) =
     p[2] ? PeriodicBoundary(p[1]) : nothing
 to_boundary(p::Pair{<:Any, <:Real}) =
     TwistedBoundary(p[1], p[2])
-function Base.show(io::IO, ::MIME"text/plain", bc::TwistedBoundary)
-    summary(io, bc.translation)
+function Base.show(io::IO, mime::MIME"text/plain", bc::TwistedBoundary)
+    show(io, mime, bc.translation)
     print(io, " → ")
     if bc.Θ % 2π ≈ 0
-        print("periodic")
+        print(io, "periodic")
     else
-        print("twist θ = ", trunc(bc.Θ, digits=2))
+        print(io, "twist θ = ", trunc(bc.Θ, digits=2))
     end
 end
 
@@ -94,8 +94,8 @@ end
 FunctionBoundary(f::F, tr::AbstractArray) where F<:Function =
     FunctionBoundary(f, Translation(tr))
 to_boundary(p::Pair{<:Any, <:Function}) = FunctionBoundary(p[2], p[1])
-function Base.show(io::IO, ::MIME"text/plain", bc::FunctionBoundary)
-    summary(io, bc.translation)
+function Base.show(io::IO, mime::MIME"text/plain", bc::FunctionBoundary)
+    show(io, mime, bc.translation)
     print(io, " → function '", bc.condition, "'")
 end
 
@@ -149,14 +149,20 @@ setboundaries(l::AbstractLattice, bcs) = setboundaries(l, to_boundaries(bcs))
 Base.getindex(bcs::BoundaryConditions, i::Int) = bcs.bcs[i]
 
 function Base.show(io::IO, mime::MIME"text/plain", bcs::BoundaryConditions)
-    println(io, get(io, :inline, false) ? "" : "Boundary conditions:")
-    length(bcs.bcs) == 0 && return print(io, "(none)")
-    for i in 1:length(bcs.bcs)
-        get(io, :inline, false) && print(io, " ")
-        show(io, mime, bcs[i])
-        println(io)
+    indent = getindent(io)
+    print(io, indent, "Boundary conditions: ")
+    length(bcs.bcs) == 0 && return print(io, "none")
+    if requires_compact(io)
+        print(io, indent, "(", length(bcs.bcs),
+        " not shown; depth = ", bcs.depth, ")")
+    else
+        io = addindent(io, :compact => true)
+        for i in 1:length(bcs.bcs)
+            println(io)
+            show(io, mime, bcs[i])
+        end
+        print(io, indent, " (depth = ", bcs.depth, ")")
     end
-    print(" (depth = ", bcs.depth, ")")
 end
 
 cartesian_indices(b::BoundaryConditions{<:NTuple{M}}) where M =

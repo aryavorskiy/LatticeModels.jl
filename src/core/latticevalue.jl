@@ -125,7 +125,7 @@ end
 function Base.show(io::IO, mime::MIME"text/plain", lv::LatticeValueWrapper)
     print(io, "$(typeof(lv)) on a ")
     show(io, mime, lattice(lv))
-    if !get(io, :compact, false)
+    if !requires_compact(io)
         print(io, "\nValues stored in a $(typeof(lv.values)):\n")
         Base.show_vector(IOContext(io, :compact => true), lv.values)
     end

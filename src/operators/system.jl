@@ -18,7 +18,7 @@ QuantumOpticsBase.basis(sample::SampleWithInternal) = sample.internal ⊗ Lattic
 QuantumOpticsBase.basis(sample::SampleWithoutInternal) = LatticeBasis(sample.latt)
 
 function Base.show(io::IO, mime::MIME"text/plain", sample::Sample)
-    hasinternal(sample) && print("(")
+    hasinternal(sample) && print(io, "(")
     summary(io, lattice(sample))
     if hasinternal(sample)
         print(io, ") ⊗ ")
@@ -140,8 +140,8 @@ NParticles(onep::OneParticleSystem, n; kw...) = NParticles(onep.sample, n;
     T = onep.T, kw...)
 NParticles(l::AbstractLattice, n; kw...) = NParticles(Sample(l, nothing), n; kw...)
 function Base.show(io::IO, mime::MIME"text/plain", sys::NParticles)
-    print(io, sys.nparticles, " interacting ",
-        sys.statistics == FermiDirac ? "fermions" : "bosons", " on ")
+    noun = "interacting" * (sys.statistics == FermiDirac ? "fermion" : "boson")
+    print(io, format_number(sys.nparticles, noun), " on ")
     show(io, mime, sys.sample)
 end
 

@@ -43,7 +43,7 @@ Base.copy(tseq::TimeSequence) = TimeSequence(copy(tseq.times), [copy(s) for s in
 Base.length(tseq::TimeSequence) = length(timestamps(tseq))
 
 function Base.show(io::IO, ::MIME"text/plain", tseq::TimeSequence{ET}) where ET
-    print(io, "TimeSequence{$ET} with $(length(tseq)) records")
+    print(io, "TimeSequence{$ET} with ", format_number(tseq, "entr", "y", "ies"))
     td = timestamps(tseq)
     if length(td) ≥ 2
         print(io, "\nTimestamps in range $(timerange(tseq))")

@@ -83,6 +83,11 @@ end
 
 function Base.show(io::IO, mime::MIME"text/plain", l::BravaisLattice)
     summary(io, l)
+    if !requires_compact(io)
+        println(io, "\nUnit cell:")
+        io = IOContext(io, :showtitle => false)
+        show(io, mime, l.unitcell)
+    end
 end
 
 const RangeT = Union{Integer, OrdinalRange{<:Integer, <:Integer}}
@@ -91,11 +96,8 @@ function _sort(i::Integer)
     throw(ArgumentError("Invalid range: $i; must be positive"))
 end
 function _sort(r::OrdinalRange)
-    if step(r) > 0
-        return r
-    else
-        return reverse(r)
-    end
+    step(r) > 0 && return reverse(r)
+    return r
 end
 
 """

@@ -63,10 +63,10 @@ end
 vector_potential(f::FieldSum, p1) = sum(SVector(vector_potential(field, p1)) for field in f.fields)
 line_integral(f::FieldSum, p1, p2) = sum(line_integral(field, p1, p2) for field in f.fields)
 function Base.show(io::IO, m::MIME"text/plain", f::FieldSum)
-    print(io, "Sum of $(length(f.fields)) fields:")
+    print(io, "Sum of ", format_number(length(f.fields), "gauge field term"))
     i = 1
     for field in f.fields
-        print("\n#$i: ")
+        print(io, "\n#$i: ")
         show(io, m, field)
         i += 1
     end

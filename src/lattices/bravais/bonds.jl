@@ -71,7 +71,7 @@ end
 function Base.show(io::IO, mime::MIME"text/plain", bsh::BravaisTranslation)
     print(io, "BravaisTranslation:\n")
     summary(io, bsh)
-    if !(bsh.lat isa UndefinedLattice) || get(io, :compact, false)
+    if !(bsh.lat isa UndefinedLattice) && !requires_compact(io)
         print(io, "\n on ")
         show(io, mime, bsh.lat)
     end
@@ -165,15 +165,25 @@ Base.union(trs::BravaisSiteMapping, trs2::BravaisSiteMapping) =
     foldl(union, trs2.translations, init=trs)
 
 function Base.summary(io::IO, trs::BravaisSiteMapping)
-    for i in 1:length(trs.translations)
-        get(io, :inline, false) && print(io, " ")
-        summary(io, trs.translations[i])
-        i < length(trs.translations) && println(io)
-    end
+    print(io, "BravaisSiteMapping with $(length(trs.translations)) translations")
 end
 function Base.show(io::IO, mime::MIME"text/plain", trs::BravaisSiteMapping)
-    get(io, :inline, false) || println(io, "Bravais site mapping:")
-    summary(io, trs)
+    if get(io, :showtitle, true)
+        print(io, getindent(io))
+        summary(io, trs)
+        print(io, ": ")
+        requires_compact(io) || println(io)
+    end
+    if requires_compact(io)
+        print(io, getindent(io),
+            "(", format_number(trs.translations, "translation"), " not shown)")
+    else
+        for i in 1:length(trs.translations)
+            print(io, getindent(io))
+            summary(io, trs.translations[i])
+            i < length(trs.translations) && println(io)
+        end
+    end
     if !(trs.lat isa UndefinedLattice) && !get(io, :inline, false)
         print(io, "\n on ")
         show(io, mime, trs.lat)

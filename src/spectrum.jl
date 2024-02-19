@@ -93,7 +93,7 @@ Base.getindex(eig::AbstractEigensystem, mask) =
 sample(eig::AbstractEigensystem) = sample(eig.basis)
 
 function Base.show(io::IO, ::MIME"text/plain", eig::AbstractEigensystem)
-    println(io, "Eigensystem with $(length(eig)) eigenstates")
+    println(io, "Eigensystem with ", format_number(eig, "eigenvector"))
     println(io, "Eigenvalues in range $(minimum(eig.values)) .. $(maximum(eig.values))")
 end
 

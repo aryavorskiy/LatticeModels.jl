@@ -12,8 +12,13 @@ abstract type AbstractSite{N} end
 dims(::AbstractSite{N}) where N = N
 Base.iterate(site::AbstractSite{N}, i=1) where N = i > N ? nothing : (site.coords[i], i + 1)
 
-Base.show(io::IO, ::MIME"text/plain", site::AbstractSite{N}) where N =
-    print(io, "Site of a ", N, "-dim lattice @ x = $(site.coords)")
+function Base.show(io::IO, ::MIME"text/plain", site::AbstractSite{N}) where N
+    if site in get(io, :SHOWN_SET, ())
+        print(io, "$(site.coords)")
+    else
+        print(io, N, "-dim ", typeof(site), " @ x = $(site.coords)")
+    end
+end
 
 struct NoSite <: AbstractSite{0} end
 Base.show(io::IO, ::NoSite) = print(io, "LatticeModels.NoSite()")
@@ -107,16 +112,17 @@ Base.getindex(::AbstractLattice, ::Nothing) = NoSite()
 Base.pairs(l::AbstractLattice) = Base.Iterators.Pairs(l, 1:length(l))
 
 Base.summary(io::IO, l::AbstractLattice{<:AbstractSite{N}}) where N =
-    print(io, length(l), "-site ", N, "-dim lattice")
+    print(io, length(l), "-site ", N, "-dim ", typeof(l))
 function Base.show(io::IO, mime::MIME"text/plain", l::AbstractLattice)
     summary(io, l)
-    if !get(io, :compact, false)
+    if !requires_compact(io) && length(l) > 0
+        io = IOContext(io, :compact => true)
         print(io, ":")
         for i in 1:min(length(l), 10)
-            print("\n  ")
+            print(io, "\n  ")
             show(io, mime, l[i])
         end
-        length(l) > 10 && print("\n  ⋮")
+        length(l) > 10 && print(io, "\n  ⋮")
     end
 end
 
@@ -297,13 +303,15 @@ Base.push!(lw::LatticeWithParams, site) = (push!(lw.lat, site); return lw)
 
 Base.summary(io::IO, lw::LatticeWithParams) = summary(io, lw.lat)
 function Base.show(io::IO, mime::MIME"text/plain", lw::LatticeWithParams)
+    if requires_compact(io)
+        print(io, "Wrapped ")
+        return show(io, mime, lw.lat)
+    end
     show(io, mime, lw.lat)
-    if !get(io, :compact, false)
-        io = IOContext(io, :inline => true, :compact => true)
-        for (k, v) in pairs(lw.params)
-            print(io, "\n", k, ": ")
-            show(io, mime, v)
-        end
+    io = IOContext(io, :showtitle => false)
+    for v in values(lw.params)
+        println(io)
+        show(io, mime, v)
     end
 end
 

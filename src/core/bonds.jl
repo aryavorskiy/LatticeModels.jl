@@ -262,11 +262,14 @@ isadjacent(sh::Translation, site1::AbstractSite, site2::AbstractSite) =
     isapprox(site2.coords - site1.coords, sh.R, atol=√eps())
 Base.inv(sh::Translation) = Translation(sh.lat, -sh.R)
 
-Base.summary(io::IO, sh::Translation) = print(io, "Spatial shift with vector R = $(sh.R)")
-function Base.show(io::IO, mime::MIME"text/plain", sh::Translation)
+Base.summary(io::IO, sh::Translation) = print(io, "Translation by ", sh.R)
+function Base.show(io::IO, ::MIME"text/plain", sh::Translation)
+    indent = getindent(io)
+    print(io, indent)
     summary(io, sh)
+    requires_compact(io) && return
     if !(sh.lat isa UndefinedLattice)
-        print(io, "\n on ")
+        print(io, "\n", indent, " on ")
         summary(io, sh.lat)
     end
 end
@@ -295,9 +298,11 @@ struct DefaultNNBonds{M, TupleT}
 end
 
 function Base.show(io::IO, mime::MIME"text/plain", dnn::DefaultNNBonds)
-    io = IOContext(io, :inline => true)
+    indent = getindent(io)
+    print(io, indent, "Nearest neighbor hoppings:")
+    io = addindent(io, 2)
     for i in 1:length(dnn.dists)
-        println(io, "\n", dnn.dists[i], " =>")
+        println(io, "\n", indent, "  ", dnn.dists[i], " =>")
         show(io, mime, dnn.nnbonds[i])
     end
 end
