@@ -207,7 +207,7 @@ function adapt_bonds(tr::Translation{UndefinedLattice, N}, l::OnSites{BravaisLat
 end
 Translation(l::OnSites{BravaisLattice}, R::AbstractVector) = adapt_bonds(Translation(R), l)
 
-function detect_nnhops(uc::UnitCell{Sym, N} where Sym, depth=2) where N
+function detect_nnhops(uc::UnitCell{Sym, N,NB} where Sym, depth=2) where {N,NB}
     lens = Float64[]
     TranslationT = BravaisTranslation{UndefinedLattice, N}
     translation_lists = Vector{TranslationT}[]
@@ -234,7 +234,8 @@ function detect_nnhops(uc::UnitCell{Sym, N} where Sym, depth=2) where N
                         insert!(translation_lists, k, TranslationT[])
                     end
                 end
-                translation = BravaisTranslation(i=>j, C)
+                # if i == j, the bond is valid for all basis indices
+                translation = i == j ? BravaisTranslation(C) : BravaisTranslation(i=>j, C)
                 if !(translation in translation_lists[k])
                     push!(translation_lists[k], translation)
                 end

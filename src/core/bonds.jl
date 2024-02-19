@@ -302,7 +302,7 @@ function Base.show(io::IO, mime::MIME"text/plain", dnn::DefaultNNBonds)
     print(io, indent, "Nearest neighbor hoppings:")
     io = addindent(io, 2)
     for i in 1:length(dnn.dists)
-        println(io, "\n", indent, "  ", dnn.dists[i], " =>")
+        println(io, "\n", indent, @sprintf("%9.5f", dnn.dists[i]), " =>")
         show(io, mime, dnn.nnbonds[i])
     end
 end
