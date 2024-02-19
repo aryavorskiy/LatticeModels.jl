@@ -268,3 +268,53 @@ three sites at `[0, 0]`, `[0.5, 0]` and `[0.25, √3/4]` in each unit cell.
 Construct a kagome lattice of a×b spanned unit cells.
 """
 @bravaisdef KagomeLattice UnitCell([1 0.5; 0 √3/2], [0 0.5 0.25; 0 0 √3/4])
+
+"""
+    KagomeLattice(:hex, hex_size[, center; kw...])
+
+Construct a hexagon-shaped sample of a kagome lattice.
+
+## Arguments:
+- `hex_size`: the size of the hexagon.
+- `center`: the center of the hexagon (in unit cell coordinates). Default is `(0, 0)`.
+"""
+function KagomeLattice(::Val{:hex}, hex_size, center=(0, 0); kw...)
+    j1ind = -hex_size + 1 + center[1]:hex_size + center[1]
+    j2ind = -hex_size + 1 + center[2]:hex_size + center[2]
+    KagomeLattice(j1ind, j2ind; kw...) do site
+        j1, j2 = site.latcoords .- center
+        j_prj = j1 + j2 - 1
+        if -hex_size ≤ j_prj ≤ hex_size - 1
+            return !(site.basindex == 1 && j_prj == -hex_size ||
+                    site.basindex == 2 && j1 == hex_size||
+                    site.basindex == 3 && j2 == hex_size)
+        else
+            return false
+        end
+    end
+end
+
+"""
+    KagomeLattice(:triangle, triangle_size[, center; kw...])
+
+Construct a triangle-shaped sample of a kagome lattice.
+
+## Arguments:
+- `triangle_size`: the size of the triangle.
+- `center`: the center of the triangle (in unit cell coordinates). Default is `(1, 1)`.
+"""
+function KagomeLattice(::Val{:triangle}, triangle_size, center=(1, 1); kw...)
+    j1ind = center[1]:triangle_size + center[1]
+    j2ind = center[2]:triangle_size + center[2]
+    KagomeLattice(j1ind, j2ind; kw...) do site
+        j1, j2 = site.latcoords .- center
+        j_prj = j1 + j2
+        if j_prj ≤ triangle_size
+            return !(site.basindex == 1 && j_prj == 0 ||
+                    site.basindex == 2 && j1 == triangle_size && j2 == 0 ||
+                    site.basindex == 3 && j1 == 0 && j2 == triangle_size)
+        else
+            return false
+        end
+    end
+end

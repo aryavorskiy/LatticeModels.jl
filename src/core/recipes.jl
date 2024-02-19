@@ -94,7 +94,6 @@ end
 
 @recipe function f(l::AbstractLattice; showboundaries=true, showbonds=false, shownumbers=false)
     label --> ""
-    markercolor --> :lightblue
     shownumbers --> showboundaries
     bonds --> (showbonds ? (1,2,3) : ())
     @series l, :bonds
