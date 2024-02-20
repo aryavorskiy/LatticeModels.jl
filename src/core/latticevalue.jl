@@ -122,9 +122,9 @@ function _extract_lattice_s(l::AbstractLattice, l2::AbstractLattice, rem_args::T
     _extract_lattice_s(l, rem_args)
 end
 
-function Base.show(io::IO, mime::MIME"text/plain", lv::LatticeValueWrapper)
-    print(io, "$(typeof(lv)) on a ")
-    show(io, mime, lattice(lv))
+function Base.show(io::IO, ::MIME"text/plain", lv::LatticeValueWrapper)
+    print(io, "LatticeValue{$(eltype(lv))} on a ")
+    summary(io, lattice(lv))
     if !requires_compact(io)
         print(io, "\nValues stored in a $(typeof(lv.values)):\n")
         Base.show_vector(IOContext(io, :compact => true), lv.values)

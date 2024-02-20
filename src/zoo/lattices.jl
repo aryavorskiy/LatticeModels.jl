@@ -40,18 +40,19 @@ nnbonds:
 ```
 """
 macro bravaisdef(type, expr)
-    type_sym = type
     is_ndep = Meta.isexpr(expr, :->)
     if is_ndep
         @assert expr.args[1] isa Symbol "Invalid unitcell constructor; one parameter N expected"
         N_sym = expr.args[1]
         type_expr = :($type{$N_sym})
         type_def = :(const $type_expr = LatticeModels.BravaisLattice{$N_sym,
-            <:LatticeModels.UnitCell{$(QuoteNode(type_sym))}})
+            <:LatticeModels.UnitCell{$(QuoteNode(type))}})
         unitcell_construct = expr.args[2]
         unitcell_construct_signature =
             :(LatticeModels.construct_unitcell(::Type{$type_expr}) where $N_sym)
         lattice_constructor = quote
+            LatticeModels.construct_unitcell(::Type{$type}) =
+                throw(ArgumentError("Unknown dimensionality for $type; Try using $type{N}"))
             function $type(sz::Vararg{LatticeModels.RangeT,$N_sym}; kw...) where $N_sym
                 return LatticeModels.span_unitcells(
                     LatticeModels.construct_unitcell($type_expr), sz...; kw...)
@@ -60,7 +61,7 @@ macro bravaisdef(type, expr)
     else
         type_expr = type
         type_def = :(const $type_expr = LatticeModels.BravaisLattice{N,
-            <:LatticeModels.UnitCell{$(QuoteNode(type_sym))}} where N)
+            <:LatticeModels.UnitCell{$(QuoteNode(type))}} where N)
         unitcell_construct = expr
         unitcell_construct_signature = :(LatticeModels.construct_unitcell(::Type{$type_expr}))
         lattice_constructor = quote
@@ -70,7 +71,7 @@ macro bravaisdef(type, expr)
             end
         end
     end
-    _add_parameter_to_call!(unitcell_construct, type_sym)
+    _add_parameter_to_call!(unitcell_construct, type)
     return quote
         Core.@__doc__ $type_def
         $(Expr(:function, unitcell_construct_signature, unitcell_construct))
@@ -316,5 +317,83 @@ function KagomeLattice(::Val{:triangle}, triangle_size, center=(1, 1); kw...)
         else
             return false
         end
+    end
+end
+
+abstract type RoundFlake end
+struct RoundFlakeRadius <: RoundFlake
+    radius::Float64
+end
+struct RoundFlakeNsites <: RoundFlake
+    sites::Int
+end
+
+"""
+    RoundFlake([;radius, sites])
+
+A round flake lattice construct utility.
+
+## Arguments
+- `radius`: the radius of the flake in real space.
+- `sites`: the (approximate) number of sites in the flake.
+
+## Examples
+
+```julia
+julia> using LatticeModels
+
+julia> HoneycombLattice(RoundFlake(radius=10));
+
+julia> SquareLattice{2}(RoundFlake(sites=100));  # Define a 2D square lattice with 100 sites
+```
+"""
+function RoundFlake(;radius=nothing, sites=nothing)
+    radius === nothing && sites === nothing &&
+        throw(ArgumentError("Either `radius` or `sites` must be specified"))
+    radius !== nothing && sites !== nothing &&
+        throw(ArgumentError("Only one of `radius`, `sites` must be specified"))
+    if sites === nothing
+        return RoundFlakeRadius(radius)
+    else
+        return RoundFlakeNsites(sites)
+    end
+end
+
+flakeradius(::UnitCell, f::RoundFlakeRadius) = f.radius
+ndvol(N) = N ≤ 1 ? N + 1 : ndvol(N - 2) * 2pi / N
+function flakeradius(uc::UnitCell, f::RoundFlakeNsites)
+    dens = length(uc) / det(unitvectors(uc))
+    vol = f.sites / dens
+    return (vol / ndvol(dims(uc)))^(1 / dims(uc))
+end
+function _unitvecmindists(uc::UnitCell)
+    _orth(a, b) = a - b * dot(a, b) / dot(b, b)
+    mv = MVector{dims(uc), Float64}(undef)
+    for i in 1:dims(uc)
+        v = unitvector(uc, i)
+        for j in 1:dims(uc)
+            j == i && continue
+            w = unitvector(uc, j)
+            for k in 1:j - 1
+                k == i && continue
+                w = _orth(w, unitvector(uc, k))
+            end
+            v = _orth(v, w)
+        end
+        mv[i] = norm(v)
+    end
+    return Tuple(mv)
+end
+function getsupercellsizes(uc::UnitCell, f::RoundFlake)
+    r = flakeradius(uc, f)
+    mds = _unitvecmindists(uc)
+    return Tuple(-ceil(Int, r / md):ceil(Int, r / md) for md in mds)
+end
+function (::Type{T})(f::RoundFlake; kw...) where T<:BravaisLattice
+    uc = construct_unitcell(T)
+    r = flakeradius(uc, f)
+    lat = span_unitcells(uc, getsupercellsizes(uc, f)...; kw...)
+    filter!(lat) do site
+        sum(abs2, site.coords) ≤ r^2
     end
 end

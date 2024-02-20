@@ -205,7 +205,7 @@ function adapt_bonds(tr::Translation{UndefinedLattice}, l::OnSites{BravaisLattic
     for i in 1:baslength(l)
         for j in 1:baslength(l)
             R′ = add_assuming_zeros(basvector(l, i) - basvector(l, j), tr.R)
-            J = trvectors(l) \ R′
+            J = unitvectors(l) \ R′
             if all(<(√eps()), abs.(rem.(J, 1, RoundNearest)))
                 # J is an integer vector
                 push!(shifts, BravaisTranslation(i=>j, J))
@@ -230,7 +230,7 @@ function detect_nnhops(uc::UnitCell{Sym, N,NB} where Sym, depth=2, limit=5) wher
                     nzc === nothing && continue # skip self-hops
                     C[nzc] < 1 && continue # avoid double-counting
                 end
-                R = trvectors(uc) * C - basvector(uc, i) + basvector(uc, j)
+                R = unitvectors(uc) * C - basvector(uc, i) + basvector(uc, j)
                 r = norm(R)
                 k = findfirst(l -> lens[l] > r || lens[l] ≈ r, eachindex(lens))
                 if k === nothing || !(lens[k] ≈ r)

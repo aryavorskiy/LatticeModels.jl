@@ -64,7 +64,8 @@ function UnitCell(translations::AbstractMatrix,
 end
 
 basvector(uc::UnitCell, i::Int) = uc.basissites[:, i]
-trvectors(uc::UnitCell) = uc.translations
+unitvector(uc::UnitCell, i::Int) = uc.translations[:, i]
+unitvectors(uc::UnitCell) = uc.translations
 
 dims(::UnitCell{Sym, N} where Sym) where {N} = N
 Base.length(::UnitCell{Sym,N,NB} where {Sym,N}) where {NB} = NB

@@ -10,7 +10,7 @@ struct BravaisLattice{N, UnitcellT} <: AbstractLattice{BravaisSite{N, UnitcellT}
 end
 unitcell(l::BravaisLattice) = l.unitcell
 unitcell(lw::LatticeWithParams) = unitcell(lw.lat)
-trvectors(l::AbstractLattice) = trvectors(unitcell(l))
+unitvectors(l::AbstractLattice) = unitvectors(unitcell(l))
 basvector(l::AbstractLattice, i::Int) = basvector(unitcell(l), i)
 baslength(l::AbstractLattice) = length(unitcell(l))
 
@@ -137,5 +137,5 @@ function span_unitcells(unitcell::UnitCell{Sym,N,NB}, sz::Vararg{RangeT, N};
     b = setnnbonds(b, getnnbonds(stripparams(b)))
     return b
 end
-span_unitcells(uc::UnitCell, sz::Tuple{Vararg{RangeT}}; kw...) =
+span_unitcells(uc::UnitCell, sz::Vararg{RangeT}; kw...) =
     throw(ArgumentError("Dimension mismatch: $(dims(uc))-dim unit cell, $(length(sz)) lattice dimensions"))
