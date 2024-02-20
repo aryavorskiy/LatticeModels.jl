@@ -78,7 +78,7 @@ macro bravaisdef(type, expr)
     end |> esc
 end
 function (::Type{T})(f::Function, args...; kw...) where T<:BravaisLattice
-    filter(f, T(args...; kw...))
+    filter!(f, T(args...; kw...))
 end
 
 lattice_name(::Type{<:BravaisLattice{N, <:UnitCell{Sym}} where N}) where Sym = Sym

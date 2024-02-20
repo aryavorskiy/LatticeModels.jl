@@ -330,6 +330,7 @@ function adapt_bonds(b::NearestNeighbor{N}, l::LatticeWithParams) where {N}
         return adapt_bonds(default_nnhops[N], l)
     end
 end
+NearestNeighbor(l::LatticeWithParams, N) = adapt_bonds(NearestNeighbor(N), l)
 
 function transform_lattice(l::AbstractLattice, tr::AbstractTranslation)
     e = Base.emptymutable(l, eltype(l))

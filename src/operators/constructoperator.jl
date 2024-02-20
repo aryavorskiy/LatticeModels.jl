@@ -79,6 +79,7 @@ end
 function construct_operator(T::Type, sys::System, args...; field=NoField())
     sample = sys.sample
     builder = OperatorBuilder(T, sys; field=field, auto_hermitian=true)
+    sizehint!(builder.mat_builder, length(sample) * length(args))
     for arg in args
         add_term!(builder, arg_to_pair(sample, arg))
     end

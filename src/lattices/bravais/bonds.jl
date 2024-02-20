@@ -167,7 +167,7 @@ Base.union(trs::BravaisSiteMapping, trs2::BravaisSiteMapping) =
 function Base.summary(io::IO, trs::BravaisSiteMapping)
     print(io, "BravaisSiteMapping with $(length(trs.translations)) translations")
 end
-function Base.show(io::IO, mime::MIME"text/plain", trs::BravaisSiteMapping)
+function Base.show(io::IO, ::MIME"text/plain", trs::BravaisSiteMapping)
     if get(io, :showtitle, true)
         print(io, getindent(io))
         summary(io, trs)
@@ -217,7 +217,7 @@ function adapt_bonds(tr::Translation{UndefinedLattice}, l::OnSites{BravaisLattic
 end
 Translation(l::OnSites{BravaisLattice}, R::AbstractVector) = adapt_bonds(Translation(R), l)
 
-function detect_nnhops(uc::UnitCell{Sym, N,NB} where Sym, depth=2) where {N,NB}
+function detect_nnhops(uc::UnitCell{Sym, N,NB} where Sym, depth=2, limit=5) where {N,NB}
     lens = Float64[]
     TranslationT = BravaisTranslation{UndefinedLattice, N}
     translation_lists = Vector{TranslationT}[]
@@ -232,18 +232,14 @@ function detect_nnhops(uc::UnitCell{Sym, N,NB} where Sym, depth=2) where {N,NB}
                 end
                 R = trvectors(uc) * C - basvector(uc, i) + basvector(uc, j)
                 r = norm(R)
-                if isempty(lens)
-                    k = 1
-                    push!(lens, r)
-                    push!(translation_lists, TranslationT[])
-                else
-                    k = findfirst(l -> lens[l] > r || lens[l] ≈ r, eachindex(lens))
-                    k === nothing && continue
-                    if !(lens[k] ≈ r)
-                        insert!(lens, k, r)
-                        insert!(translation_lists, k, TranslationT[])
-                    end
+                k = findfirst(l -> lens[l] > r || lens[l] ≈ r, eachindex(lens))
+                if k === nothing || !(lens[k] ≈ r)
+                    k === nothing && (k = length(lens) + 1)
+                    k > limit && continue
+                    insert!(lens, k, r)
+                    insert!(translation_lists, k, TranslationT[])
                 end
+
                 # if i == j, the bond is valid for all basis indices
                 translation = i == j ? BravaisTranslation(C) : BravaisTranslation(i=>j, C)
                 if !(translation in translation_lists[k])
@@ -256,7 +252,7 @@ function detect_nnhops(uc::UnitCell{Sym, N,NB} where Sym, depth=2) where {N,NB}
 end
 
 function adapt_bonds(::NearestNeighbor{N}, l::BravaisLattice) where N
-    adapt_bonds(detect_nnhops(l.unitcell, 1 + ceil(Int, √N))[2][N], l)
+    adapt_bonds(detect_nnhops(l.unitcell, 1 + ceil(Int, √N), N)[2][N], l)
 end
 NearestNeighbor(l::BravaisLattice, N) = adapt_bonds(NearestNeighbor(N), l)
 

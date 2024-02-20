@@ -182,12 +182,13 @@ function route(bcs::BoundaryConditions, l::AbstractLattice, site::AbstractSite)
     end
     return nothing
 end
+route(::BoundaryConditions{Tuple{}}, ::AbstractLattice, ::AbstractSite) = ()
 
 function resolve_site(l::LatticeWithParams, site::AbstractSite)
     bcs = getboundaries(l)
     tup = route(bcs, l, site)
     tup === nothing && return nothing
-    factor = 1.
+    factor = 1.0 + 0.0im
     new_site = site
     for i in 1:length(tup)
         new_factor, new_site = nshifts_phase(new_site, bcs[i], tup[i])

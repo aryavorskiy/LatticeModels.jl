@@ -28,6 +28,12 @@ function to_matrix(A::SparseMatrixBuilder)
     return SparseMatrixCSC(_mat.m, _mat.n, _mat.colptr, _mat.rowval, to_number.(_mat.nzval))
 end
 
+function Base.sizehint!(A::SparseMatrixBuilder, n::Int)
+    sizehint!(A.Is, n)
+    sizehint!(A.Js, n)
+    sizehint!(A.Vs, n)
+end
+
 Base.@propagate_inbounds function Base.setindex!(A::SparseMatrixBuilder, B::Number, i1::Int, i2::Int; overwrite=true, factor=1)
     # number increment
     push!(A.Is, i1)

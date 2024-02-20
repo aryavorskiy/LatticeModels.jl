@@ -153,6 +153,15 @@ Base.checkbounds(l::AbstractLattice, is) =
 Base.pop!(l::AbstractLattice) = Base.deleteat!(l, lastindex(l))
 Base.popfirst!(l::AbstractLattice) = Base.deleteat!(l, firstindex(l))
 
+function Base.filter!(f::Function, l::AbstractLattice)
+    is = Int[]
+    for (i, site) in enumerate(l)
+        f(site) || push!(is, i)
+    end
+    Base.deleteat!(l, is)
+    return l
+end
+
 sym_to_param_pair(p::Pair{Symbol}) = SitePropertyAlias{p[1]}() => p[2]
 function check_param_pairs(pairs::Tuple{Vararg{Pair}})
     for (prop, _) in pairs
