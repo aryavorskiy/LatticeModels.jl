@@ -81,7 +81,8 @@ function construct_operator(T::Type, sys::System, args...; field=NoField())
     builder = OperatorBuilder(T, sys; field=field, auto_hermitian=true)
     sizehint!(builder.mat_builder, length(sample) * length(args))
     for arg in args
-        add_term!(builder, arg_to_pair(sample, arg))
+        pair = arg_to_pair(sample, arg)
+        iszero(first(pair)) || add_term!(builder, pair)
     end
     Operator(builder)
 end
@@ -91,10 +92,9 @@ construct_hamiltonian(T::Type, sys::System, args...; kw...) =
     Hamiltonian(sys, construct_operator(T, sys, args...; kw...))
 @accepts_system_t construct_hamiltonian
 
-tightbinding_hamiltonian(T::Type, sys::System; t1=1, t2=0, t3=0, field=NoField()) =
-    construct_hamiltonian(T, sys,
+tightbinding_hamiltonian(T::Type, sys::System, args...; t1=1, t2=0, t3=0, field=NoField()) =
+    construct_hamiltonian(T, sys, args...,
         t1 => NearestNeighbor(1),
         t2 => NearestNeighbor(2),
         t3 => NearestNeighbor(3), field=field)
-
 @accepts_system_t tightbinding_hamiltonian
