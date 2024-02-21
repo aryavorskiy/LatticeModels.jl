@@ -25,7 +25,7 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:LatticeValue})
     N = internal_length(builder)
     for i in 1:length(lattice(builder)) # This avoids finding indices of sites
         is = (i - 1) * N + 1:i * N
-        builder.mat_builder[is, is, factor=lv.values[i]] = op
+        builder.mat_builder[is, is, factor=lv.values[i], overwrite=false] = op
     end
 end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:Number})
@@ -34,12 +34,12 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:Number})
     N = internal_length(builder)
     for i in 1:length(lattice(builder)) # This avoids finding indices of sites
         is = (i - 1) * N + 1:i * N
-        builder.mat_builder[is, is, factor=n] = op
+        builder.mat_builder[is, is, factor=n, overwrite=false] = op
     end
 end
 function add_term!(builder::OperatorBuilder, arg::DataOperator)
     # Arbitrary sparse operator
-    increment!(builder.mat_builder.increment_helper, arg.data)
+    increment!(builder.mat_builder, arg.data)
 end
 
 function arg_to_pair(sample::Sample, arg::DataOperator)
@@ -78,7 +78,7 @@ end
 
 function construct_operator(T::Type, sys::System, args...; field=NoField())
     sample = sys.sample
-    builder = OperatorBuilder(T, sys; field=field, auto_hermitian=true)
+    builder = FastOperatorBuilder(T, sys; field=field, auto_hermitian=true)
     sizehint!(builder.mat_builder, length(sample) * length(args))
     for arg in args
         pair = arg_to_pair(sample, arg)

@@ -38,7 +38,7 @@ export System, NParticles, FermiDirac, BoseEinstein, Hamiltonian
 include("operators/magneticfield.jl")
 export GaugeField, LineIntegralGaugeField
 include("operators/builder.jl")
-export OperatorBuilder
+export OperatorBuilder, FastOperatorBuilder
 include("operators/constructoperator.jl")
 export tightbinding_hamiltonian, construct_operator, construct_hamiltonian
 include("operators/manybody.jl")

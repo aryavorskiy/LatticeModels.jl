@@ -20,10 +20,13 @@ struct SparseMatrixBuilder{T}
     size::Tuple{Int,Int}
     Is::Vector{Int}
     Js::Vector{Int}
-    Vs::Vector{ArrayEntry{T}}
-    SparseMatrixBuilder{T}(x::Int, y::Int) where T = new{T}((x, y), Int[], Int[], ArrayEntry{T}[])
+    Vs::Vector{T}
+    SparseMatrixBuilder{T}(x::Int, y::Int) where T = new{T}((x, y), Int[], Int[], T[])
 end
 function to_matrix(A::SparseMatrixBuilder)
+    sparse(A.Is, A.Js, A.Vs, A.size...)
+end
+function to_matrix(A::SparseMatrixBuilder{<:ArrayEntry})
     _mat = sparse(A.Is, A.Js, A.Vs, A.size..., combine_writes)
     return SparseMatrixCSC(_mat.m, _mat.n, _mat.colptr, _mat.rowval, to_number.(_mat.nzval))
 end
@@ -34,11 +37,19 @@ function Base.sizehint!(A::SparseMatrixBuilder, n::Int)
     sizehint!(A.Vs, n)
 end
 
-Base.@propagate_inbounds function Base.setindex!(A::SparseMatrixBuilder, B::Number, i1::Int, i2::Int; overwrite=true, factor=1)
+Base.@propagate_inbounds function Base.setindex!(A::SparseMatrixBuilder{<:ArrayEntry}, B::Number, i1::Int, i2::Int; overwrite=true, factor=1)
     # number increment
     push!(A.Is, i1)
     push!(A.Js, i2)
     push!(A.Vs, ArrayEntry(B * factor, overwrite))
+    return nothing
+end
+Base.@propagate_inbounds function Base.setindex!(A::SparseMatrixBuilder, B::Number, i1::Int, i2::Int; overwrite=true, factor=1)
+    # number increment
+    overwrite && throw(ArgumentError("FastOperatorBuilder does not support overwriting setindex!"))
+    push!(A.Is, i1)
+    push!(A.Js, i2)
+    push!(A.Vs, B * factor)
     return nothing
 end
 Base.@propagate_inbounds function Base.setindex!(A::SparseMatrixBuilder, B::AbstractMatrix,
@@ -84,6 +95,12 @@ end
 
 function OperatorBuilder(T::Type{<:Number}, sys::SystemT;
         field::FieldT=NoField(), auto_hermitian=false) where {SystemT<:System, FieldT<:AbstractField}
+    oneparticle_len = length(onebodybasis(sys))
+    OperatorBuilder{SystemT, FieldT, ArrayEntry{T}}(sys, field, internal_length(sys),
+        SparseMatrixBuilder{ArrayEntry{T}}(oneparticle_len, oneparticle_len), auto_hermitian)
+end
+function FastOperatorBuilder(T::Type{<:Number}, sys::SystemT;
+    field::FieldT=NoField(), auto_hermitian=false) where {SystemT<:System, FieldT<:AbstractField}
     oneparticle_len = length(onebodybasis(sys))
     OperatorBuilder{SystemT, FieldT, T}(sys, field, internal_length(sys),
         SparseMatrixBuilder{T}(oneparticle_len, oneparticle_len), auto_hermitian)
