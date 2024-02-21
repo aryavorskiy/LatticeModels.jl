@@ -57,7 +57,9 @@ include("evolution.jl")
 export @evolution
 
 include("zoo/lattices.jl")
-export SquareLattice, TriangularLattice, HoneycombLattice, KagomeLattice, RoundFlake
+export SquareLattice, TriangularLattice, HoneycombLattice, KagomeLattice
+include("zoo/shapes.jl")
+export fill_shapes, Circle, Polygon, Triangle, Hexagon, GrapheneRibbon
 include("zoo/magneticfields.jl")
 export LandauGauge, SymmetricGauge, PointFlux
 include("zoo/models.jl")

@@ -150,15 +150,15 @@ Base.checkbounds(::Type{Bool}, l::AbstractLattice, is::Union{Int,AbstractVector{
     all(1 .≤ is .≤ length(l))
 Base.checkbounds(l::AbstractLattice, is) =
     !checkbounds(Bool, l, is) && throw(BoundsError(l, is))
-Base.pop!(l::AbstractLattice) = Base.deleteat!(l, lastindex(l))
-Base.popfirst!(l::AbstractLattice) = Base.deleteat!(l, firstindex(l))
+Base.pop!(l::AbstractLattice) = deleteat!(l, lastindex(l))
+Base.popfirst!(l::AbstractLattice) = deleteat!(l, firstindex(l))
 
 function Base.filter!(f::Function, l::AbstractLattice)
     is = Int[]
     for (i, site) in enumerate(l)
         f(site) || push!(is, i)
     end
-    Base.deleteat!(l, is)
+    deleteat!(l, is)
     return l
 end
 

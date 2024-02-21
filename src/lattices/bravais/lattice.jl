@@ -100,6 +100,24 @@ function _sort(r::OrdinalRange)
     return r
 end
 
+function add_bravaispointers!(f, ptrs, unitcell::UnitCell{Sym, N, NB} where Sym,
+        axes::Tuple{Vararg{RangeT}}) where {N, NB}
+    for latcoords in CartesianIndices(reverse(_sort.(axes)))
+        svec = reverse(SVector{N}(Tuple(latcoords)))
+        for i in 1:NB
+            bp = BravaisPointer(svec, i)
+            site = BravaisSite(bp, unitcell)
+            f(site) && push!(ptrs, BravaisPointer(svec, i))
+        end
+    end
+end
+
+function finalize_lattice(lat; boundaries=BoundaryConditions())
+    lat = setboundaries(lat, to_boundaries(boundaries))
+    lat = setnnbonds(lat, getnnbonds(stripparams(lat)))
+    return lat
+end
+
 """
     span_unitcells(unitcell, dims...[; boundaries, offset])
 
@@ -123,19 +141,15 @@ julia> span_unitcells(uc, 3, 3) == SquareLattice(3, 3)
 true
 ```
 """
-function span_unitcells(unitcell::UnitCell{Sym,N,NB}, sz::Vararg{RangeT, N};
-        boundaries=BoundaryConditions(), offset = :origin) where {Sym,N,NB}
+function span_unitcells(f, unitcell::UnitCell{Sym,N,NB}, axes::Vararg{RangeT, N};
+        offset = :origin, kw...) where {Sym,N,NB}
     ptrs = BravaisPointer{N}[]
-    for latcoords in CartesianIndices(reverse(_sort.(sz)))
-        svec = reverse(SVector{N}(Tuple(latcoords)))
-        for i in 1:NB
-            push!(ptrs, BravaisPointer(svec, i))
-        end
-    end
-    b = BravaisLattice(offset_unitcell(unitcell, offset), ptrs)
-    b = setboundaries(b, to_boundaries(boundaries))
-    b = setnnbonds(b, getnnbonds(stripparams(b)))
-    return b
+    new_unitcell = offset_unitcell(unitcell, offset)
+    add_bravaispointers!(f, ptrs, new_unitcell, axes)
+    b = BravaisLattice(new_unitcell, ptrs)
+    return finalize_lattice(b; kw...)
 end
-span_unitcells(uc::UnitCell, sz::Vararg{RangeT}; kw...) =
+span_unitcells(f, uc::UnitCell, sz::Vararg{RangeT}; kw...) =
     throw(ArgumentError("Dimension mismatch: $(dims(uc))-dim unit cell, $(length(sz)) lattice dimensions"))
+@inline alwaystrue(x) = true
+span_unitcells(uc::UnitCell, axes...; kw...) = span_unitcells(alwaystrue, uc, axes...; kw...)
