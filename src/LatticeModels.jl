@@ -17,6 +17,8 @@ include("core/bonds.jl")
 export adjacency_matrix, site_distance, target_sites, SiteDistance, Translation
 include("core/boundaries.jl")
 export BoundaryConditions, PeriodicBoundary, TwistedBoundary, FunctionBoundary
+include("core/sitelookup.jl")
+export addlookuptable
 include("core/latticevalue.jl")
 export LatticeValue, siteproperty_value, coord_value, coord_values, project
 include("core/recipes.jl")

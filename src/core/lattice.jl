@@ -107,7 +107,8 @@ lattice(l::AbstractLattice) = l
 dims(::AbstractLattice{<:AbstractSite{N}}) where {N} = N
 dims(l) = dims(lattice(l))
 Base.size(l::AbstractLattice) = (length(l),)
-site_index(::AbstractLattice, ::NoSite) = nothing
+site_index(::AbstractLattice, ::NoSite, range=nothing) = nothing
+site_index(l::AbstractLattice, site::AbstractSite) = site_index(l, site, eachindex(l))
 Base.getindex(::AbstractLattice, ::Nothing) = NoSite()
 Base.pairs(l::AbstractLattice) = Base.Iterators.Pairs(l, 1:length(l))
 
@@ -301,7 +302,6 @@ Base.length(lw::LatticeWithParams) = length(lw.lat)
 Base.getindex(::LatticeWithParams, ::Nothing) = NoSite()
 Base.getindex(lw::LatticeWithParams, i::Int) = lw.lat[i]
 Base.getindex(lw::LatticeWithParams, is::AbstractVector{Int}) = LatticeWithParams(lw.lat[is], lw.params)
-site_index(lw::LatticeWithParams, site::AbstractSite) = site_index(lw.lat, site)
 site_index(::LatticeWithParams, ::NoSite) = nothing
 
 Base.emptymutable(l::LatticeWithParams, ::Type{T}) where {T <: AbstractSite} =

@@ -163,3 +163,6 @@ Base.:(==)(site1::BravaisSite, site2::BravaisSite) =
     site1.latcoords == site2.latcoords && site1.basindex == site2.basindex && site1.coords == site2.coords
 Base.isless(site1::BravaisSite, site2::BravaisSite) =
     isless(bravaispointer(site1), bravaispointer(site2))
+
+sitekey(site::BravaisSite) = site.latcoords[1]
+secondarykey(site::BravaisSite{2}) = site.basindex + site.latcoords[2] * length(site.unitcell)
