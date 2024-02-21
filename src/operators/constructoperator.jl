@@ -19,6 +19,32 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:AbstractBonds})
         builder[s1, s2] += op
     end
 end
+function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:AbstractTranslation})
+    # Hopping term: optimization for translations
+    op, tr = arg
+    lat = lattice(builder)
+    for i in 1:length(lat)
+        site = lat[i]
+        s1 = ResolvedSite(site, i)
+        site2 = destination(tr, site)
+        s2 = resolve_site(lat, site2)
+        s2 !== nothing && (builder[s1, s2] += op)
+    end
+end
+function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:BravaisSiteMapping})
+    # Hopping term
+    op, bonds = arg
+    lat = lattice(builder)
+    for i in 1:length(lat)
+        site = lat[i]
+        s1 = ResolvedSite(site, i)
+        for tr in bonds.translations
+            site2 = destination(tr, site)
+            s2 = resolve_site(lat, site2)
+            s2 !== nothing && (builder[s1, s2] += op)
+        end
+    end
+end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:LatticeValue})
     # Diagonal operator
     op, lv = arg
