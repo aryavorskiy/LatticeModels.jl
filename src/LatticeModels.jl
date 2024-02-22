@@ -68,7 +68,7 @@ export LandauGauge, SymmetricGauge, PointFlux
 include("zoo/models.jl")
 export hubbard, bosehubbard, fermihubbard, qwz, haldane, kanemele
 include("zoo/currents.jl")
-export DensityCurrents, OperatorCurrents
+export DensityCurrents, LocalOperatorCurrents
 
 using Logging
 try

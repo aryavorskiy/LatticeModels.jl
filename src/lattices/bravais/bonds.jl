@@ -176,6 +176,7 @@ function Base.show(io::IO, ::MIME"text/plain", trs::BravaisSiteMapping)
         io = addindent(io)
     end
     if requires_compact(io)
+        get(io, :showtitle, true) || print(io, getindent(io))
         return print(io, "($(fmtnum(trs.translations, "translation")) not shown)")
     else
         for i in 1:length(trs.translations)

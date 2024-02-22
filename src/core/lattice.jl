@@ -14,9 +14,9 @@ Base.iterate(site::AbstractSite{N}, i=1) where N = i > N ? nothing : (site.coord
 
 function Base.show(io::IO, ::MIME"text/plain", site::AbstractSite{N}) where N
     if site in get(io, :SHOWN_SET, ())
-        print(io, "$(site.coords)")
+        print(io, site.coords)
     else
-        print(io, N, "-dim ", typeof(site), " @ x = $(site.coords)")
+        print(io, N, "-dim ", typeof(site), " at $(site.coords)")
     end
 end
 
@@ -119,11 +119,15 @@ function Base.show(io::IO, mime::MIME"text/plain", l::AbstractLattice)
     if !requires_compact(io) && length(l) > 0
         io = IOContext(io, :compact => true)
         print(io, ":")
-        for i in 1:min(length(l), 10)
+        maxlen = get(io, :maxlines, 10)
+        for i in 1:min(length(l), maxlen)
             print(io, "\n  ")
-            show(io, mime, l[i])
+            if i == maxlen < length(l)
+                print(io, "  ⋮")
+            else
+                show(io, mime, l[i])
+            end
         end
-        length(l) > 10 && print(io, "\n  ⋮")
     end
 end
 
@@ -310,14 +314,17 @@ Base.copymutable(lw::LatticeWithParams) = LatticeWithParams(copymutable(lw.lat),
 Base.deleteat!(lw::LatticeWithParams, is) = (deleteat!(lw.lat, is); return lw)
 Base.push!(lw::LatticeWithParams, site) = (push!(lw.lat, site); return lw)
 
+Base.show(io::IO, ::Type{<:LatticeWithParams{LT, ParamsT}}) where {LT, ParamsT} =
+    print(io, "LatticeWithParams{", LT, ", params", fieldnames(ParamsT), "}")
+
 Base.summary(io::IO, lw::LatticeWithParams) = summary(io, lw.lat)
 function Base.show(io::IO, mime::MIME"text/plain", lw::LatticeWithParams)
+    io = IOContext(io, :maxlines=>4)
     if requires_compact(io)
         print(io, "Wrapped ")
         return show(io, mime, lw.lat)
     end
     show(io, mime, lw.lat)
-    io = IOContext(io, :showtitle => false, :maxlines=>4)
     for v in values(lw.params)
         println(io)
         show(io, mime, v)

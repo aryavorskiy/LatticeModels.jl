@@ -106,14 +106,25 @@ function FastOperatorBuilder(T::Type{<:Number}, sys::SystemT;
         SparseMatrixBuilder{T}(oneparticle_len, oneparticle_len), auto_hermitian)
 end
 @accepts_system_t OperatorBuilder
+@accepts_system_t FastOperatorBuilder
 
 sample(opb::OperatorBuilder) = sample(opb.sys)
 const OpBuilderWithInternal = OperatorBuilder{<:System{<:SampleWithInternal}}
 const OpBuilderWithoutInternal = OperatorBuilder{<:System{<:SampleWithoutInternal}}
 
+function Base.show(io::IO, mime::MIME"text/plain", opb::OperatorBuilder{Sys,Field,T}) where {Sys,Field,T}
+    print(io, "OperatorBuilder(",
+    opb.field == NoField() ? "" : "field=$(opb.field), ",
+    "auto_hermitian=$(opb.auto_hermitian))\nSystem: ")
+    show(io, mime, opb.sys)
+    if !(T<:ArrayEntry)
+        print(io, "\nOnly increment/decrement assignments allowed")
+    end
+end
+
 _internal_one_mat(sample::SampleWithInternal) = internal_one(sample).data
 _internal_one_mat(::SampleWithoutInternal) = SMatrix{1,1}(1)
-op_to_matrix(sample::SampleWithoutInternal, n::Number) = n * _internal_one_mat(sample)
+op_to_matrix(sample::Sample, n::Number) = n * _internal_one_mat(sample)
 function op_to_matrix(sample::SampleWithInternal, op::DataOperator)
     @boundscheck QuantumOpticsBase.check_samebases(basis(op), internal_basis(sample))
     return op.data

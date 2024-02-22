@@ -66,12 +66,12 @@
 
     @testset "Operator currents" begin
         gs_curr = DensityCurrents(H_1, gs) |> Currents
-        new_gs_curr = OperatorCurrents(H_1, gs, [1 0; 0 1]) |> Currents
+        new_gs_curr = LocalOperatorCurrents(H_1, gs, [1 0; 0 1]) |> Currents
         @test new_gs_curr ≈ gs_curr
 
-        spinup_curr = OperatorCurrents(H_1, gs, [1 0; 0 0]) |> Currents
-        spindown_curr = OperatorCurrents(H_1, gs, [0 0; 0 1]) |> Currents
-        spin_curr = OperatorCurrents(H_1, gs, [1 0; 0 -1]) |> Currents
+        spinup_curr = LocalOperatorCurrents(H_1, gs, [1 0; 0 0]) |> Currents
+        spindown_curr = LocalOperatorCurrents(H_1, gs, [0 0; 0 1]) |> Currents
+        spin_curr = LocalOperatorCurrents(H_1, gs, [1 0; 0 -1]) |> Currents
 
         @test spinup_curr + spindown_curr ≈ gs_curr
         @test spinup_curr - spindown_curr ≈ spin_curr
@@ -83,7 +83,7 @@
         spin_dt = gs' * im * (H_1 * spin_op - spin_op * H_1) * gs
         @test currents_from_to(spin_curr, site) ≈ spin_dt
 
-        mb_spin_curr = OperatorCurrents(H2_1, gs2, [1 0; 0 -1]) |> Currents
+        mb_spin_curr = LocalOperatorCurrents(H2_1, gs2, [1 0; 0 -1]) |> Currents
         mb_spin_op = manybodyoperator(sys, spin_op)
         mb_spin_dt = gs2' * im * (H2_1 * mb_spin_op - mb_spin_op * H2_1) * gs2
         @test currents_from_to(mb_spin_curr, site) ≈ mb_spin_dt

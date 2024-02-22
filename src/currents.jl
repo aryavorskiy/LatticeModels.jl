@@ -16,6 +16,15 @@ lattice(curr::AbstractCurrents) = error("lattice(::$(typeof(curr))) must be expl
 
 Base.getindex(curr::AbstractCurrents, s1::AbstractSite, s2::AbstractSite) =
     curr[site_index(lattice(curr), s1), site_index(lattice(curr), s2)]
+Base.getindex(curr::AbstractCurrents, s1::ResolvedSite, s2::ResolvedSite) =
+    curr[s1.index, s2.index]
+
+function Base.show(io::IO, mime::MIME"text/plain", curr::AbstractCurrents)
+    summary(io, curr)
+    print(io, " on ")
+    io = IOContext(io, :compact => true)
+    show(io, mime, lattice(curr))
+end
 
 @inline iszerocurrent(::AbstractCurrents, i::Int, j::Int) = false
 @inline iszerocurrent(curr::AbstractCurrents, s1::AbstractSite, s2::AbstractSite) =
@@ -69,6 +78,11 @@ function Base.getindex(curr::AbstractCurrents, lvm::LatticeValue{Bool})
     SubCurrents(curr, indices)
 end
 
+function Base.summary(io::IO, scurr::SubCurrents)
+    print(io, "SubCurrents of ")
+    summary(io, scurr.parent_currents)
+end
+
 function _site_indices(l::AbstractLattice, l2::AbstractLattice)
     check_issublattice(l2, l)
     return [site_index(l, site) for site in l2]
@@ -108,7 +122,6 @@ Base.copy(mc::Currents) = Currents(lattice(mc), copy(mc.currents))
 Base.zero(mc::Currents) = Currents(lattice(mc), zero(mc.currents))
 lattice(mcurr::Currents) = mcurr.lattice
 
-
 Base.:(==)(c1::Currents, c2::Currents) =
     c1.lattice == c2.lattice && c1.currents == c2.currents
 Base.isapprox(c1::Currents, c2::Currents; kw...) =
@@ -136,6 +149,8 @@ function Base.getindex(curr::Currents, lvm::LatticeValue{Bool})
     indices = findall(lvm.values)
     Currents(curr.lattice[lvm], curr.currents[indices, indices])
 end
+
+Base.summary(io::IO, ::Currents{T}) where T = print(io, "Currents{", T, "}")
 
 for f in (:+, :-)
     @eval function ($f)(curr::Currents, curr2::Currents)

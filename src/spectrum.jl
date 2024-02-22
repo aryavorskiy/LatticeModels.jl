@@ -35,6 +35,26 @@ Eigensystem(ham_eig::HamiltonianEigensystem) =
     Eigensystem(ham_eig.basis, ham_eig.states, ham_eig.values)
 QuantumOpticsBase.basis(eig::AbstractEigensystem) = eig.basis
 
+function diagonalize_routine(op::DataOperator, ::Val{:lapack}; warning=true)
+    v = size(op.data, 1)
+    v > 10000 && warning &&
+        @warn """$v×$v dense operator is too large for exact diagonalization; consider making is sparse with `sparse(op)`.
+    Set `warning=false` to disable this warning."""
+    vals, vecs = eigen(op.data)
+    Eigensystem(basis(op), vecs, vals)
+end
+function diagonalize_routine(op::DataOperator, ::Val{:krylovkit};
+        n=10, v0=rand(ComplexF64, size(op.data, 1)), warning=true, kw...)
+    v = size(op.data, 1)
+    v < 1000 && warning &&
+        @warn """$v×$v sparse operator can be diagonalized exactly; consider making is dense with `dense(op)`.
+    Set `warning=false` to disable this warning."""
+    vals, vecs = eigsolve(op.data, v0, n, :SR, kw...)
+    Eigensystem(basis(op), hcat(vecs...), vals)
+end
+diagonalize_routine(::DataOperator, ::Val{Routine}) where Routine =
+    error("Unsupported diagonalization routine $Routine")
+
 """
     diagonalize(op::DataOperator[, routine; params...])
 
@@ -46,42 +66,25 @@ Two routines are available:
     Accepts following parameters:
     - `v0` is the starting vector. Default is `rand(ComplexF64, size(op.data, 1))`.
     - `n` is the target number of eigenvectors. Default is 10.
-    Remaining keyword arguments are passed to the `eigsolve` function.
+    Remaining keyword arguments are passed to the `KrylovKit.eigsolve` function. See its documentation for details.
 
 The default routine is `:lapack` for dense operators. If the operator matrix is less than
-3000×3000, it is automatically converted to a dense operator. In other cases `:krylovkit`
+5000×5000, it is automatically converted to a dense operator. In other cases `:krylovkit`
 is used.
 """
-function diagonalize(op::DataOperator, ::Val{:lapack}; warning=true)
-    v = size(op.data, 1)
-    v > 10000 && warning &&
-        @warn """$v×$v dense operator is too large for exact diagonalization; consider making is sparse with `sparse(op)`.
-    Set `warning=false` to disable this warning."""
-    vals, vecs = eigen(op.data)
-    Eigensystem(basis(op), vecs, vals)
-end
-function diagonalize(op::DataOperator, ::Val{:krylovkit};
-        n=10, v0=rand(ComplexF64, size(op.data, 1)), warning=true, kw...)
-    v = size(op.data, 1)
-    v < 1000 && warning &&
-        @warn """$v×$v sparse operator can be diagonalized exactly; consider making is dense with `dense(op)`.
-    Set `warning=false` to disable this warning."""
-    vals, vecs = eigsolve(op.data, v0, n, :SR, kw...)
-    Eigensystem(basis(op), hcat(vecs...), vals)
-end
-diagonalize(::DataOperator, ::Val{Routine}) where Routine =
-    error("Unsupported diagonalization routine $Routine")
-diagonalize(op::DataOperator, routine::Symbol; kw...) =
-    diagonalize(op, Val(routine); kw...)
-function diagonalize(ham::Hamiltonian, routine; kw...)
-    eig = diagonalize(Operator(ham), routine; kw...)
+function diagonalize(ham::Hamiltonian, routine::Val; kw...)
+    eig = diagonalize_routine(Operator(ham), routine; kw...)
     HamiltonianEigensystem(ham.sys, eig.basis, eig.states, eig.values)
 end
+diagonalize(op::DataOperator, routine::Val; kw...) =
+    diagonalize_routine(op, routine; kw...)
+diagonalize(op::DataOperator, routine::Symbol; kw...) =
+    diagonalize_routine(op, Val(routine); kw...)
 diagonalize(op::DataOperator; kw...) =
     diagonalize(find_routine(op)...; kw...)
 find_routine(op::DenseOpType) = op, Val(:lapack)
 find_routine(op::DataOperator) =
-    size(op.data, 1) > 3000 ? (op, Val(:krylovkit)) : (dense(op), Val(:lapack))
+    size(op.data, 1) > 5000 ? (op, Val(:krylovkit)) : (dense(op), Val(:lapack))
 
 
 Base.length(eig::AbstractEigensystem) = length(eig.values)
@@ -92,9 +95,16 @@ Base.getindex(eig::AbstractEigensystem, mask) =
     Eigensystem(eig.basis, eig.states[:, mask], eig.values[mask])
 sample(eig::AbstractEigensystem) = sample(eig.basis)
 
-function Base.show(io::IO, ::MIME"text/plain", eig::AbstractEigensystem)
-    println(io, "Eigensystem with ", fmtnum(eig, "eigenvector"))
+function Base.show(io::IO, ::MIME"text/plain", eig::Eigensystem)
+    println(io, "Eigensystem (", fmtnum(eig, "eigenvector"), ")")
+    requires_compact(io) && return
     println(io, "Eigenvalues in range $(minimum(eig.values)) .. $(maximum(eig.values))")
+end
+function Base.show(io::IO, mime::MIME"text/plain", eig::HamiltonianEigensystem)
+    println(io, "Diagonalized hamiltonian (", fmtnum(eig, "eigenvector"), ")")
+    requires_compact(io) && return
+    print(io, "Energies in range $(minimum(eig.values)) .. $(maximum(eig.values))\nSystem: ")
+    show(io, mime, eig.sys)
 end
 
 groundstate(eig::HamiltonianEigensystem) = eig[1]

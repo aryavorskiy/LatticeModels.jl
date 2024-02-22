@@ -85,13 +85,18 @@ function Base.getindex(curr::DensityCurrents, i::Int, j::Int)
     return outp_cur
 end
 
-struct OperatorCurrents{HT, ST, OT} <: AbstractCurrents
+function Base.show(io::IO, mime::MIME"text/plain", curr::DensityCurrents)
+    println(io, "Density currents for system:")
+    show(io, mime, curr.hamiltonian.sys)
+end
+
+struct LocalOperatorCurrents{HT, ST, OT} <: AbstractCurrents
     hamiltonian::HT
     state::ST
     op::OT
 
     """
-    LocalOperatorCurrents(hamiltonian, state, op)
+        LocalOperatorCurrents(hamiltonian, state, op)
 
     Constructs a `DensityCurrents` object for given `hamiltonian` and `state`.
 
@@ -100,34 +105,29 @@ struct OperatorCurrents{HT, ST, OT} <: AbstractCurrents
     - `state`: A `Ket` or `Bra` representing the wavefunction or an `Operator` representing the density matrix.
     - `op`: A local (on-site) operator; either an `Operator` or a matrix of such.
     """
-    function OperatorCurrents(ham::HT, state::ST, op::OT; check_commutator=true) where {HT<:AbstractLatticeOperator, ST<:StateType, OT<:DataOperator}
+    function LocalOperatorCurrents(ham::HT, state::ST, op::OT; check_commutator=true) where {HT<:AbstractLatticeOperator, ST<:StateType, OT<:DataOperator}
         !hasinternal(ham) && throw(ArgumentError("System expected to have internal degrees of freedom"))
         check_samebases(basis(ham), basis(state))
-        if basis(ham) == basis(op)
-            if check_commutator
-                comm = ham * op - op * ham
-                isapprox(comm.data, zero(comm).data, atol=1e-10) || @warn "The operator must commute with the Hamiltonian"
-            end
+        if internal_basis(ham) == basis(op)
             return new{HT, ST, OT}(ham, state, op)
-        elseif hasinternal(ham) && internal_basis(ham) == basis(op)
-            return new{HT, ST, OT}(ham, state, op)
+        else
+            throw(ArgumentError("Operator must be defined on the internal basis of the Hamiltonian."))
         end
     end
 end
-function OperatorCurrents(ham, state, op::AbstractMatrix)
+function LocalOperatorCurrents(ham, state, op::AbstractMatrix)
     !hasinternal(ham) && throw(ArgumentError("System expected to have internal degrees of freedom"))
-    new_op = Operator(internal_basis(ham), op)
-    return OperatorCurrents(ham, state, new_op)
+    le = internal_length(ham)
+    @check_size op (le, le)
+    return LocalOperatorCurrents(ham, state, Operator(internal_basis(ham), op))
 end
 
-_op_diag_block(op::DataOperator, _) = op.data
-_op_diag_block(op::AbstractLatticeOperator, i) = _block(op, i, i)
-lattice(curr::OperatorCurrents) = lattice(curr.hamiltonian)
-function Base.getindex(curr::OperatorCurrents, i::Int, j::Int)
+lattice(curr::LocalOperatorCurrents) = lattice(curr.hamiltonian)
+function Base.getindex(curr::LocalOperatorCurrents, i::Int, j::Int)
     outp_cur = 0.
     N = internal_length(curr.hamiltonian)
     T = _block(curr.hamiltonian, i, j)
-    O = _op_diag_block(curr.op, i)
+    O = curr.op.data
     for α in 1:N, β in 1:N
         i′ = α + (i - 1) * N
         j′ = β + (j - 1) * N
@@ -135,4 +135,13 @@ function Base.getindex(curr::OperatorCurrents, i::Int, j::Int)
         outp_cur += 2 * imag(OT_αβ * _avg(curr.state, i′, j′))
     end
     return outp_cur
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", curr::LocalOperatorCurrents)
+    print(io, "Currents of Operator(")
+    show(io, mime, basis(curr.op))
+    println(io, ")")
+    Base.print_array(io, curr.op.data)
+    println(io, "\nFor system:")
+    show(io, mime, curr.hamiltonian.sys)
 end

@@ -44,11 +44,16 @@ Base.length(tseq::TimeSequence) = length(timestamps(tseq))
 
 function Base.show(io::IO, ::MIME"text/plain", tseq::TimeSequence{ET}) where ET
     print(io, "TimeSequence{$ET} with ", fmtnum(tseq, "entr", "y", "ies"))
-    td = timestamps(tseq)
-    if length(td) ≥ 2
-        print(io, "\nTimestamps in range $(timerange(tseq))")
-    elseif length(td) == 1
-        print(io, "\nTimestamp: $(only(td))")
+    requires_compact(io) && return
+    length(td) ≥ 2 && print(io, "\nTimestamps in range $(timerange(tseq)):")
+    maxlen = get(io, :maxlines, 10)
+    for i in 1:min(length(tseq), maxlen)
+        print(io, "\n")
+        if i == maxlen < length(l)
+            print(io, "  ⋮")
+        else
+            print(io, "  $(tseq.times[i]) => $(tseq.values[i])")
+        end
     end
 end
 

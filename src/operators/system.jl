@@ -96,7 +96,7 @@ function Base.show(io::IO, mime::MIME"text/plain", sys::OneParticleBasisSystem)
     if sys isa OneParticleSystem
         print(io, "One particle on ")
     elseif sys isa FixedN
-        print(io, "$(sys.nparticles) non-interacting particles on ")
+        print(io, fmtnum(sys.nparticles, "non-interacting particles"), " on ")
     elseif sys isa FixedMu
         print(io, "Non-interactng particles with fixed μ=",
             trunc(sys.chempotential, digits=2), " on ")
@@ -140,8 +140,8 @@ NParticles(onep::OneParticleSystem, n; kw...) = NParticles(onep.sample, n;
     T = onep.T, kw...)
 NParticles(l::AbstractLattice, n; kw...) = NParticles(Sample(l, nothing), n; kw...)
 function Base.show(io::IO, mime::MIME"text/plain", sys::NParticles)
-    noun = "interacting" * (sys.statistics == FermiDirac ? "fermion" : "boson")
-    print(io, fmtnum(sys.nparticles, noun), " on ")
+    noun = sys.statistics == FermiDirac ? "fermion" : "boson"
+    print(io, "NParticles(", fmtnum(sys.nparticles, noun), ") on ")
     show(io, mime, sys.sample)
 end
 
@@ -222,9 +222,9 @@ sample(ham::Hamiltonian) = sample(ham.sys)
 Base.:(*)(op::Operator{B1, B2}, ham::Hamiltonian{Sys, B2}) where {Sys, B1, B2} = op * Operator(ham)
 Base.:(*)(ham::Hamiltonian{Sys, B2}, op::Operator{B1, B2}) where {Sys, B1, B2} = Operator(ham) * op
 Base.:(+)(op::Operator{B, B}, ham::Hamiltonian{Sys, B}) where {Sys, B} = op + Operator(ham)
-Base.:(+)(ham::Hamiltonian{Sys, B}, op::DataOperator{B, B}) where {Sys, B} = Operator(ham) + op
+Base.:(+)(ham::Hamiltonian{Sys, B}, op::Operator{B, B}) where {Sys, B} = Operator(ham) + op
 Base.:(-)(op::Operator{B, B}, ham::Hamiltonian{Sys, B}) where {Sys, B} = op - Operator(ham)
-Base.:(-)(ham::Hamiltonian{Sys, B}, op::DataOperator{B, B}) where {Sys, B} = Operator(ham) - op
+Base.:(-)(ham::Hamiltonian{Sys, B}, op::Operator{B, B}) where {Sys, B} = Operator(ham) - op
 
 function Base.:(+)(ham::Hamiltonian{Sys, B}, ham2::Hamiltonian{Sys, B}) where {Sys, B}
     @assert ham.sys == ham2.sys
@@ -233,4 +233,17 @@ end
 function Base.:(-)(ham::Hamiltonian{Sys, B}, ham2::Hamiltonian{Sys, B}) where {Sys, B}
     @assert ham.sys == ham2.sys
     return Hamiltonian(ham.sys, Operator(ham) - Operator(ham2))
+end
+
+QuantumOpticsBase.dense(ham::Hamiltonian) = Hamiltonian(ham.sys, dense(Operator(ham)))
+QuantumOpticsBase.sparse(ham::Hamiltonian) = Hamiltonian(ham.sys, sparse(Operator(ham)))
+
+Base.summary(io::IO, ham::Hamiltonian) =
+    print(io, "Hamiltonian(dim=", length(ham.basis_l), "x", length(ham.basis_r), ")")
+function Base.show(io::IO, mime::MIME"text/plain", ham::Hamiltonian)
+    summary(io, ham)
+    print(io, "\nSystem: ")
+    show(io, mime, ham.sys)
+    print(io, "\n")
+    show(io, mime, ham.data)
 end

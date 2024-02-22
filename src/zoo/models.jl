@@ -3,8 +3,9 @@ function hubbard(T::Type, sys::NParticles; U::Real=0, kw...)
         @warn """Fermi-Dirac statistic with no internal degrees of freedom.
         No Hubbard interaction is possible."""
     end
-    tightbinding_hamiltonian(T, sys; kw...) +
-    interaction((site1, site2) -> (site1 == site2 ? U : zero(U)), T, sys)
+    op = tightbinding_hamiltonian(T, sys; kw...) +
+        interaction((site1, site2) -> (site1 == site2 ? U : zero(U)), T, sys)
+    Hamiltonian(sys, op)
 end
 @doc raw"""
     bosehubbard([type, ]lattice, N[; T, t1, t2, t3, field])

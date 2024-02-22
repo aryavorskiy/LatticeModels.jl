@@ -151,7 +151,7 @@ function Base.show(io::IO, mime::MIME"text/plain", am::AdjacencyMatrix)
     print(io, indent, "Adjacency matrix on ")
     summary(io, am.lat)
     requires_compact(io) && return
-    print(io, "\nValues in a ")
+    print(io, "\n", indent, "Values in a ")
     show(io, mime, am.mat)
 end
 
@@ -309,7 +309,7 @@ end
 function Base.show(io::IO, mime::MIME"text/plain", dnn::DefaultNNBonds)
     indent = getindent(io)
     print(io, indent, "Nearest neighbor hoppings:")
-    io = addindent(io, 2)
+    io = addindent(io, 2, :showtitle => false)
     for i in 1:length(dnn.dists)
         println(io, "\n", indent, @sprintf("%9.5f", dnn.dists[i]), " =>")
         show(io, mime, dnn.nnbonds[i])

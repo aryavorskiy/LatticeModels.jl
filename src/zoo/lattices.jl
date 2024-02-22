@@ -50,32 +50,41 @@ macro bravaisdef(type, expr)
         unitcell_construct = expr.args[2]
         unitcell_construct_signature =
             :(LatticeModels.construct_unitcell(::Type{$type_expr}) where $N_sym)
-        lattice_constructor = quote
+        constructor_and_show = quote
             LatticeModels.construct_unitcell(::Type{$type}) =
-                throw(ArgumentError("Unknown dimensionality for $type; Try using $type{N}"))
+                throw(ArgumentError("Unknown dimensionality for " * $(string(type)) *
+                    "; Try using " * $(string(type)) * "{N}"))
             function $type(sz::Vararg{LatticeModels.RangeT,$N_sym}; kw...) where $N_sym
                 return LatticeModels.span_unitcells(
                     LatticeModels.construct_unitcell($type_expr), sz...; kw...)
             end
+            Base.show(io::IO, ::Type{<:$type_expr}) where $N_sym =
+                print(io, $(string(type)), "{", $N_sym, "}")
         end
     else
-        type_expr = type
-        type_def = :(const $type_expr = LatticeModels.BravaisLattice{N,
+        type_def = :(const $type = LatticeModels.BravaisLattice{N,
             <:LatticeModels.UnitCell{$(QuoteNode(type))}} where N)
         unitcell_construct = expr
-        unitcell_construct_signature = :(LatticeModels.construct_unitcell(::Type{$type_expr}))
-        lattice_constructor = quote
+        unitcell_construct_signature = :(LatticeModels.construct_unitcell(::Type{$type}))
+        constructor_and_show = quote
             function $type(sz::Vararg{LatticeModels.RangeT}; kw...)
                 return LatticeModels.span_unitcells(
-                    LatticeModels.construct_unitcell($type_expr), sz...; kw...)
+                    LatticeModels.construct_unitcell($type), sz...; kw...)
             end
+            Base.show(io::IO, ::Type{<:$type}) = print(io, $(string(type)))
         end
     end
     _add_parameter_to_call!(unitcell_construct, type)
     return quote
         Core.@__doc__ $type_def
         $(Expr(:function, unitcell_construct_signature, unitcell_construct))
-        $lattice_constructor
+        $constructor_and_show
+        function Base.show(io::IO, ::MIME"text/plain", T::Type{<:$type})
+            show(io, T)
+            print(io, " (actually, ")
+            Base._show_type(io, Base.inferencebarrier(T))
+            print(io, ")")
+        end
     end |> esc
 end
 function (::Type{T})(f::Function, args...; kw...) where T<:BravaisLattice
