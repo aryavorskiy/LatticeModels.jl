@@ -12,21 +12,22 @@ Set them to `nothing` to disable usage.
 """
 struct LookupTable
     firstkey::Int
-    indranges::Vector{UnitRange{Int}}
+    strides::Vector{UnitRange{Int}}
     secondarykeyranges::Vector{UnitRange{Int}}
 end
 
-function sitekey end
+sitekey(site::AbstractSite) =
+    throw(ArgumentError("Cannot build a lookup table for site type `$(typeof(site))`"))
 secondarykey(::AbstractSite) = nothing
 function indrange(lt::LookupTable, site::AbstractSite)
     j = sitekey(site) - lt.firstkey + 1
-    1 ≤ j ≤ length(lt.indranges) || return 1:0
-    @inbounds irange = lt.indranges[j]
-    isempty(lt.secondarykeyranges) && return irange
+    1 ≤ j ≤ length(lt.strides) || return 1:0
+    @inbounds range = lt.strides[j]
+    isempty(lt.secondarykeyranges) && return range
     @inbounds skrange = lt.secondarykeyranges[j]
     seckey = secondarykey(site)
-    start = max(irange.start, irange.stop + seckey - skrange.stop)
-    stop = min(irange.stop, seckey - skrange.start + irange.start)
+    start = max(range.start, range.stop + seckey - skrange.stop)
+    stop = min(range.stop, seckey - skrange.start + range.start)
     return start:stop
 end
 
@@ -72,7 +73,7 @@ function LookupTable(lat::AbstractLattice)
 end
 
 function Base.show(io::IO, ::MIME"text/plain", lt::LookupTable)
-    print(io, "Lookup table: ", last(lt.indranges).stop, " sites, ", length(lt.indranges), " batches",
+    print(io, "Lookup table: ", last(lt.strides).stop, " sites, ", length(lt.strides), " strides",
         isempty(lt.secondarykeyranges) ? "" : ", secondary keys enabled")
 end
 
