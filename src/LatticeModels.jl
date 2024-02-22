@@ -10,14 +10,14 @@ end
 
 const Nullable{T} = Union{Nothing,T}
 
-include("core/sarrayutils.jl")
+include("core/utils.jl")
 include("core/lattice.jl")
 export lattice, sublattice, site_index, Coord
 include("core/bonds.jl")
 export adjacency_matrix, site_distance, target_sites, SiteDistance, Translation
 include("core/boundaries.jl")
 export BoundaryConditions, PeriodicBoundary, TwistedBoundary, FunctionBoundary
-include("core/sitelookup.jl")
+include("core/lookuptable.jl")
 export addlookuptable
 include("core/latticevalue.jl")
 export LatticeValue, siteproperty_value, coord_value, coord_values, project
@@ -61,7 +61,8 @@ export @evolution
 include("zoo/lattices.jl")
 export SquareLattice, TriangularLattice, HoneycombLattice, KagomeLattice
 include("zoo/shapes.jl")
-export fill_shapes, Circle, Polygon, Triangle, Hexagon, GrapheneRibbon
+export shape_radius, fill_shapes, GrapheneRibbon,
+    BallND, Circle, Ball, Polygon, Triangle, Square, Hexagon, GrapheneRibbon
 include("zoo/magneticfields.jl")
 export LandauGauge, SymmetricGauge, PointFlux
 include("zoo/models.jl")

@@ -32,16 +32,41 @@ function bounding_region(uc::UnitCell, shape::AbstractShape)
         for i in eachindex(mds))
 end
 
+"""
+    shape_radius(unitcell, shape, sites)
+    shape_radius(lattice, shape)
+
+Calculate the radius of a shape such that it contains appriximately `sites` sites.
+
+## Arguments
+- `unitcell`: The `UnitCell` of the lattice. Might also be a lattice type.
+- `lattice`: The lattice. It is considered that the lattice was constructed in the same shape.
+- `shape`: The shape to calculate the radius for.
+- `sites`: The number of sites the shape should contain.
+"""
+function shape_radius(uc::UnitCell, shape::AbstractShape, sites::Int)
+    n_estimate = volume(shape) * length(uc) / det(unitvectors(uc))
+    scale_factor = (sites / n_estimate) ^ (1 / dims(uc))
+    return shape.radius * scale_factor
+end
+shape_radius(LT::Type{<:BravaisLattice}, shape::AbstractShape, sites::Int) =
+    shape_radius(construct_unitcell(LT), shape, sites)
+shape_radius(lat::OnSites{BravaisLattice}, shape::AbstractShape) =
+    shape_radius(lat.unitcell, shape, length(lat))
+
 function fill_shapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...; sites::Nullable{Int}=nothing, kw...) where N
     bps = BravaisPointer{N}[]
     if sites === nothing
         new_shapes = shapes
     else
         n_estimate = sum(volume, shapes) * length(uc) / det(unitvectors(uc))
+        n_estimate == 0 && throw(ArgumentError("Cannot rescale shapes with zero volume"))
         scale_factor = (sites / n_estimate) ^ (1 / dims(uc))
         new_shapes = scale.(shapes, scale_factor)
     end
     for shape in new_shapes
+        dims(shape) != N &&
+            throw(ArgumentError("$(dims(shape))-dim $(typeof(shape)) incompatible with $N-dim lattice"))
         add_bravaispointers!(site -> inshape(shape, site), bps, uc, bounding_region(uc, shape))
     end
     b = BravaisLattice(uc, bps)
@@ -53,20 +78,39 @@ fill_shapes(::Type{LT}, shapes::AbstractShape...; kw...) where LT<:BravaisLattic
 (::Type{LT})(shapes::AbstractShape...; kw...) where LT<:BravaisLattice =
     fill_shapes(construct_unitcell(LT), shapes...; kw...)
 
-struct Circle{N} <: AbstractShape{N}
+"""
+    BallND{N}(radius, center)
+
+Represents a `N`-dimensional ball with a given radius and center.
+
+Note the aliases: `Circle` and `Ball` are `BallND{2}` and `BallND{3}` respectively.
+"""
+struct BallND{N} <: AbstractShape{N}
     radius::Float64
     center::SVector{N, Float64}
-    Circle(radius::Real, center::AbstractVector{<:Real}=zero(SVector{2})) =
+    function BallND{N}(radius::Real, center::AbstractVector{<:Real}=zero(SVector{N})) where N
+        @check_size center N
         new{length(center)}(radius, center)
+    end
 end
-Circle(center::AbstractVector{<:Real}=zero(SVector{2})) = Circle(1, center)
-function circumscribed_sphere(uc::UnitCell, f::Circle)
+BallND{N}(center::AbstractVector{<:Real}=zero(SVector{N})) where N = BallND{N}(1, center)
+function circumscribed_sphere(uc::UnitCell, f::BallND)
     return f.radius, add_assuming_zeros(zero(SVector{dims(uc)}), f.center)
 end
-scale(f::Circle, c) = Circle(c * f.radius, c * f.center)
-volume(f::Circle{N}) where N = ndvol(dims(f)) * f.radius^N
-inshape(f::Circle, site) = sum(abs2, add_assuming_zeros(site.coords, -f.center)) ≤ f.radius^2
+scale(f::BallND{N}, c) where N = BallND{N}(c * f.radius, c * f.center)
+volume(f::BallND{N}) where N = ndvol(dims(f)) * f.radius^N
+inshape(f::BallND, site) = sum(abs2, site.coords - f.center) ≤ f.radius^2
 
+const Circle = BallND{2}
+const Ball = BallND{3}
+
+"""
+    Polygon{N}(radius, center)
+
+Represents a `N`-sided regular polygon with a given (circumscribed) radius and center.
+
+Note the aliases: `Triangle`, `Square`, and `Hexagon` are `Polygon{3}`, `Polygon{4}`, and `Polygon{6}` respectively.
+"""
 struct Polygon{N} <: AbstractShape{2}
     radius::Float64
     center::SVector{2, Float64}
@@ -92,6 +136,7 @@ volume(f::Polygon{N}) where N = N / 2 * sin(2pi / N) * f.radius^2
 end
 
 const Triangle = Polygon{3}
+const Square = Polygon{4}
 const Hexagon = Polygon{6}
 
 """
