@@ -170,33 +170,50 @@ cartesian_indices(b::BoundaryConditions{<:NTuple{M}}) where M =
 cartesian_indices(l::AbstractLattice) = cartesian_indices(getboundaries(l))
 
 function route(bcs::BoundaryConditions, l::AbstractLattice, site::AbstractSite)
+    rs = resolve_site_default(l, site)
+    if rs !== nothing
+        tup = Tuple(zero(SVector{length(bcs.bcs), Int}))
+        return tup, rs
+    end
     for cind in cartesian_indices(bcs)
         tup = Tuple(cind)
+        all(==(0), tup) && continue
         new_site = site
         new_site === NoSite() && continue
         for i in eachindex(tup)
             new_site = nshifts(new_site, bcs[i].translation, tup[i])
             new_site === NoSite() && break
         end
-        new_site in stripparams(l) && return tup
+        rs = resolve_site_default(l, new_site)
+        rs !== nothing && return tup, rs
     end
     return nothing
 end
-route(::BoundaryConditions{Tuple{}}, ::AbstractLattice, ::AbstractSite) = ()
+function route(::BoundaryConditions{Tuple{}}, l::AbstractLattice, site::AbstractSite)
+    rs = resolve_site_default(l, site)
+    rs === nothing ? nothing : ((), rs)
+end
+
+function findfactor(site::AbstractSite, tup, bounds::Tuple{Vararg{Boundary}})
+    factor = 1.0 + 0.0im
+    for i in 1:length(tup)
+        new_factor, site = nshifts_phase(site, bounds[i], tup[i])
+        factor *= new_factor
+    end
+    return factor
+end
+@inline function findfactor(::AbstractSite, tup, bounds::Tuple{Vararg{TwistedBoundary}})
+    return exp(im * sum(bounds[i].Θ * tup[i] for i in 1:length(tup)))
+end
 
 function resolve_site(l::LatticeWithParams, site::AbstractSite)
     bcs = getboundaries(l)
-    tup = route(bcs, l, site)
-    tup === nothing && return nothing
-    factor = 1.0 + 0.0im
-    new_site = site
-    for i in 1:length(tup)
-        new_factor, new_site = nshifts_phase(new_site, bcs[i], tup[i])
-        factor *= new_factor
-    end
-    ind = site_index(l, new_site)
-    ind === nothing && return nothing
-    return ResolvedSite(new_site, site, ind, factor)
+    r = route(bcs, l, site)
+    r === nothing && return nothing
+    tup, rs = r
+    all(==(0), tup) && return rs
+    factor = findfactor(site, tup, bcs.bcs)
+    return ResolvedSite(rs.site, site, rs.index, factor * rs.factor)
 end
 
 """

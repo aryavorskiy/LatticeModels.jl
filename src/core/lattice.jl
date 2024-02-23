@@ -285,11 +285,12 @@ end
 ResolvedSite(site::AbstractSite, old_site::AbstractSite, index::Int) =
     ResolvedSite(site, old_site, index, 1)
 ResolvedSite(site::AbstractSite, index::Int) = ResolvedSite(site, site, index, 1)
-function resolve_site(l::AbstractLattice, site::AbstractSite)
+function resolve_site_default(l::AbstractLattice, site::AbstractSite)
     index = site_index(l, site)
     index === nothing && return nothing
     ResolvedSite(site, index)
 end
+resolve_site(l::AbstractLattice, site::AbstractSite) = resolve_site_default(l, site)
 
 struct LatticeWithParams{LT,ParamsT,SiteT} <: AbstractLattice{SiteT}
     lat::LT
@@ -353,6 +354,7 @@ hasparam(l::LatticeWithParams, param::Symbol) = haskey(l.params, param)
 getparam(::AbstractLattice, ::Symbol, default=nothong) = default
 getparam(l::LatticeWithParams, param::Symbol, default=nothing) = get(l.params, param, default)
 setparam(l::AbstractLattice, param::Symbol, val) = Lattice(l, NamedTuple{(param,)}((val,)))
+delparam(l::LatticeWithParams, param::Symbol) = Lattice(l.lat, Base.structdiff(l.params, NamedTuple{(param,)}))
 
 stripparams(l::AbstractLattice) = l
 stripparams(l::LatticeWithParams) = l.lat

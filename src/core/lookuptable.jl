@@ -77,13 +77,14 @@ function Base.show(io::IO, ::MIME"text/plain", lt::LookupTable)
         isempty(lt.secondarykeyranges) ? "" : ", secondary keys enabled")
 end
 
-function site_index(lw::LatticeWithParams, site::AbstractSite)
+function site_index(lw::LatticeWithParams, site::AbstractSite, range)
     if hasparam(lw, :lookup)
         lookup_table = getparam(lw, :lookup)
-        range = indrange(lookup_table, site)
-        isempty(range) && return nothing
-        length(range) == 1 && return first(range)
-        return site_index(lw.lat, site, range)
+        lrange = indrange(lookup_table, site)
+        tot_range = intersect(range, lrange)
+        isempty(tot_range) && return nothing
+        length(tot_range) == 1 && return first(tot_range)
+        return site_index(lw.lat, site, tot_range)
     end
     site_index(lw.lat, site)
 end
