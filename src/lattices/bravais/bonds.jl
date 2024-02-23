@@ -69,10 +69,13 @@ function Base.summary(io::IO, bsh::BravaisTranslation)
 end
 
 function Base.show(io::IO, mime::MIME"text/plain", bsh::BravaisTranslation)
-    print(io, "BravaisTranslation:\n")
+    indent = getindent(io)
+    get(io, :showtitle, true) && !requires_compact(io) &&
+        print(io, indent, "BravaisTranslation:\n")
+    print(io, indent)
     summary(io, bsh)
     if !(bsh.lat isa UndefinedLattice) && !requires_compact(io)
-        print(io, "\n on ")
+        print(io, "\n", indent, " on ")
         show(io, mime, bsh.lat)
     end
 end
