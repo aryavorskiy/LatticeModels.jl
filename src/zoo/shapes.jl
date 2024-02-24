@@ -32,6 +32,12 @@ function bounding_region(uc::UnitCell, shape::AbstractShape)
         for i in eachindex(mds))
 end
 
+function scalefactor(uc::UnitCell, shapes::AbstractShape...; sites::Int)
+    n_estimate = sum(volume, shapes) * length(uc) / det(unitvectors(uc))
+    n_estimate == 0 && throw(ArgumentError("Cannot rescale shapes with zero volume"))
+    return (sites / n_estimate) ^ (1 / dims(uc))
+end
+
 """
     shape_radius(unitcell, shape, sites)
     shape_radius(lattice, shape)
@@ -44,43 +50,55 @@ Calculate the radius of a shape such that it contains appriximately `sites` site
 - `shape`: The shape to calculate the radius for.
 - `sites`: The number of sites the shape should contain.
 """
-function shape_radius(uc::UnitCell, shape::AbstractShape, sites::Int)
-    n_estimate = volume(shape) * length(uc) / det(unitvectors(uc))
-    scale_factor = (sites / n_estimate) ^ (1 / dims(uc))
-    return shape.radius * scale_factor
-end
-shape_radius(LT::Type{<:BravaisLattice}, shape::AbstractShape, sites::Int) =
-    shape_radius(construct_unitcell(LT), shape, sites)
-shape_radius(lat::OnSites{BravaisLattice}, shape::AbstractShape) =
-    shape_radius(lat.unitcell, shape, length(lat))
+shaperadius(uc::UnitCell, shape::AbstractShape, sites::Int) =
+    shape.radius * scalefactor(uc, shape; sites=sites)
+shaperadius(LT::Type{<:BravaisLattice}, shape::AbstractShape, sites::Int) =
+    shaperadius(construct_unitcell(LT), shape, sites)
+shaperadius(lat::OnSites{BravaisLattice}, shape::AbstractShape) =
+    shaperadius(lat.unitcell, shape, length(lat))
 
-function fill_shapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...; sites::Nullable{Int}=nothing, kw...) where N
+function fillshapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...;
+        sites::Nullable{Int}=nothing, offset = :origin, kw...) where N
     bps = BravaisPointer{N}[]
     if sites === nothing
         new_shapes = shapes
     else
-        n_estimate = sum(volume, shapes) * length(uc) / det(unitvectors(uc))
-        n_estimate == 0 && throw(ArgumentError("Cannot rescale shapes with zero volume"))
-        scale_factor = (sites / n_estimate) ^ (1 / dims(uc))
-        new_shapes = scale.(shapes, scale_factor)
+        factor = scalefactor(uc, shapes...; sites=sites)
+        new_shapes = scale.(shapes, factor)
     end
     for shape in new_shapes
         dims(shape) != N &&
             throw(ArgumentError("$(dims(shape))-dim $(typeof(shape)) incompatible with $N-dim lattice"))
         add_bravaispointers!(site -> inshape(shape, site), bps, uc, bounding_region(uc, shape))
     end
-    b = BravaisLattice(uc, bps)
-    b = finalize_lattice(b; kw...)
-    return addtranslations(b, overwrite=true)
+    new_unitcell = offset_unitcell(uc, offset)
+    b = BravaisLattice(new_unitcell, bps)
+    fb = finalize_lattice(b; kw...)
+    return addtranslations(fb, overwrite=true)
 end
-fill_shapes(::Type{LT}, shapes::AbstractShape...; kw...) where LT<:BravaisLattice =
-    fill_shapes(construct_unitcell(LT), shapes...; kw...)
+fillshapes(::Type{LT}, shapes::AbstractShape...; kw...) where LT<:BravaisLattice =
+    fillshapes(construct_unitcell(LT), shapes...; kw...)
 
 (::Type{LT})(shapes::AbstractShape...; kw...) where LT<:BravaisLattice =
-    fill_shapes(construct_unitcell(LT), shapes...; kw...)
+    fillshapes(construct_unitcell(LT), shapes...; kw...)
+
+function addshapes!(l::OnSites{BravaisLattice{N}}, shapes::AbstractShape...) where N
+    bps = l.pointers
+    uc = l.unitcell
+    for shape in shapes
+        dims(shape) != N &&
+            throw(ArgumentError("$(dims(shape))-dim $(typeof(shape)) incompatible with $N-dim lattice"))
+        add_bravaispointers!(site -> inshape(shape, site), bps, uc, bounding_region(uc, shape))
+    end
+    return l
+end
+
+function deleteshapes!(l::AbstractLattice, shapes::AbstractShape...)
+    filter!(site -> !any(inshape.(shapes, Ref(site))), l)
+end
 
 """
-    BallND{N}(radius, center)
+    BallND{N}(radius, center) <: AbstractShape{N}
 
 Represents a `N`-dimensional ball with a given radius and center.
 
@@ -106,7 +124,7 @@ const Circle = BallND{2}
 const Ball = BallND{3}
 
 """
-    Polygon{N}(radius, center)
+    Polygon{N}(radius, center) <: AbstractShape{2}
 
 Represents a `N`-sided regular polygon with a given (circumscribed) radius and center.
 
@@ -170,3 +188,17 @@ function GrapheneRibbon(len, wid, center=(0, 0); kw...)
     wid % 2 == 0 && (l = addtranslations(l, :vertical => Bravais[-wid ÷ 2, wid]))
     return l
 end
+
+"""
+    SiteAt(coords) <: AbstractShape
+
+Represents a single site at the given coordinates.
+"""
+struct SiteAt{N} <: AbstractShape{N}
+    coords::SVector{N, Int}
+    SiteAt(center::AbstractVector{<:Int}) = new{length(center)}(center)
+end
+circumscribed_sphere(::UnitCell, f::SiteAt) = 1, f.coords
+scale(::SiteAt, _) = throw(ArgumentError("SiteAt does not support scaling"))
+volume(::SiteAt) = 0
+inshape(f::SiteAt, site) = isapprox(site.coords, f.coords, atol=1e-10)
