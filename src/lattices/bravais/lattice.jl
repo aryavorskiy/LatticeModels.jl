@@ -112,8 +112,9 @@ function add_bravaispointers!(f, ptrs, unitcell::UnitCell{Sym, N, NB} where Sym,
     end
 end
 
-function finalize_lattice(lat; boundaries=BoundaryConditions())
-    lat = setboundaries(lat, to_boundaries(boundaries))
+function finalize_lattice(lat; boundaries=BoundaryConditions(), default_translations=())
+    lat = setboundaries(lat, parse_boundaries(lat, boundaries))
+    lat = addtranslations(lat, default_translations)
     lat = setnnbonds(lat, getnnbonds(stripparams(lat)))
     return lat
 end
@@ -147,6 +148,14 @@ function span_unitcells(f, unitcell::UnitCell{Sym,N,NB}, axes::Vararg{RangeT, N}
     new_unitcell = offset_unitcell(unitcell, offset)
     add_bravaispointers!(f, ptrs, new_unitcell, axes)
     b = BravaisLattice(new_unitcell, ptrs)
+    for (i, ax) in enumerate(axes)
+        if ax isa Integer
+            nh = ax
+        else
+            nh = length(ax)
+        end
+        b = addtranslations(b, Symbol("axis$i") => BravaisTranslation(one_hot(i, N) * nh))
+    end
     return finalize_lattice(b; kw...)
 end
 span_unitcells(f, uc::UnitCell, sz::Vararg{RangeT}; kw...) =

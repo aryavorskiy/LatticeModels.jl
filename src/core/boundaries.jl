@@ -47,7 +47,7 @@ Construct a `TwistedBoundary` with a given translation and twist angle.
 struct TwistedBoundary{TranslationT} <: Boundary{TranslationT}
     translation::TranslationT
     Θ::Float64
-    TwistedBoundary(tr::TranslationT, Θ::Real) where TranslationT =
+    TwistedBoundary(tr::TranslationT, Θ::Real) where TranslationT<:AbstractTranslation =
         new{TranslationT}(tr, Float64(Θ))
 end
 TwistedBoundary(tr::AbstractArray, Θ::Real) = TwistedBoundary(Translation(tr), Θ)
@@ -87,12 +87,14 @@ Construct a `FunctionBoundary` with a given function and translation.
 - `translation`: The translation vector of the boundary representad as `AbstractTranslation`.
     If an array is passed, it is converted to `Translation` automatically.
 """
-struct FunctionBoundary{TranslationT, F<:Function} <: Boundary{TranslationT}
+struct FunctionBoundary{TranslationT<:AbstractTranslation, F<:Function} <: Boundary{TranslationT}
     condition::F
     translation::TranslationT
 end
 FunctionBoundary(f::F, tr::AbstractArray) where F<:Function =
     FunctionBoundary(f, Translation(tr))
+adapt_boundary(b::FunctionBoundary, l::AbstractLattice) =
+    FunctionBoundary(b.condition, adapt_bonds(b.translation, l))
 to_boundary(p::Pair{<:Any, <:Function}) = FunctionBoundary(p[2], p[1])
 function Base.show(io::IO, mime::MIME"text/plain", bc::FunctionBoundary)
     show(io, mime, bc.translation)
@@ -128,23 +130,31 @@ _skipnothing(pre_args::Tuple, ::Tuple{}) = pre_args
 BoundaryConditions(args...; kw...) =
     BoundaryConditions(_skipnothing(to_boundary.(args)); kw...)
 
-function to_boundaries(arg)
-    if arg isa Tuple
-        return BoundaryConditions(arg...)
-    elseif arg isa Boundary
+parse_translation(l::AbstractLattice, b::Boundary) = adapt_boundary(b, l)
+parse_translation(l::AbstractLattice, pair::Pair) = parse_translation(l, pair[1]) => pair[2]
+parse_translation(l::AbstractLattice, tr::AbstractTranslation) = adapt_bonds(tr, l)
+parse_translation(l::AbstractLattice, sym::Symbol) = defaulttranslations(l)[sym]
+parse_translation(l::AbstractLattice, vec::AbstractVector) = adapt_bonds(Translation(vec), l)
+parse_translation(::AbstractLattice, any) = throw(ArgumentError("Could not interpret `$any` as a Translation"))
+
+function parse_boundaries(l::AbstractLattice, arg)
+    if arg isa Boundary
         return BoundaryConditions(arg)
     elseif arg isa BoundaryConditions
         return arg
+    elseif arg isa Tuple
+        return BoundaryConditions(parse_translation.(Ref(l), arg)...)
     else
-        return BoundaryConditions(to_boundary(arg))
+        return BoundaryConditions(parse_translation(l, arg))
     end
 end
 
 adapt_boundaries(bcs::BoundaryConditions, l::AbstractLattice) =
     BoundaryConditions(map(b -> adapt_boundary(b, l), bcs.bcs); depth=bcs.depth)
 getboundaries(l::AbstractLattice) = adapt_boundaries(getparam(l, :boundaries, BoundaryConditions()), l)
-setboundaries(l::AbstractLattice, bcs::BoundaryConditions) = setparam(l, :boundaries, adapt_boundaries(bcs, UndefinedLattice()))
-setboundaries(l::AbstractLattice, bcs) = setboundaries(l, to_boundaries(bcs))
+setboundaries(l::AbstractLattice, bcs::BoundaryConditions) =
+    setparam(l, :boundaries, adapt_boundaries(bcs, UndefinedLattice()))
+setboundaries(l::AbstractLattice, bcs) = setboundaries(l, parse_boundaries(l, bcs))
 
 Base.getindex(bcs::BoundaryConditions, i::Int) = bcs.bcs[i]
 
@@ -165,7 +175,7 @@ function Base.show(io::IO, mime::MIME"text/plain", bcs::BoundaryConditions)
     end
 end
 
-cartesian_indices(b::BoundaryConditions{<:NTuple{M}}) where M =
+cartesian_indices(b::BoundaryConditions{<:Tuple{Vararg{Any,M}}}) where M =
     cartesian_indices(b.depth, Val{M}())
 cartesian_indices(l::AbstractLattice) = cartesian_indices(getboundaries(l))
 
@@ -240,3 +250,45 @@ function translate_to_nearest(l::AbstractLattice, site1::AbstractSite, site2::Ab
 end
 site_distance(l::LatticeWithParams, site1::AbstractSite, site2::AbstractSite) =
     norm(translate_to_nearest(l, site1, site2).coords - site1.coords)
+
+struct DefaultTranslations{NamedTupleT}
+    translations::NamedTupleT
+end
+function DefaultTranslations(translations::Vararg{Pair{Symbol, <:AbstractTranslation}})
+    ntup = NamedTuple(translations)
+    DefaultTranslations(ntup)
+end
+function DefaultTranslations(dt::DefaultTranslations, translations::Pair{Symbol, <:AbstractTranslation}...)
+    ntup = merge(dt.translations, translations)
+    DefaultTranslations(ntup)
+end
+function Base.getindex(dt::DefaultTranslations, sym::Symbol)
+    sym in keys(dt.translations) ||
+        throw(ArgumentError("No translation for symbol :$sym. One of the following is available: $(keys(dt.translations))"))
+    return dt.translations[sym]
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", dt::DefaultTranslations)
+    print(io, "Default translations: ")
+    isempty(dt.translations) && return print(io, "none")
+    io = IOContext(io, :compact => true)
+    for (sym, tr) in pairs(dt.translations)
+        print(io, "\n  :", sym, " → ")
+        show(io, mime, tr)
+    end
+end
+
+function addtranslations(l::AbstractLattice, translations::Pair{Symbol, <:AbstractTranslation}...; overwrite=false)
+    tr = getparam(l, :defaulttranslations, DefaultTranslations())
+    if overwrite
+        setparam(l, :defaulttranslations, DefaultTranslations(translations...))
+    else
+        setparam(l, :defaulttranslations, DefaultTranslations(tr, translations...))
+    end
+end
+addtranslations(l::AbstractLattice, translations::Tuple; kw...) =
+    addtranslations(l, translations...; kw...)
+
+function defaulttranslations(l::AbstractLattice)
+    getparam(l, :defaulttranslations, DefaultTranslations())
+end

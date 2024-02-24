@@ -211,6 +211,7 @@ function adapt_bonds(tr::Translation{UndefinedLattice}, l::OnSites{BravaisLattic
             R′ = add_assuming_zeros(basvector(l, i) - basvector(l, j), tr.R)
             J = unitvectors(l) \ R′
             if all(<(√eps()), abs.(rem.(J, 1, RoundNearest)))
+                i == j && return BravaisTranslation(J)
                 # J is an integer vector
                 push!(shifts, BravaisTranslation(i=>j, J))
                 break

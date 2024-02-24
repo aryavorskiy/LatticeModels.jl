@@ -70,7 +70,8 @@ function fill_shapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...; si
         add_bravaispointers!(site -> inshape(shape, site), bps, uc, bounding_region(uc, shape))
     end
     b = BravaisLattice(uc, bps)
-    return finalize_lattice(b; kw...)
+    b = finalize_lattice(b; kw...)
+    return addtranslations(b, overwrite=true)
 end
 fill_shapes(::Type{LT}, shapes::AbstractShape...; kw...) where LT<:BravaisLattice =
     fill_shapes(construct_unitcell(LT), shapes...; kw...)
@@ -155,7 +156,7 @@ All other keyword arguments are passed to `span_unitcells` (see its documentatio
 function GrapheneRibbon(len, wid, center=(0, 0); kw...)
     j1ind = center[1] - wid:len + center[1] - 1
     j2ind = center[2]:wid + center[2] - 1
-    HoneycombLattice(j1ind, j2ind; kw...) do site
+    l = HoneycombLattice(j1ind, j2ind; kw...) do site
         j1, j2 = site.latcoords .- center
         j_prj = j1 + j2 / 2
         if -0.5 ≤ j_prj ≤ len - 0.5
@@ -165,4 +166,7 @@ function GrapheneRibbon(len, wid, center=(0, 0); kw...)
             return false
         end
     end
+    l = addtranslations(l, overwrite=true, :horizontal => Bravais[len, 0])
+    wid % 2 == 0 && (l = addtranslations(l, :vertical => Bravais[-wid ÷ 2, wid]))
+    return l
 end

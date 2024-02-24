@@ -14,7 +14,7 @@
     end
 
     @test begin
-        l = HoneycombLattice(10, 10)
+        l = HoneycombLattice(10, 10, boundaries = (:axis1 => true))
         H = haldane(l, 1, 1, 1)
         P = densitymatrix(diagonalize(H), statistics=FermiDirac)
         X, Y = coord_operators(basis(H))
@@ -55,7 +55,10 @@
     end
 
     @test begin
-        l = SquareLattice(10, 10)
+        b = FunctionBoundary([0, 10]) do site
+            exp(im * site.x)
+        end
+        l = SquareLattice(10, 10, boundaries=(:axis1 => true, b))
         spin = SpinBasis(1//2)
         X, Y = coord_operators(l)
         x, y = coord_values(l)
