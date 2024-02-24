@@ -4,10 +4,8 @@ struct Sample{LT, BasisT}
     latt::LT
     internal::BasisT
 end
-function Sample(l::AbstractLattice, internal::IT=nothing;
-        boundaries=getboundaries(l)) where {IT<:Nullable{Basis}}
-    new_l = setboundaries(l, boundaries)
-    Sample{typeof(new_l), IT}(new_l, internal)
+function Sample(l::AbstractLattice, internal::IT=nothing) where {IT<:Nullable{Basis}}
+    Sample{typeof(l), IT}(l, internal)
 end
 const SampleWithoutInternal{LT} = Sample{LT, Nothing}
 const SampleWithInternal{LT} = Sample{LT, <:Basis}
@@ -178,10 +176,10 @@ macro accepts_system(fname, default_basis=nothing)
     esc(quote
         $fname(sample::Sample, args...; T = 0, μ = nothing, mu = μ, N = nothing, statistics = nothing, kw...) =
             $fname(System(sample, T=T, mu=mu, N=N, statistics=statistics), args...; kw...)
-        $fname(l::AbstractLattice, bas::Basis, args...; boundaries=getboundaries(l), kw...) =
-            $fname(Sample(l, bas, boundaries=boundaries), args...; kw...)
-        $fname(l::AbstractLattice, args...; boundaries=getboundaries(l), kw...) =
-            $fname(Sample(l, $default_basis, boundaries=boundaries), args...; kw...)
+        $fname(l::AbstractLattice, bas::Basis, args...; kw...) =
+            $fname(Sample(l, bas), args...; kw...)
+        $fname(l::AbstractLattice, args...; kw...) =
+            $fname(Sample(l, $default_basis), args...; kw...)
     end)
 end
 
@@ -197,10 +195,10 @@ macro accepts_system_t(fname, default_basis=nothing)
     esc(quote
         $fname(type::Type, sample::Sample, args...; T = 0, μ = nothing, mu = μ, N = nothing, statistics = nothing, kw...) =
             $fname(type, System(sample, T=T, mu=mu, N=N, statistics=statistics), args...; kw...)
-        $fname(type::Type, l::AbstractLattice, bas::Basis, args...; boundaries=getboundaries(l), kw...) =
-            $fname(type, Sample(l, bas, boundaries=boundaries), args...; kw...)
-        $fname(type::Type, l::AbstractLattice, args...; boundaries=getboundaries(l), kw...) =
-            $fname(type, Sample(l, $default_basis, boundaries=boundaries), args...; kw...)
+        $fname(type::Type, l::AbstractLattice, bas::Basis, args...; kw...) =
+            $fname(type, Sample(l, bas), args...; kw...)
+        $fname(type::Type, l::AbstractLattice, args...; kw...) =
+            $fname(type, Sample(l, $default_basis), args...; kw...)
         $fname(args...; kw...) = $fname(ComplexF64, args...; kw...)
         $fname(::Type, ::Type, args...; kw...) =
             throw(MethodError($fname, args))

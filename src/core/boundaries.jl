@@ -2,12 +2,12 @@ abstract type Boundary{TranslationT} end
 function phasefactor end
 
 function nshifts(site::AbstractSite, tr::AbstractTranslation, n::Int)
-    n == 0 && site
+    n == 0 && return site
     n < 0 && (tr = -tr)
     for _ in 1:abs(n)
         site -= tr
     end
-    site
+    return site
 end
 function nshifts_phase(site::AbstractSite, b::Boundary, n::Int)
     n == 0 && return 1., site
@@ -21,7 +21,7 @@ function nshifts_phase(site::AbstractSite, b::Boundary, n::Int)
             site += b.translation
         end
     end
-    factor, site
+    return factor, site
 end
 
 to_boundary(any) = throw(ArgumentError("Could not convert `$any` to a `Boundary`"))
@@ -152,9 +152,48 @@ end
 adapt_boundaries(bcs::BoundaryConditions, l::AbstractLattice) =
     BoundaryConditions(map(b -> adapt_boundary(b, l), bcs.bcs); depth=bcs.depth)
 getboundaries(l::AbstractLattice) = adapt_boundaries(getparam(l, :boundaries, BoundaryConditions()), l)
-setboundaries(l::AbstractLattice, bcs::BoundaryConditions) =
+
+function mappings(bcs::BoundaryConditions, site::AbstractSite)
+    Base.Iterators.map(cartesian_indices(bcs)) do cind
+        tup = Tuple(cind)
+        new_site = site
+        for i in eachindex(tup)
+            new_site = nshifts(new_site, bcs[i].translation, tup[i])
+        end
+        return (tup, new_site)
+    end
+end
+
+const OVERLAP_ERROR_MSG = """Boundary conditions overlap detected.
+This message means that two sites in the lattice are mapped to the same site by the boundary conditions.
+Since the boundary conditions resolution assumes that each site is mapped to a unique site, the results may be incorrect.
+Please remove duplicate sites by setting `rmdup=true` or adjust the boundary conditions."""
+function checkoverlap(l::AbstractLattice, bcs::BoundaryConditions; rmdup=false)
+    i = 1
+    while i ≤ length(l)
+        site = l[i]
+        counter = 0
+        for (_, new_site) in mappings(bcs, site)
+            new_site in l && (counter += 1)
+        end
+        if counter > 1
+            if rmdup
+                delete!(l, site)
+                i -= 1
+            else
+                return @error OVERLAP_ERROR_MSG
+            end
+        end
+        i += 1
+    end
+end
+
+function setboundaries(l::AbstractLattice, bcs::BoundaryConditions; kw...)
+    checkoverlap(l, bcs; kw...)
     setparam(l, :boundaries, adapt_boundaries(bcs, UndefinedLattice()))
-setboundaries(l::AbstractLattice, bcs) = setboundaries(l, parse_boundaries(l, bcs))
+end
+setboundaries(l::AbstractLattice, bcs; kw...) =
+    setboundaries(l, parse_boundaries(l, bcs); kw...)
 
 Base.getindex(bcs::BoundaryConditions, i::Int) = bcs.bcs[i]
 
@@ -185,15 +224,7 @@ function route(bcs::BoundaryConditions, l::AbstractLattice, site::AbstractSite)
         tup = Tuple(zero(SVector{length(bcs.bcs), Int}))
         return tup, rs
     end
-    for cind in cartesian_indices(bcs)
-        tup = Tuple(cind)
-        all(==(0), tup) && continue
-        new_site = site
-        new_site === NoSite() && continue
-        for i in eachindex(tup)
-            new_site = nshifts(new_site, bcs[i].translation, tup[i])
-            new_site === NoSite() && break
-        end
+    for (tup, new_site) in mappings(bcs, site)
         rs = resolve_site_default(l, new_site)
         rs !== nothing && return tup, rs
     end
@@ -235,12 +266,7 @@ boundary conditions into account.
 function translate_to_nearest(l::AbstractLattice, site1::AbstractSite, site2::AbstractSite)
     min_site = site2
     min_dist = norm(site1.coords - site2.coords)
-    for cind in cartesian_indices(l)
-        tup = Tuple(cind)
-        new_site = site2
-        for i in eachindex(tup)
-            new_site = nshifts(new_site, getboundaries(l)[i].translation, tup[i])
-        end
+    for (_, new_site) in mappings(getboundaries(l), site2)
         if norm(new_site.coords - site1.coords) < min_dist
             min_dist = norm(new_site.coords - site1.coords)
             min_site = new_site

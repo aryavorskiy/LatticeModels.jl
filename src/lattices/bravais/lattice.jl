@@ -112,8 +112,8 @@ function add_bravaispointers!(f, ptrs, unitcell::UnitCell{Sym, N, NB} where Sym,
     end
 end
 
-function finalize_lattice(lat; boundaries=BoundaryConditions(), default_translations=())
-    lat = setboundaries(lat, parse_boundaries(lat, boundaries))
+function finalize_lattice(lat; boundaries=BoundaryConditions(), default_translations=(), rmdup=false)
+    lat = setboundaries(lat, parse_boundaries(lat, boundaries), rmdup=rmdup)
     lat = addtranslations(lat, default_translations)
     lat = setnnbonds(lat, getnnbonds(stripparams(lat)))
     return lat
