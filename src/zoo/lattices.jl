@@ -54,9 +54,9 @@ macro bravaisdef(type, expr)
             LatticeModels.construct_unitcell(::Type{$type}) =
                 throw(ArgumentError("Unknown dimensionality for " * $(string(type)) *
                     "; Try using " * $(string(type)) * "{N}"))
-            function $type(sz::Vararg{LatticeModels.RangeT,$N_sym}; kw...) where $N_sym
+            function $type(f::Function, sz::Vararg{LatticeModels.RangeT,$N_sym}; kw...) where $N_sym
                 return LatticeModels.span_unitcells(
-                    LatticeModels.construct_unitcell($type_expr), sz...; kw...)
+                    f, LatticeModels.construct_unitcell($type_expr), sz...; kw...)
             end
             Base.show(io::IO, ::Type{<:$type_expr}) where $N_sym =
                 print(io, $(string(type)), "{", $N_sym, "}")
@@ -67,9 +67,9 @@ macro bravaisdef(type, expr)
         unitcell_construct = expr
         unitcell_construct_signature = :(LatticeModels.construct_unitcell(::Type{$type}))
         constructor_and_show = quote
-            function $type(sz::Vararg{LatticeModels.RangeT}; kw...)
+            function $type(f::Function, sz::Vararg{LatticeModels.RangeT}; kw...)
                 return LatticeModels.span_unitcells(
-                    LatticeModels.construct_unitcell($type), sz...; kw...)
+                    f, LatticeModels.construct_unitcell($type), sz...; kw...)
             end
             Base.show(io::IO, ::Type{<:$type}) = print(io, $(string(type)))
         end
@@ -87,8 +87,8 @@ macro bravaisdef(type, expr)
         end
     end |> esc
 end
-function (::Type{T})(f::Function, args...; kw...) where T<:BravaisLattice
-    filter!(f, T(args...; kw...))
+function (::Type{T})(args...; kw...) where T<:BravaisLattice
+    T(alwaystrue, T(args...; kw...))
 end
 
 """

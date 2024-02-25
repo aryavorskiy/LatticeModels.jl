@@ -174,7 +174,11 @@ All other keyword arguments are passed to `span_unitcells` (see its documentatio
 function GrapheneRibbon(len, wid, center=(0, 0); kw...)
     j1ind = center[1] - wid:len + center[1] - 1
     j2ind = center[2]:wid + center[2] - 1
-    l = HoneycombLattice(j1ind, j2ind; kw...) do site
+    default_translations = wid % 2 == 0 ?
+        (:horizontal => Bravais[len, 0], :vertical => Bravais[-wid ÷ 2, wid]) :
+        (:horizontal => Bravais[len, 0])
+    return HoneycombLattice(j1ind, j2ind; unitvectortrs=false,
+            default_translations=default_translations, kw...) do site
         j1, j2 = site.latcoords .- center
         j_prj = j1 + j2 / 2
         if -0.5 ≤ j_prj ≤ len - 0.5
@@ -184,9 +188,6 @@ function GrapheneRibbon(len, wid, center=(0, 0); kw...)
             return false
         end
     end
-    l = addtranslations(l, overwrite=true, :horizontal => Bravais[len, 0])
-    wid % 2 == 0 && (l = addtranslations(l, :vertical => Bravais[-wid ÷ 2, wid]))
-    return l
 end
 
 """
