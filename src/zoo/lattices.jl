@@ -88,7 +88,7 @@ macro bravaisdef(type, expr)
     end |> esc
 end
 function (::Type{T})(args...; kw...) where T<:BravaisLattice
-    T(alwaystrue, T(args...; kw...))
+    T(alwaystrue, args...; kw...)
 end
 
 """

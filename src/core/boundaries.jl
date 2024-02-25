@@ -248,6 +248,7 @@ end
 end
 
 function resolve_site(l::LatticeWithParams, site::AbstractSite)
+    site === NoSite() && return nothing
     bcs = getboundaries(l)
     r = route(bcs, l, site)
     r === nothing && return nothing
