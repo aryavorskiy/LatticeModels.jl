@@ -1,3 +1,5 @@
+import IntervalSets: Interval, leftendpoint, rightendpoint, width, mean
+
 # N-dim unit sphere volume
 ndvol(N) = N ≤ 1 ? N + 1 : ndvol(N - 2) * 2pi / N
 # Scale the unit vectors to make the unit cell hold a unit sphere
@@ -79,16 +81,20 @@ function fillshapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...;
         scale != 1 && @warn "Ignoring scale factor when `sites` is given"
         scale = scalefactor(uc, shapes...; sites=sites)
     end
-    new_shapes = scale.(shapes, scale)
+    new_shapes = LatticeModels.scale.(shapes, scale)
+    new_unitcell = offset_unitcell(uc, offset)
     for shape in new_shapes
-        shape isa NotShape && continue
         dims(shape) != N &&
             throw(ArgumentError("$(dims(shape))-dim $(typeof(shape)) incompatible with $N-dim lattice"))
-        add_bravaispointers!(site -> inshape(shape, site), bps, uc, bounding_region(uc, shape))
+        if shape isa NotShape
+            filter!(bps) do bp
+                inshape(shape, BravaisSite(bp, new_unitcell))
+            end
+        else
+            add_bravaispointers!(site -> inshape(shape, site), bps, uc, bounding_region(uc, shape))
+        end
     end
-    new_unitcell = offset_unitcell(uc, offset)
     b = BravaisLattice(new_unitcell, bps)
-    deleteshapes!(b, (shape.shape for shape in new_shapes if shape isa NotShape)...)
     fb = finalize_lattice(b; kw...)
     return addtranslations(fb, overwrite=true)
 end
@@ -114,11 +120,14 @@ function deleteshapes!(l::AbstractLattice, shapes::AbstractShape...)
 end
 
 """
-    BallND{N}(radius, center) <: AbstractShape{N}
+    BallND{N}([radius, center])
 
-Represents a `N`-dimensional ball with a given radius and center.
+Construct a `N`-dimensional ball with a given radius and center. Note the aliases: `Circle`
+and `Ball` are `BallND{2}` and `BallND{3}` respectively.
 
-Note the aliases: `Circle` and `Ball` are `BallND{2}` and `BallND{3}` respectively.
+## Arguments
+- `radius`: The radius of the ball.
+- `center`: The center of the ball.
 """
 struct BallND{N} <: AbstractShape{N}
     radius::Float64
@@ -140,11 +149,20 @@ const Circle = BallND{2}
 const Ball = BallND{3}
 
 """
-    Polygon{N}(radius, center) <: AbstractShape{2}
+    Polygon{N}([radius, center])
+    Polygon{N}([center; h])
 
-Represents a `N`-sided regular polygon with a given (circumscribed) radius and center.
+Construct a regular `N`-sided polygon with a given (circumscribed) radius and center. Note
+the aliases: `Triangle`, `Square`, and `Hexagon` are `Polygon{3}`, `Polygon{4}`, and
+`Polygon{6}` respectively.
 
-Note the aliases: `Triangle`, `Square`, and `Hexagon` are `Polygon{3}`, `Polygon{4}`, and `Polygon{6}` respectively.
+## Arguments
+- `radius`: The (circumscribed) radius of the polygon.
+- `center`: The center of the polygon.
+
+## Keyword Arguments
+- `h`: The distance from the center to the vertices. If given, the `radius` is calculated as
+  `h / cos(pi / N)`.
 """
 struct Polygon{N} <: AbstractShape{2}
     radius::Float64
@@ -154,7 +172,8 @@ struct Polygon{N} <: AbstractShape{2}
         new{N}(radius, center)
     end
 end
-Polygon{N}(center::AbstractVector{<:Real}=zero(SVector{2})) where N = Polygon{N}(1, center)
+Polygon{N}(center::AbstractVector{<:Real}=zero(SVector{2}); h=cos(pi / N)) where N =
+    Polygon{N}(h / cos(pi / N) + 1e-8, center)
 function circumscribed_sphere(::UnitCell, f::Polygon)
     return f.radius, f.center
 end
@@ -175,7 +194,7 @@ const Square = Polygon{4}
 const Hexagon = Polygon{6}
 
 """
-    SiteAt(coords) <: AbstractShape
+    SiteAt(coords)
 
 Represents a single site at the given coordinates.
 """
@@ -188,13 +207,23 @@ scale(::SiteAt, _) = throw(ArgumentError("SiteAt does not support scaling"))
 volume(::SiteAt) = 0
 inshape(f::SiteAt, site) = isapprox(site.coords, f.coords, atol=1e-10)
 
+"""
+    Rectangle(w, h)
+
+Construct a rectangle with given horizontal and vertical intervals. Usage:
+`Rectangle(1..3, 2..4)`.
+
+## Arguments
+- `w`: The horizontal range.
+- `h`: The vertical range.
+"""
 struct Rectangle{IT1<:Interval,IT2<:Interval} <: AbstractShape{2}
     w::IT1
     h::IT2
 end
 function circumscribed_sphere(::UnitCell, f::Rectangle)
-    return hypot(width(f.h), width(f.h)) / 2,
-        SVector{2}(midpoint(f.w), midpoint(f.h))
+    return hypot(width(f.w), width(f.h)) / 2,
+        SVector{2}(mean(f.w), mean(f.h))
 end
 scale(int::Interval{L, R}, c) where {L, R} =
     Interval{L, R}(c * leftendpoint(int), c * rightendpoint(int))
@@ -202,6 +231,15 @@ scale(f::Rectangle, c) = Rectangle(scale(f.w, c), scale(f.h, c))
 volume(f::Rectangle) = width(f.w) * width(f.h)
 inshape(f::Rectangle, site) = (site.coords[1] in f.w) && (site.coords[2] in f.h)
 
+"""
+    Path(start, stop)
+
+Construct a path from `start` to `stop`.
+
+## Arguments
+- `start`: The start of the path.
+- `stop`: The end of the path.
+"""
 struct Path{N} <: AbstractShape{N}
     start::SVector{N, Float64}
     stop::SVector{N, Float64}
