@@ -161,7 +161,8 @@ const OVERLAP_ERROR_MSG = """Boundary conditions overlap detected.
 This message means that two sites in the lattice are mapped to the same site by the boundary conditions.
 Since the boundary conditions resolution assumes that each site is mapped to a unique site, the results may be incorrect.
 Please remove duplicate sites by setting `rmdup=true` or adjust the boundary conditions."""
-function checkoverlap(l::AbstractLattice, bcs::BoundaryConditions; rmdup=false)
+function checkoverlap(l::AbstractLattice, bcs::BoundaryConditions; checkboundaries=true, rmdup=false)
+    !checkboundaries && !rmdup && return
     i = 1
     while i ≤ length(l)
         site = l[i]
@@ -180,6 +181,7 @@ function checkoverlap(l::AbstractLattice, bcs::BoundaryConditions; rmdup=false)
         i += 1
     end
 end
+checkoverlap(::AbstractLattice, ::BoundaryConditions{Tuple{}}; _...) = nothing
 
 function setboundaries(l::AbstractLattice, bcs::BoundaryConditions; kw...)
     checkoverlap(l, bcs; kw...)
