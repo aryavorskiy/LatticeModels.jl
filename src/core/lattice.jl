@@ -302,6 +302,8 @@ struct LatticeWithParams{LT,ParamsT,SiteT} <: AbstractLattice{SiteT}
 end
 LatticeWithParams(lw::LatticeWithParams, params::NamedTuple) =
     LatticeWithParams(lw.lat, merge(lw.params, params))
+allparams(::AbstractLattice) = NamedTuple()
+allparams(lw::LatticeWithParams) = lw.params
 
 Base.length(lw::LatticeWithParams) = length(lw.lat)
 Base.getindex(::LatticeWithParams, ::Nothing) = NoSite()
@@ -358,5 +360,8 @@ delparam(l::LatticeWithParams, param::Symbol) = Lattice(l.lat, Base.structdiff(l
 
 stripparams(l::AbstractLattice) = l
 stripparams(l::LatticeWithParams) = l.lat
+
+pushparam(l::AbstractLattice, param::Symbol, val) =
+    LatticeWithParams(stripparams(l), merge(NamedTuple{(param,)}((val,)), allparams(l)))
 
 const MaybeWithParams{LT} = Union{LT, LatticeWithParams{<:LT}}

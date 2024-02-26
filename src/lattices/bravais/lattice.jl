@@ -74,8 +74,8 @@ Base.@propagate_inbounds function site_index(l::BravaisLattice, site::BravaisSit
     site_index(l, bravaispointer(site), range)
 end
 
-function Base.summary(io::IO, l::BravaisLattice{N,NU,UnitCell{N,NU,NB}}) where {N,NU,NB}
-    print(io, length(l), "-site $NU-dim Bravais lattice in $N-dim space")
+function Base.summary(io::IO, l::BravaisLattice{N,NU,<:UnitCell{N,NU,NB}}) where {N,NU,NB}
+    print(io, length(l), "-site $NU-dim Bravais lattice in $(N)D space")
     if baslength(l) > 1
         print(io, " ($NB-site basis)")
     end

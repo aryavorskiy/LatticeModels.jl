@@ -72,7 +72,7 @@ function print_vectors(io::IO, a::AbstractMatrix)
     print(io, indent, "└      ┘ " ^ size(a, 2))
 end
 Base.summary(io::IO, ::UnitCell{N,ND,NB}) where {N,ND,NB} =
-    print(io, "$NB-site Unit cell of a $ND-dim Bravais lattice in $N-dim space")
+    print(io, "$NB-site Unit cell of a $ND-dim Bravais lattice in $(N)D space")
 function Base.show(io::IO, ::MIME"text/plain", b::UnitCell)
     indent = getindent(io)
     print(io, indent)

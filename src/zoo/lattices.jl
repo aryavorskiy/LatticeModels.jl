@@ -1,13 +1,16 @@
 abstract type BravaisLatticeType end
 abstract type BravaisLatticeTypeVarN{N} <: BravaisLatticeType end
-function construct_unitcell(T::Type{<:BravaisLatticeType}, ::Val{NU}) where NU
+function construct_unitcell(T::Type{<:BravaisLatticeType}, NU)
     uc = construct_unitcell(T)
-    if ldims(uc) != N
-        throw(ArgumentError("Invalid dimensionality for " * string(T) * "; expected " * string(ldims(uc))))
+    if ldims(uc) != NU
+        throw(ArgumentError("Invalid dimensionality for $T; expected $(ldims(uc))"))
     end
+    return uc
 end
-construct_unitcell(T::Type{<:BravaisLatticeTypeVarN}, ::Val{NU}) where NU =
-    construct_unitcell(T{NU})
+_try_apply_typevar(T::Type{<:BravaisLatticeTypeVarN}, NU) = T{NU}
+_try_apply_typevar(T::Type{<:BravaisLatticeTypeVarN{NU}}, _NU) where NU = T
+construct_unitcell(T::Type{<:BravaisLatticeTypeVarN}, NU) =
+    construct_unitcell(_try_apply_typevar(T, NU))
 
 """
     @bravaisdef MyBravaisLattice UnitCell(...)
@@ -24,8 +27,7 @@ otherwise, the dimensionality will be inferred from the unit cell.
 julia> @bravaisdef MyBravaisLattice UnitCell([1 0; 0 1]);   # 2D square lattice
 
 julia> MyBravaisLattice(3, 3)
-9-site 2-dim Bravais lattice in 2-dim space
-Boundary conditions: none
+9-site 2-dim Bravais lattice in 2D space
 Unit cell:
   Basis site coordinates:
     ┌      ┐
@@ -38,6 +40,20 @@ Unit cell:
     │ 0.000│ │ 1.000│
     └      ┘ └      ┘
 Lattice type: MyBravaisLattice
+Default translations:
+  :axis1 → Bravais[3, 0]
+  :axis2 → Bravais[0, 3]
+Nearest neighbor hoppings:
+  1.00000 =>
+    Bravais[1, 0]
+    Bravais[0, 1]
+  1.41421 =>
+    Bravais[1, -1]
+    Bravais[1, 1]
+  2.00000 =>
+    Bravais[2, 0]
+    Bravais[0, 2]
+Boundary conditions: none
 ```
 """
 macro bravaisdef(type, expr)
@@ -63,10 +79,10 @@ macro bravaisdef(type, expr)
         end |> esc
     end
 end
-function (::Type{T})(f::Function, sz::Vararg{LatticeModels.RangeT, N}; kw...) where {T<:BravaisLatticeType,N}
-    l = LatticeModels.span_unitcells(f, construct_unitcell(T, N), sz...; kw...)
+function (::Type{T})(f::Function, sz::Vararg{LatticeModels.RangeT, NU}; kw...) where {T<:BravaisLatticeType,NU}
+    l = LatticeModels.span_unitcells(f, construct_unitcell(T, NU), sz...; kw...)
     if T <: BravaisLatticeTypeVarN
-        return settype(l, T{N})
+        return settype(l, _try_apply_typevar(T, NU))
     else
         return settype(l, T)
     end
@@ -75,8 +91,8 @@ function (::Type{T})(args...; kw...) where T<:BravaisLatticeType
     T(alwaystrue, args...; kw...)
 end
 
-Base.show(io::IO, ::MIME"text/plain", ::Type{<:BravaisLatticeType}) = print(io, "Lattice type: ", string(T))
-settype(l::AbstractLattice, T::Type{<:BravaisLatticeType}) = setparam(l, :latticetype, T)
+Base.show(io::IO, ::MIME"text/plain", T::Type{<:BravaisLatticeType}) = print(io, "Lattice type: ", string(T))
+settype(l::AbstractLattice, T::Type{<:BravaisLatticeType}) = pushparam(l, :latticetype, T)
 gettype(l::AbstractLattice) = getparam(l, :latticetype, nothing)
 function checktype(l::AbstractLattice, T::Type{<:BravaisLatticeType})
     AT = gettype(l)
