@@ -73,14 +73,13 @@ shaperadius(lat::OnSites{BravaisLattice}, shape::AbstractShape) =
     shaperadius(lat.unitcell, shape, length(lat))
 
 function fillshapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...;
-        sites::Nullable{Int}=nothing, offset = :origin, kw...) where N
+        sites::Nullable{Int}=nothing, scale::Real=1, offset = :origin, kw...) where N
     bps = BravaisPointer{N}[]
-    if sites === nothing
-        new_shapes = shapes
-    else
-        factor = scalefactor(uc, shapes...; sites=sites)
-        new_shapes = scale.(shapes, factor)
+    if sites !== nothing
+        scale != 1 && @warn "Ignoring scale factor when `sites` is given"
+        scale = scalefactor(uc, shapes...; sites=sites)
     end
+    new_shapes = scale.(shapes, scale)
     for shape in new_shapes
         shape isa NotShape && continue
         dims(shape) != N &&
