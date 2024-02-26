@@ -31,7 +31,14 @@ Adapt the bonds to the lattice `lat`. The output can be a different type of
 bonds, more fitting for the concrete type of lattice.
 """
 adapt_bonds(any, l::AbstractLattice) =
-    throw(ArgumentError(sprint(show, "text/plain", any) * " cannot be interpreted as bonds on " * sprint(show, "text/plain", l)))
+    throw(ArgumentError(
+        sprint(show, "text/plain", any, context=(:compact=>true)) *
+        " cannot be interpreted as bonds on " *
+        sprint(show, "text/plain", l, context=(:compact=>true))))
+function adapt_bonds(bonds::AbstractBonds{<:AbstractLattice}, l::AbstractLattice)
+    check_samelattice(l, lattice(bonds))
+    return bonds
+end
 
 function Base.iterate(bonds::AbstractBonds, ind_pair = 1 => 1)
     l = lattice(bonds)
@@ -196,6 +203,60 @@ Base.iterate(::UndefinedLattice) = nothing
 Base.length(::UndefinedLattice) = 0
 
 """
+    DirectedBonds{LT} <: AbstractBonds{LT}
+
+An abstract type for bonds on some lattice that have a direction.
+
+## Methods for subtypes to implement
+- `lattice(bonds::DirectionalBonds)`: Returns the lattice where the bonds are defined.
+- `destinations(bonds::DirectionalBonds, site::AbstractSite)`: Returns the sites where the
+`site` is connected to, accounting for the direction of the bonds.
+"""
+abstract type DirectedBonds{LT} <: AbstractBonds{LT} end
+function destinations end
+function isadjacent(bonds::DirectedBonds, site1::AbstractSite, site2::AbstractSite)
+    return site2 in destinations(bonds, site1) || site1 in destinations(bonds, site2)
+end
+function destination(db::DirectedBonds, site::AbstractSite)
+    dests = skiptype(NoSite, destinations(db, site))
+    length(dests) ≤ 1 || throw(ArgumentError("The site $site has more than one destination."))
+    return isempty(dests) ? NoSite() : only(dests)
+end
+Base.inv(::DirectedBonds) = throw(ArgumentError("Inverse of the translation is not defined."))
+
+function iterate(bonds::DirectedBonds)
+    isempty(lattice(bonds)) && return nothing
+    l = lattice(bonds)
+    return iterate(bonds, (1, destinations(bonds, first(l)), 1))
+end
+
+function Base.iterate(bonds::DirectedBonds, state)
+    i, targets, j = state
+    l = lattice(bonds)
+    i > length(l) && return nothing
+    while j > length(targets)
+        i += 1
+        i > length(l) && return nothing
+        targets = destinations(bonds, l[i])
+        j = 1
+    end
+
+    rs = ResolvedSite(l[i], i)
+    rs2 = nothing
+    while rs2 === nothing && j <= length(targets)
+        # The less recursive calls, the better; loop while where possible
+        rs2 = resolve_site(l, targets[j])
+        j += 1
+    end
+
+    if rs2 === nothing
+        return iterate(bonds, (i, targets, j))
+    else
+        return rs => rs2, (i, targets, j)
+    end
+end
+
+"""
     AbstractTranslation{LT}
 
 An abstract type for translations on some lattice.
@@ -210,28 +271,22 @@ An abstract type for translations on some lattice.
     translation, more fitting for the concrete type of lattice.
 - `inv(bonds::AbstractTranslation)`: Returns the inverse of the translation, if any.
 """
-abstract type AbstractTranslation{LT} <: AbstractBonds{LT} end
-isadjacent(bonds::AbstractTranslation, site1::AbstractSite, site2::AbstractSite) =
-    site2 === destination(bonds, site1) || site1 === destination(bonds, site2)
-@inline function Base.iterate(bonds::AbstractTranslation, i = 1)
-    l = lattice(bonds)
-    i > length(l) && return nothing
-    dest = destination(bonds, l[i])
-    s2 = resolve_site(l, dest)
-    s2 === nothing && return iterate(bonds, i + 1)
-    return ResolvedSite(l[i], i) => s2, i + 1
-end
-function adapt_bonds(bonds::AbstractBonds{<:AbstractLattice}, l::AbstractLattice)
-    check_samelattice(l, lattice(bonds))
-    return bonds
-end
+abstract type AbstractTranslation{LT} <: DirectedBonds{LT} end
+destinations(bonds::AbstractTranslation, site::AbstractSite) = (destination(bonds, site),)
+# @inline function Base.iterate(bonds::AbstractTranslation, i = 1)
+#     l = lattice(bonds)
+#     i > length(l) && return nothing
+#     dest = destination(bonds, l[i])
+#     s2 = resolve_site(l, dest)
+#     s2 === nothing && return iterate(bonds, i + 1)
+#     return ResolvedSite(l[i], i) => s2, i + 1
+# end
 
 Base.:(+)(site::AbstractSite, bonds::AbstractTranslation) = destination(bonds, site)
 Base.:(+)(::AbstractSite, ::AbstractTranslation{UndefinedLattice}) =
     throw(ArgumentError("Using a `AbstractBonds`-type object on undefined lattice is allowed only in `construct_operator`. Please define the lattice."))
-Base.inv(::AbstractTranslation) = throw(ArgumentError("Inverse of the translation is not defined."))
-Base.:(-)(bonds::AbstractTranslation) = Base.inv(bonds)
-Base.:(-)(site::AbstractSite, bonds::AbstractTranslation) = destination(Base.inv(bonds), site)
+Base.:(-)(bonds::AbstractTranslation) = inv(bonds)
+Base.:(-)(site::AbstractSite, bonds::AbstractTranslation) = destination(inv(bonds), site)
 
 """
     Translation <: AbstractTranslation
@@ -332,7 +387,7 @@ function adapt_bonds(b::NearestNeighbor{N}, l::LatticeWithParams) where {N}
 end
 NearestNeighbor(l::LatticeWithParams, N) = adapt_bonds(NearestNeighbor(N), l)
 
-function transform_lattice(l::AbstractLattice, tr::AbstractTranslation)
+function translate_lattice(l::AbstractLattice, tr::AbstractTranslation)
     e = Base.emptymutable(l, eltype(l))
     ntr = adapt_bonds(tr, l)
     for site in l
@@ -340,4 +395,4 @@ function transform_lattice(l::AbstractLattice, tr::AbstractTranslation)
     end
     return e
 end
-Base.:(+)(l::AbstractLattice, tr::AbstractTranslation) = transform_lattice(l, tr)
+Base.:(+)(l::AbstractLattice, tr::AbstractTranslation) = translate_lattice(l, tr)

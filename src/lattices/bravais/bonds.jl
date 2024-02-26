@@ -93,7 +93,7 @@ end
 @inline destination(bs::BravaisTranslation, site::BravaisSite) =
     BravaisSite(_destination_bp(bs, bravaispointer(site)), site.unitcell)
 
-struct BravaisSiteMapping{LT, TupleT} <: AbstractTranslation{LT}
+struct BravaisSiteMapping{LT, TupleT} <: DirectedBonds{LT}
     lat::LT
     translations::TupleT
     function BravaisSiteMapping(latt::LT, translations::Vararg{BravaisTranslation{UndefinedLattice}}) where LT<:AbstractLattice
@@ -105,40 +105,9 @@ BravaisSiteMapping(trs::BravaisTranslation{UndefinedLattice}...) =
 adapt_bonds(bts::BravaisSiteMapping, l::AbstractLattice) =
     BravaisSiteMapping(l, bts.translations...)
 
-function istranslation(bsm::BravaisSiteMapping)
-    starts = Tuple(tr.site_indices[1] for tr in bsm.translations)
-    return allunique(starts)
-end
 Base.inv(bsm::BravaisSiteMapping) = BravaisSiteMapping(bsm.lat, inv.(bsm.translations)...)
-function destination(bsm::BravaisSiteMapping, site::BravaisSite)
-    istranslation(bsm) || throw(ArgumentError("BravaisSiteMapping is not a translation"))
-    for tr in bsm.translations
-        site = destination(tr, site)
-        site == NoSite() || return site
-    end
-    return NoSite()
-end
-
-function Base.iterate(bonds::BravaisSiteMapping, state=(1, 1))
-    i, j = state
-    l = lattice(bonds)
-    i > length(l) && return nothing
-
-    rs = ResolvedSite(l[i], i)
-    dest = destination(bonds.translations[j], rs.site)
-    rs2 = resolve_site(l, dest)
-    j += 1
-    if j > length(bonds.translations)
-        i += 1
-        j = 1
-    end
-
-    if rs2 === nothing
-        return iterate(bonds, (i, j))
-    else
-        return rs => rs2, (i, j)
-    end
-end
+destinations(bsm::BravaisSiteMapping, site::BravaisSite) =
+    Tuple(destination(tr, site) for tr in bsm.translations)
 
 merge_lats(l1::AbstractLattice, l2::AbstractLattice) = throw(IncompatibleLattices(l1, l2))
 merge_lats(l::AbstractLattice, ::UndefinedLattice) = l

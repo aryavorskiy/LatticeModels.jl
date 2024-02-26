@@ -26,6 +26,7 @@ end
     CartesianIndex($((:(-depth) for _ in 1:M)...)):CartesianIndex($((:depth for _ in 1:M)...))
 end
 
+# Size check
 function check_size(arr, expected_size::Tuple, var::Symbol)
     if size(arr) != expected_size
         throw(ArgumentError(string(
@@ -50,6 +51,15 @@ macro check_size(arr::Symbol, siz)
         check_size($(esc(arr)), $(esc(siz)), $(QuoteNode(arr)))
     end
 end
+
+# Filter tuples at compile-time
+skiptype(T::Type, vec::AbstractVector) = filter(Base.Fix1(isa, T), vec)
+skiptype(T::Type, args::Tuple) = skiptype(T, (), args)
+skiptype(::Type{T}, pre_args::Tuple, post_args::Tuple) =
+    first(post_args) isa T ?
+    skiptype(pre_args, Base.tail(post_args)) :
+    skiptype((pre_args..., first(post_args)), Base.tail(post_args))
+skiptype(::Type, pre_args::Tuple, ::Tuple{}) = pre_args
 
 # Indentation
 getindent(io::IO) = "  " ^ get(io, :indent, 0)

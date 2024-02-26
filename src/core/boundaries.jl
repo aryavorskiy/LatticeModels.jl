@@ -120,15 +120,8 @@ struct BoundaryConditions{CondsTuple}
     end
 end
 
-_skipnothing(args::Tuple) = _skipnothing((), args)
-_skipnothing(pre_args::Tuple, post_args::Tuple) =
-    first(post_args) === nothing ?
-    _skipnothing(pre_args, Base.tail(post_args)) :
-    _skipnothing((pre_args..., first(post_args)), Base.tail(post_args))
-_skipnothing(pre_args::Tuple, ::Tuple{}) = pre_args
-
 BoundaryConditions(args...; kw...) =
-    BoundaryConditions(_skipnothing(to_boundary.(args)); kw...)
+    BoundaryConditions(skipitype(Nothing, to_boundary.(args)); kw...)
 
 parse_translation(l::AbstractLattice, b::Boundary) = adapt_boundary(b, l)
 parse_translation(l::AbstractLattice, pair::Pair) = parse_translation(l, pair[1]) => pair[2]
