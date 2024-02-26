@@ -64,7 +64,7 @@ include("zoo/lattices.jl")
 export SquareLattice, TriangularLattice, HoneycombLattice, KagomeLattice, GrapheneRibbon
 include("zoo/shapes.jl")
 export scalefactor, shaperadius, fillshapes, addshapes!, deleteshapes!,
-    BallND, Circle, Ball, Polygon, Triangle, Square, Hexagon, SiteAt
+    BallND, Circle, Ball, Polygon, Triangle, Square, Hexagon, SiteAt, Rectangle, Path
 include("zoo/magneticfields.jl")
 export LandauGauge, SymmetricGauge, PointFlux
 include("zoo/models.jl")

@@ -37,6 +37,21 @@ function scalefactor(uc::UnitCell, shapes::AbstractShape...; sites::Int)
     n_estimate == 0 && throw(ArgumentError("Cannot rescale shapes with zero volume"))
     return (sites / n_estimate) ^ (1 / dims(uc))
 end
+scalefactor(::Type{LT}, shapes::AbstractShape...; sites::Int) where LT<:BravaisLattice =
+    scalefactor(construct_unitcell(LT), shapes...; sites=sites)
+
+Base.:(*)(shape::AbstractShape, c::Real) = scale(shape, c)
+
+struct NotShape{N, S} <: AbstractShape{N}
+    shape::S
+    NotShape(s::AbstractShape) = new{dims(s), typeof(s)}(s)
+end
+inshape(f::NotShape, site) = !inshape(f.shape, site)
+volume(f::NotShape) = -volume(f.shape)
+scale(f::NotShape, c) = NotShape(scale(f.shape, c))
+Base.:(!)(s::AbstractShape) = NotShape(s)
+Base.:(!)(n::NotShape) = n.shape
+
 
 """
     shape_radius(unitcell, shape, sites)
@@ -67,12 +82,14 @@ function fillshapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...;
         new_shapes = scale.(shapes, factor)
     end
     for shape in new_shapes
+        shape isa NotShape && continue
         dims(shape) != N &&
             throw(ArgumentError("$(dims(shape))-dim $(typeof(shape)) incompatible with $N-dim lattice"))
         add_bravaispointers!(site -> inshape(shape, site), bps, uc, bounding_region(uc, shape))
     end
     new_unitcell = offset_unitcell(uc, offset)
     b = BravaisLattice(new_unitcell, bps)
+    deleteshapes!(b, (shape.shape for shape in new_shapes if shape isa NotShape)...)
     fb = finalize_lattice(b; kw...)
     return addtranslations(fb, overwrite=true)
 end
@@ -171,3 +188,52 @@ circumscribed_sphere(::UnitCell, f::SiteAt) = 1, f.coords
 scale(::SiteAt, _) = throw(ArgumentError("SiteAt does not support scaling"))
 volume(::SiteAt) = 0
 inshape(f::SiteAt, site) = isapprox(site.coords, f.coords, atol=1e-10)
+
+struct Rectangle{IT1<:Interval,IT2<:Interval} <: AbstractShape{2}
+    w::IT1
+    h::IT2
+end
+function circumscribed_sphere(::UnitCell, f::Rectangle)
+    return hypot(width(f.h), width(f.h)) / 2,
+        SVector{2}(midpoint(f.w), midpoint(f.h))
+end
+scale(int::Interval{L, R}, c) where {L, R} =
+    Interval{L, R}(c * leftendpoint(int), c * rightendpoint(int))
+scale(f::Rectangle, c) = Rectangle(scale(f.w, c), scale(f.h, c))
+volume(f::Rectangle) = width(f.w) * width(f.h)
+inshape(f::Rectangle, site) = (site.coords[1] in f.w) && (site.coords[2] in f.h)
+
+struct Path{N} <: AbstractShape{N}
+    start::SVector{N, Float64}
+    stop::SVector{N, Float64}
+    Path(start::AbstractVector{<:Number}, stop::AbstractVector{<:Number}) =
+        new{length(start)}(start, stop)
+end
+function circumscribed_sphere(::UnitCell, f::Path)
+    return norm(f.start - f.stop)/2, (f.start + f.stop) / 2
+end
+scale(f::Path, c) = Path(c * f.start, c * f.stop)
+volume(::Path) = 0
+function inshape(f::Path, site::BravaisSite)
+    sb = 0.
+    eb = 1.
+    j = unitvectors(site.unitcell) \ (f.stop - f.start)
+    k1 = site.latcoords - unitvectors(site.unitcell) \ f.start
+    k2 = site.latcoords  .+ 1 .- unitvectors(site.unitcell) \ f.start
+    for i in 1:dims(f)
+        p1, p2 = extrema((k1[i], k2[i]))
+        if j[i] == 0
+            if p1 ≤ 0 < p2
+                continue
+            else
+                return false
+            end
+        end
+        sb = max(sb, p1 / j[i])
+        eb = min(eb, p2 / j[i])
+    end
+    orth = k1 * dot(j, j) - j * dot(k1, j)
+    iszero(orth) && return true
+    e = orth[findfirst(!=(0), orth)]
+    return sb < eb || (sb ≈ eb && e > 0)
+end
