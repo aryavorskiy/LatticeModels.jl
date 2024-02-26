@@ -1,38 +1,34 @@
 using Logging, StaticArrays, Printf
 
 """
-    UnitCell{Sym,N,NB}
-`N`-dimensional infinite Bravais lattice unit cell with `NB` sites in basis.
-`Sym` is a `Symbol` which represents
-the type of the lattice (e. g. `:square`, `:honeycomb`).
-This makes `Bravais` object behavior known at compile-time,
-which allows to introduce various optimizations or define specific plot recipes.
+    UnitCell{N,NU,NB}
+
+`N`-dimensional infinite Bravais lattice unit cell with `NU` lattice vectors and `NB` sites in basis.
 """
-struct UnitCell{Sym,N,NB,NN,NNB}
-    translations::SMatrix{N,N,Float64,NN}
+struct UnitCell{N,NU,NB,NND,NNB}
+    translations::SMatrix{N,NU,Float64,NND}
     basissites::SMatrix{N,NB,Float64,NNB}
-    function UnitCell{Sym}(translations::AbstractMatrix,
-            basissites::AbstractMatrix=zeros(size(translations, 1), 1)) where {Sym}
-        @check_size translations :square
-        N = size(translations, 1)
+    function UnitCell(translations::AbstractMatrix,
+            basissites::AbstractMatrix=zeros(size(translations, 1), 1))
+        N, NU = size(translations)
         NB = size(basissites, 2)
         @check_size basissites (N, NB)
-        new{Sym,N,NB,N*N,N*NB}(translations, basissites)
+        new{N,NU,NB,N*NU,N*NB}(translations, basissites)
     end
 end
-function offset_unitcell(uc::UnitCell{Sym}, offset) where Sym
+function offset_unitcell(uc::UnitCell, offset)
     if offset isa AbstractVector{<:Number}
         @check_size offset dims(uc)
-        return UnitCell{Sym}(uc.translations, uc.basissites .+ offset)
+        return UnitCell(uc.translations, uc.basissites .+ offset)
     elseif offset === :origin
         return uc
     elseif offset === :center
         basis_com = vec(sum(uc.basissites, dims=2) / length(uc))
-        return UnitCell{Sym}(uc.translations, uc.basissites .- basis_com)
+        return UnitCell(uc.translations, uc.basissites .- basis_com)
     elseif offset === :centeralign
         basis_com = vec(sum(uc.basissites, dims=2) / length(uc))
         uc_com = vec(sum(uc.translations, dims=2) / dims(uc))
-        return UnitCell{Sym}(uc.translations, uc.basissites .- basis_com .+ uc_com)
+        return UnitCell(uc.translations, uc.basissites .- basis_com .+ uc_com)
     else
         throw(ArgumentError("invalid `offset` keyword argument"))
     end
@@ -57,9 +53,8 @@ Constructs a Bravais lattice unit cell with given translation vectors and locati
     - Also accepts an `AbstractVector` of size `N` to shift the lattice by a custom vector.
 """
 function UnitCell(translations::AbstractMatrix,
-        basissites::AbstractMatrix=zeros(size(translations, 1), 1);
-        offset=:origin)
-    uc_without_offset = UnitCell{:GenericBravaisLattice}(translations, basissites)
+        basissites::AbstractMatrix=zeros(size(translations, 1), 1);offset)
+    uc_without_offset = UnitCell(translations, basissites)
     return offset_unitcell(uc_without_offset, offset)
 end
 
@@ -67,8 +62,9 @@ basvector(uc::UnitCell, i::Int) = uc.basissites[:, i]
 unitvector(uc::UnitCell, i::Int) = uc.translations[:, i]
 unitvectors(uc::UnitCell) = uc.translations
 
-dims(::UnitCell{Sym, N} where Sym) where {N} = N
-Base.length(::UnitCell{Sym,N,NB} where {Sym,N}) where {NB} = NB
+dims(::UnitCell{N} where N) where {N} = N
+ldims(::UnitCell{N,NU} where {N,NU}) where {N,NU} = (N, NU)
+Base.length(::UnitCell{N,NU,NB} where {N,NU}) where {NB} = NB
 Base.:(==)(b1::UnitCell, b2::UnitCell) =
     b1.translations == b2.translations && b1.basissites == b2.basissites
 
@@ -84,8 +80,8 @@ function print_vectors(io::IO, a::AbstractMatrix)
     end
     print(io, indent, "└      ┘ " ^ size(a, 2))
 end
-Base.summary(io::IO, ::UnitCell{Sym,N,NB}) where {Sym,N,NB} =
-    print(io, "Unit cell of a $N-dim $Sym (", fmtnum(NB, "site"), "in basis)")
+Base.summary(io::IO, ::UnitCell{N,ND,NB}) where {N,ND,NB} =
+    print(io, "$NB-site Unit cell of a $ND-dim Bravais lattice in $N-dim space")
 function Base.show(io::IO, ::MIME"text/plain", b::UnitCell)
     indent = getindent(io)
     print(io, indent)
@@ -101,15 +97,15 @@ function Base.show(io::IO, ::MIME"text/plain", b::UnitCell)
     print_vectors(io, b.translations)
 end
 
-struct BravaisPointer{N}
-    latcoords::SVector{N,Int}
+struct BravaisPointer{NU}
+    latcoords::SVector{NU,Int}
     basindex::Int
 end
-dims(::BravaisPointer{N}) where N = N
+ldims(::BravaisPointer{NU}) where NU = NU
 
 @inline site_coords(uc::UnitCell, lp::BravaisPointer) =
     uc.basissites[:, lp.basindex] + uc.translations * lp.latcoords
-@inline site_coords(b::UnitCell{Sym,N,1} where {Sym}, lp::BravaisPointer{N}) where {N} =
+@inline site_coords(b::UnitCell{N,NU,1} where {Sym}, lp::BravaisPointer{NU}) where {N,NU} =
     vec(b.basissites) + b.translations * lp.latcoords
 
 Base.:(==)(lp1::BravaisPointer, lp2::BravaisPointer) =
@@ -123,8 +119,8 @@ function Base.isless(lp1::BravaisPointer, lp2::BravaisPointer)
 end
 
 """
-    BravaisSite{N, B}
-A site of a `BravaisLattice{N, B}` lattice.
+    BravaisSite{N,NU,B}
+A site of a `BravaisLattice{N,NU,B}` lattice.
 
 Fields:
 - `unitcell`: a `UnitCell` object representing the lattice unit cell.
@@ -132,23 +128,26 @@ Fields:
 - `basindex`: an `Int` representing the index of the site in the lattice basis.
 - `coords`: a `SVector` of size `N` representing the spatial coordinates of the site.
 """
-struct BravaisSite{N,UnitcellT} <: AbstractSite{N}
+struct BravaisSite{N,NU,UnitcellT} <: AbstractSite{N}
     unitcell::UnitcellT
-    latcoords::SVector{N,Int}
+    latcoords::SVector{NU,Int}
     basindex::Int
     coords::SVector{N,Float64}
-    BravaisSite(lp::BravaisPointer{N}, b::UnitcellT) where {N,UnitcellT<:UnitCell} =
-        new{N,UnitcellT}(b, lp.latcoords, lp.basindex, site_coords(b, lp))
+    BravaisSite(lp::BravaisPointer{N}, b::UnitcellT) where {N,NU,UnitcellT<:UnitCell{N,NU}} =
+        new{N,NU,UnitcellT}(b, lp.latcoords, lp.basindex, site_coords(b, lp))
 end
 BravaisSite(::Nothing, ::UnitCell) = NoSite()
+unitcell(site::BravaisSite) = site.unitcell
+ldims(::BravaisSite{N,NU,UnitcellT}) where {N,NU,UnitcellT} = NU
 bravaispointer(site::BravaisSite) = BravaisPointer(site.latcoords, site.basindex)
 
-Base.show(io::IO, ::MIME"text/plain", site::BravaisSite{N, <:UnitCell{Sym}}) where {N, Sym} =
-    print(io, "Site of a ", N, "-dim ", Sym, " (Bravais) @ x = $(site.coords)")
+Base.show(io::IO, ::MIME"text/plain", site::BravaisSite{N,NU}) where {N,NU} =
+    print(io, "Site of a $NU-dim Bravais lattice @ x = $(site.coords)")
 
 struct LatticeCoord <: SiteProperty axis::Int end
 function getsiteproperty(site::BravaisSite, c::LatticeCoord)
-    @assert 1 ≤ c.axis ≤ dims(site)
+    1 ≤ c.axis ≤ ldims(site) ||
+        throw(ArgumentError("invalid lattice axis $(c.axis) for $(ldims(site))-dimensional Bravais site"))
     return getfield(site, :latcoords)[c.axis]
 end
 for i in 1:32
@@ -165,4 +164,4 @@ Base.isless(site1::BravaisSite, site2::BravaisSite) =
     isless(bravaispointer(site1), bravaispointer(site2))
 
 sitekey(site::BravaisSite) = site.latcoords[1]
-secondarykey(site::BravaisSite{2}) = site.basindex + site.latcoords[2] * length(site.unitcell)
+secondarykey(site::BravaisSite{N,2} where N) = site.basindex + site.latcoords[2] * length(site.unitcell)

@@ -101,8 +101,6 @@ Represents a square lattice in `N` dimensions.
 Construct a square lattice of size `sz`.
 """
 @bravaisdef SquareLattice N -> UnitCell(SMatrix{N,N}(I))
-LatticeModels.site_coords(b::UnitCell{:squarelattice,N,1}, lp::BravaisPointer{N}) where {N} =
-    vec(b.basissites) + lp.latcoords
 
 """
     TriangularLattice
