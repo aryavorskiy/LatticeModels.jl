@@ -131,6 +131,38 @@ Construct a honeycomb lattice of a×b spanned unit cells.
 @bravaisdef HoneycombLattice UnitCell([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])
 
 """
+    GrapheneRibbon(len, wid[, center; kw...])
+
+Construct a graphene ribbon sample with zigzag edges.
+To get armchair edges, simply rotate the lattice by 90 degrees.
+
+## Arguments:
+- `len`: the length of the ribbon.
+- `wid`: the width of the ribbon.
+- `center`: the unit cell coordinates of the bottom-left corner of the ribbon. Default is `(0, 0)`.
+
+All other keyword arguments are passed to `span_unitcells` (see its documentation for details).
+"""
+function GrapheneRibbon(len, wid, center=(0, 0); kw...)
+    j1ind = center[1] - wid:len + center[1] - 1
+    j2ind = center[2]:wid + center[2] - 1
+    default_translations = wid % 2 == 0 ?
+        (:horizontal => Bravais[len, 0], :vertical => Bravais[-wid ÷ 2, wid]) :
+        (:horizontal => Bravais[len, 0])
+    return HoneycombLattice(j1ind, j2ind; unitvectortrs=false,
+            default_translations=default_translations, kw...) do site
+        j1, j2 = site.latcoords .- center
+        j_prj = j1 + j2 / 2
+        if -0.5 ≤ j_prj ≤ len - 0.5
+            return !(site.basindex == 2 && j_prj == len - 0.5 ||
+                site.basindex == 1 && j_prj == -0.5)
+        else
+            return false
+        end
+    end
+end
+
+"""
     KagomeLattice
 Represents a kagome lattice.
 

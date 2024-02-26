@@ -28,7 +28,9 @@ export UnitCell, LatticeCoord, BasisIndex
 include("lattices/bravais/lattice.jl")
 export add_boundaries, span_unitcells
 include("lattices/bravais/bonds.jl")
-export BravaisTranslation, Bravais, NearestNeighbor
+export BravaisTranslation, Bravais
+include("lattices/bravais/nearestneighbor.jl")
+export NearestNeighbor, getnnbonds
 include("lattices/bravais/recipes.jl")
 
 include("operators/bases.jl")
@@ -59,10 +61,10 @@ include("evolution.jl")
 export @evolution
 
 include("zoo/lattices.jl")
-export SquareLattice, TriangularLattice, HoneycombLattice, KagomeLattice
+export SquareLattice, TriangularLattice, HoneycombLattice, KagomeLattice, GrapheneRibbon
 include("zoo/shapes.jl")
-export scalefactor, shaperadius, fillshapes, addshapes!, deleteshapes!, GrapheneRibbon,
-    BallND, Circle, Ball, Polygon, Triangle, Square, Hexagon, SiteAt, GrapheneRibbon
+export scalefactor, shaperadius, fillshapes, addshapes!, deleteshapes!,
+    BallND, Circle, Ball, Polygon, Triangle, Square, Hexagon, SiteAt
 include("zoo/magneticfields.jl")
 export LandauGauge, SymmetricGauge, PointFlux
 include("zoo/models.jl")

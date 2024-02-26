@@ -343,55 +343,6 @@ function Base.show(io::IO, ::MIME"text/plain", sh::Translation)
     end
 end
 
-"""
-    NearestNeighbor{N}
-
-A bonds type that connects sites that are nearest neighbors of order `N` on some lattice.
-"""
-struct NearestNeighbor{N} <: AbstractBonds{UndefinedLattice}
-    function NearestNeighbor(::Val{N}) where {N}
-        new{N}()
-    end
-end
-NearestNeighbor(N::Int) = NearestNeighbor(Val(N))
-
-struct DefaultNNBonds{M, TupleT}
-    dists::NTuple{M, Float64}
-    nnbonds::TupleT
-    function DefaultNNBonds(dists::NTuple{M, Float64}, nnbonds::Tuple) where {M}
-        length(dists) == length(nnbonds) ||
-            throw(ArgumentError("The number of distances and the number of hops must be the same."))
-        nnbonds_nolat = Tuple(adapt_bonds(b, UndefinedLattice()) for b in nnbonds)
-        new{M, typeof(nnbonds_nolat)}(dists, nnbonds_nolat)
-    end
-end
-
-function Base.show(io::IO, mime::MIME"text/plain", dnn::DefaultNNBonds)
-    indent = getindent(io)
-    print(io, indent, "Nearest neighbor hoppings:")
-    io = addindent(io, 2, :showtitle => false)
-    for i in 1:length(dnn.dists)
-        println(io, "\n", indent, @sprintf("%9.5f", dnn.dists[i]), " =>")
-        show(io, mime, dnn.nnbonds[i])
-    end
-end
-
-Base.getindex(dnn::DefaultNNBonds, i::Int) = dnn.nnbonds[i]
-Base.length(dnn::DefaultNNBonds) = length(dnn.nnbonds)
-
-getnnbonds(l::AbstractLattice) = getparam(l, :nnbonds, DefaultNNBonds((), ()))
-setnnbonds(l::AbstractLattice, dnn::DefaultNNBonds) = setparam(l, :nnbonds, dnn)
-
-function adapt_bonds(b::NearestNeighbor{N}, l::LatticeWithParams) where {N}
-    default_nnhops = getnnbonds(l)
-    if default_nnhops === nothing || N > length(default_nnhops)
-        return adapt_bonds(adapt_bonds(b, l.lat), l)
-    else
-        return adapt_bonds(default_nnhops[N], l)
-    end
-end
-NearestNeighbor(l::LatticeWithParams, N) = adapt_bonds(NearestNeighbor(N), l)
-
 function translate_lattice(l::AbstractLattice, tr::AbstractTranslation)
     e = Base.emptymutable(l, eltype(l))
     ntr = adapt_bonds(tr, l)
