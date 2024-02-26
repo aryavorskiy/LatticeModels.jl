@@ -14,7 +14,7 @@ include("core/utils.jl")
 include("core/lattice.jl")
 export lattice, sublattice, site_index, Coord
 include("core/bonds.jl")
-export adjacency_matrix, site_distance, target_sites, SiteDistance, Translation
+export adjacency_matrix, site_distance, adjacentsites, SiteDistance, Translation
 include("core/boundaries.jl")
 export BoundaryConditions, PeriodicBoundary, TwistedBoundary, FunctionBoundary
 include("core/lookuptable.jl")
@@ -63,7 +63,7 @@ export @evolution
 include("zoo/lattices.jl")
 export SquareLattice, TriangularLattice, HoneycombLattice, KagomeLattice, GrapheneRibbon
 include("zoo/shapes.jl")
-export scalefactor, shaperadius, fillshapes, addshapes!, deleteshapes!,
+export scalefactor, shaperadius, fillshapes, addshapes!, deleteshapes!, removedangling!,
     BallND, Circle, Ball, Polygon, Triangle, Square, Hexagon, SiteAt, Rectangle, Path
 include("zoo/magneticfields.jl")
 export LandauGauge, SymmetricGauge, PointFlux

@@ -266,6 +266,9 @@ function inshape(f::Path, site::BravaisSite)
                 return false
             end
         end
+        if j[i] < 0
+            p1, p2 = p2, p1
+        end
         sb = max(sb, p1 / j[i])
         eb = min(eb, p2 / j[i])
     end
@@ -273,4 +276,52 @@ function inshape(f::Path, site::BravaisSite)
     iszero(orth) && return true
     e = orth[findfirst(!=(0), orth)]
     return sb < eb || (sb ≈ eb && e > 0)
+end
+
+function _countneighbors(check, lat::AbstractLattice, nns::AbstractBonds, i)
+    counter, index = 0, 0
+    for site2 in adjacentsites(nns, lat[i])
+        rs2 = resolve_site(lat, site2)
+        if rs2 !== nothing && check(rs2.index)
+            rs2.index == i && continue
+            counter += 1
+            index = rs2.index
+        end
+    end
+    counter, index
+end
+
+"""
+    removedangling!(lat)
+
+Remove dangling sites from the lattice. A site is considered dangling if it has less than 2
+neighbors.
+"""
+function removedangling!(lat::AbstractLattice)
+    nns = NearestNeighbor(lat, 1)
+    Is = Int[]
+    queue = Int[]
+    for i in eachindex(lat)
+        counter, index = _countneighbors(alwaystrue, lat, nns, i)
+        if counter < 2
+            push!(Is, i)
+            (counter == 1) && push!(queue, index)
+        end
+    end
+    j = 1
+    while j <= length(queue)
+        if queue[j] in Is
+            j += 1
+            continue
+        end
+        counter, index = _countneighbors(!(in(Is)), lat, nns, queue[j])
+        if counter < 2
+            i = queue[j]
+            iind = searchsortedfirst(Is, i)
+            insert!(Is, iind, i)
+            (counter == 1) && push!(queue, index)
+        end
+        j += 1
+    end
+    deleteat!(lat, Is)
 end

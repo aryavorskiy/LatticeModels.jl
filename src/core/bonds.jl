@@ -162,13 +162,13 @@ function Base.show(io::IO, mime::MIME"text/plain", am::AdjacencyMatrix)
     show(io, mime, am.mat)
 end
 
-function target_sites(am::AdjacencyMatrix, site::AbstractSite)
+function adjacentsites(am::AdjacencyMatrix, site::AbstractSite)
     SiteT = eltype(lattice(am))
     rs = resolve_site(am.lat, site)
     rs === nothing && return SiteT[]
-    return [rs2.site for rs2 in target_sites(am, rs)]
+    return [rs2.site for rs2 in adjacentsites(am, rs)]
 end
-function target_sites(am::AdjacencyMatrix, rs::ResolvedSite)
+function adjacentsites(am::AdjacencyMatrix, rs::ResolvedSite)
     l = lattice(am)
     return [ResolvedSite(l[i], i) for i in findall(i->am.mat[rs.index, i], eachindex(l))]
 end
@@ -231,6 +231,8 @@ function destination(db::DirectedBonds, site::AbstractSite)
     return ret
 end
 Base.inv(::DirectedBonds) = throw(ArgumentError("Inverse of the translation is not defined."))
+adjacentsites(bonds::DirectedBonds, site::AbstractSite) =
+    Base.Iterators.flatten((destinations(bonds, site), destinations(inv(bonds), site)))
 
 function Base.iterate(bonds::DirectedBonds)
     isempty(lattice(bonds)) && return nothing
@@ -286,6 +288,8 @@ destinations(bonds::AbstractTranslation, site::AbstractSite) = (destination(bond
     s2 === nothing && return iterate(bonds, i + 1)
     return ResolvedSite(l[i], i) => s2, i + 1
 end
+adjacentsites(bonds::AbstractTranslation, site::AbstractSite) =
+    (destination(bonds, site), destination(inv(bonds), site))
 
 Base.:(+)(site::AbstractSite, bonds::AbstractTranslation) = destination(bonds, site)
 Base.:(+)(::AbstractSite, ::AbstractTranslation{UndefinedLattice}) =
