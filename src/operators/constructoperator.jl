@@ -1,12 +1,5 @@
 import QuantumOpticsBase: DataOperator
 
-function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:Tuple})
-    # Expand 'lattice' part
-    opdata, lparts = arg
-    for lpart in lparts
-        add_term!(builder, opdata => lpart)
-    end
-end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:SingleBond})
     # Single bond
     op, bond = arg
@@ -19,27 +12,14 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:AbstractBonds})
         builder[s1, s2] += op
     end
 end
-function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:AbstractTranslation})
-    # Hopping term: optimization for translations
-    op, tr = arg
-    lat = lattice(builder)
-    for i in 1:length(lat)
-        site = lat[i]
-        s1 = ResolvedSite(site, i)
-        site2 = destination(tr, site)
-        s2 = resolve_site(lat, site2)
-        s2 !== nothing && (builder[s1, s2] += op)
-    end
-end
-function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:BravaisSiteMapping})
+function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:DirectedBonds})
     # Hopping term
     op, bonds = arg
     lat = lattice(builder)
     for i in 1:length(lat)
         site = lat[i]
         s1 = ResolvedSite(site, i)
-        for tr in bonds.translations
-            site2 = destination(tr, site)
+        for site2 in destinations(bonds, site)
             s2 = resolve_site(lat, site2)
             s2 !== nothing && (builder[s1, s2] += op)
         end

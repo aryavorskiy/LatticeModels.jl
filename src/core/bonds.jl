@@ -218,42 +218,47 @@ function isadjacent(bonds::DirectedBonds, site1::AbstractSite, site2::AbstractSi
     return site2 in destinations(bonds, site1) || site1 in destinations(bonds, site2)
 end
 function destination(db::DirectedBonds, site::AbstractSite)
-    dests = skiptype(NoSite, destinations(db, site))
-    length(dests) ≤ 1 || throw(ArgumentError("The site $site has more than one destination."))
-    return isempty(dests) ? NoSite() : only(dests)
+    counter = 0
+    ret = NoSite()
+    for dest in destinations(db, site)
+        if dest !== NoSite()
+            ret = dest
+            counter += 1
+            counter > 1 &&
+                throw(ArgumentError("The site $site has more than one destination."))
+        end
+    end
+    return ret
 end
 Base.inv(::DirectedBonds) = throw(ArgumentError("Inverse of the translation is not defined."))
 
-function iterate(bonds::DirectedBonds)
+function Base.iterate(bonds::DirectedBonds)
     isempty(lattice(bonds)) && return nothing
     l = lattice(bonds)
-    return iterate(bonds, (1, destinations(bonds, first(l)), 1))
+    isempty(l) && return nothing
+    targets = destinations(bonds, first(l))
+    jst = iterate(targets)
+    return iterate(bonds, (1, targets, jst))
 end
 
-function Base.iterate(bonds::DirectedBonds, state)
-    i, targets, j = state
+@inline function Base.iterate(bonds::DirectedBonds, state)
+    i, targets, jst = state
     l = lattice(bonds)
     i > length(l) && return nothing
-    while j > length(targets)
+    if jst === nothing
         i += 1
         i > length(l) && return nothing
         targets = destinations(bonds, l[i])
-        j = 1
+        jst = iterate(targets)
     end
+    jst === nothing && return iterate(bonds, (i, targets, jst))
 
     rs = ResolvedSite(l[i], i)
-    rs2 = nothing
-    while rs2 === nothing && j <= length(targets)
-        # The less recursive calls, the better; loop while where possible
-        rs2 = resolve_site(l, targets[j])
-        j += 1
-    end
+    rs2 = resolve_site(l, jst[1])
+    jst = iterate(targets, jst[2])
 
-    if rs2 === nothing
-        return iterate(bonds, (i, targets, j))
-    else
-        return rs => rs2, (i, targets, j)
-    end
+    rs2 === nothing && return iterate(bonds, (i, targets, jst))
+    return rs => rs2, (i, targets, jst)
 end
 
 """
@@ -273,14 +278,14 @@ An abstract type for translations on some lattice.
 """
 abstract type AbstractTranslation{LT} <: DirectedBonds{LT} end
 destinations(bonds::AbstractTranslation, site::AbstractSite) = (destination(bonds, site),)
-# @inline function Base.iterate(bonds::AbstractTranslation, i = 1)
-#     l = lattice(bonds)
-#     i > length(l) && return nothing
-#     dest = destination(bonds, l[i])
-#     s2 = resolve_site(l, dest)
-#     s2 === nothing && return iterate(bonds, i + 1)
-#     return ResolvedSite(l[i], i) => s2, i + 1
-# end
+@inline function Base.iterate(bonds::AbstractTranslation, i = 1)
+    l = lattice(bonds)
+    i > length(l) && return nothing
+    dest = destination(bonds, l[i])
+    s2 = resolve_site(l, dest)
+    s2 === nothing && return iterate(bonds, i + 1)
+    return ResolvedSite(l[i], i) => s2, i + 1
+end
 
 Base.:(+)(site::AbstractSite, bonds::AbstractTranslation) = destination(bonds, site)
 Base.:(+)(::AbstractSite, ::AbstractTranslation{UndefinedLattice}) =

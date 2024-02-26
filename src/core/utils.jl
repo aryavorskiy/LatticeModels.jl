@@ -55,10 +55,10 @@ end
 # Filter tuples at compile-time
 skiptype(T::Type, vec::AbstractVector) = filter(Base.Fix1(isa, T), vec)
 skiptype(T::Type, args::Tuple) = skiptype(T, (), args)
-skiptype(::Type{T}, pre_args::Tuple, post_args::Tuple) =
+skiptype(::Type{T}, pre_args::Tuple, post_args::Tuple) where T =
     first(post_args) isa T ?
-    skiptype(pre_args, Base.tail(post_args)) :
-    skiptype((pre_args..., first(post_args)), Base.tail(post_args))
+    skiptype(T, pre_args, Base.tail(post_args)) :
+    skiptype(T, (pre_args..., first(post_args)), Base.tail(post_args))
 skiptype(::Type, pre_args::Tuple, ::Tuple{}) = pre_args
 
 # Indentation

@@ -1,7 +1,7 @@
 abstract type Boundary{TranslationT} end
 function phasefactor end
 
-function nshifts(site::AbstractSite, tr::AbstractTranslation, n::Int)
+function nshifts(site::AbstractSite, tr::DirectedBonds, n::Int)
     n == 0 && return site
     n < 0 && (tr = -tr)
     for _ in 1:abs(n)
@@ -47,7 +47,7 @@ Construct a `TwistedBoundary` with a given translation and twist angle.
 struct TwistedBoundary{TranslationT} <: Boundary{TranslationT}
     translation::TranslationT
     Θ::Float64
-    TwistedBoundary(tr::TranslationT, Θ::Real) where TranslationT<:AbstractTranslation =
+    TwistedBoundary(tr::TranslationT, Θ::Real) where TranslationT<:DirectedBonds =
         new{TranslationT}(tr, Float64(Θ))
 end
 TwistedBoundary(tr::AbstractArray, Θ::Real) = TwistedBoundary(Translation(tr), Θ)
@@ -87,7 +87,7 @@ Construct a `FunctionBoundary` with a given function and translation.
 - `translation`: The translation vector of the boundary representad as `AbstractTranslation`.
     If an array is passed, it is converted to `Translation` automatically.
 """
-struct FunctionBoundary{TranslationT<:AbstractTranslation, F<:Function} <: Boundary{TranslationT}
+struct FunctionBoundary{TranslationT<:DirectedBonds, F<:Function} <: Boundary{TranslationT}
     condition::F
     translation::TranslationT
 end
@@ -121,11 +121,11 @@ struct BoundaryConditions{CondsTuple}
 end
 
 BoundaryConditions(args...; kw...) =
-    BoundaryConditions(skipitype(Nothing, to_boundary.(args)); kw...)
+    BoundaryConditions(skiptype(Nothing, to_boundary.(args)); kw...)
 
 parse_translation(l::AbstractLattice, b::Boundary) = adapt_boundary(b, l)
 parse_translation(l::AbstractLattice, pair::Pair) = parse_translation(l, pair[1]) => pair[2]
-parse_translation(l::AbstractLattice, tr::AbstractTranslation) = adapt_bonds(tr, l)
+parse_translation(l::AbstractLattice, tr::DirectedBonds) = adapt_bonds(tr, l)
 parse_translation(l::AbstractLattice, sym::Symbol) = defaulttranslations(l)[sym]
 parse_translation(l::AbstractLattice, vec::AbstractVector) = adapt_bonds(Translation(vec), l)
 parse_translation(::AbstractLattice, any) = throw(ArgumentError("Could not interpret `$any` as a Translation"))
@@ -274,11 +274,11 @@ site_distance(l::LatticeWithParams, site1::AbstractSite, site2::AbstractSite) =
 struct DefaultTranslations{NamedTupleT}
     translations::NamedTupleT
 end
-function DefaultTranslations(translations::Vararg{Pair{Symbol, <:AbstractTranslation}})
+function DefaultTranslations(translations::Vararg{Pair{Symbol, <:DirectedBonds}})
     ntup = NamedTuple(translations)
     DefaultTranslations(ntup)
 end
-function DefaultTranslations(dt::DefaultTranslations, translations::Pair{Symbol, <:AbstractTranslation}...)
+function DefaultTranslations(dt::DefaultTranslations, translations::Pair{Symbol, <:DirectedBonds}...)
     ntup = merge(dt.translations, translations)
     DefaultTranslations(ntup)
 end
@@ -298,7 +298,7 @@ function Base.show(io::IO, mime::MIME"text/plain", dt::DefaultTranslations)
     end
 end
 
-function addtranslations(l::AbstractLattice, translations::Pair{Symbol, <:AbstractTranslation}...; overwrite=false)
+function addtranslations(l::AbstractLattice, translations::Pair{Symbol, <:DirectedBonds}...; overwrite=false)
     tr = getparam(l, :defaulttranslations, DefaultTranslations())
     if overwrite
         setparam(l, :defaulttranslations, DefaultTranslations(translations...))

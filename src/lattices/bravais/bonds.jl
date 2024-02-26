@@ -106,8 +106,8 @@ adapt_bonds(bts::BravaisSiteMapping, l::AbstractLattice) =
     BravaisSiteMapping(l, bts.translations...)
 
 Base.inv(bsm::BravaisSiteMapping) = BravaisSiteMapping(bsm.lat, inv.(bsm.translations)...)
-destinations(bsm::BravaisSiteMapping, site::BravaisSite) =
-    Tuple(destination(tr, site) for tr in bsm.translations)
+@inline destinations(bsm::BravaisSiteMapping, site::BravaisSite) =
+    (destination(tr, site) for tr in bsm.translations)
 
 merge_lats(l1::AbstractLattice, l2::AbstractLattice) = throw(IncompatibleLattices(l1, l2))
 merge_lats(l::AbstractLattice, ::UndefinedLattice) = l
