@@ -1,14 +1,13 @@
-function construct_unitcell end
-
-function _add_parameter_to_call!(expr, sym)
-    if Meta.isexpr(expr, (:block, :if, :elseif, :return))
-        foreach(e -> _add_parameter_to_call!(e, sym), expr.args)
-    elseif Meta.isexpr(expr, :call)
-        if expr.args[1] == :UnitCell
-            expr.args[1] = :(LatticeModels.UnitCell{$(QuoteNode(sym))})
-        end
+abstract type BravaisLatticeType end
+abstract type BravaisLatticeTypeVarN{N} <: BravaisLatticeType end
+function construct_unitcell(T::Type{<:BravaisLatticeType}, ::Val{NU}) where NU
+    uc = construct_unitcell(T)
+    if ldims(uc) != N
+        throw(ArgumentError("Invalid dimensionality for " * string(T) * "; expected " * string(ldims(uc))))
     end
 end
+construct_unitcell(T::Type{<:BravaisLatticeTypeVarN}, ::Val{NU}) where NU =
+    construct_unitcell(T{NU})
 
 """
     @bravaisdef MyBravaisLattice UnitCell(...)
@@ -25,18 +24,20 @@ otherwise, the dimensionality will be inferred from the unit cell.
 julia> @bravaisdef MyBravaisLattice UnitCell([1 0; 0 1]);   # 2D square lattice
 
 julia> MyBravaisLattice(3, 3)
-9-site 2-dim MyBravaisLattice
-boundaries: (none)
-nnbonds:
-1.0 =>
- 1 => 1, [1, 0]
- 1 => 1, [0, 1]
-1.41421 =>
- 1 => 1, [1, -1]
- 1 => 1, [1, 1]
-2.0 =>
- 1 => 1, [2, 0]
- 1 => 1, [0, 2]
+9-site 2-dim Bravais lattice in 2-dim space
+Boundary conditions: none
+Unit cell:
+  Basis site coordinates:
+    ┌      ┐
+    │ 0.000│
+    │ 0.000│
+    └      ┘
+  Translation vectors:
+    ┌      ┐ ┌      ┐
+    │ 1.000│ │ 0.000│
+    │ 0.000│ │ 1.000│
+    └      ┘ └      ┘
+Lattice type: MyBravaisLattice
 ```
 """
 macro bravaisdef(type, expr)
@@ -45,58 +46,54 @@ macro bravaisdef(type, expr)
         @assert expr.args[1] isa Symbol "Invalid unitcell constructor; one parameter N expected"
         N_sym = expr.args[1]
         type_expr = :($type{$N_sym})
-        type_def = :(const $type_expr = LatticeModels.BravaisLattice{$N_sym,
-            <:LatticeModels.UnitCell{$(QuoteNode(type))}})
         unitcell_construct = expr.args[2]
-        unitcell_construct_signature =
-            :(LatticeModels.construct_unitcell(::Type{$type_expr}) where $N_sym)
-        constructor_and_show = quote
+        return quote
+            Core.@__doc__ struct $type_expr <: LatticeModels.BravaisLatticeTypeVarN{$N_sym} end
+            LatticeModels.construct_unitcell(::Type{$type_expr}) where $N_sym =
+                $unitcell_construct
             LatticeModels.construct_unitcell(::Type{$type}) =
                 throw(ArgumentError("Unknown dimensionality for " * $(string(type)) *
                     "; Try using " * $(string(type)) * "{N}"))
-            function $type(f::Function, sz::Vararg{LatticeModels.RangeT,$N_sym}; kw...) where $N_sym
-                return LatticeModels.span_unitcells(
-                    f, LatticeModels.construct_unitcell($type_expr), sz...; kw...)
-            end
-            Base.show(io::IO, ::Type{<:$type_expr}) where $N_sym =
-                print(io, $(string(type)), "{", $N_sym, "}")
-        end
+        end |> esc
     else
-        type_def = :(const $type = LatticeModels.BravaisLattice{N,
-            <:LatticeModels.UnitCell{$(QuoteNode(type))}} where N)
         unitcell_construct = expr
-        unitcell_construct_signature = :(LatticeModels.construct_unitcell(::Type{$type}))
-        constructor_and_show = quote
-            function $type(f::Function, sz::Vararg{LatticeModels.RangeT}; kw...)
-                return LatticeModels.span_unitcells(
-                    f, LatticeModels.construct_unitcell($type), sz...; kw...)
-            end
-            Base.show(io::IO, ::Type{<:$type}) = print(io, $(string(type)))
-        end
+        return quote
+            Core.@__doc__ struct $type <: LatticeModels.BravaisLatticeType end
+            LatticeModels.construct_unitcell(::Type{$type}) = $unitcell_construct
+        end |> esc
     end
-    _add_parameter_to_call!(unitcell_construct, type)
-    return quote
-        Core.@__doc__ $type_def
-        $(Expr(:function, unitcell_construct_signature, unitcell_construct))
-        $constructor_and_show
-        function Base.show(io::IO, ::MIME"text/plain", T::Type{<:$type})
-            show(io, T)
-            print(io, " (actually, ")
-            Base._show_type(io, Base.inferencebarrier(T))
-            print(io, ")")
-        end
-    end |> esc
 end
-function (::Type{T})(args...; kw...) where T<:BravaisLattice
+function (::Type{T})(f::Function, sz::Vararg{LatticeModels.RangeT, N}; kw...) where {T<:BravaisLatticeType,N}
+    l = LatticeModels.span_unitcells(f, construct_unitcell(T, N), sz...; kw...)
+    if T <: BravaisLatticeTypeVarN
+        return settype(l, T{N})
+    else
+        return settype(l, T)
+    end
+end
+function (::Type{T})(args...; kw...) where T<:BravaisLatticeType
     T(alwaystrue, args...; kw...)
 end
+
+Base.show(io::IO, ::MIME"text/plain", ::Type{<:BravaisLatticeType}) = print(io, "Lattice type: ", string(T))
+settype(l::AbstractLattice, T::Type{<:BravaisLatticeType}) = setparam(l, :latticetype, T)
+gettype(l::AbstractLattice) = getparam(l, :latticetype, nothing)
+function checktype(l::AbstractLattice, T::Type{<:BravaisLatticeType})
+    AT = gettype(l)
+    if AT === nothing
+        @warn "Lattice type not defined; expected $T"
+    elseif !(AT <: T)
+        throw(ArgumentError("Invalid lattice type $AT; expected $T"))
+    end
+end
+checktype(any, T) = checktype(lattice(any), T)
 
 """
     SquareLattice{N}
 Represents a square lattice in `N` dimensions.
 
 ---
-    SquareLattice(sz::Int...)
+    SquareLattice(sz...)
 
 Construct a square lattice of size `sz`.
 """

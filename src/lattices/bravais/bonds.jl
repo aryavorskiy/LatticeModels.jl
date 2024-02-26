@@ -169,7 +169,7 @@ function Base.show(io::IO, ::MIME"text/plain", trs::BravaisSiteMapping)
     end
 end
 
-function adapt_bonds(tr::Translation{UndefinedLattice}, l::OnSites{BravaisLattice{N,NU}}) where {N,NU}
+function adapt_bonds(tr::Translation{UndefinedLattice}, l::MaybeWithParams{BravaisLattice{N,NU}}) where {N,NU}
     M = length(tr.R)
     if M > N && !all(==(0), @view tr.R[N+1:M])
         throw(ArgumentError("Cannot adapt a $M-dim translation to a $N-dim lattice"))
@@ -189,4 +189,4 @@ function adapt_bonds(tr::Translation{UndefinedLattice}, l::OnSites{BravaisLattic
     end
     return BravaisSiteMapping(l, shifts...)
 end
-Translation(l::OnSites{BravaisLattice}, R::AbstractVector) = adapt_bonds(Translation(R), l)
+Translation(l::MaybeWithParams{BravaisLattice}, R::AbstractVector) = adapt_bonds(Translation(R), l)

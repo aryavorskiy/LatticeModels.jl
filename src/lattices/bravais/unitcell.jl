@@ -1,19 +1,34 @@
 using Logging, StaticArrays, Printf
 
 """
-    UnitCell{N,NU,NB}
+    UnitCell(translations[, basis; offset])
 
-`N`-dimensional infinite Bravais lattice unit cell with `NU` lattice vectors and `NB` sites in basis.
+Constructs a Bravais lattice unit cell with given translation vectors and locations of basis sites.
+
+## Arguments:
+- `translations`: an `AbstractMatrix` of size `N×N` representing the translation vectors of the lattice.
+- `basis`: an `AbstractMatrix` of size `N×NB` representing the locations of basis sites.
+    If not provided, the lattice basis will consist of one site located in the bottom-left corner of the unit cell.
+
+## Keyword arguments:
+- `offset`: a keyword argument that specifies how to shift the lattice basis.
+    Possible values:
+    - `:origin`: no shift (default).
+    - `:center`: shift the lattice so that the center of the basis is at the origin of the unit cell.
+    - `:centeralign`: shift the lattice so that the center of the basis is at the center of the unit cell.
+    - Also accepts an `AbstractVector` of size `N` to shift the lattice by a custom vector.
 """
 struct UnitCell{N,NU,NB,NND,NNB}
     translations::SMatrix{N,NU,Float64,NND}
     basissites::SMatrix{N,NB,Float64,NNB}
     function UnitCell(translations::AbstractMatrix,
-            basissites::AbstractMatrix=zeros(size(translations, 1), 1))
+            basissites::AbstractMatrix=zeros(size(translations, 1), 1);
+            offset=:origin)
         N, NU = size(translations)
         NB = size(basissites, 2)
         @check_size basissites (N, NB)
-        new{N,NU,NB,N*NU,N*NB}(translations, basissites)
+        u = new{N,NU,NB,N*NU,N*NB}(translations, basissites)
+        return offset_unitcell(u, offset)
     end
 end
 function offset_unitcell(uc::UnitCell, offset)
@@ -34,37 +49,13 @@ function offset_unitcell(uc::UnitCell, offset)
     end
 end
 
-"""
-    UnitCell(translations[, basis; offset])
-
-Constructs a Bravais lattice unit cell with given translation vectors and locations of basis sites.
-
-## Arguments:
-- `translations`: an `AbstractMatrix` of size `N×N` representing the translation vectors of the lattice.
-- `basis`: an `AbstractMatrix` of size `N×NB` representing the locations of basis sites.
-    If not provided, the lattice basis will consist of one site located in the bottom-left corner of the unit cell.
-
-## Keyword arguments:
-- `offset`: a keyword argument that specifies how to shift the lattice basis.
-    Possible values:
-    - `:origin`: no shift (default).
-    - `:center`: shift the lattice so that the center of the basis is at the origin of the unit cell.
-    - `:centeralign`: shift the lattice so that the center of the basis is at the center of the unit cell.
-    - Also accepts an `AbstractVector` of size `N` to shift the lattice by a custom vector.
-"""
-function UnitCell(translations::AbstractMatrix,
-        basissites::AbstractMatrix=zeros(size(translations, 1), 1);offset)
-    uc_without_offset = UnitCell(translations, basissites)
-    return offset_unitcell(uc_without_offset, offset)
-end
-
 basvector(uc::UnitCell, i::Int) = uc.basissites[:, i]
 unitvector(uc::UnitCell, i::Int) = uc.translations[:, i]
 unitvectors(uc::UnitCell) = uc.translations
 
-dims(::UnitCell{N} where N) where {N} = N
-ldims(::UnitCell{N,NU} where {N,NU}) where {N,NU} = (N, NU)
-Base.length(::UnitCell{N,NU,NB} where {N,NU}) where {NB} = NB
+dims(::UnitCell{N}) where {N} = N
+ldims(::UnitCell{N,NU}) where {N,NU} = NU
+Base.length(::UnitCell{N,NU,NB}) where {N,NU,NB} = NB
 Base.:(==)(b1::UnitCell, b2::UnitCell) =
     b1.translations == b2.translations && b1.basissites == b2.basissites
 

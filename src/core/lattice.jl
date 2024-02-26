@@ -309,7 +309,7 @@ Base.getindex(lw::LatticeWithParams, i::Int) = lw.lat[i]
 Base.getindex(lw::LatticeWithParams, is::AbstractVector{Int}) = LatticeWithParams(lw.lat[is], lw.params)
 site_index(::LatticeWithParams, ::NoSite) = nothing
 
-Base.emptymutable(l::LatticeWithParams, ::Type{T}) where {T <: AbstractSite} =
+Base.emptymutable(l::LatticeWithParams, ::Type{T}) where {T<:AbstractSite} =
     LatticeWithParams(Base.emptymutable(l.lat, T), l.params)
 Base.copymutable(lw::LatticeWithParams) = LatticeWithParams(copymutable(lw.lat), lw.params)
 Base.deleteat!(lw::LatticeWithParams, is) = (deleteat!(lw.lat, is); return lw)
@@ -359,4 +359,4 @@ delparam(l::LatticeWithParams, param::Symbol) = Lattice(l.lat, Base.structdiff(l
 stripparams(l::AbstractLattice) = l
 stripparams(l::LatticeWithParams) = l.lat
 
-const OnSites{LT} = Union{LT, LatticeWithParams{<:LT}}
+const MaybeWithParams{LT} = Union{LT, LatticeWithParams{<:LT}}
