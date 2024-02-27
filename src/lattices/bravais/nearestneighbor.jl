@@ -23,7 +23,8 @@ end
 
 function Base.show(io::IO, mime::MIME"text/plain", dnn::DefaultNNBonds)
     indent = getindent(io)
-    print(io, indent, "Nearest neighbor hoppings:")
+    print(io, indent, "Nearest neighbor hoppings: ")
+    isempty(dnn.dists) && return print(io, "none")
     io = addindent(io, 2, :showtitle => false)
     for i in 1:length(dnn.dists)
         println(io, "\n", indent, @sprintf("%9.5f", dnn.dists[i]), " =>")

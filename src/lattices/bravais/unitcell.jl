@@ -147,7 +147,7 @@ struct BravaisSite{N,NU,UnitcellT} <: AbstractSite{N}
     latcoords::SVector{NU,Int}
     basindex::Int
     coords::SVector{N,Float64}
-    BravaisSite(lp::BravaisPointer{N}, b::UnitcellT) where {N,NU,UnitcellT<:UnitCell{N,NU}} =
+    BravaisSite(lp::BravaisPointer{NU}, b::UnitcellT) where {N,NU,UnitcellT<:UnitCell{N,NU}} =
         new{N,NU,UnitcellT}(b, lp.latcoords, lp.basindex, site_coords(b, lp))
 end
 BravaisSite(::Nothing, ::UnitCell) = NoSite()

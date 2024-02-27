@@ -4,7 +4,7 @@ struct BravaisLattice{N,NU,UnitcellT} <: AbstractLattice{BravaisSite{N,NU,Unitce
     unitcell::UnitcellT
     pointers::Vector{BravaisPointer{NU}}
     function BravaisLattice(unitcell::UnitcellT, pointers::Vector{BravaisPointer{NU}}) where {N,NU,UnitcellT<:UnitCell{N,_NU} where _NU}
-        ldims(unitcell) != NU && throw(ArgumentError("Dimension mismatch"))
+        ldims(unitcell) != NU && throw(ArgumentError("Dimension mismatch: $(ldims(unitcell)) ≠ $NU"))
         new{N,NU,UnitcellT}(unitcell, sort!(pointers))
     end
 end
