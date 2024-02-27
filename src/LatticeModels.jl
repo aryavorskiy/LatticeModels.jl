@@ -22,7 +22,7 @@ export addlookuptable
 include("core/latticevalue.jl")
 export LatticeValue, siteproperty_value, coord_value, coord_values, project
 include("core/transform.jl")
-export Shift, Rotate, Scale
+export Shift, Rotate, Scale, Project
 include("core/recipes.jl")
 
 

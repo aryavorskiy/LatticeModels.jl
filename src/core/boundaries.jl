@@ -276,10 +276,6 @@ site_distance(l::LatticeWithParams, site1::AbstractSite, site2::AbstractSite) =
 struct DefaultTranslations{NamedTupleT}
     translations::NamedTupleT
 end
-function DefaultTranslations(translations::Vararg{Pair{Symbol, <:DirectedBonds}})
-    ntup = NamedTuple(translations)
-    DefaultTranslations(ntup)
-end
 function DefaultTranslations(dt::DefaultTranslations, translations::Pair{Symbol, <:DirectedBonds}...)
     ntup = merge(dt.translations, translations)
     DefaultTranslations(ntup)

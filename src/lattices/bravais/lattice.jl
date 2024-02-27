@@ -4,7 +4,7 @@ struct BravaisLattice{N,NU,UnitcellT} <: AbstractLattice{BravaisSite{N,NU,Unitce
     unitcell::UnitcellT
     pointers::Vector{BravaisPointer{NU}}
     function BravaisLattice(unitcell::UnitcellT, pointers::Vector{BravaisPointer{NU}}) where {N,NU,UnitcellT<:UnitCell{N,_NU} where _NU}
-        ldims(unitcell) != NU && throw(ArgumentError("Dimension mismatch"))
+        ldims(unitcell) != NU && throw(ArgumentError("Dimension mismatch: $(ldims(unitcell)) ≠ $NU"))
         new{N,NU,UnitcellT}(unitcell, sort!(pointers))
     end
 end
@@ -13,7 +13,8 @@ unitcell(lw::LatticeWithParams) = unitcell(lw.lat)
 unitvectors(any) = unitvectors(unitcell(any))
 basvector(any, i::Int) = basvector(unitcell(any), i)
 baslength(any) = length(unitcell(any))
-lattransform(ltr::LatticeTransform, l::BravaisLattice) = BravaisLattice(l.unitcell |> ltr, l.pointers)
+lattransform(ltr::LatticeTransform, l::BravaisLattice) =
+    BravaisLattice(l.unitcell |> ltr, unique(lp |> ltr for lp in l.pointers))
 
 Base.:(==)(l1::BravaisLattice, l2::BravaisLattice) =
     (l1.pointers == l2.pointers) && (l1.unitcell == l2.unitcell)

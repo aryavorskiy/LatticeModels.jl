@@ -8,11 +8,11 @@ A struct representing bonds in some direction in a lattice.
 ---
 Note that though the dimension count for the bond is static, it is automatically compatible with higher-dimensional lattices.
 """
-struct BravaisTranslation{LT, N} <: AbstractTranslation{LT}
+struct BravaisTranslation{LT,NU} <: AbstractTranslation{LT}
     lat::LT
-    site_indices::Pair{Int, Int}
-    translate_uc::SVector{N, Int}
-    function BravaisTranslation(latt::LT, site_indices::Pair{Int, Int}, tr_uc::AbstractVector) where LT<:AbstractLattice
+    site_indices::Pair{Int,Int}
+    translate_uc::SVector{NU,Int}
+    function BravaisTranslation(latt::LT, site_indices::Pair{Int,Int}, tr_uc::AbstractVector) where LT<:AbstractLattice
         if any(<(1), site_indices) && site_indices != (0=>0)
             throw(ArgumentError("Invalid site indices $site_indices: ≥1 expected"))
         end
@@ -25,6 +25,17 @@ BravaisTranslation(args...; kw...) = BravaisTranslation(UndefinedLattice(), args
 adapt_bonds(bsh::BravaisTranslation, l::AbstractLattice) =
     BravaisTranslation(l, bsh.site_indices, bsh.translate_uc)
 dims(::BravaisTranslation{UndefinedLattice, N}) where N = N
+
+function lattransform(ltr::Project{<:LatticeCoord}, bsh::BravaisTranslation{LT, NU}) where {LT,NU}
+    ltr.projection.axis in 1:NU ||
+        throw(ArgumentError("Invalid lattice axis $(ltr.projection.axis) for $(length(bsh.translate_uc))-dim Bravais translation"))
+    nv = SVector{NU-1}(bsh.translate_uc[ltr.projection.axis .!= 1:NU])
+    iszero(nv) && return nothing
+    BravaisTranslation(bsh.lat |> ltr, bsh.site_indices, nv)
+end
+lattransform(ltr::Project{BasisIndex}, bsh::BravaisTranslation) =
+    BravaisTranslation(bsh.lat |> ltr, 0=>0, bsh.translate_uc)
+
 
 struct Bravais end
 Base.getindex(::Type{Bravais}, I::Int...) = BravaisTranslation(UndefinedLattice(), 0=>0, SVector(I))
@@ -80,14 +91,14 @@ function Base.show(io::IO, mime::MIME"text/plain", bsh::BravaisTranslation)
     end
 end
 
-@inline function _destination_bp(bsh::BravaisTranslation{LT, N} where LT, lp::BravaisPointer{M}) where {N, M}
+@inline function _destination_bp(bsh::BravaisTranslation{LT,NU} where LT, lp::BravaisPointer{M}) where {NU,M}
     if bsh.site_indices == (0=>0)
         new_basindex = lp.basindex
     else
         bsh.site_indices[1] != lp.basindex && return nothing
         new_basindex = bsh.site_indices[2]
     end
-    N > M && any(!=(0), @view bsh.translate_uc[M+1:N]) && return nothing
+    NU > M && any(!=(0), @view bsh.translate_uc[M+1:NU]) && return nothing
     return BravaisPointer(add_assuming_zeros(lp.latcoords, bsh.translate_uc), new_basindex)
 end
 @inline destination(bs::BravaisTranslation, site::BravaisSite) =

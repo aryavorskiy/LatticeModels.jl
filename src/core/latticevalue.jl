@@ -195,22 +195,6 @@ function Base.setindex!(lvw::LatticeValueWrapper, rhs, ::typeof(!), pairs::Pair.
 end
 
 """
-    project(lv, axis)
-
-Projects the `lv::LatticeValue` along the given axis.
-
-## Arguments
-- `lv`: the `LatticeValue` to be projected.
-- `axis`: the `SiteProperty` describing the axis to be projected along.
-"""
-function project(lv::LatticeValue, param::SiteProperty)
-    pr_crds = [getsiteproperty(site, param) for site in lattice(lv)]
-    perm = sortperm(pr_crds)
-    pr_crds[perm], lv.values[perm]
-end
-project(any, param::Symbol) = project(any, SitePropertyAlias{param}())
-
-"""
     ketstate(lv)
 
 Converts a `LatticeValue` to a `Ket` wavefunction vector.

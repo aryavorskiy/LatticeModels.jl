@@ -127,7 +127,7 @@ struct BravaisSite{N,NU,UnitcellT} <: AbstractSite{N}
     latcoords::SVector{NU,Int}
     basindex::Int
     coords::SVector{N,Float64}
-    BravaisSite(lp::BravaisPointer{N}, b::UnitcellT) where {N,NU,UnitcellT<:UnitCell{N,NU}} =
+    BravaisSite(lp::BravaisPointer{NU}, b::UnitcellT) where {N,NU,UnitcellT<:UnitCell{N,NU}} =
         new{N,NU,UnitcellT}(b, lp.latcoords, lp.basindex, site_coords(b, lp))
 end
 BravaisSite(::Nothing, ::UnitCell) = NoSite()
@@ -135,7 +135,7 @@ unitcell(site::BravaisSite) = site.unitcell
 ldims(::BravaisSite{N,NU,UnitcellT}) where {N,NU,UnitcellT} = NU
 bravaispointer(site::BravaisSite) = BravaisPointer(site.latcoords, site.basindex)
 lattransform(ltr::LatticeTransform, site::BravaisSite) =
-    BravaisSite(bravaispointer(site), site.unitcell |> ltr)
+    BravaisSite(bravaispointer(site) |> ltr, site.unitcell |> ltr)
 
 struct LatticeCoord <: SiteProperty axis::Int end
 function getsiteproperty(site::BravaisSite, c::LatticeCoord)
@@ -147,9 +147,19 @@ for i in 1:32
     @eval SitePropertyAlias{$(QuoteNode(Symbol("j$i")))}() = LatticeCoord($i)
 end
 
+lattransform(proj::Project{LatticeCoord}, uc::UnitCell{N,NU}) where {N, NU} =
+    UnitCell(uc.translations[:, proj.projection.axis .!= 1:NU], uc.basissites)
+lattransform(proj::Project{LatticeCoord}, lp::BravaisPointer{NU}) where NU =
+    BravaisPointer(SVector{NU-1}(lp.latcoords[proj.projection.axis .!= 1:NU]), lp.basindex)
+
 struct BasisIndex <: SiteProperty end
 getsiteproperty(site::BravaisSite, ::BasisIndex) = getfield(site, :basindex)
 SitePropertyAlias{:index}() = BasisIndex()
+
+lattransform(::Project{BasisIndex}, uc::UnitCell{N}) where {N} =
+    UnitCell(uc.translations, zero(SVector{N}))
+lattransform(::Project{BasisIndex}, lp::BravaisPointer) =
+    BravaisPointer(lp.latcoords, 1)
 
 Base.:(==)(site1::BravaisSite, site2::BravaisSite) =
     site1.latcoords == site2.latcoords && site1.basindex == site2.basindex && site1.coords == site2.coords

@@ -23,7 +23,8 @@ end
 
 function Base.show(io::IO, mime::MIME"text/plain", dnn::DefaultNNBonds)
     indent = getindent(io)
-    print(io, indent, "Nearest neighbor hoppings:")
+    print(io, indent, "Nearest neighbor hoppings: ")
+    isempty(dnn.dists) && return print(io, "none")
     io = addindent(io, 2, :showtitle => false)
     for i in 1:length(dnn.dists)
         println(io, "\n", indent, @sprintf("%9.5f", dnn.dists[i]), " =>")
@@ -35,6 +36,7 @@ Base.getindex(dnn::DefaultNNBonds, i::Int) = dnn.nnbonds[i]
 Base.length(dnn::DefaultNNBonds) = length(dnn.nnbonds)
 lattransform(ltr::LatticeTransform, dnn::DefaultNNBonds) =
     DefaultNNBonds(lattransform.(Ref(ltr), dnn.dists), lattransform.(Ref(ltr), dnn.nnbonds))
+lattransform(::Project, dnn::DefaultNNBonds) = DefaultNNBonds((), ())
 
 getnnbonds(l::AbstractLattice) = getparam(l, :nnbonds, DefaultNNBonds((), ()))
 setnnbonds(l::AbstractLattice, dnn::DefaultNNBonds) = setparam(l, :nnbonds, dnn)
