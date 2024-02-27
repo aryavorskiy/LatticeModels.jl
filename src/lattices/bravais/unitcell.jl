@@ -58,6 +58,7 @@ ldims(::UnitCell{N,NU}) where {N,NU} = NU
 Base.length(::UnitCell{N,NU,NB}) where {N,NU,NB} = NB
 Base.:(==)(b1::UnitCell, b2::UnitCell) =
     b1.translations == b2.translations && b1.basissites == b2.basissites
+lattransform(ltr::LatticeTransform, uc::UnitCell) = UnitCell(uc.translations |> ltr, uc.basissites |> ltr)
 
 function print_vectors(io::IO, a::AbstractMatrix)
     indent = getindent(io)
@@ -96,7 +97,7 @@ ldims(::BravaisPointer{NU}) where NU = NU
 
 @inline site_coords(uc::UnitCell, lp::BravaisPointer) =
     uc.basissites[:, lp.basindex] + uc.translations * lp.latcoords
-@inline site_coords(b::UnitCell{N,NU,1} where {Sym}, lp::BravaisPointer{NU}) where {N,NU} =
+@inline site_coords(b::UnitCell{N,NU,1}, lp::BravaisPointer{NU}) where {N,NU} =
     vec(b.basissites) + b.translations * lp.latcoords
 
 Base.:(==)(lp1::BravaisPointer, lp2::BravaisPointer) =
@@ -108,6 +109,8 @@ function Base.isless(lp1::BravaisPointer, lp2::BravaisPointer)
         return isless(lp1.latcoords, lp2.latcoords)
     end
 end
+
+lattransform(::LatticeTransform, lp::BravaisPointer) = lp
 
 """
     BravaisSite{N,NU,B}
@@ -131,6 +134,8 @@ BravaisSite(::Nothing, ::UnitCell) = NoSite()
 unitcell(site::BravaisSite) = site.unitcell
 ldims(::BravaisSite{N,NU,UnitcellT}) where {N,NU,UnitcellT} = NU
 bravaispointer(site::BravaisSite) = BravaisPointer(site.latcoords, site.basindex)
+lattransform(ltr::LatticeTransform, site::BravaisSite) =
+    BravaisSite(bravaispointer(site), site.unitcell |> ltr)
 
 Base.show(io::IO, ::MIME"text/plain", site::BravaisSite{N,NU}) where {N,NU} =
     print(io, "Site of a $NU-dim Bravais lattice @ x = $(site.coords)")

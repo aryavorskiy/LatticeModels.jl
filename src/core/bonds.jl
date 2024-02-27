@@ -79,8 +79,8 @@ A bonds type that connects sites based on the distance between them.
 - `f::Function`: A function that takes a distance and returns if the distance is allowed.
 """
 struct SiteDistance{LT, FT} <: AbstractBonds{LT}
-    lat::LT
     f::Function
+    lat::LT
 end
 
 isadjacent(bonds::SiteDistance, s1::AbstractSite, s2::AbstractSite) =

@@ -13,6 +13,7 @@ unitcell(lw::LatticeWithParams) = unitcell(lw.lat)
 unitvectors(any) = unitvectors(unitcell(any))
 basvector(any, i::Int) = basvector(unitcell(any), i)
 baslength(any) = length(unitcell(any))
+lattransform(ltr::LatticeTransform, l::BravaisLattice) = BravaisLattice(l.unitcell |> ltr, l.pointers)
 
 Base.:(==)(l1::BravaisLattice, l2::BravaisLattice) =
     (l1.pointers == l2.pointers) && (l1.unitcell == l2.unitcell)

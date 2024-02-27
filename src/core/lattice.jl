@@ -155,6 +155,8 @@ Base.checkbounds(::Type{Bool}, l::AbstractLattice, is::Union{Int,AbstractVector{
     all(1 .≤ is .≤ length(l))
 Base.checkbounds(l::AbstractLattice, is) =
     !checkbounds(Bool, l, is) && throw(BoundsError(l, is))
+Base.push!(l::AbstractLattice{SiteT}, ::SiteT) where SiteT = error("Define `push!` for $l")
+Base.push!(l::AbstractLattice{SiteT}, x::Any) where SiteT = push!(l, convert(SiteT, x))
 Base.pop!(l::AbstractLattice) = deleteat!(l, lastindex(l))
 Base.popfirst!(l::AbstractLattice) = deleteat!(l, firstindex(l))
 

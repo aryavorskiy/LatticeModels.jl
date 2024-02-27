@@ -21,6 +21,8 @@ include("core/lookuptable.jl")
 export addlookuptable
 include("core/latticevalue.jl")
 export LatticeValue, siteproperty_value, coord_value, coord_values, project
+include("core/transform.jl")
+export Shift, Rotate, Scale
 include("core/recipes.jl")
 
 include("lattices/bravais/unitcell.jl")
