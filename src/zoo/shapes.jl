@@ -69,7 +69,7 @@ Calculate the radius of a shape such that it contains appriximately `sites` site
 """
 shaperadius(uc::UnitCell, shape::AbstractShape, sites::Int) =
     shape.radius * scalefactor(uc, shape; sites=sites)
-shaperadius(LT::Type{<:BravaisLattice}, shape::AbstractShape, sites::Int) =
+shaperadius(LT::Type{<:BravaisLatticeType}, shape::AbstractShape, sites::Int) =
     shaperadius(construct_unitcell(LT), shape, sites)
 shaperadius(lat::MaybeWithParams{BravaisLattice}, shape::AbstractShape) =
     shaperadius(lat.unitcell, shape, length(lat))
@@ -98,10 +98,10 @@ function fillshapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...;
     fb = finalize_lattice(b; kw...)
     return addtranslations(fb, overwrite=true)
 end
-fillshapes(::Type{LT}, shapes::AbstractShape...; kw...) where LT<:BravaisLattice =
+fillshapes(LT::Type{<:BravaisLatticeType}, shapes::AbstractShape...; kw...) =
     fillshapes(construct_unitcell(LT), shapes...; kw...)
 
-(::Type{LT})(shapes::AbstractShape...; kw...) where LT<:BravaisLattice =
+(::Type{LT})(shapes::AbstractShape...; kw...) where LT<:BravaisLatticeType =
     fillshapes(construct_unitcell(LT), shapes...; kw...)
 
 function addshapes!(l::MaybeWithParams{BravaisLattice{N}}, shapes::AbstractShape...) where N
