@@ -14,7 +14,7 @@ Base.iterate(site::AbstractSite{N}, i=1) where N = i > N ? nothing : (site.coord
 
 function Base.show(io::IO, ::MIME"text/plain", site::AbstractSite{N}) where N
     if site in get(io, :SHOWN_SET, ())
-        print(io, site.coords)
+        print(io, "at ", site.coords)
     else
         print(io, N, "-dim ", typeof(site), " at $(site.coords)")
     end
@@ -117,7 +117,7 @@ Base.summary(io::IO, l::AbstractLattice{<:AbstractSite{N}}) where N =
 function Base.show(io::IO, mime::MIME"text/plain", l::AbstractLattice)
     summary(io, l)
     if !requires_compact(io) && length(l) > 0
-        io = IOContext(io, :compact => true)
+        io = IOContext(io, :compact => true, :SHOWN_SET => l)
         print(io, ":")
         maxlen = get(io, :maxlines, 10)
         for i in 1:min(length(l), maxlen)

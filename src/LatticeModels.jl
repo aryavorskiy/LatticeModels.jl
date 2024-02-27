@@ -25,6 +25,10 @@ include("core/transform.jl")
 export Shift, Rotate, Scale
 include("core/recipes.jl")
 
+
+include("lattices/genericlattice.jl")
+export GenericLattice, GenericSite
+
 include("lattices/bravais/unitcell.jl")
 export UnitCell, LatticeCoord, BasisIndex
 include("lattices/bravais/lattice.jl")

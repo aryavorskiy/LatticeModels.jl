@@ -61,13 +61,14 @@ function Base.push!(l::BravaisLattice, lp::BravaisPointer)
     i = searchsortedfirst(l.pointers, lp)
     i ≤ length(l) && l.pointers[i] == lp && return l
     insert!(l.pointers, i, lp)
+    return l
 end
 Base.push!(l::BravaisLattice{N,NU,B}, site::BravaisSite{N,NU,B}) where {N,NU,B} =
     push!(l, bravaispointer(site))
 
 Base.@propagate_inbounds function site_index(l::BravaisLattice, lp::BravaisPointer, range)
     i = searchsortedfirst(@view(l.pointers[range]), lp) + first(range) - 1
-    i > length(l) && return nothing
+    i in range || return nothing
     return l.pointers[i] == lp ? i : nothing
 end
 Base.@propagate_inbounds function site_index(l::BravaisLattice, site::BravaisSite, range)

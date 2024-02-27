@@ -137,9 +137,6 @@ bravaispointer(site::BravaisSite) = BravaisPointer(site.latcoords, site.basindex
 lattransform(ltr::LatticeTransform, site::BravaisSite) =
     BravaisSite(bravaispointer(site), site.unitcell |> ltr)
 
-Base.show(io::IO, ::MIME"text/plain", site::BravaisSite{N,NU}) where {N,NU} =
-    print(io, "Site of a $NU-dim Bravais lattice @ x = $(site.coords)")
-
 struct LatticeCoord <: SiteProperty axis::Int end
 function getsiteproperty(site::BravaisSite, c::LatticeCoord)
     1 ≤ c.axis ≤ ldims(site) ||
