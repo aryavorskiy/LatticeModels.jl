@@ -117,18 +117,18 @@ struct BravaisPointer{NU}
 end
 ldims(::BravaisPointer{NU}) where NU = NU
 
-@inline site_coords(uc::UnitCell, lp::BravaisPointer) =
-    uc.basissites[:, lp.basindex] + uc.translations * lp.latcoords
-@inline site_coords(b::UnitCell{N,NU,1}, lp::BravaisPointer{NU}) where {N,NU} =
-    vec(b.basissites) + b.translations * lp.latcoords
+@inline site_coords(uc::UnitCell, bp::BravaisPointer) =
+    uc.basissites[:, bp.basindex] + uc.translations * bp.latcoords
+@inline site_coords(b::UnitCell{N,NU,1}, bp::BravaisPointer{NU}) where {N,NU} =
+    vec(b.basissites) + b.translations * bp.latcoords
 
-Base.:(==)(lp1::BravaisPointer, lp2::BravaisPointer) =
-    lp1.basindex == lp2.basindex && lp1.latcoords == lp2.latcoords
-function Base.isless(lp1::BravaisPointer, lp2::BravaisPointer)
-    if lp1.latcoords == lp2.latcoords
-        return isless(lp1.basindex, lp2.basindex)
+Base.:(==)(bp1::BravaisPointer, bp2::BravaisPointer) =
+    bp1.basindex == bp2.basindex && bp1.latcoords == bp2.latcoords
+function Base.isless(bp1::BravaisPointer, bp2::BravaisPointer)
+    if bp1.latcoords == bp2.latcoords
+        return isless(bp1.basindex, bp2.basindex)
     else
-        return isless(lp1.latcoords, lp2.latcoords)
+        return isless(bp1.latcoords, bp2.latcoords)
     end
 end
 
@@ -147,8 +147,8 @@ struct BravaisSite{N,NU,UnitcellT} <: AbstractSite{N}
     latcoords::SVector{NU,Int}
     basindex::Int
     coords::SVector{N,Float64}
-    BravaisSite(lp::BravaisPointer{NU}, b::UnitcellT) where {N,NU,UnitcellT<:UnitCell{N,NU}} =
-        new{N,NU,UnitcellT}(b, lp.latcoords, lp.basindex, site_coords(b, lp))
+    BravaisSite(bp::BravaisPointer{NU}, b::UnitcellT) where {N,NU,UnitcellT<:UnitCell{N,NU}} =
+        new{N,NU,UnitcellT}(b, bp.latcoords, bp.basindex, site_coords(b, bp))
 end
 BravaisSite(::Nothing, ::UnitCell) = NoSite()
 unitcell(site::BravaisSite) = site.unitcell

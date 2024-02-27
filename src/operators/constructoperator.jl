@@ -13,7 +13,7 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:AbstractBonds})
     end
 end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:DirectedBonds})
-    # Hopping term
+    # Hopping term; directed bonds optimization
     op, bonds = arg
     lat = lattice(builder)
     for i in 1:length(lat)
@@ -26,7 +26,7 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:DirectedBonds})
     end
 end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:LatticeValue})
-    # Diagonal operator
+    # Onsite term
     op, lv = arg
     N = internal_length(builder)
     for i in 1:length(lattice(builder)) # This avoids finding indices of sites
@@ -35,7 +35,7 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:LatticeValue})
     end
 end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:Number})
-    # Diagonal operator, lattice part ==1
+    # Onsite term, lattice part ==1
     op, n = arg
     N = internal_length(builder)
     for i in 1:length(lattice(builder)) # This avoids finding indices of sites
@@ -68,18 +68,18 @@ arg_to_pair(sample::Sample, arg::AbstractMatrix) = op_to_matrix(sample, arg) => 
 arg_to_pair(sample::Sample, arg) = _internal_one_mat(sample) => arg
 
 function arg_to_pair(sample::Sample, arg::Pair)
-    op, lpart = arg
-    if lpart isa LatticeValue
-        check_samesites(lpart, sample)
-        new_lpart = lpart
-    elseif lpart isa AbstractBonds
-        new_lpart = adapt_bonds(lpart, lattice(sample))
-    elseif lpart isa Union{Number, SingleBond}
-        new_lpart = lpart
+    op, onlat = arg
+    if onlat isa LatticeValue
+        check_samesites(onlat, sample)
+        new_onlat = onlat
+    elseif onlat isa AbstractBonds
+        new_onlat = adapt_bonds(onlat, lattice(sample))
+    elseif onlat isa Union{Number, SingleBond}
+        new_onlat = onlat
     else
-        throw(ArgumentError("cannot interpret $(typeof(lpart)) as on-lattice operator"))
+        throw(ArgumentError("cannot interpret $(typeof(onlat)) as on-lattice operator"))
     end
-    return op_to_matrix(sample, op) => new_lpart
+    return op_to_matrix(sample, op) => new_onlat
 end
 
 function construct_operator(T::Type, sys::System, args...; field=NoField())

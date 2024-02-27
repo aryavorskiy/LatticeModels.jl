@@ -29,11 +29,11 @@ function check_sameunitcell(l::BravaisLattice, site::BravaisSite)
     l.unitcell != site.unitcell && throw(ArgumentError("Unit cell mismatch: $(l.unitcell) ≠ $(site.unitcell)"))
 end
 
-get_site(l::BravaisLattice, lp::BravaisPointer) = BravaisSite(lp, l.unitcell)
+get_site(l::BravaisLattice, bp::BravaisPointer) = BravaisSite(bp, l.unitcell)
 get_site(::BravaisLattice, site::BravaisSite) = site
 get_site(::BravaisLattice, ::NoSite) = NoSite()
 
-Base.in(lp::BravaisPointer, l::BravaisLattice) = insorted(lp, l.pointers)
+Base.in(bp::BravaisPointer, l::BravaisLattice) = insorted(bp, l.pointers)
 function Base.in(site::BravaisSite{N,NU,B}, l::BravaisLattice{N,NU,B}) where {N,NU,B}
     @boundscheck check_sameunitcell(l, site)
     return in(bravaispointer(site), l)
@@ -47,8 +47,8 @@ Base.@propagate_inbounds function Base.getindex(l::BravaisLattice, is::AbstractV
     @boundscheck checkbounds(l, is)
     return BravaisLattice(l.unitcell, l.pointers[sort(is)])
 end
-Base.@propagate_inbounds function Base.delete!(l::BravaisLattice, lp::BravaisPointer)
-    i = site_index(l, lp)
+Base.@propagate_inbounds function Base.delete!(l::BravaisLattice, bp::BravaisPointer)
+    i = site_index(l, bp)
     i !== nothing && deleteat!(l.pointers, i)
     return l
 end
@@ -58,20 +58,20 @@ Base.@propagate_inbounds function Base.deleteat!(l::BravaisLattice, inds)
     return l
 end
 
-function Base.push!(l::BravaisLattice, lp::BravaisPointer)
-    @assert 1 ≤ lp.basindex ≤ baslength(l) "invalid basis index $(lp.basindex)"
-    i = searchsortedfirst(l.pointers, lp)
-    i ≤ length(l) && l.pointers[i] == lp && return l
-    insert!(l.pointers, i, lp)
+function Base.push!(l::BravaisLattice, bp::BravaisPointer)
+    @assert 1 ≤ bp.basindex ≤ baslength(l) "invalid basis index $(bp.basindex)"
+    i = searchsortedfirst(l.pointers, bp)
+    i ≤ length(l) && l.pointers[i] == bp && return l
+    insert!(l.pointers, i, bp)
     return l
 end
 Base.push!(l::BravaisLattice{N,NU,B}, site::BravaisSite{N,NU,B}) where {N,NU,B} =
     push!(l, bravaispointer(site))
 
-Base.@propagate_inbounds function site_index(l::BravaisLattice, lp::BravaisPointer, range)
-    i = searchsortedfirst(@view(l.pointers[range]), lp) + first(range) - 1
+Base.@propagate_inbounds function site_index(l::BravaisLattice, bp::BravaisPointer, range)
+    i = searchsortedfirst(@view(l.pointers[range]), bp) + first(range) - 1
     i in range || return nothing
-    return l.pointers[i] == lp ? i : nothing
+    return l.pointers[i] == bp ? i : nothing
 end
 Base.@propagate_inbounds function site_index(l::BravaisLattice, site::BravaisSite, range)
     @boundscheck check_sameunitcell(l, site)

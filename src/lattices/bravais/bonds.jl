@@ -80,15 +80,15 @@ function Base.show(io::IO, mime::MIME"text/plain", bsh::BravaisTranslation)
     end
 end
 
-@inline function _destination_bp(bsh::BravaisTranslation{LT,NU} where LT, lp::BravaisPointer{M}) where {NU,M}
+@inline function _destination_bp(bsh::BravaisTranslation{LT,NU} where LT, bp::BravaisPointer{M}) where {NU,M}
     if bsh.site_indices == (0=>0)
-        new_basindex = lp.basindex
+        new_basindex = bp.basindex
     else
-        bsh.site_indices[1] != lp.basindex && return nothing
+        bsh.site_indices[1] != bp.basindex && return nothing
         new_basindex = bsh.site_indices[2]
     end
     NU > M && any(!=(0), @view bsh.translate_uc[M+1:NU]) && return nothing
-    return BravaisPointer(add_assuming_zeros(lp.latcoords, bsh.translate_uc), new_basindex)
+    return BravaisPointer(add_assuming_zeros(bp.latcoords, bsh.translate_uc), new_basindex)
 end
 @inline destination(bs::BravaisTranslation, site::BravaisSite) =
     BravaisSite(_destination_bp(bs, bravaispointer(site)), site.unitcell)
