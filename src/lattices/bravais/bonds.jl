@@ -8,10 +8,10 @@ A struct representing bonds in some direction in a lattice.
 ---
 Note that though the dimension count for the bond is static, it is automatically compatible with higher-dimensional lattices.
 """
-struct BravaisTranslation{LT, N} <: AbstractTranslation{LT}
+struct BravaisTranslation{LT,NU} <: AbstractTranslation{LT}
     lat::LT
     site_indices::Pair{Int, Int}
-    translate_uc::SVector{N, Int}
+    translate_uc::SVector{NU, Int}
     function BravaisTranslation(latt::LT, site_indices::Pair{Int, Int}, tr_uc::AbstractVector) where LT<:AbstractLattice
         if any(<(1), site_indices) && site_indices != (0=>0)
             throw(ArgumentError("Invalid site indices $site_indices: ≥1 expected"))
@@ -24,7 +24,7 @@ BravaisTranslation(lat::AbstractLattice, tr_uc::AbstractVector) = BravaisTransla
 BravaisTranslation(args...; kw...) = BravaisTranslation(UndefinedLattice(), args...; kw...)
 adapt_bonds(bsh::BravaisTranslation, l::AbstractLattice) =
     BravaisTranslation(l, bsh.site_indices, bsh.translate_uc)
-dims(::BravaisTranslation{UndefinedLattice, N}) where N = N
+ldims(::BravaisTranslation{UndefinedLattice, NU}) where NU = NU
 
 struct Bravais end
 Base.getindex(::Type{Bravais}, I::Int...) = BravaisTranslation(UndefinedLattice(), 0=>0, SVector(I))

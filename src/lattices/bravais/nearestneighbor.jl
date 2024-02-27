@@ -33,8 +33,6 @@ end
 
 Base.getindex(dnn::DefaultNNBonds, i::Int) = dnn.nnbonds[i]
 Base.length(dnn::DefaultNNBonds) = length(dnn.nnbonds)
-lattransform(ltr::LatticeTransform, dnn::DefaultNNBonds) =
-    DefaultNNBonds(lattransform.(Ref(ltr), dnn.dists), lattransform.(Ref(ltr), dnn.nnbonds))
 
 getnnbonds(l::AbstractLattice) = getparam(l, :nnbonds, DefaultNNBonds((), ()))
 setnnbonds(l::AbstractLattice, dnn::DefaultNNBonds) = setparam(l, :nnbonds, dnn)
@@ -48,7 +46,6 @@ function adapt_bonds(b::NearestNeighbor{N}, l::LatticeWithParams) where {N}
     end
 end
 NearestNeighbor(l::LatticeWithParams, N) = adapt_bonds(NearestNeighbor(N), l)
-lattransform(::LatticeTransform, nn::NearestNeighbor) = nn
 
 function detect_nnhops(uc::UnitCell{Sym, N,NB} where Sym, depth=2, limit=3) where {N,NB}
     lens = Float64[]

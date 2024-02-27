@@ -12,7 +12,6 @@ end
 Base.:(==)(s1::GenericSite, s2::GenericSite) = s1.coords == s2.coords
 Base.isless(s1::GenericSite, s2::GenericSite) = isless(s1.coords, s2.coords)
 
-lattransform(ltr::LatticeTransform, s::GenericSite) = GenericSite(s.coord |> ltr)
 Base.convert(::Type{GenericSite}, vec::AbstractVector{<:Real}) = GenericSite(SVector{length(vec)}(vec))
 Base.convert(::Type{GenericSite{N}}, vec::AbstractVector{<:Real}) where N = GenericSite(SVector{N}(vec))
 Base.convert(::Type{GenericSite}, tup::Tuple) = GenericSite(SVector(tup))
@@ -50,5 +49,3 @@ function Base.push!(l::GenericLattice{SiteT}, site::SiteT) where SiteT
     return l
 end
 Base.deleteat!(l::GenericLattice, inds) = deleteat!(l.sites, inds)
-
-lattransform(ltr::LatticeTransform, l::GenericLattice) = GenericLattice(lattransform(Ref(ltr), l.sites))

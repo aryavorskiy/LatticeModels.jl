@@ -317,7 +317,10 @@ Base.emptymutable(l::LatticeWithParams, ::Type{T}) where {T<:AbstractSite} =
     LatticeWithParams(Base.emptymutable(l.lat, T), l.params)
 Base.copymutable(lw::LatticeWithParams) = LatticeWithParams(copymutable(lw.lat), lw.params)
 Base.deleteat!(lw::LatticeWithParams, is) = (deleteat!(lw.lat, is); return lw)
-Base.push!(lw::LatticeWithParams, site) = (push!(lw.lat, site); return lw)
+function Base.push!(lw::LatticeWithParams{<:AbstractLattice{SiteT}}, site::SiteT) where SiteT
+    push!(lw.lat, site)
+    return lw
+end
 
 Base.show(io::IO, ::Type{<:LatticeWithParams{LT, ParamsT}}) where {LT, ParamsT} =
     print(io, "LatticeWithParams{", LT, ", params", fieldnames(ParamsT), "}")

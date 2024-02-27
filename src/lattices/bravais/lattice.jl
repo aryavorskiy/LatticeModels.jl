@@ -13,7 +13,9 @@ unitcell(lw::LatticeWithParams) = unitcell(lw.lat)
 unitvectors(any) = unitvectors(unitcell(any))
 basvector(any, i::Int) = basvector(unitcell(any), i)
 baslength(any) = length(unitcell(any))
-lattransform(ltr::LatticeTransform, l::BravaisLattice) = BravaisLattice(l.unitcell |> ltr, l.pointers)
+transform_unitcell(l::BravaisLattice; kw...) = BravaisLattice(transform_unitcell(l.unitcell; kw...), l.pointers)
+transform_unitcell(lw::LatticeWithParams; kw...) =
+    LatticeWithParams(transform_unitcell(lw.lat; kw...), lw.params)
 
 Base.:(==)(l1::BravaisLattice, l2::BravaisLattice) =
     (l1.pointers == l2.pointers) && (l1.unitcell == l2.unitcell)
@@ -114,25 +116,34 @@ function add_bravaispointers!(f, ptrs, unitcell::UnitCell{N,NU,NB},
     end
 end
 
-function finalize_lattice(lat; boundaries=BoundaryConditions(), default_translations=(), rmdup=false)
+function finalize_lattice(lat; boundaries=BoundaryConditions(), default_translations=(),
+        rmdup=false, postoffset=:origin, postrotate=nothing)
     lat = setnnbonds(lat, getnnbonds(stripparams(lat)))
     lat = addtranslations(lat, default_translations)
     lat = setboundaries(lat, parse_boundaries(lat, boundaries), rmdup=rmdup)
+    lat = transform_unitcell(lat, offset=postoffset, rotate=postrotate)
     return lat
 end
 
 """
-    span_unitcells(unitcell, dims...[; boundaries, offset])
+    span_unitcells([f, ]unitcell, dims...[; boundaries, offset])
 
-Construct a Bravais lattice by spanning `unitcell` in `dims` dimensions.
-
+Construct a Bravais lattice by spanning `unitcell` in `dims` dimensions, filtered by `f`.
 ## Arguments
+- `f`: a function that defines if the site is included in the lattice. Takes a `BravaisSite`, returns a `Bool`.
 - `unitcell`: a `UnitCell` object.
 - `dims`: a list of `Integer`s or `Range`s specifying the size of the lattice in each dimension.
 
 ## Keyword arguments
+- `default_translations`: a list of `BravaisTranslation`s to add to the lattice as default boundary condition axes.
 - `boundaries`: a `BoundaryConditions` object specifying the boundary conditions of the lattice.
+- `rmdup`: a `Bool` specifying whether to remove sites that are equivalent after applying the boundary conditions.
 - `offset`: the offset of the lattice from the origin. See `UnitCell` for details.
+- `rotate`: a rotation matrix to apply to the lattice. See `UnitCell` for details.
+
+Keep in mind that the offset and rotation are applied to the unit cell before the lattice is
+spanned (and `f` is applied). To apply them after the lattice is spanned, use the `postoffset`
+and `postrotate` keywords.
 
 ## Examples
 ```jldoctest
@@ -145,9 +156,9 @@ true
 ```
 """
 function span_unitcells(f, unitcell::UnitCell{N,NU,NB}, axes::Vararg{RangeT,NU};
-        unitvectortrs=true, offset = :origin, kw...) where {N,NU,NB}
+        unitvectortrs=true, offset=:origin, rotate=nothing, kw...) where {N,NU,NB}
     ptrs = BravaisPointer{NU}[]
-    new_unitcell = offset_unitcell(unitcell, offset)
+    new_unitcell = rotate_unitcell(offset_unitcell(unitcell, offset), rotate)
     add_bravaispointers!(f, ptrs, new_unitcell, axes)
     b = BravaisLattice(new_unitcell, ptrs)
     unitvectortrs && for (i, ax) in enumerate(axes)

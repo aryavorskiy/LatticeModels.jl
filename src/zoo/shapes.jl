@@ -75,14 +75,14 @@ shaperadius(lat::MaybeWithParams{BravaisLattice}, shape::AbstractShape) =
     shaperadius(lat.unitcell, shape, length(lat))
 
 function fillshapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...;
-        sites::Nullable{Int}=nothing, scale::Real=1, offset = :origin, kw...) where N
+        sites::Nullable{Int}=nothing, scale::Real=1, offset=:origin, rotate=nothing, kw...) where N
     bps = BravaisPointer{N}[]
     if sites !== nothing
         scale != 1 && @warn "Ignoring scale factor when `sites` is given"
         scale = scalefactor(uc, shapes...; sites=sites)
     end
     new_shapes = LatticeModels.scale.(shapes, scale)
-    new_unitcell = offset_unitcell(uc, offset)
+    new_unitcell = rotate_unitcell(offset_unitcell(uc, offset), rotate)
     for shape in new_shapes
         dims(shape) != N &&
             throw(ArgumentError("$(dims(shape))-dim $(typeof(shape)) incompatible with $N-dim lattice"))

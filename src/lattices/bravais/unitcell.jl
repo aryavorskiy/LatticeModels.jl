@@ -1,7 +1,7 @@
 using Logging, StaticArrays, Printf
 
 """
-    UnitCell(translations[, basis; offset])
+    UnitCell(translations[, basis; offset, rotate])
 
 Constructs a Bravais lattice unit cell with given translation vectors and locations of basis sites.
 
@@ -17,18 +17,24 @@ Constructs a Bravais lattice unit cell with given translation vectors and locati
     - `:center`: shift the lattice so that the center of the basis is at the origin of the unit cell.
     - `:centeralign`: shift the lattice so that the center of the basis is at the center of the unit cell.
     - Also accepts an `AbstractVector` of size `N` to shift the lattice by a custom vector.
+- `rotate`: a keyword argument that specifies how to rotate the lattice basis.
+    Possible values:
+    - `nothing`: no rotation (default).
+    - An `AbstractMatrix` of size `N×N` to rotate the lattice.
+    - A `Real` number to rotate the lattice by this angle in radians.
+    - Also accepts an `AbstractMatrix` of size `N×N` to rotate the lattice basis.
 """
 struct UnitCell{N,NU,NB,NND,NNB}
     translations::SMatrix{N,NU,Float64,NND}
     basissites::SMatrix{N,NB,Float64,NNB}
     function UnitCell(translations::AbstractMatrix,
             basissites::AbstractMatrix=zeros(size(translations, 1), 1);
-            offset=:origin)
+            offset=:origin, rotate=nothing)
         N, NU = size(translations)
         NB = size(basissites, 2)
         @check_size basissites (N, NB)
         u = new{N,NU,NB,N*NU,N*NB}(translations, basissites)
-        return offset_unitcell(u, offset)
+        return rotate_unitcell(offset_unitcell(u, offset), rotate)
     end
 end
 function offset_unitcell(uc::UnitCell, offset)
@@ -48,6 +54,23 @@ function offset_unitcell(uc::UnitCell, offset)
         throw(ArgumentError("invalid `offset` keyword argument"))
     end
 end
+function rotate_unitcell(uc::UnitCell, rotation)
+    if rotation isa AbstractMatrix
+        @check_size rotation (dims(uc), dims(uc))
+        return UnitCell(rotation * uc.translations, rotation * uc.basissites)
+    elseif rotation isa Real
+        angle = rotation
+        mz = zero(MMatrix{dims(uc),dims(uc)})
+        mz[1:2, 1:2] = SMatrix{2,2}(cos(angle), -sin(angle), sin(angle), cos(angle))
+        return rotate_unitcell(uc, mz)
+    elseif rotation === nothing
+        return uc
+    else
+        throw(ArgumentError("invalid `rotate` keyword argument"))
+    end
+end
+transform_unitcell(uc::UnitCell; offset=:origin, rotate=nothing) =
+    return rotate_unitcell(offset_unitcell(uc, offset), rotate)
 
 basvector(uc::UnitCell, i::Int) = uc.basissites[:, i]
 unitvector(uc::UnitCell, i::Int) = uc.translations[:, i]
@@ -58,7 +81,6 @@ ldims(::UnitCell{N,NU}) where {N,NU} = NU
 Base.length(::UnitCell{N,NU,NB}) where {N,NU,NB} = NB
 Base.:(==)(b1::UnitCell, b2::UnitCell) =
     b1.translations == b2.translations && b1.basissites == b2.basissites
-lattransform(ltr::LatticeTransform, uc::UnitCell) = UnitCell(uc.translations |> ltr, uc.basissites |> ltr)
 
 function print_vectors(io::IO, a::AbstractMatrix)
     indent = getindent(io)
@@ -110,8 +132,6 @@ function Base.isless(lp1::BravaisPointer, lp2::BravaisPointer)
     end
 end
 
-lattransform(::LatticeTransform, lp::BravaisPointer) = lp
-
 """
     BravaisSite{N,NU,B}
 A site of a `BravaisLattice{N,NU,B}` lattice.
@@ -134,8 +154,6 @@ BravaisSite(::Nothing, ::UnitCell) = NoSite()
 unitcell(site::BravaisSite) = site.unitcell
 ldims(::BravaisSite{N,NU,UnitcellT}) where {N,NU,UnitcellT} = NU
 bravaispointer(site::BravaisSite) = BravaisPointer(site.latcoords, site.basindex)
-lattransform(ltr::LatticeTransform, site::BravaisSite) =
-    BravaisSite(bravaispointer(site), site.unitcell |> ltr)
 
 struct LatticeCoord <: SiteProperty axis::Int end
 function getsiteproperty(site::BravaisSite, c::LatticeCoord)
