@@ -19,7 +19,42 @@ end
     end
 end
 
-@recipe f(l::AbstractLattice, ::Val{:sites}) = @series l, nothing
+function _process_axis(ax)
+    if ax isa Int
+        return ax
+    elseif ax isa Symbol
+        p = SitePropertyAlias{ax}()
+        if p isa Coord
+            return p.axis
+        end
+    end
+    throw(ArgumentError("Invalid axis $ax"))
+end
+function _get_axes(l, default)
+    l isa UndefinedLattice && throw(ArgumentError("Cannot plot an undefined lattice."))
+    axes = default !== nothing ? default :
+        (dims(l) == 3 ? (:x, :y, :z) : (:x, :y))
+    if length(axes) < 2
+        throw(ArgumentError("At least two axes are required; got $axes"))
+    elseif length(axes) > dims(l)
+        throw(ArgumentError("Cannot display a $(dims(l))D lattice in $(length(axes)) axes"))
+    end
+    axis_numbers = _process_axis.(axes)
+    allunique(axis_numbers) || throw(ArgumentError("Duplicate axes in $axes"))
+    return axes, axis_numbers
+end
+@recipe function f(l::AbstractLattice, ::Val{:sites})
+    aspect_ratio := :equal
+    seriestype := :scatter
+    axes, axis_numbers = _get_axes(l, get(plotattributes, :axes, nothing))
+    xguide --> axes[1]
+    yguide --> axes[2]
+    if length(axes) > 2
+        zguide --> axes[3]
+    end
+    rows = eachrow(collect_coords(l))
+    @series Tuple(rows[i] for i in axis_numbers)
+end
 
 @recipe function f(l::AbstractLattice, ::Val{:high_contrast})
     markersize := 4
@@ -28,7 +63,7 @@ end
     markerstrokestyle := :solid
     markerstrokewidth := 2
     markerstrokecolor := :white
-    l, nothing
+    l, :sites
 end
 
 @recipe function f(l::AbstractLattice, ::Val{:numbers})
@@ -37,31 +72,26 @@ end
     @series begin   # The sites
         seriestype := :scatter
         markershape := :none
+        markeralpha := 0
         series_annotations := annotations
-        l, nothing
+        l, :sites
     end
 end
 
-@recipe function f(l::AbstractLattice, ::Val{:bonds}; bonds = (1, 2, 3))
+@recipe function f(l::AbstractLattice, ::Val{:bonds})
     label := ""
-    1 in bonds && @series begin   # The bonds
-        seriestype := :path
-        label := ""
-        l, NearestNeighbor(1)
-    end
-    2 in bonds && @series begin   # The nnbonds
-        seriestype := :path
-        linestyle := :dash
-        linealpha := 0.5
-        label := ""
-        l, NearestNeighbor(2)
-    end
-    3 in bonds && @series begin   # The nnnbonds
-        seriestype := :path
-        linestyle := :dot
-        linealpha := 0.5
-        label := ""
-        l, NearestNeighbor(3)
+    seriestype := :path
+    lss = (:solid, :dash, :dot)
+    las = (1, 0.6, 0.5)
+    showbonds = get(plotattributes, :showbonds, 1)
+    @show showbonds
+    for i in eachindex(showbonds)
+        @series begin
+            label := ""
+            linestype := lss[min(i, length(lss))]
+            linealpha := las[min(i, length(las))]
+            l, NearestNeighbor(showbonds[i])
+        end
     end
 end
 
@@ -69,7 +99,6 @@ end
     label := ""
     trs = adapt_boundaries(getboundaries(l), UndefinedLattice())
     seriescolor --> :lightblue
-    bonds --> ()
     xmi, xma = extrema(site -> site.coords[1], l)
     xlims --> (xmi + xma) / 2 .+ (xma - xmi) .* (-1, 1)
     ymi, yma = extrema(site -> site.coords[2], l)
@@ -95,57 +124,56 @@ end
 @recipe function f(l::AbstractLattice; showboundaries=true, showbonds=false, shownumbers=false)
     label --> ""
     shownumbers --> showboundaries
-    bonds --> (showbonds ? (1,2,3) : ())
+    if showbonds isa Bool
+        showbonds := (showbonds ? (1,) : ())
+    elseif showbonds isa Union{Int, Tuple}
+        showbonds := showbonds
+    else
+        throw(ArgumentError(""))
+    end
     @series l, :bonds
     @series l, :sites
     showboundaries && @series l, :boundaries
     shownumbers && @series l, :numbers
 end
 
-@recipe function f(l::AbstractLattice, v)
-    aspect_ratio := :equal
-    marker_z := v
-    pts = collect_coords(l)
-    if v !== nothing && RecipesBase.is_key_supported(:hover)
-        crd_markers = [join(round.(crds[:, i], digits=3), ", ") for i in 1:size(pts, 2)]
-        hover := string.(round.(v, digits=3), " @ (", crd_markers, ")")
-    end
-    if dims(l) == 1
-        seriestype := :scatter
-        @series vec(pts), zeros(vec(pts))
-    elseif dims(l) == 2
-        seriestype --> :scatter
-        X, Y = eachrow(pts)
-        if plotattributes[:seriestype] == :scatter
-            @series X, Y
-        elseif plotattributes[:seriestype] == :surface
-            @series X, Y, v
-        else
-            throw(ArgumentError("series type $(plotattributes[:seriestype]) not supported for 2D lattices"))
-        end
-    elseif dims == 3
-        seriestype := :scatter3d
-        @series Tuple(eachrow(pts))
-    end
-end
-
 @recipe function f(lv::LatticeValue{<:Number})
-    lv.latt, lv.values
+    marker_z := lv.values
+    lv.latt, :sites
 end
 
-@recipe function f(ag::AbstractBonds)
-    aspect_ratio := :equal
-    l = lattice(ag)
-    pts = NTuple{dims(l), Float64}[]
-    br_pt = fill(NaN, dims(l)) |> Tuple
-    for (s1, s2) in ag
-        R = s2.old_site.coords - s1.old_site.coords
+function collect_coords(bonds::AbstractBonds)
+    l = lattice(bonds)
+    pts = SVector{dims(l), Float64}[]
+    nans = fill(NaN, dims(l)) |> Tuple |> SVector
+    for (s1, s2) in bonds
         A = s1.site.coords
         B = s2.site.coords
-        push!(pts, Tuple(A), Tuple(A + R / 2), br_pt, Tuple(B - R / 2), Tuple(B), br_pt)
+        R = s2.old_site.coords - s1.old_site.coords
+        if R ≈ B - A
+            push!(pts, A, B, nans)
+        else
+            push!(pts, A, A + R / 2, nans, B - R / 2, B, nans)
+        end
     end
+    zs = zeros(dims(l), length(pts))
+    for i in 1:length(pts)
+        zs[:, i] = pts[i]
+    end
+    return zs
+end
+
+@recipe function f(bonds::AbstractBonds)
+    aspect_ratio := :equal
     label := nothing
-    pts
+    axes, axis_numbers = _get_axes(lattice(bonds), get(plotattributes, :axes, nothing))
+    xguide --> axes[1]
+    yguide --> axes[2]
+    if length(axes) > 2
+        zguide --> axes[3]
+    end
+    rows = eachrow(collect_coords(bonds))
+    @series Tuple(rows[i] for i in axis_numbers)
 end
 
 @recipe function f(l::AbstractLattice, b::AbstractBonds)
