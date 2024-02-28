@@ -234,24 +234,36 @@ function mapgroup_currents(f::Function, group::Function, curr::AbstractCurrents;
 end
 
 @recipe function f(curr::AbstractCurrents)
-    l = lattice(curr)
-    dims(l) != 2 && error("2-dim lattice expected")
-    Xs = Float64[]
-    Ys = Float64[]
-    Qs = NTuple{2,Float64}[]
-    arrows_scale --> 1
-    arrows_rtol --> 1e-2
-    seriestype := :quiver
+    lat = lattice(curr)
+    dims(lat) != 2 && error("2D lattice expected")
+    seriestype := :path
+    seriescolor --> :tempo
+    linewidth --> 2.5
+    Pts = SVector{2,Float64}[]
+    Vs = Float64[]
+    nans = SVector(NaN, NaN)
     for ((site1, site2), val) in curr
-        crd = val > 0 ? site1.coords : site2.coords
-        vc = site2.coords - site1.coords
-        vc_n = norm(vc)
-        if vc_n < abs(val * plotattributes[:arrows_scale] / plotattributes[:arrows_rtol])
-            push!(Xs, crd[1])
-            push!(Ys, crd[2])
-            push!(Qs, Tuple(vc * (val * plotattributes[:arrows_scale] / vc_n)))
+        abs(val) < 1e-10 && continue
+        if val < 0
+            site1, site2 = site2, site1
+            val = -val
         end
+        v1 = site1.coords
+        v2 = site2.coords
+        d = normalize(v2 - v1)
+        o = SVector(d[2], -d[1])
+        push!(Pts, v1, v2, v2 - 0.15d - 0.05o, v2 - 0.15d + 0.05o, v2, nans)
+        push!(Vs, val, val, val, val, val, NaN)
     end
-    quiver := Qs
-    Xs, Ys
+    line_z --> Vs
+    @series [p[1] for p in Pts], [p[2] for p in Pts]
+    @series begin
+        seriestype := :scatter
+        markersize := 1.5
+        markercolor := :gray
+        markeralpha := 0.8
+        markerstrokewidth := 0
+        label := ""
+        lattice(curr), :sites
+    end
 end
