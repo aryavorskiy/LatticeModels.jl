@@ -84,7 +84,6 @@ end
     lss = (:solid, :dash, :dot)
     las = (1, 0.6, 0.5)
     showbonds = get(plotattributes, :showbonds, 1)
-    @show showbonds
     for i in eachindex(showbonds)
         @series begin
             label := ""
@@ -121,7 +120,7 @@ end
     end
 end
 
-@recipe function f(l::AbstractLattice; showboundaries=true, showbonds=false, shownumbers=false)
+@recipe function f(l::AbstractLattice; showboundaries=true, showbonds=true, shownumbers=false)
     label --> ""
     shownumbers --> showboundaries
     if showbonds isa Bool
@@ -137,9 +136,50 @@ end
     shownumbers && @series l, :numbers
 end
 
+function getcircle(r::Real, n::Int)
+    is = (0:n) .* 2pi/n
+    return r * cos.(is), r * sin.(is)
+end
+function getshape(l::AbstractLattice)
+    site = l[1]
+    r = site_distance(l, site, l[2])
+    for i in 3:length(l)
+        r = min(r, site_distance(l, site, l[i]))
+    end
+    return getcircle(r/2, 20)
+end
+getshape(l::AbstractLattice, _) = getshape(l)   # fallback for undefined lattice types
+function getshape(l::LatticeWithParams)
+    if hasparam(l, :latticetype)
+        return getshape(l.lat, l.latticetype)
+    elseif length(getnnbonds(l)) > 0
+        nnb = getnnbonds(l)
+        return getcircle(nnb.dists[1], 20)
+    else
+        return getshape(l.lat)
+    end
+end
+function moveshape(shape, loc::SVector{2})
+    xs, ys = shape
+    return xs .+ loc[1], ys .+ loc[2]
+end
 @recipe function f(lv::LatticeValue{<:Number})
-    marker_z := lv.values
-    lv.latt, :sites
+    seriestype --> :image
+    if plotattributes[:seriestype] !== :image || dims(lattice(lv)) != 2
+        marker_z := lv.values
+        lv.latt, :sites
+    else
+        label := ""
+        aspect_ratio := :equal
+        shape = getshape(lv.latt)
+        for site in lv.latt
+            @series begin
+                seriestype := :shape
+                fill_z := lv[site]
+                moveshape(shape, site.coords)
+            end
+        end
+    end
 end
 
 function collect_coords(bonds::AbstractBonds)

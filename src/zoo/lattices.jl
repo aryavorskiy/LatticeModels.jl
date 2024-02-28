@@ -104,6 +104,12 @@ function checktype(l::AbstractLattice, T::Type{<:BravaisLatticeType})
 end
 checktype(any, T) = checktype(lattice(any), T)
 
+function _ngonshape(r::SVector{2}, n, skip=true)
+    is = (skip / 2:n + skip / 2) .* 2pi/n
+    skip && (r /= cos(pi / n))
+    return r[1] .* cos.(is) .+ r[2] .* sin.(is), r[1] .* sin.(is) .- r[2] .* cos.(is)
+end
+
 """
     SquareLattice{N}
 Represents a square lattice in `N` dimensions.
@@ -114,6 +120,8 @@ Represents a square lattice in `N` dimensions.
 Construct a square lattice of size `sz`.
 """
 @bravaisdef SquareLattice N -> UnitCell(SMatrix{N,N}(I))
+getshape(l::BravaisLattice, ::Type{SquareLattice{2}}) =
+    _ngonshape(unitvector(l, 1) / 2, 4)
 
 """
     TriangularLattice
@@ -126,6 +134,8 @@ Lattice vectors: `[1, 0]` and `[0.5, √3/2]`.
 Construct a triangular lattice of a×b spanned unit cells.
 """
 @bravaisdef TriangularLattice UnitCell([1 0.5; 0 √3/2])
+getshape(l::BravaisLattice, ::Type{TriangularLattice}) =
+    _ngonshape(unitvector(l, 1) / 2, 6)
 
 """
     HoneycombLattice
@@ -140,6 +150,8 @@ two sites at `[0, 0]` and `[0.5, √3/6]` in each unit cell.
 Construct a honeycomb lattice of a×b spanned unit cells.
 """
 @bravaisdef HoneycombLattice UnitCell([1 0.5; 0 √3/2], [0 0.5; 0 √3/6])
+getshape(l::BravaisLattice, ::Type{HoneycombLattice}) =
+    _ngonshape(unitvector(l, 1) / 3, 6, false)
 
 """
     GrapheneRibbon(len, wid[, center; kw...])
@@ -186,3 +198,5 @@ three sites at `[0, 0]`, `[0.5, 0]` and `[0.25, √3/4]` in each unit cell.
 Construct a kagome lattice of a×b spanned unit cells.
 """
 @bravaisdef KagomeLattice UnitCell([1 0.5; 0 √3/2], [0 0.5 0.25; 0 0 √3/4])
+getshape(l::BravaisLattice, ::Type{KagomeLattice}) =
+    _ngonshape(unitvector(l, 1) / 4, 6)

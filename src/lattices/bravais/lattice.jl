@@ -10,8 +10,9 @@ struct BravaisLattice{N,NU,UnitcellT} <: AbstractLattice{BravaisSite{N,NU,Unitce
 end
 unitcell(l::BravaisLattice) = l.unitcell
 unitcell(lw::LatticeWithParams) = unitcell(lw.lat)
-unitvectors(any) = unitvectors(unitcell(any))
 basvector(any, i::Int) = basvector(unitcell(any), i)
+unitvector(any, i::Int) = unitvector(unitcell(any), i)
+unitvectors(any) = unitvectors(unitcell(any))
 baslength(any) = length(unitcell(any))
 transform_unitcell(l::BravaisLattice; kw...) = BravaisLattice(transform_unitcell(l.unitcell; kw...), l.pointers)
 transform_unitcell(lw::LatticeWithParams; kw...) =
