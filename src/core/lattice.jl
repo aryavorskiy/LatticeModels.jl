@@ -315,7 +315,7 @@ site_index(::LatticeWithParams, ::NoSite) = nothing
 
 Base.emptymutable(l::LatticeWithParams, ::Type{T}) where {T<:AbstractSite} =
     LatticeWithParams(Base.emptymutable(l.lat, T), l.params)
-Base.copymutable(lw::LatticeWithParams) = LatticeWithParams(copymutable(lw.lat), lw.params)
+Base.copymutable(lw::LatticeWithParams) = LatticeWithParams(Base.copymutable(lw.lat), lw.params)
 Base.deleteat!(lw::LatticeWithParams, is) = (deleteat!(lw.lat, is); return lw)
 function Base.push!(lw::LatticeWithParams{<:AbstractLattice{SiteT}}, site::SiteT) where SiteT
     push!(lw.lat, site)
