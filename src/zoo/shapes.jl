@@ -180,7 +180,7 @@ end
 scale(f::Polygon{N}, c) where N = Polygon{N}(c * f.radius, c * f.center)
 volume(f::Polygon{N}) where N = N / 2 * sin(2pi / N) * f.radius^2
 @generated function inshape(f::Polygon{N}, site) where N
-    exprs = [:(y * $(cos(2pi * i / N)) + x * $(sin(2pi * i / N)) < h) for i in 1:N]
+    exprs = [:(y * $(cos(2pi * i / N)) + x * $(sin(2pi * i / N)) > -h) for i in 1:N]
     and_expr = reduce((x, y) -> :($x && $y), exprs)
     quote
         h = f.radius * $(cos(pi / N))

@@ -87,8 +87,8 @@ end
     for i in eachindex(showbonds)
         @series begin
             label := ""
-            linestype := lss[min(i, length(lss))]
-            linealpha := las[min(i, length(las))]
+            linestype --> lss[min(i, length(lss))]
+            linealpha --> las[min(i, length(las))]
             l, NearestNeighbor(showbonds[i])
         end
     end
@@ -163,11 +163,21 @@ function moveshape(shape, loc::SVector{2})
     xs, ys = shape
     return xs .+ loc[1], ys .+ loc[2]
 end
-@recipe function f(lv::LatticeValue{<:Number})
+@recipe function f(lv::LatticeValue{<:Number}; showbonds::Bool=true)
     seriestype --> :image
+    seriescolor --> :tempo
+    label --> ""
     if plotattributes[:seriestype] !== :image || dims(lattice(lv)) != 2
+        showbonds && @series begin
+            showbonds := 1
+            seriescolor := :grey
+            linealpha := 0.5
+            linewidth := 2
+            lv.latt, :bonds
+        end
         marker_z := lv.values
-        lv.latt, :sites
+        markersize := 5
+        @series lv.latt, :sites
     else
         label := ""
         aspect_ratio := :equal
