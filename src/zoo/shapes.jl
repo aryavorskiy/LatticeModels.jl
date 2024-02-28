@@ -99,10 +99,10 @@ function fillshapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...;
     return addtranslations(fb, overwrite=true)
 end
 fillshapes(LT::Type{<:BravaisLatticeType}, shapes::AbstractShape...; kw...) =
-    fillshapes(construct_unitcell(LT), shapes...; kw...)
+    settype(fillshapes(construct_unitcell(LT), shapes...; kw...), LT)
 
 (::Type{LT})(shapes::AbstractShape...; kw...) where LT<:BravaisLatticeType =
-    fillshapes(construct_unitcell(LT), shapes...; kw...)
+    settype(fillshapes(construct_unitcell(LT), shapes...; kw...), LT)
 
 function addshapes!(l::MaybeWithParams{BravaisLattice{N}}, shapes::AbstractShape...) where N
     bps = l.pointers

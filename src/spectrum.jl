@@ -94,6 +94,7 @@ Base.getindex(eig::AbstractEigensystem; value::Number) =
 Base.getindex(eig::AbstractEigensystem, mask) =
     Eigensystem(eig.basis, eig.states[:, mask], eig.values[mask])
 sample(eig::AbstractEigensystem) = sample(eig.basis)
+sample(eig::HamiltonianEigensystem) = sample(eig.sys)
 
 function Base.show(io::IO, ::MIME"text/plain", eig::Eigensystem)
     println(io, "Eigensystem (", fmtnum(eig, "eigenvector"), ")")
@@ -261,7 +262,7 @@ the produced function is optimized and reduces overall computation time dramatic
 """
 function ldos(eig::AbstractEigensystem{<:AbstractLatticeBasis}, δ::Real)
     Es = eig.values
-    l = lattice(eig.basis)
+    l = lattice(eig)
     N = internal_length(eig.basis)
     density_sums = reshape(
         sum(reshape(abs2.(eig.states), (N, :, length(eig))), dims=1), (:, length(eig)))

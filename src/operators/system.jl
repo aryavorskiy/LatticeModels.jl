@@ -216,6 +216,7 @@ function Hamiltonian(sys::System, op::Operator)
 end
 QuantumOpticsBase.Operator(ham::Hamiltonian) = Operator(ham.basis_l, ham.data)
 sample(ham::Hamiltonian) = sample(ham.sys)
+lattice(ham::Hamiltonian) = lattice(sample(ham))
 
 Base.:(*)(op::Operator{B1, B2}, ham::Hamiltonian{Sys, B2}) where {Sys, B1, B2} = op * Operator(ham)
 Base.:(*)(ham::Hamiltonian{Sys, B2}, op::Operator{B1, B2}) where {Sys, B1, B2} = Operator(ham) * op
