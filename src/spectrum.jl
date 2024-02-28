@@ -93,6 +93,8 @@ Base.getindex(eig::AbstractEigensystem; value::Number) =
     Ket(eig.basis, eig.states[:, argmin(@. abs(value - eig.values))])
 Base.getindex(eig::AbstractEigensystem, mask) =
     Eigensystem(eig.basis, eig.states[:, mask], eig.values[mask])
+Base.getindex(eig::HamiltonianEigensystem, mask) =
+    HamiltonianEigensystem(eig.sys, eig.basis, eig.states[:, mask], eig.values[mask])
 sample(eig::AbstractEigensystem) = sample(eig.basis)
 sample(eig::HamiltonianEigensystem) = sample(eig.sys)
 
@@ -247,8 +249,8 @@ $\frac{1}{\hat{H} - E - i\delta}$ operator.
 function ldos(eig::AbstractEigensystem{<:AbstractLatticeBasis}, E::Real, δ::Real)
     Es = eig.values
     Vs = eig.states
-    l = lattice(eig.basis)
-    N = internal_length(eig.basis)
+    l = lattice(eig)
+    N = internal_length(eig)
     inves = imag.(1 ./ (Es .- (E + im * δ)))'
     LatticeValue(l, [sum(abs2.(Vs[(i-1)*N+1:i*N, :]) .* inves) for i in eachindex(l)])
 end
@@ -263,8 +265,8 @@ the produced function is optimized and reduces overall computation time dramatic
 function ldos(eig::AbstractEigensystem{<:AbstractLatticeBasis}, δ::Real)
     Es = eig.values
     l = lattice(eig)
-    N = internal_length(eig.basis)
+    N = internal_length(eig)
     density_sums = reshape(
-        sum(reshape(abs2.(eig.states), (N, :, length(eig))), dims=1), (:, length(eig)))
+        sum(abs2, reshape(eig.states, (N, :, length(eig))), dims=1), (:, length(eig)))
     E -> LatticeValue(l, vec(sum(density_sums .* imag.(1 ./ (Es .- (E + im * δ)))', dims=2)))
 end
