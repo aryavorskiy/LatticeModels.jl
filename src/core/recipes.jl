@@ -99,7 +99,6 @@ latticedist2(lat::AbstractLattice, site::AbstractSite) =
 @recipe function f(lat::AbstractLattice, ::Val{:boundaries})
     label := ""
     trs = adapt_boundaries(getboundaries(lat), UndefinedLattice())
-    seriescolor --> :lightblue
     for cind in cartesian_indices(lat)
         tup = Tuple(cind)
         all(==(0), tup) && continue
@@ -115,14 +114,21 @@ latticedist2(lat::AbstractLattice, site::AbstractSite) =
         diam2 = maximum(ldists)
         q = max(1/3.1, 3.5/√diam2)
         is = findall(<(diam2 * q^2), ldists)
-        alphafalloff = map(x -> 0.7 * exp(-2.5x / (diam2 * q^2)), @view ldists[is])
+        alphafalloff = map(x -> 0.5 * exp(-2.5x / (diam2 * q^2)), @view ldists[is])
         @series begin
-            markeralpha := alphafalloff
-            lat2[is], :sites
+            sitealpha := alphafalloff
+            seriescolor --> :lightblue
+            lat2[is], :bonds
         end
         @series begin
-            linealpha := 0.5
-            lat2[is], :bonds
+            markeralpha := alphafalloff
+            markerstrokewidth := 0.5
+            if :marker_z in keys(plotattributes)
+                marker_z := plotattributes[:marker_z][is]
+            else
+                seriescolor --> :lightblue
+            end
+            lat2[is], :sites
         end
     end
 end
@@ -170,7 +176,7 @@ function moveshape(shape, loc::SVector{2})
     xs, ys = shape
     return xs .+ loc[1], ys .+ loc[2]
 end
-@recipe function f(lv::LatticeValue{<:Number}; showbonds::Bool=true)
+@recipe function f(lv::LatticeValue{<:Number};)
     seriestype --> (length(lv) < 500  ? :image : :scatter)
     seriescolor --> :tempo
     label --> ""
@@ -187,38 +193,42 @@ end
             end
         end
     else
-        showbonds && @series begin
-            showbonds := 1
-            seriescolor := :grey
-            linealpha := 0.5
-            linewidth := 2
-            lat, :bonds
-        end
+        linecolor := :grey
+        linealpha := 0.5
+        linewidth := 2
         marker_z := lv.values
         markersize := 5
-        @series lat, :sites
+        @series (lat,)
     end
 end
 
-function collect_coords(bonds::AbstractBonds)
+function collect_coords(bonds::AbstractBonds, sitealpha=nothing)
     lat = lattice(bonds)
     pts = SVector{dims(lat), Float64}[]
-    nans = fill(NaN, dims(lat)) |> Tuple |> SVector
+    alphas = Float64[]
+    nans = zero(SVector{dims(lat)}) * NaN
     for (s1, s2) in bonds
         A = s1.site.coords
         B = s2.site.coords
         R = s2.old_site.coords - s1.old_site.coords
         if R ≈ B - A
             push!(pts, A, B, nans)
+            if sitealpha !== nothing
+                push!(alphas, sitealpha[s1.index], sitealpha[s1.index], NaN)
+            end
         else
             push!(pts, A, A + R, nans, B - R, B, nans)
+            if sitealpha !== nothing
+                push!(alphas, sitealpha[s1.index], sitealpha[s1.index], NaN,
+                    sitealpha[s2.index], sitealpha[s2.index], NaN)
+            end
         end
     end
     zs = zeros(dims(lat), length(pts))
     for i in 1:length(pts)
         zs[:, i] = pts[i]
     end
-    return zs
+    return zs, alphas
 end
 
 @recipe function f(bonds::AbstractBonds)
@@ -230,7 +240,11 @@ end
     if length(axes) > 2
         zguide --> axes[3]
     end
-    rows = eachrow(collect_coords(bonds))
+    crd, linealphas = collect_coords(bonds, get(plotattributes, :sitealpha, nothing))
+    rows = eachrow(crd)
+    if !isempty(linealphas)
+        linealpha := linealphas[1:end-1]
+    end
     @series Tuple(rows[i] for i in axis_numbers)
 end
 
