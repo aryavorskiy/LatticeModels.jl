@@ -42,17 +42,19 @@ Base.values(tseq::TimeSequence) = tseq.values
 Base.copy(tseq::TimeSequence) = TimeSequence(copy(tseq.times), [copy(s) for s in tseq.values])
 Base.length(tseq::TimeSequence) = length(timestamps(tseq))
 
-function Base.show(io::IO, ::MIME"text/plain", tseq::TimeSequence{ET}) where ET
+function Base.show(io::IO, mime::MIME"text/plain", tseq::TimeSequence{ET}) where ET
     print(io, "TimeSequence{$ET} with ", fmtnum(tseq, "entr", "y", "ies"))
     requires_compact(io) && return
-    length(td) ≥ 2 && print(io, "\nTimestamps in range $(timerange(tseq)):")
+    length(tseq) ≥ 2 && print(io, "\nTimestamps in range $(timerange(tseq)):")
     maxlen = get(io, :maxlines, 10)
+    io = IOContext(io, :compact => true)
     for i in 1:min(length(tseq), maxlen)
         print(io, "\n")
-        if i == maxlen < length(l)
+        if i == maxlen < length(tseq)
             print(io, "  ⋮")
         else
-            print(io, "  $(tseq.times[i]) => $(tseq.values[i])")
+            print(io, "  $(tseq.times[i]) => ")
+            show(io, mime, tseq.values[i])
         end
     end
 end
