@@ -91,9 +91,9 @@ Base.length(eig::AbstractEigensystem) = length(eig.values)
 Base.getindex(eig::AbstractEigensystem, i::Int) = Ket(eig.basis, eig.states[:, i])
 Base.getindex(eig::AbstractEigensystem; value::Number) =
     Ket(eig.basis, eig.states[:, argmin(@. abs(value - eig.values))])
-Base.getindex(eig::AbstractEigensystem, mask) =
+Base.getindex(eig::AbstractEigensystem, mask::AbstractVector) =
     Eigensystem(eig.basis, eig.states[:, mask], eig.values[mask])
-Base.getindex(eig::HamiltonianEigensystem, mask) =
+Base.getindex(eig::HamiltonianEigensystem, mask::AbstractVector) =
     HamiltonianEigensystem(eig.sys, eig.basis, eig.states[:, mask], eig.values[mask])
 sample(eig::AbstractEigensystem) = sample(eig.basis)
 sample(eig::HamiltonianEigensystem) = sample(eig.sys)
@@ -111,6 +111,7 @@ function Base.show(io::IO, mime::MIME"text/plain", eig::HamiltonianEigensystem)
 end
 
 groundstate(eig::HamiltonianEigensystem) = eig[1]
+groundstate(ham::Hamiltonian) = groundstate(diagonalize(ham))
 
 @doc raw"""
     projector(eig::Eigensystem)

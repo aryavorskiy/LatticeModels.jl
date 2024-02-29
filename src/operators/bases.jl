@@ -7,6 +7,7 @@ struct LatticeBasis{LT} <: QuantumOpticsBase.Basis
     lat::LT
     function LatticeBasis(l::LT) where LT<:AbstractLattice
         new_l = stripparams(l)
+        hasparam(l, :latticetype) && (new_l = settype(new_l, gettype(l)))
         return new{typeof(new_l)}(length(l), new_l)
     end
 end
@@ -44,3 +45,9 @@ lattice(lb::LatticeBasis) = lb.lat
 lattice(lb::CompositeLatticeBasis) = lattice(lb.bases[end])
 lattice(ms::ManyBodyBasis{<:OneParticleBasis}) = lattice(ms.onebodybasis)
 lattice(state::StateType) = lattice(basis(state))
+
+LatticeValue(ket::Ket{<:LatticeBasis}) = LatticeValue(lattice(ket), ket.data)
+LatticeValue(bra::Bra{<:LatticeBasis}) = LatticeValue(lattice(bra), bra.data)
+LatticeValue(::StateVector{<:CompositeLatticeBasis}) =
+    throw(ArgumentError("""Cannot convert a state on a lattice basis \
+with on-site degrees of freedom to a lattice value"""))

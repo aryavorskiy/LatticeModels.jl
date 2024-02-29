@@ -5,6 +5,11 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:SingleBond})
     op, bond = arg
     builder[bond[1], bond[2]] += op
 end
+function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:AbstractSite})
+    # Single bond
+    op, site = arg
+    builder[site, site] += op
+end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:AbstractBonds})
     # Hopping term
     op, bonds = arg
@@ -74,7 +79,7 @@ function arg_to_pair(sample::Sample, arg::Pair)
         new_onlat = onlat
     elseif onlat isa AbstractBonds
         new_onlat = adapt_bonds(onlat, lattice(sample))
-    elseif onlat isa Union{Number, SingleBond}
+    elseif onlat isa Union{Number, SingleBond, AbstractSite}
         new_onlat = onlat
     else
         throw(ArgumentError("cannot interpret $(typeof(onlat)) as on-lattice operator"))

@@ -89,20 +89,20 @@ function Base.delete!(tseq::TimeSequence, t::Number)
 end
 
 Base.getindex(tseq::TimeSequence, t::Real) = tseq[t = t]
-@inline _index_inner(val, ::Tuple{}) = val
-@inline _index_inner(val, args::Tuple) = val[args...]
-function Base.getindex(tseq::TimeSequence, args...; t)
+@inline _index_inner(val, ::Tuple{}, ::Base.Iterators.Pairs{Symbol, Union{}, Tuple{}, @NamedTuple{}}) = val
+@inline _index_inner(val, args::Tuple, kw::Base.Iterators.Pairs) = getindex(val, args...; kw...)
+function Base.getindex(tseq::TimeSequence, args...; t=-Inf..Inf, kw...)
     if t isa Number
         val = get(tseq, t, Base.secret_table_token)
         if val == Base.secret_table_token
             throw(KeyError(t))
         else
-            return _index_inner(val, args)
+            return _index_inner(val, args, kw)
         end
     else
         mask = map(in(t), tseq.times)
         return TimeSequence(tseq.times[mask],
-        [_index_inner(tseq.values[i], args) for i in eachindex(tseq.values) if mask[i]])
+        [_index_inner(tseq.values[i], args, kw) for i in eachindex(tseq.values) if mask[i]])
     end
 end
 function Base.delete!(tseq::TimeSequence; t)

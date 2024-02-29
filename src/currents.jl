@@ -149,7 +149,7 @@ function Base.getindex(curr::Currents, lvm::LatticeValue{Bool})
     Currents(curr.lat[lvm], curr.currents[indices, indices])
 end
 
-function Base.iterate(curr::Currents{<:SparseMatrixCSC}, state=(1, findnz(curr.currents)))
+@inline function Base.iterate(curr::Currents{<:SparseMatrixCSC}, state=(1, findnz(curr.currents)))
     ind, (Is, Js, Vs) = state
     ind > length(Is) && return nothing
     i = Is[ind]
@@ -257,9 +257,17 @@ end
 @recipe function f(curr::AbstractCurrents; showsites=false)
     lat = lattice(curr)
     dims(lat) != 2 && error("2D lattice expected")
-    Pts = SVector{2,Float64}[]
+    Xs = Float64[]
+    Ys = Float64[]
+    @inline function _pushpts!(pts...)
+        for pt in pts
+            push!(Xs, pt[1])
+            push!(Ys, pt[2])
+        end
+        push!(Xs, NaN)
+        push!(Ys, NaN)
+    end
     Vs = Float64[]
-    nans = SVector(NaN, NaN)
     for ((site1, site2), val) in curr
         abs(val) < 1e-10 && continue
         if val < 0
@@ -270,7 +278,7 @@ end
         v2 = site2.coords
         d = normalize(v2 - v1)
         o = SVector(d[2], -d[1])
-        push!(Pts, v1, v2, v2 - 0.15d - 0.05o, v2 - 0.15d + 0.05o, v2, nans)
+        _pushpts!(v1, v2, v2 - 0.15d - 0.05o, v2 - 0.15d + 0.05o, v2)
         push!(Vs, val, val, val, val, val, NaN)
     end
     @series begin
@@ -278,7 +286,7 @@ end
         seriescolor --> :tempo
         linewidth --> 2.5
         line_z --> Vs
-        [p[1] for p in Pts], [p[2] for p in Pts]
+        Xs, Ys
     end
     showsites && @series begin
         seriestype := :scatter

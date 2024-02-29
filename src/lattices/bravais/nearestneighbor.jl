@@ -91,5 +91,6 @@ NearestNeighbor(l::BravaisLattice, N) = adapt_bonds(NearestNeighbor(N), l)
 
 function getnnbonds(l::BravaisLattice)
     lens, trs = detect_nnhops(l.unitcell)
-    return DefaultNNBonds(Tuple(lens[1:3]), Tuple(trs[1:3]))
+    l = min(3, length(lens))
+    return DefaultNNBonds(Tuple(lens[1:l]), Tuple(trs[1:l]))
 end
