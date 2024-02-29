@@ -15,7 +15,7 @@ Base.:(==)(lb1::LatticeBasis, lb2::LatticeBasis) = lb1.lat == lb2.lat
 
 function Base.show(io::IO, ::MIME"text/plain", bas::LatticeBasis)
     print(io, "LatticeBasis(")
-    summary(io, bas.lat.latt)
+    summary(io, bas.lat)
     print(io, ")")
 end
 

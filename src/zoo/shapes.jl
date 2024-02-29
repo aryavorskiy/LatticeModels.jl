@@ -57,13 +57,13 @@ Base.:(!)(n::NotShape) = n.shape
 
 """
     shape_radius(unitcell, shape, sites)
-    shape_radius(lattice, shape)
+    shape_radius(lat, shape)
 
 Calculate the radius of a shape such that it contains appriximately `sites` sites.
 
 ## Arguments
 - `unitcell`: The `UnitCell` of the lattice. Might also be a lattice type.
-- `lattice`: The lattice. It is considered that the lattice was constructed in the same shape.
+- `lat`: The lattice. It is considered that the lattice was constructed in the same shape.
 - `shape`: The shape to calculate the radius for.
 - `sites`: The number of sites the shape should contain.
 """

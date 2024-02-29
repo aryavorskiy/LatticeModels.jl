@@ -1,7 +1,7 @@
 import QuantumOpticsBase: basis, check_samebases, manybodyoperator
 
 struct Sample{LT, BasisT}
-    latt::LT
+    lat::LT
     internal::BasisT
 end
 function Sample(l::AbstractLattice, internal::IT=nothing) where {IT<:Nullable{Basis}}
@@ -10,10 +10,10 @@ end
 const SampleWithoutInternal{LT} = Sample{LT, Nothing}
 const SampleWithInternal{LT} = Sample{LT, <:Basis}
 
-Base.length(sample::Sample) = length(sample.latt) * length(sample.internal)
-Base.length(sample::SampleWithoutInternal) = length(sample.latt)
-QuantumOpticsBase.basis(sample::SampleWithInternal) = sample.internal ⊗ LatticeBasis(sample.latt)
-QuantumOpticsBase.basis(sample::SampleWithoutInternal) = LatticeBasis(sample.latt)
+Base.length(sample::Sample) = length(sample.lat) * length(sample.internal)
+Base.length(sample::SampleWithoutInternal) = length(sample.lat)
+QuantumOpticsBase.basis(sample::SampleWithInternal) = sample.internal ⊗ LatticeBasis(sample.lat)
+QuantumOpticsBase.basis(sample::SampleWithoutInternal) = LatticeBasis(sample.lat)
 
 function Base.show(io::IO, mime::MIME"text/plain", sample::Sample)
     hasinternal(sample) && print(io, "(")
@@ -37,7 +37,7 @@ sample(b::CompositeLatticeBasis) = Sample(b.bases[2].lat, b.bases[1])
 sample(mb::ManyBodyBasis) = sample(mb.onebodybasis)
 sample(state::StateType) = sample(basis(state))
 sample(op::AbstractLatticeOperator) = sample(basis(op))
-lattice(sample::Sample) = sample.latt
+lattice(sample::Sample) = sample.lat
 lattice(any) = lattice(sample(any))
 internal_basis(sample::SampleWithInternal) = sample.internal
 internal_basis(::SampleWithoutInternal) = throw(ArgumentError("Sample has no internal basis"))
@@ -110,8 +110,8 @@ function manybodyoperator(sys::ManyBodySystem, op::AbstractOperator)
         return manybodyoperator(ManyBodyBasis(sys_bas, occupations(sys)), op)
     elseif hasinternal(sys)
         if bas == internal_basis(sys)
-            latt_op = one(LatticeBasis(lattice(sys)))
-            return manybodyoperator(ManyBodyBasis(sys_bas, occupations(sys)), op ⊗ latt_op)
+            lat_op = one(LatticeBasis(lattice(sys)))
+            return manybodyoperator(ManyBodyBasis(sys_bas, occupations(sys)), op ⊗ lat_op)
         elseif bas == LatticeBasis(lattice(sys))
             int_op = internal_one(sys)
             return manybodyoperator(ManyBodyBasis(sys_bas, occupations(sys)), int_op ⊗ op)

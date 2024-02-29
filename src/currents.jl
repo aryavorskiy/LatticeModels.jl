@@ -62,7 +62,7 @@ A lazy wrapper for a `Currents` object representing the same currents but on a s
 """
 struct SubCurrents{CT} <: AbstractCurrents
     parent_currents::CT
-    lattice::AbstractLattice
+    lat::AbstractLattice
     indices::Vector{Int}
     function SubCurrents(parent_currents::CT, indices::Vector{Int}) where {CT<:AbstractCurrents}
         lat = lattice(parent_currents)
@@ -71,7 +71,7 @@ struct SubCurrents{CT} <: AbstractCurrents
 end
 
 Base.getindex(scurr::SubCurrents, i::Int, j::Int) = scurr.parent_currents[scurr.indices[i], scurr.indices[j]]
-lattice(scurr::SubCurrents) = scurr.lattice
+lattice(scurr::SubCurrents) = scurr.lat
 function Base.getindex(curr::AbstractCurrents, lvm::LatticeValue{Bool})
     check_samesites(curr, lvm)
     indices = findall(lvm.values)

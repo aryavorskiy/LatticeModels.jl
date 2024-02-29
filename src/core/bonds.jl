@@ -309,10 +309,10 @@ A spatial translation on some lattice.
 struct Translation{LT, N} <: AbstractTranslation{LT}
     lat::LT
     R::SVector{N, Float64}
-    function Translation(latt::LT, R::AbstractVector{<:Number}) where
+    function Translation(lat::LT, R::AbstractVector{<:Number}) where
             {N, LT<:AbstractLattice{<:AbstractSite{N}}}
         @check_size R N
-        new{LT, N}(latt, SVector{N}(R))
+        new{LT, N}(lat, SVector{N}(R))
     end
     function Translation(R::AbstractVector{<:Number})
         n = length(R)

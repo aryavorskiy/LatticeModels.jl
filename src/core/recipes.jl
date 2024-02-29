@@ -164,7 +164,7 @@ end
 getshape(lat::AbstractLattice, _) = getshape(lat)   # fallback for undefined lattice types
 function getshape(lat::LatticeWithParams)
     if hasparam(lat, :latticetype)
-        return getshape(stripparams(lat), lat.latticetype)
+        return getshape(stripparams(lat), gettype(lat))
     elseif length(getnnbonds(lat)) > 0
         nnb = getnnbonds(lat)
         return getcircle(nnb.dists[1], 20)
@@ -185,7 +185,7 @@ end
         label := ""
         aspect_ratio := :equal
         shape = getshape(lat)
-        for site in lv.latt
+        for site in lv.lat
             @series begin
                 seriestype := :shape
                 fill_z := lv[site]

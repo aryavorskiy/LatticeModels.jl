@@ -8,13 +8,13 @@ function hubbard(T::Type, sys::NParticles; U::Real=0, kw...)
     Hamiltonian(sys, op)
 end
 @doc raw"""
-    bosehubbard([type, ]lattice, N[; T, t1, t2, t3, field])
+    bosehubbard([type, ]lat, N[; T, t1, t2, t3, field])
 
 $$\hat{H} =
 \sum_{i,j}^\text{sites} t_{ij} c^\dagger_i c_j +
 \sum_i^\text{sites} \frac{U}{2} \hat{n}_i (\hat{n}_i - 1)$$
 
-Generates a Bose-Hubbard model hamiltonian on given lattice `lattice`.
+Generates a Bose-Hubbard model hamiltonian on given lattice `lat`.
 ## Arguments
 - `type`: The element type of the resulting operator. Default is `ComplexF64`.
 - `N`: The number of particles.
@@ -28,13 +28,13 @@ Generates a Bose-Hubbard model hamiltonian on given lattice `lattice`.
 bosehubbard(type::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
     hubbard(type, NParticles(l, N; T = T, statistics = BoseEinstein); kw...)
 @doc raw"""
-    fermihubbard([type, ]lattice, N[; T, t1, t2, t3, field])
+    fermihubbard([type, ]lat, N[; T, t1, t2, t3, field])
 
 $$\hat{H} =
 \sum_{i,j}^\text{sites} t_{ij} c^\dagger_i c_j +
 \sum_i^\text{sites} \frac{U} \hat{n}_i^{↑} \hat{n}_i^{↓}$$
 
-Generates a Fermi-Hubbard model hamiltonian on given lattice `lattice`.
+Generates a Fermi-Hubbard model hamiltonian on given lattice `lat`.
 
 ## Arguments
 - `type`: The element type of the resulting operator. Default is `ComplexF64`.
@@ -54,7 +54,7 @@ fermihubbard(type::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
 
 @doc raw"""
     qwz(m::LatticeValue[; T, μ, field, statistics])
-    qwz(lattice::SquareLattice[, m; T, μ, field, statistics])
+    qwz(lat::SquareLattice[, m; T, μ, field, statistics])
 
 $$\hat{H} =
 \sum_i^\text{sites} m_i c^\dagger_i \sigma_z c_i +
@@ -63,7 +63,7 @@ c^\dagger_{i + \hat{x}} \frac{\sigma_z - i \sigma_x}{2} c_i +
 c^\dagger_{i + \hat{y}} \frac{\sigma_z - i \sigma_y}{2} c_i +
 h. c. \right)$$
 
-Generates a QWZ model hamiltonian operator on given square lattice `lattice`.
+Generates a QWZ model hamiltonian operator on given square lattice `lat`.
 
 ## Arguments
 - `m` (either a `LatticeValue` or a number) defines the $m_i$ factors
@@ -93,7 +93,7 @@ const honeycomb_2nn = BravaisSiteMapping(
     BravaisTranslation(2 => 2, [1, -1]))
 
 @doc raw"""
-    haldane(lattice, t1, t2[, m=0; T, μ, field, statistics])
+    haldane(lat::HoneycombLattice, t1, t2[, m=0; T, μ, field, statistics])
 
 $$\hat{H} =
 \sum_i^\text{sublattice A} m c^\dagger_i c_i +
@@ -101,7 +101,7 @@ $$\hat{H} =
 \sum_{i, j}^\text{adjacent} \left( t_1 c^\dagger_i c_j + h. c. \right) +
 \sum_{i, j}^\text{2-connected,\\counter-clockwise} \left( i \cdot t_2 c^\dagger_i c_j + h. c. \right)$$
 
-Generates a Haldane topological insulator hamiltonian operator on given lattice `lattice`.
+Generates a Haldane topological insulator hamiltonian operator on given lattice `lat`.
 
 ## Keyword arguments
 - `T`: The temperature of the system. Default is zero.
@@ -119,13 +119,13 @@ end
 @accepts_system haldane
 
 @doc raw"""
-    kanemele(lattice::HoneycombLattice, t1, t2[; T, μ, field, statistics])
+    kanemele(lat::HoneycombLattice, t1, t2[; T, μ, field, statistics])
 
 $$\hat{H} =
 \sum_{i, j}^\text{adjacent} \left( t_1 c^\dagger_i c_j + h. c. \right) +
 \sum_{i, j}^\text{2-connected,\\counter-clockwise} \left( i \cdot t_2 c^\dagger_i σ_z c_j + h. c. \right)$$
 
-Generates a Kane-Mele hamiltonian operator on given lattice `lattice`\.
+Generates a Kane-Mele hamiltonian operator on given lattice `lat`.
 
 ## Keyword arguments
 - `T`: The temperature of the system. Default is zero.

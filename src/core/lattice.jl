@@ -297,9 +297,9 @@ resolve_site(l::AbstractLattice, site::AbstractSite) = resolve_site_default(l, s
 struct LatticeWithParams{LT,ParamsT,SiteT} <: AbstractLattice{SiteT}
     lat::LT
     params::ParamsT
-    function LatticeWithParams(latt::LT, params::ParamsT) where
+    function LatticeWithParams(lat::LT, params::ParamsT) where
             {SiteT,LT<:AbstractLattice{SiteT},ParamsT<:NamedTuple}
-        new{LT,ParamsT,SiteT}(latt, params)
+        new{LT,ParamsT,SiteT}(lat, params)
     end
 end
 LatticeWithParams(lw::LatticeWithParams, params::NamedTuple) =

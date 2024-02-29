@@ -12,12 +12,12 @@ struct BravaisTranslation{LT,NU} <: AbstractTranslation{LT}
     lat::LT
     site_indices::Pair{Int, Int}
     translate_uc::SVector{NU, Int}
-    function BravaisTranslation(latt::LT, site_indices::Pair{Int, Int}, tr_uc::AbstractVector) where LT<:AbstractLattice
+    function BravaisTranslation(lat::LT, site_indices::Pair{Int, Int}, tr_uc::AbstractVector) where LT<:AbstractLattice
         if any(<(1), site_indices) && site_indices != (0=>0)
             throw(ArgumentError("Invalid site indices $site_indices: ≥1 expected"))
         end
         iszero(tr_uc) && ==(site_indices...) && throw(ArgumentError("bond connects site to itself"))
-        new{LT, length(tr_uc)}(latt, site_indices, SVector{length(tr_uc)}(tr_uc))
+        new{LT, length(tr_uc)}(lat, site_indices, SVector{length(tr_uc)}(tr_uc))
     end
 end
 BravaisTranslation(lat::AbstractLattice, tr_uc::AbstractVector) = BravaisTranslation(lat, 0=>0, tr_uc)
@@ -96,8 +96,8 @@ end
 struct BravaisSiteMapping{LT, TupleT} <: DirectedBonds{LT}
     lat::LT
     translations::TupleT
-    function BravaisSiteMapping(latt::LT, translations::Vararg{BravaisTranslation{UndefinedLattice}}) where LT<:AbstractLattice
-        new{LT, typeof(translations)}(latt, translations)
+    function BravaisSiteMapping(lat::LT, translations::Vararg{BravaisTranslation{UndefinedLattice}}) where LT<:AbstractLattice
+        new{LT, typeof(translations)}(lat, translations)
     end
 end
 BravaisSiteMapping(trs::BravaisTranslation{UndefinedLattice}...) =

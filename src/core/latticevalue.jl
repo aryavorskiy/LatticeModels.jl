@@ -1,18 +1,18 @@
 using LinearAlgebra, Logging, QuantumOpticsBase
 
 struct LatticeValueWrapper{LT<:AbstractLattice, VT<:AbstractVector}
-    latt::LT
+    lat::LT
     values::VT
-    function LatticeValueWrapper(latt::LT, values::VT) where {LT,VT}
-        length(latt) != length(values) &&
-            throw(DimensionMismatch("vector has length $(length(values)), lattice has length $(length(latt))"))
-        new{LT,VT}(latt, values)
+    function LatticeValueWrapper(lat::LT, values::VT) where {LT,VT}
+        length(lat) != length(values) &&
+            throw(DimensionMismatch("vector has length $(length(values)), lattice has length $(length(lat))"))
+        new{LT,VT}(lat, values)
     end
 end
 
-lattice(lvw::LatticeValueWrapper) = lvw.latt
+lattice(lvw::LatticeValueWrapper) = lvw.lat
 
-Base.copy(lvw::LatticeValueWrapper) = LatticeValueWrapper(lvw.latt, copy(lvw.values))
+Base.copy(lvw::LatticeValueWrapper) = LatticeValueWrapper(lvw.lat, copy(lvw.values))
 Base.length(lvw::LatticeValueWrapper) = length(lvw.values)
 Base.size(lvw::LatticeValueWrapper) = size(lvw.values)
 function Base.getindex(lvw::LatticeValueWrapper, site::AbstractSite)
@@ -28,8 +28,8 @@ end
 Base.eltype(lvw::LatticeValueWrapper) = eltype(lvw.values)
 Base.eachindex(lvw::LatticeValueWrapper) = lattice(lvw)
 Base.iterate(lvw::LatticeValueWrapper, s...) = iterate(lvw.values, s...)
-Base.pairs(lvw::LatticeValueWrapper) = Iterators.map(=>, lvw.latt, lvw.values)
-Base.keys(lvw::LatticeValueWrapper) = lvw.latt
+Base.pairs(lvw::LatticeValueWrapper) = Iterators.map(=>, lvw.lat, lvw.values)
+Base.keys(lvw::LatticeValueWrapper) = lvw.lat
 Base.values(lvw::LatticeValueWrapper) = lvw.values
 
 """
@@ -81,7 +81,7 @@ Base.one(lvw::LatticeValueWrapper) = LatticeValueWrapper(lattice(lvw), one(lvw.v
 Base.ones(T::Type, l::AbstractLattice) = fill(one(T), l)
 Base.ones(l::AbstractLattice) = ones(Float64, l)
 
-Base.:(==)(lvw1::LatticeValueWrapper, lvw2::LatticeValueWrapper) = (lvw1.latt == lvw2.latt) && (lvw1.values == lvw2.values)
+Base.:(==)(lvw1::LatticeValueWrapper, lvw2::LatticeValueWrapper) = (lvw1.lat == lvw2.lat) && (lvw1.values == lvw2.values)
 
 struct LatticeStyle <: Broadcast.BroadcastStyle end
 Base.copyto!(lvw::LatticeValueWrapper, src::Broadcast.Broadcasted{LatticeStyle}) = (copyto!(lvw.values, src); return lvw)
@@ -103,7 +103,7 @@ function Base.similar(bc::Broadcast.Broadcasted{LatticeStyle}, ::Type{Eltype}) w
 end
 _extract_lattice(bc::Broadcast.Broadcasted) = _extract_lattice(bc.args)
 _extract_lattice(ext::Broadcast.Extruded) = _extract_lattice(ext.x)
-_extract_lattice(lv::LatticeValueWrapper) = lv.latt
+_extract_lattice(lv::LatticeValueWrapper) = lv.lat
 _extract_lattice(x) = x
 _extract_lattice(::Tuple{}) = nothing
 _extract_lattice(args::Tuple) =
