@@ -64,7 +64,7 @@ include("evolution.jl")
 export @evolution
 
 include("zoo/lattices.jl")
-export SquareLattice, TriangularLattice, HoneycombLattice, KagomeLattice, GrapheneRibbon
+export Chain, SquareLattice, TriangularLattice, HoneycombLattice, KagomeLattice, GrapheneRibbon
 include("zoo/shapes.jl")
 export scalefactor, shaperadius, fillshapes, addshapes!, deleteshapes!, removedangling!,
     BallND, Circle, Ball, Polygon, Triangle, Square, Hexagon, SiteAt, Rectangle, Path
@@ -74,6 +74,8 @@ include("zoo/models.jl")
 export hubbard, bosehubbard, fermihubbard, qwz, haldane, kanemele
 include("zoo/currents.jl")
 export DensityCurrents, LocalOperatorCurrents
+
+include("recipes.jl")
 
 using Logging
 try

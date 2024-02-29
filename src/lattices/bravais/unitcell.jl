@@ -61,7 +61,7 @@ function rotate_unitcell(uc::UnitCell, rotation)
     elseif rotation isa Real
         angle = rotation
         mz = zero(MMatrix{dims(uc),dims(uc)})
-        mz[1:2, 1:2] = SMatrix{2,2}(cos(angle), -sin(angle), sin(angle), cos(angle))
+        mz[1:2, 1:2] = SMatrix{2,2}(cos(angle), sin(angle), -sin(angle), cos(angle))
         return rotate_unitcell(uc, mz)
     elseif rotation === nothing
         return uc

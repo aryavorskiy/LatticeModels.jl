@@ -186,10 +186,6 @@ Integrate the values stored in `tseq` and create a copy; see [`integrate!`](@ref
 """
 integrate(tseq::TimeSequence) = integrate!(copy(tseq))
 
-@recipe function f(tseq::TimeSequence)
-    tseq.times, tseq.values
-end
-
 mutable struct TimeSequenceContainer
     seq::Nullable{TimeSequence}
     TimeSequenceContainer() = new(nothing)

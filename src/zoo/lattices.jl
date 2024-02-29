@@ -1,3 +1,11 @@
+"""
+    Chain(sz)
+
+Construct a 1D chain lattice of size `sz`.
+"""
+Chain(f::Function, axes; kw...) = span_unitcells(f, UnitCell(SMatrix{1,1}(1.0)), axes; kw...)
+Chain(axes; kw...) = Chain(alwaystrue, axes; kw...)
+
 abstract type BravaisLatticeType end
 abstract type BravaisLatticeTypeVarN{N} <: BravaisLatticeType end
 function construct_unitcell(T::Type{<:BravaisLatticeType}, NU)
@@ -79,6 +87,7 @@ macro bravaisdef(type, expr)
         end |> esc
     end
 end
+(::Type{T})(;kw...) where T<:BravaisLatticeType = transform_unitcell(construct_unitcell(T); kw...)
 function (::Type{T})(f::Function, sz::Vararg{LatticeModels.RangeT, NU}; kw...) where {T<:BravaisLatticeType,NU}
     l = LatticeModels.span_unitcells(f, construct_unitcell(T, NU), sz...; kw...)
     if T <: BravaisLatticeTypeVarN
