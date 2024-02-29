@@ -45,7 +45,11 @@ end
 
 @recipe function f(curr::AbstractCurrents; showsites=false)
     lat = lattice(curr)
-    dims(lat) != 2 && error("2D lattice expected")
+    axes, axis_numbers = _get_axes(lat, get(plotattributes, :axes, nothing))
+    length(axes) != 2 && error("2D axes expected; got $axes")
+    ns = SVector(axis_numbers)
+    xguide --> axes[1]
+    yguide --> axes[2]
     Xs = Float64[]
     Ys = Float64[]
     @inline function _pushpts!(pts...)
@@ -63,8 +67,8 @@ end
             site1, site2 = site2, site1
             val = -val
         end
-        v1 = site1.coords
-        v2 = site2.coords
+        v1 = site1.coords[ns]
+        v2 = site2.coords[ns]
         d = normalize(v2 - v1)
         o = SVector(d[2], -d[1])
         _pushpts!(v1, v2, v2 - 0.15d - 0.05o, v2 - 0.15d + 0.05o, v2)
@@ -72,18 +76,10 @@ end
     end
     @series begin
         seriestype := :path
-        seriescolor --> :tempo
+        seriescolor --> :matter
         linewidth --> 2.5
         line_z --> Vs
         Xs, Ys
     end
-    showsites && @series begin
-        seriestype := :scatter
-        markersize := 2.0
-        markercolor := :gray
-        markeralpha := 0.6
-        markerstrokewidth := 0
-        label := ""
-        lattice(curr), :sites
-    end
+    showsites && @series lattice(curr), :high_contrast
 end

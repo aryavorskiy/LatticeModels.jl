@@ -114,7 +114,7 @@ latticedist2(lat::AbstractLattice, site::AbstractSite) =
         diam2 = maximum(ldists)
         q = max(1/3.1, 3.5/√diam2)
         is = findall(<(diam2 * q^2), ldists)
-        alphafalloff = map(x -> 0.5 * exp(-2.5x / (diam2 * q^2)), @view ldists[is])
+        alphafalloff = map(x -> 0.65 * exp(-2.5x / (diam2 * q^2)), @view ldists[is])
         @series begin
             sitealpha := alphafalloff
             seriescolor --> :lightblue
@@ -161,7 +161,7 @@ function getshape(lat::AbstractLattice)
     end
     return getcircle(r/2, 20)
 end
-getshape(lat::AbstractLattice, _) = getshape(lat)   # fallback for undefined lattice types
+getshape(lat::AbstractLattice, _) = getshape(stripparams(lat))   # fallback for undefined lattice types
 function getshape(lat::LatticeWithParams)
     if hasparam(lat, :latticetype)
         return getshape(stripparams(lat), gettype(lat))
@@ -172,24 +172,48 @@ function getshape(lat::LatticeWithParams)
         return getshape(stripparams(lat))
     end
 end
-function moveshape(shape, loc::SVector{2})
+function moveshape(shape, loc::SVector{2}, scale=1)
     xs, ys = shape
-    return xs .+ loc[1], ys .+ loc[2]
+    return xs .* scale .+ loc[1], ys .* scale .+ loc[2]
 end
 @recipe function f(lv::LatticeValue{<:Number};)
-    seriestype --> (length(lv) < 500  ? :image : :scatter)
-    seriescolor --> :tempo
+    seriestype --> :scatter
+    seriescolor --> :matter
     label --> ""
+    aspect_ratio := :equal
+    xwiden := 1.2
+    ywiden := 1.2
+    markerscale --> false
+    scale_markers = plotattributes[:markerscale]
+    @assert scale_markers isa Real "`scalemarkers` must be a real number or Bool"
+    mx = maximum(abs, lv.values)
     lat = lattice(lv)
-    if plotattributes[:seriestype] === :image && dims(lv) == 2
-        label := ""
-        aspect_ratio := :equal
-        shape = getshape(lat)
+    if plotattributes[:seriestype] === :shape && dims(lv) == 2
+        :axes in keys(plotattributes) && throw(ArgumentError("Cannot use `:axes` with `:shape` seriestype"))
+        shapetype = get(plotattributes, :markershape, :polygon)
+        if shapetype === :circle
+            shape = getshape(lat, nothing)  # Trigger fallback
+        elseif shapetype === :polygon
+            shape = getshape(lat)
+        else throw(ArgumentError("Unsupported shape type `:$shapetype`"))
+        end
+        if scale_markers !== :none
+            @series begin
+                seriestype := :path
+                linecolor := :grey
+                linealpha := 0.5
+                linewidth := 2
+                lat, :bonds
+            end
+        end
+        xguide --> "x"
+        yguide --> "y"
         for site in lv.lat
             @series begin
                 seriestype := :shape
                 fill_z := lv[site]
-                moveshape(shape, site.coords)
+                moveshape(shape, site.coords,
+                    scale_markers === false ? 1 : lv[site] / mx * scale_markers)
             end
         end
     else
@@ -197,8 +221,15 @@ end
         linealpha := 0.5
         linewidth := 2
         marker_z := lv.values
-        markersize := 5
-        @series (lat,)
+        @series begin
+            markersize := 0
+            (lat,)
+        end
+        @series begin
+            markersize := scale_markers === false ? 5 : @. 8 * abs(lv.values) / mx * scale_markers
+            markerstrokewidth := 0.5
+            lat, :sites
+        end
     end
 end
 
