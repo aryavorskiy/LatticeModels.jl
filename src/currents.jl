@@ -38,21 +38,21 @@ end
     if length(lattice(curr)) < 2
         return nothing
     else
-        l = lattice(curr)
-        return (l[1] => l[2], curr[1, 2]), 1 => 2
+        lat = lattice(curr)
+        return (lat[1] => lat[2], curr[1, 2]), 1 => 2
     end
 end
 @inline function Base.iterate(curr::AbstractCurrents, pair::Pair{Int, Int})
-    l = lattice(curr)
+    lat = lattice(curr)
     i, j = pair
     j += 1
-    if j > length(l)
+    if j > length(lat)
         i += 1
         j = i + 1
-        j > length(l) && return nothing
+        j > length(lat) && return nothing
     end
     iszerocurrent(curr, i, j) && return iterate(curr, i => j)
-    return (l[i] => l[j], curr[i, j]), i => j
+    return (lat[i] => lat[j], curr[i, j]), i => j
 end
 
 """
@@ -65,8 +65,8 @@ struct SubCurrents{CT} <: AbstractCurrents
     lattice::AbstractLattice
     indices::Vector{Int}
     function SubCurrents(parent_currents::CT, indices::Vector{Int}) where {CT<:AbstractCurrents}
-        l = lattice(parent_currents)
-        new{CT}(parent_currents, l[indices], indices)
+        lat = lattice(parent_currents)
+        new{CT}(parent_currents, lat[indices], indices)
     end
 end
 
@@ -89,14 +89,14 @@ function _site_indices(l::AbstractLattice, l2::AbstractLattice)
 end
 _site_indices(l::AbstractLattice, site::AbstractSite) = (site_index(l, site),)
 function currents_from(curr::AbstractCurrents, src)
-    l = lattice(curr)
-    is = _site_indices(l, src)
-    LatticeValue(l, Float64[j in is ? 0 : sum(curr[i, j] for i in is) for j in eachindex(l)])
+    lat = lattice(curr)
+    is = _site_indices(lat, src)
+    LatticeValue(lat, Float64[j in is ? 0 : sum(curr[i, j] for i in is) for j in eachindex(lat)])
 end
 function currents_from_to(curr::AbstractCurrents, src, dst=nothing)
-    l = lattice(curr)
-    is = _site_indices(l, src)
-    js = dst === nothing ? setdiff(eachindex(l), is) : _site_indices(l, dst)
+    lat = lattice(curr)
+    is = _site_indices(lat, src)
+    js = dst === nothing ? setdiff(eachindex(lat), is) : _site_indices(lat, dst)
     sum(curr[i, j] for i in is, j in js)
 end
 
@@ -105,33 +105,32 @@ end
 
 A `AbstractCurrents` instance that stores values for all currents explicitly.
 """
-struct Currents{T, LT} <: AbstractCurrents
-    lattice::LT
-    currents::Matrix{Float64}
-    function Currents(l::LT, curs::Matrix{T}) where {T, LT}
+struct Currents{MT,LT} <: AbstractCurrents
+    lat::LT
+    currents::MT
+    function Currents(l::LT, curs::MT) where {MT<:AbstractMatrix, LT}
         @check_size curs :square
         @check_size l size(curs, 1)
-        new{T, LT}(l, curs)
+        new{MT, LT}(l, curs)
     end
 end
-Currents(l::AbstractLattice) =
-    Currents(l, zeros(length(l), length(l)))
+Currents(l::AbstractLattice) = Currents(l, spzeros(length(l), length(l)))
 
 Base.convert(::Type{Currents}, curr::AbstractCurrents) = Currents(curr)
 Base.copy(mc::Currents) = Currents(lattice(mc), copy(mc.currents))
 Base.zero(mc::Currents) = Currents(lattice(mc), zero(mc.currents))
-lattice(mcurr::Currents) = mcurr.lattice
+lattice(mcurr::Currents) = mcurr.lat
 
 Base.:(==)(c1::Currents, c2::Currents) =
-    c1.lattice == c2.lattice && c1.currents == c2.currents
+    c1.lat == c2.lat && c1.currents == c2.currents
 Base.isapprox(c1::Currents, c2::Currents; kw...) =
-    c1.lattice == c2.lattice && isapprox(c1.currents, c2.currents; kw...)
+    c1.lat == c2.lat && isapprox(c1.currents, c2.currents; kw...)
 
 Base.getindex(mcurr::Currents, i::Int, j::Int) = mcurr.currents[i, j]
 function Base.setindex!(curr::Currents, rhs, site1::AbstractSite, site2::AbstractSite)
-    l = lattice(curr)
-    s1 = resolve_site(l, site1)
-    s2 = resolve_site(l, site2)
+    lat = lattice(curr)
+    s1 = resolve_site(lat, site1)
+    s2 = resolve_site(lat, site2)
     s1 === nothing && return
     s2 === nothing && return
     i = s1.index
@@ -147,7 +146,19 @@ end
 function Base.getindex(curr::Currents, lvm::LatticeValue{Bool})
     check_samesites(curr, lvm)
     indices = findall(lvm.values)
-    Currents(curr.lattice[lvm], curr.currents[indices, indices])
+    Currents(curr.lat[lvm], curr.currents[indices, indices])
+end
+
+function Base.iterate(curr::Currents{<:SparseMatrixCSC}, state=(1, findnz(curr.currents)))
+    ind, (Is, Js, Vs) = state
+    ind > length(Is) && return nothing
+    i = Is[ind]
+    j = Js[ind]
+    if j ≤ i
+        return iterate(curr, (ind + 1, (Is, Js, Vs)))
+    end
+    val = Vs[ind]
+    return (curr.lat[Is[ind]] => curr.lat[j], val), (ind + 1, (Is, Js, Vs))
 end
 
 Base.summary(io::IO, ::Currents{T}) where T = print(io, "Currents{", T, "}")
@@ -174,27 +185,37 @@ Creates a `Currents` instance for `currents`.
 - `adjacency_matrix`: If provided, the current will be evaluated only between adjacent sites.
 """
 function Currents(curr::AbstractCurrents)
-    l = lattice(curr)
-    m = Currents(l)
-    for i in eachindex(l), j in 1:i-1
+    lat = lattice(curr)
+    Is = Int[]
+    Js = Int[]
+    Vs = Float64[]
+    for i in eachindex(lat), j in 1:i-1
         ij_curr = curr[i, j]
-        m.currents[i, j] = ij_curr
-        m.currents[j, i] = -ij_curr
+        abs(ij_curr) < 1e-10 && continue
+        push!(Is, i, j)
+        push!(Js, j, i)
+        push!(Vs, ij_curr, -ij_curr)
     end
-    m
+    mat = sparse(Is, Js, Vs, length(lat), length(lat))
+    return Currents(lat, mat)
 end
 function Currents(curr::AbstractCurrents, bonds::AbstractBonds)
-    l = lattice(curr)
-    m = Currents(l)
-    new_bonds = adapt_bonds(bonds, l)
+    lat = lattice(curr)
+    Is = Int[]
+    Js = Int[]
+    Vs = Float64[]
+    new_bonds = adapt_bonds(bonds, lat)
     for (s1, s2) in new_bonds
         i = s1.index
         j = s2.index
         ij_curr = curr[i, j]
-        m.currents[i, j] = ij_curr
-        m.currents[j, i] = -ij_curr
+        abs(ij_curr) < 1e-10 && continue
+        push!(Is, i, j)
+        push!(Js, j, i)
+        push!(Vs, ij_curr, -ij_curr)
     end
-    m
+    mat = sparse(Is, Js, Vs, length(lat), length(lat))
+    return Currents(lat, mat)
 end
 
 _reorder(p::Pair, ::Nothing) = p
@@ -233,12 +254,9 @@ function mapgroup_currents(f::Function, group::Function, curr::AbstractCurrents;
     return new_ms, new_cs
 end
 
-@recipe function f(curr::AbstractCurrents)
+@recipe function f(curr::AbstractCurrents; showsites=false)
     lat = lattice(curr)
     dims(lat) != 2 && error("2D lattice expected")
-    seriestype := :path
-    seriescolor --> :tempo
-    linewidth --> 2.5
     Pts = SVector{2,Float64}[]
     Vs = Float64[]
     nans = SVector(NaN, NaN)
@@ -255,9 +273,14 @@ end
         push!(Pts, v1, v2, v2 - 0.15d - 0.05o, v2 - 0.15d + 0.05o, v2, nans)
         push!(Vs, val, val, val, val, val, NaN)
     end
-    line_z --> Vs
-    @series [p[1] for p in Pts], [p[2] for p in Pts]
     @series begin
+        seriestype := :path
+        seriescolor --> :tempo
+        linewidth --> 2.5
+        line_z --> Vs
+        [p[1] for p in Pts], [p[2] for p in Pts]
+    end
+    showsites && @series begin
         seriestype := :scatter
         markersize := 1.5
         markercolor := :gray
