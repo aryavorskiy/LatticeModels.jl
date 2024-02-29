@@ -293,6 +293,9 @@ function resolve_site_default(l::AbstractLattice, site::AbstractSite)
     ResolvedSite(site, index)
 end
 resolve_site(l::AbstractLattice, site::AbstractSite) = resolve_site_default(l, site)
+resolve_site(::AbstractLattice, rs::ResolvedSite) = rs
+resolve_site(l::AbstractLattice, i::Int) =
+    i in eachindex(l) ? ResolvedSite(l[i], i) : nothing
 
 struct LatticeWithParams{LT,ParamsT,SiteT} <: AbstractLattice{SiteT}
     lat::LT

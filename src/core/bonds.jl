@@ -40,22 +40,37 @@ function adapt_bonds(bonds::AbstractBonds{<:AbstractLattice}, l::AbstractLattice
     return bonds
 end
 
-function Base.iterate(bonds::AbstractBonds, ind_pair = 1 => 1)
+@inline directed_destinations(bonds::AbstractBonds, site::AbstractSite) =
+    (site2 for site2 in lattice(bonds) if isadjacent(bonds, site, site2) && site2 > site)
+@inline directed_destinations(bonds::AbstractBonds, rs::ResolvedSite) = directed_destinations(bonds, rs.site)
+
+function Base.iterate(bonds::AbstractBonds)
+    isempty(lattice(bonds)) && return nothing
     l = lattice(bonds)
-    i, j = ind_pair
-    j += 1
-    if j > length(l)
+    isempty(l) && return nothing
+    targets = directed_destinations(bonds, first(l))
+    jst = iterate(targets)
+    return iterate(bonds, (1, targets, jst))
+end
+
+@inline function Base.iterate(bonds::AbstractBonds, state)
+    i, targets, jst = state
+    l = lattice(bonds)
+    i > length(l) && return nothing
+    if jst === nothing
         i += 1
-        j = i + 1
-        j > length(l) && return nothing
+        i > length(l) && return nothing
+        targets = directed_destinations(bonds, resolve_site(l, i))
+        jst = iterate(targets)
     end
-    rs1 = ResolvedSite(l[i], i)
-    rs2 = ResolvedSite(l[j], j)
-    if isadjacent(bonds, rs1, rs2)
-        return rs1 => rs2, i => j
-    else
-        return iterate(bonds, i => j)
-    end
+    jst === nothing && return iterate(bonds, (i, targets, jst))
+
+    rs = resolve_site(l, i)
+    rs2 = resolve_site(l, jst[1])
+    jst = iterate(targets, jst[2])
+
+    rs2 === nothing && return iterate(bonds, (i, targets, jst))
+    return rs => rs2, (i, targets, jst)
 end
 
 """
@@ -95,11 +110,11 @@ Represents the bonds on some lattice.
 struct AdjacencyMatrix{LT,MT} <: AbstractBonds{LT}
     lat::LT
     mat::MT
-    function AdjacencyMatrix(l::LT, connectivity_matrix::MT) where {LT<:AbstractLattice,MT<:AbstractMatrix{Bool}}
-        @check_size connectivity_matrix :square
-        @check_size l size(connectivity_matrix, 1)
-        new{LT,MT}(l,
-            (connectivity_matrix .| transpose(connectivity_matrix)) .& .!Eye{Bool}(length(l)))
+    function AdjacencyMatrix(lat::LT, mat::MT) where {LT<:AbstractLattice,MT<:AbstractMatrix{Bool}}
+        @check_size mat :square
+        @check_size lat size(mat, 1)
+        eye = spdiagm(Fill(true, length(lat)))
+        new{LT,MT}(lat, dropzeros((mat .| transpose(mat)) .& .!eye))
     end
     function AdjacencyMatrix(l::AbstractLattice)
         AdjacencyMatrix(l, spzeros(length(l), length(l)))
@@ -132,6 +147,16 @@ function isadjacent(am::AdjacencyMatrix, site1::AbstractSite, site2::AbstractSit
     return isadjacent(am, rs1, rs2)
 end
 isadjacent(am::AdjacencyMatrix, s1::ResolvedSite, s2::ResolvedSite) = am.mat[s1.index, s2.index]
+
+@inline directed_destinations(am::AdjacencyMatrix, rs::ResolvedSite) =
+    (j for j in rs.index + 1:length(lattice(am)) if am.mat[rs.index, j])
+@inline function directed_destinations(am::AdjacencyMatrix{<:SparseMatrixCSC}, rs::ResolvedSite)
+    i = am.mat.colptr[rs.index]
+    j = am.mat.colptr[rs.index + 1]
+    st = findfirst(>(rs.index), @view(am.mat.rowval[i:j]))
+    st === nothing && return @view am.mat.rowval[j:j-1]
+    @view am.mat.rowval[i + st:j - 1]
+end
 
 function Base.setindex!(b::AdjacencyMatrix, v, site1::AbstractSite, site2::AbstractSite)
     rs1 = resolve_site(b.lat, site1)
@@ -217,6 +242,8 @@ function destinations end
 function isadjacent(bonds::DirectedBonds, site1::AbstractSite, site2::AbstractSite)
     return site2 in destinations(bonds, site1) || site1 in destinations(bonds, site2)
 end
+directed_destinations(bonds::DirectedBonds, site::AbstractSite) =
+    destinations(bonds, site)
 function destination(db::DirectedBonds, site::AbstractSite)
     counter = 0
     ret = NoSite()
@@ -234,34 +261,6 @@ Base.inv(::DirectedBonds) = throw(ArgumentError("Inverse of the translation is n
 adjacentsites(bonds::DirectedBonds, site::AbstractSite) =
     Base.Iterators.flatten((destinations(bonds, site), destinations(inv(bonds), site)))
 
-function Base.iterate(bonds::DirectedBonds)
-    isempty(lattice(bonds)) && return nothing
-    l = lattice(bonds)
-    isempty(l) && return nothing
-    targets = destinations(bonds, first(l))
-    jst = iterate(targets)
-    return iterate(bonds, (1, targets, jst))
-end
-
-@inline function Base.iterate(bonds::DirectedBonds, state)
-    i, targets, jst = state
-    l = lattice(bonds)
-    i > length(l) && return nothing
-    if jst === nothing
-        i += 1
-        i > length(l) && return nothing
-        targets = destinations(bonds, l[i])
-        jst = iterate(targets)
-    end
-    jst === nothing && return iterate(bonds, (i, targets, jst))
-
-    rs = ResolvedSite(l[i], i)
-    rs2 = resolve_site(l, jst[1])
-    jst = iterate(targets, jst[2])
-
-    rs2 === nothing && return iterate(bonds, (i, targets, jst))
-    return rs => rs2, (i, targets, jst)
-end
 
 """
     AbstractTranslation{LT}

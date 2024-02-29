@@ -33,7 +33,7 @@ function diag_reduce(f, op::OneParticleOperator)
         [f(@view op.data[(i-1)*N+1:i*N, (i-1)*N+1:i*N]) for i in eachindex(l)])
 end
 
-function QuantumOpticsBase.ptrace(op::LatticeModels.CompositeLatticeOperator, sym::Symbol)
+function QuantumOpticsBase.ptrace(op::CompositeLatticeOperator, sym::Symbol)
     bs = length(basis(op).bases)
     if sym === :lattice
         return ptrace(op, bs)
@@ -44,28 +44,31 @@ function QuantumOpticsBase.ptrace(op::LatticeModels.CompositeLatticeOperator, sy
     end
 end
 
-_lattice(op::AbstractLatticeOperator) = lattice(op)
-_lattice(ham::Hamiltonian) = lattice(ham)
-
 """
     adjacency_matrix(op::Operator)
 
 Generates an `AdjacencyMatrix` for the provided operator.
 """
-function adjacency_matrix(op::LatticeOperator)
-    matrix = Bool[!iszero(op.data[i, j])
-                  for i in eachindex(_lattice(op)), j in eachindex(_lattice(op))]
-    return AdjacencyMatrix(_lattice(op), matrix)
-end
-function adjacency_matrix(op::CompositeLatticeOperator)
+function adjacency_matrix(op::OneParticleOperator)
     n = internal_length(op)
     ind(k) = (k - 1) * n + 1 : k * n
-    matrix = Bool[!iszero(op.data[ind(i), ind(j)])
-                  for i in eachindex(_lattice(op)), j in eachindex(_lattice(op))]
-    return AdjacencyMatrix(_lattice(op), matrix)
+    colptr = Int[]
+    rowval = Int[]
+    l = lattice(op)
+    for i in 1:length(l)
+        push!(colptr, length(rowval) + 1)
+        for j in 1:length(l)
+            if !iszero(op.data[ind(j), ind(i)])
+                push!(rowval, j)
+            end
+        end
+    end
+    push!(colptr, length(rowval) + 1)
+    matrix = SparseMatrixCSC(length(l), length(l), colptr, rowval, fill(true, length(rowval)))
+    return AdjacencyMatrix(lattice(op), matrix)
 end
 
-function apply_field!(op::AbstractLatticeOperator, field::AbstractField)
+function apply_field!(op::OneParticleOperator, field::AbstractField)
     l = lattice(op)
     N = internal_length(op)
     for (i, site1) in enumerate(l)

@@ -23,7 +23,6 @@ include("core/latticevalue.jl")
 export LatticeValue, siteproperty_value, coord_value, coord_values, project
 include("core/recipes.jl")
 
-
 include("lattices/genericlattice.jl")
 export GenericLattice, GenericSite
 

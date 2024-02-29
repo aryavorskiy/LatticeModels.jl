@@ -17,19 +17,6 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:AbstractBonds})
         builder[s1, s2] += op
     end
 end
-function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:DirectedBonds})
-    # Hopping term; directed bonds optimization
-    op, bonds = arg
-    lat = lattice(builder)
-    for i in 1:length(lat)
-        site = lat[i]
-        s1 = ResolvedSite(site, i)
-        for site2 in destinations(bonds, site)
-            s2 = resolve_site(lat, site2)
-            s2 !== nothing && (builder[s1, s2] += op)
-        end
-    end
-end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:LatticeValue})
     # Onsite term
     op, lv = arg
