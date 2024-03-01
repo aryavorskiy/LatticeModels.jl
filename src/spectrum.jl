@@ -232,42 +232,123 @@ densitymatrix(eig::Eigensystem{<:AbstractLatticeBasis}; kw...) =
 densitymatrix(eig::Eigensystem; T::Real = 0) = gibbs_densitymatrix(eig; T = T)
 densitymatrix(ham::DataOperator; kw...) = densitymatrix(diagonalize(ham); kw...)
 
-@doc raw"""
-    dos(eig::Eigensystem, δ)
-
-Generates a function to calculate the DOS (Density of States), which is defined as
-$\text{tr}\left(\frac{1}{\hat{H} - E - i\delta}\right)$ and can be understood as a sum
-of Lorenz distributions with width equal to $\delta$.
 """
-dos(eig::AbstractEigensystem, δ::Real) = (E -> imag(sum(1 ./ (eig.values .- (E + im * δ)))))
+    GreenFunction
 
-@doc raw"""
-    ldos(eig::Eigensystem, E, δ)
-
-Calculates the LDOS (Local Density of States), which is defined as the imaginary part of partial trace of
-$\frac{1}{\hat{H} - E - i\delta}$ operator.
+A Green's function for a given lattice and Hamiltonian.
 """
-function ldos(eig::AbstractEigensystem{<:AbstractLatticeBasis}, E::Real, δ::Real)
-    Es = eig.values
-    Vs = eig.states
-    l = lattice(eig)
-    N = internal_length(eig)
-    inves = imag.(1 ./ (Es .- (E + im * δ)))'
-    LatticeValue(l, [sum(abs2.(Vs[(i-1)*N+1:i*N, :]) .* inves) for i in eachindex(l)])
+struct GreenFunction{ST, VecC, VecE}
+    sys::ST
+    weights_up::Vector{VecC}
+    energies_up::VecE
+    weights_down::Vector{VecC}
+    energies_down::VecE
+    function GreenFunction(sys::ST, mvps::Vector{VecT}, eps::VecE, mvms=nothing, ems=nothing; E₀=0) where
+            {ST<:System, VecT<:AbstractVector, VecE<:AbstractVector}
+        p = length(sample(sys))
+        @check_size mvps p
+        if mvms === nothing && ems === nothing
+            mvms = fill(empty(first(mvps)), p)
+            ems = empty(eps)
+        else
+            @check_size mvms p
+        end
+        new{ST, VecT, VecE}(sys, mvps, [ee .- E₀ for ee in eps], mvms, [ee .- E₀ for ee in ems])
+    end
+end
+sample(gf::GreenFunction) = sample(gf.sys)
+function _term(wt1, wt2, energies, w)
+    @assert length(wt1) == length(wt2) == length(energies)
+    ret = zero(eltype(wt1))
+    for i in 1:length(wt1)
+        @inbounds ret += conj(wt1[i]) * wt2[i] / (w + energies[i])
+    end
+    return ret
+    # sum(zip(wt1, wt2, energies), init=zero(ComplexF64)) do p
+    #     (wt1, wt2, e) = p
+    #     conj(wt1) * wt2 / (w + e)
+    # end
+end
+function (gf::GreenFunction)(ω::Number)
+    le = length(sample(gf))
+    mat = [-_term(gf.weights_down[α],  gf.weights_down[β], gf.energies_down, ω) +
+        _term(gf.weights_up[α], gf.weights_up[β], gf.energies_up, -ω) for α in 1:le, β in 1:le]
+    return GreenFunctionSlice(gf.sys, mat)
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", gf::GreenFunction)
+    io = IOContext(io, :compact => true)
+    print(io, "Green's function for ")
+    show(io, mime, lattice(gf))
+end
+
+struct GreenFunctionSlice{ST, MT}
+    sys::ST
+    values::MT
+    function GreenFunctionSlice(sys::ST, values::MT) where {ST<:OneParticleSystem,MT}
+        @check_size values (length(sample(sys)), length(sample(sys)))
+        new{ST, MT}(sys, values)
+    end
+end
+sample(gf::GreenFunctionSlice) = sample(gf.sys)
+function Base.getindex(gf::GreenFunctionSlice, site1::AbstractSite, site2::AbstractSite)
+    l = lattice(gf)
+    i1 = site_index(l, site1)
+    i1 === nothing && throw(ArgumentError("site1 is not in the lattice"))
+    i2 = site_index(l, site2)
+    i2 === nothing && throw(ArgumentError("site2 is not in the lattice"))
+    N = internal_length(gf)
+    if hasinternal(gf)
+        return gf.values[(i1-1)*N+1:i1*N, (i2-1)*N+1:i2*N]
+    else
+        return gf.values[i1, i2]
+    end
+end
+QuantumOpticsBase.Operator(gf::GreenFunctionSlice) = Operator(onebodybasis(gf.sys), gf.values)
+diagonalelements(gf::GreenFunctionSlice{<:System{<:SampleWithoutInternal}}) =
+    LatticeValue(lattice(gf), diag(gf.values))
+
+function Base.show(io::IO, mime::MIME"text/plain", gf::GreenFunctionSlice)
+    print(io, "Green's function slice for ")
+    summary(io2, lattice(gf))
+    requires_compact(io) && return
+    print(io, "Values in a ")
+    show(io, mime, gf.values)
+end
+
+function greenfunction(hameig::HamiltonianEigensystem{<:OneParticleBasisSystem}; E₀=0) # Ensemble formula
+    p = length(sample(hameig))
+    size(hameig.states, 1) == p ||
+        throw(ArgumentError("HamiltonianEigensystem must be on a one-particle basis"))
+    GreenFunction(hameig.sys, [hameig.states[α, :] for α in 1:p], hameig.values; E₀=E₀)
 end
 
 """
-    ldos(eig::Eigensystem, δ)
+    dos(eig[; broaden])
+    dos(gf[; broaden])
 
-Generates a function that accepts the energy `E` and returns `ldos(sp, E, δ)`.
-Use this if you want to find the LDOS for the same `Spectrum`, but for many different values of `E` -
-the produced function is optimized and reduces overall computation time dramatically.
+Generates a function that calculates the DOS (Density of States) for a given eigensystem at some energy.
+
+## Arguments
+- `eig` is an `Eigensystem` or `HamiltonianEigensystem`.
+- `gf` is a `GreenFunction`.
+
+## Keyword arguments
+- `broaden` is the broadening factor for the energy levels, default is `0.1`.
 """
-function ldos(eig::AbstractEigensystem{<:AbstractLatticeBasis}, δ::Real)
-    Es = eig.values
-    l = lattice(eig)
-    N = internal_length(eig)
-    density_sums = reshape(
-        sum(abs2, reshape(eig.states, (N, :, length(eig))), dims=1), (:, length(eig)))
-    E -> LatticeValue(l, vec(sum(density_sums .* imag.(1 ./ (Es .- (E + im * δ)))', dims=2)))
+dos(eig::AbstractEigensystem; broaden=0.1) = (E -> imag(sum(1 ./ (eig.values .- (E + im * broaden)))))
+dos(gf::GreenFunction; broaden=0.1) = (E -> imag(sum(1 ./ (gf.energies_up .- (E + im * broaden))) -
+    sum(1 ./ (gf.energies_down .+ (E + im * broaden)))))
+
+"""
+    ldos(gf::GreenFunction, E[; broaden])
+
+Calculates the LDOS (local density of states) for a given Green's function at energy `E`.
+`broaden` is the broadening factor for the energy levels, default is `0.1`.
+"""
+function ldos(gf::GreenFunction, E::Real; broaden=0.1)
+    le = length(sample(gf))
+    vals = [-imag(_term(gf.weights_down[α], gf.weights_down[α], gf.energies_down, E + im * broaden)) +
+        imag(_term(gf.weights_up[α], gf.weights_up[α], gf.energies_up, -(E + im * broaden))) for α in 1:le]
+    return LatticeValue(lattice(gf), vals)
 end
