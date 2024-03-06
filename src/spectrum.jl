@@ -1,4 +1,5 @@
 using Logging
+using ProgressMeter
 import LinearAlgebra: eigen, Hermitian, eigvals, eigvecs
 import KrylovKit: eigsolve
 
@@ -35,10 +36,16 @@ struct HamiltonianEigensystem{ST<:System,BT<:Basis,MT<:AbstractMatrix} <: Abstra
 end
 HamiltonianEigensystem(sys::System, eig::AbstractEigensystem) =
     HamiltonianEigensystem(sys, eig.basis, eig.states, eig.values)
+function HamiltonianEigensystem(sys::System)
+    bas = basis(sys)
+    states = zeros(ComplexF64, length(bas), 0)
+    values = zeros(ComplexF64, 0)
+    return HamiltonianEigensystem(sys, bas, states, values)
+end
 Eigensystem(ham_eig::HamiltonianEigensystem) =
     Eigensystem(ham_eig.basis, ham_eig.states, ham_eig.values)
 
-function diagonalize_routine(op::DataOperator, ::Val{:lapack}; warning=true)
+function diagonalize_routine(op::DataOperator, ::Val{:lapack}; warning=true, v0=nothing)
     v = size(op.data, 1)
     v > 10000 && warning &&
         @warn """$v×$v dense operator is too large for exact diagonalization; consider making is sparse with `sparse(op)`.
@@ -89,7 +96,6 @@ find_routine(op::DenseOpType) = op, Val(:lapack)
 find_routine(op::DataOperator) =
     size(op.data, 1) > 5000 ? (op, Val(:krylovkit)) : (dense(op), Val(:lapack))
 
-
 Base.length(eig::AbstractEigensystem) = length(eig.values)
 Base.getindex(eig::AbstractEigensystem, i::Int) = Ket(eig.basis, eig.states[:, i])
 Base.getindex(eig::AbstractEigensystem; value::Number) =
@@ -100,7 +106,7 @@ Base.getindex(eig::HamiltonianEigensystem, mask::AbstractVector) =
     HamiltonianEigensystem(eig.sys, eig.basis, eig.states[:, mask], eig.values[mask])
 sample(eig::AbstractEigensystem) = sample(eig.basis)
 sample(eig::HamiltonianEigensystem) = sample(eig.sys)
-basis(eig::AbstractEigensystem) = eig.basis
+QuantumOpticsBase.basis(eig::AbstractEigensystem) = eig.basis
 
 function Base.show(io::IO, ::MIME"text/plain", eig::Eigensystem)
     println(io, "Eigensystem (", fmtnum(eig, "eigenvector"), ")")
@@ -272,14 +278,14 @@ densitymatrix(ham::DataOperator; kw...) = densitymatrix(diagonalize(ham); kw...)
 A Green's function for a given lattice and Hamiltonian.
 """
 struct GreenFunction{ST, VecC, VecE}
-    sys::ST
+    sample::ST
     weights_up::Vector{VecC}
     energies_up::VecE
     weights_down::Vector{VecC}
     energies_down::VecE
-    function GreenFunction(sys::ST, mvps::Vector{VecT}, eps::VecE, mvms=nothing, ems=nothing; E₀=0) where
-            {ST<:System, VecT<:AbstractVector, VecE<:AbstractVector}
-        p = length(sample(sys))
+    function GreenFunction(sample::ST, mvps::Vector{VecT}, eps::VecE, mvms=nothing, ems=nothing; E₀=0, E0=E₀) where
+            {ST<:Sample, VecT<:AbstractVector, VecE<:AbstractVector}
+        p = length(sample)
         @check_size mvps p
         if mvms === nothing && ems === nothing
             mvms = fill(empty(first(mvps)), p)
@@ -287,10 +293,11 @@ struct GreenFunction{ST, VecC, VecE}
         else
             @check_size mvms p
         end
-        new{ST, VecT, VecE}(sys, mvps, [ee .- E₀ for ee in eps], mvms, [ee .- E₀ for ee in ems])
+        new{ST, VecT, VecE}(sample, mvps, [ee .- E0 for ee in eps], mvms, [ee .- E0 for ee in ems])
     end
 end
-sample(gf::GreenFunction) = sample(gf.sys)
+GreenFunction(sys::System, args...; kw...) = GreenFunction(sample(sys), args...; kw...)
+sample(gf::GreenFunction) = gf.sample
 function _term(wt1, wt2, energies, w)
     @assert length(wt1) == length(wt2) == length(energies)
     ret = zero(eltype(wt1))
@@ -307,7 +314,7 @@ function (gf::GreenFunction)(ω::Number)
     le = length(sample(gf))
     mat = [-_term(gf.weights_down[α],  gf.weights_down[β], gf.energies_down, ω) +
         _term(gf.weights_up[α], gf.weights_up[β], gf.energies_up, -ω) for α in 1:le, β in 1:le]
-    return GreenFunctionEval(gf.sys, mat)
+    return GreenFunctionEval(gf.sample, mat)
 end
 
 function Base.show(io::IO, mime::MIME"text/plain", gf::GreenFunction)
@@ -317,14 +324,14 @@ function Base.show(io::IO, mime::MIME"text/plain", gf::GreenFunction)
 end
 
 struct GreenFunctionEval{ST, MT}
-    sys::ST
+    sample::ST
     values::MT
-    function GreenFunctionEval(sys::ST, values::MT) where {ST<:OneParticleSystem,MT}
-        @check_size values (length(sample(sys)), length(sample(sys)))
-        new{ST, MT}(sys, values)
+    function GreenFunctionEval(sample::ST, values::MT) where {ST<:Sample,MT}
+        @check_size values (length(sample), length(sample))
+        new{ST, MT}(sample, values)
     end
 end
-sample(gf::GreenFunctionEval) = sample(gf.sys)
+sample(gf::GreenFunctionEval) = gf.sample
 function Base.getindex(gf::GreenFunctionEval, site1::AbstractSite, site2::AbstractSite)
     l = lattice(gf)
     i1 = site_index(l, site1)
@@ -338,7 +345,7 @@ function Base.getindex(gf::GreenFunctionEval, site1::AbstractSite, site2::Abstra
         return gf.values[i1, i2]
     end
 end
-QuantumOpticsBase.Operator(gf::GreenFunctionEval) = Operator(onebodybasis(gf.sys), gf.values)
+QuantumOpticsBase.Operator(gf::GreenFunctionEval) = Operator(basis(sample(gf)), gf.values)
 diagonalelements(gf::GreenFunctionEval{<:System{<:SampleWithoutInternal}}) =
     LatticeValue(lattice(gf), diag(gf.values))
 
@@ -355,16 +362,68 @@ end
 
 Creates a Green's function for a given one-body Hamiltonian eigensystem.
 """
-function greenfunction(hameig::HamiltonianEigensystem{<:OneParticleBasisSystem}; E₀=0) # Ensemble formula
+function greenfunction(hameig::HamiltonianEigensystem{<:OneParticleBasisSystem}; E₀=0, E0=E₀) # Ensemble formula
     p = length(sample(hameig))
     size(hameig.states, 1) == p ||
         throw(ArgumentError("HamiltonianEigensystem must be on a one-particle basis"))
-    GreenFunction(hameig.sys, [hameig.states[α, :] for α in 1:p], hameig.values; E₀=E₀)
+    GreenFunction(hameig.sys, [hameig.states[α, :] for α in 1:p], hameig.values; E0=E0)
+end
+
+function _to(state, index, bas::ManyBodyBasis; create)
+    bf = basis(state)::ManyBodyBasis
+    zs = zeros(ComplexF64, length(bas))
+    buffer = QuantumOpticsBase.allocate_buffer(bas.occupations)
+    for (i, occ) in enumerate(bf.occupations)
+        copyto!(buffer, occ)
+        buffer[index] += 1
+        if create
+            C = QuantumOpticsBase.state_transition!(buffer, occ, (), index) # create
+        else
+            C = QuantumOpticsBase.state_transition!(buffer, occ, index, ()) # destroy
+        end
+        C === nothing && continue
+        j = QuantumOpticsBase.state_index(bas.occupations, buffer)
+        j === nothing && continue
+        zs[j] = C * state.data[i]
+    end
+    return Ket(bas, zs)
+end
+
+_m1(sys::NParticles) = NParticles(sys.sample, sys.nparticles - 1, sys.statistics, sys.T)
+function greenfunction(psi0::Ket, hamp::Hamiltonian, hamm::Hamiltonian; E₀=0, E0=E₀, tol=1e-5)
+    p = length(sample(hamp))
+    ep = HamiltonianEigensystem(hamp.sys)
+    em = HamiltonianEigensystem(hamm.sys)
+    psips = typeof(psi0.data)[]
+    psims = typeof(psi0.data)[]
+    @showprogress for i in 1:p
+        psip = _to(psi0, i, basis(hamp); create=true)
+        push!(psips, psip.data)
+        if size(ep.states, 2) != length(basis(hamp))
+            psip2 = psip.data - ep.states * ep.states' * psip.data
+            if norm(psip2) > tol
+                newep = diagonalize(hamp, v0=psip2)
+                ep = union(ep, newep)
+            end
+        end
+        psim = _to(psi0, i, basis(hamm); create=false)
+        push!(psims, psim.data)
+        if size(em.states, 2) != length(basis(hamm))
+            psim2 = psim.data - em.states * em.states' * psim.data
+            if norm(psim2) > tol
+                newem = diagonalize(hamm, v0=psim2)
+                em = union(em, newem)
+            end
+        end
+    end
+    return GreenFunction(_m1(hamp.sys),
+        Ref(ep.states') .* psips, ep.values,
+        Ref(em.states') .* psims, em.values; E0=E0)
 end
 
 """
-    dos(eig[, E; broaden])
-    dos(gf[, E; broaden])
+    dos(eig[, E; broaden, imagaxis])
+    dos(gf[, E; broaden, imagaxis])
 
 Calculates the DOS (density of states) for a given eigensystem at energy `E`.
 If `E` is not specified, a function that calculates the DOS at a given energy is returned.
