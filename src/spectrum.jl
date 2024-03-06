@@ -14,8 +14,12 @@ struct Eigensystem{BT<:Basis,MT<:AbstractMatrix} <: AbstractEigensystem{BT}
     values::Vector{Float64}
     function Eigensystem(basis::BT, states::MT, values::AbstractVector) where {BT,MT}
         @check_size states (length(basis), length(values))
-        sp = sortperm(real.(values))
-        new{BT,MT}(basis, states[:, sp], values[sp])
+        if issorted(values, by=real)
+            new{BT,MT}(basis, states, values)
+        else
+            sp = sortperm(values, by=real)
+            new{BT,MT}(basis, states[:, sp], values[sp])
+        end
     end
 end
 struct HamiltonianEigensystem{ST<:System,BT<:Basis,MT<:AbstractMatrix} <: AbstractEigensystem{BT}
@@ -29,11 +33,10 @@ struct HamiltonianEigensystem{ST<:System,BT<:Basis,MT<:AbstractMatrix} <: Abstra
         new{ST,BT,MT}(sys, basis, states[:, sp], values[sp])
     end
 end
-HamiltonianEigensystem(eig::AbstractEigensystem, sys::System) =
+HamiltonianEigensystem(sys::System, eig::AbstractEigensystem) =
     HamiltonianEigensystem(sys, eig.basis, eig.states, eig.values)
 Eigensystem(ham_eig::HamiltonianEigensystem) =
     Eigensystem(ham_eig.basis, ham_eig.states, ham_eig.values)
-QuantumOpticsBase.basis(eig::AbstractEigensystem) = eig.basis
 
 function diagonalize_routine(op::DataOperator, ::Val{:lapack}; warning=true)
     v = size(op.data, 1)
@@ -97,11 +100,12 @@ Base.getindex(eig::HamiltonianEigensystem, mask::AbstractVector) =
     HamiltonianEigensystem(eig.sys, eig.basis, eig.states[:, mask], eig.values[mask])
 sample(eig::AbstractEigensystem) = sample(eig.basis)
 sample(eig::HamiltonianEigensystem) = sample(eig.sys)
+basis(eig::AbstractEigensystem) = eig.basis
 
 function Base.show(io::IO, ::MIME"text/plain", eig::Eigensystem)
     println(io, "Eigensystem (", fmtnum(eig, "eigenvector"), ")")
     requires_compact(io) && return
-    println(io, "Eigenvalues in range $(minimum(eig.values)) .. $(maximum(eig.values))")
+    print(io, "Eigenvalues in range $(minimum(eig.values)) .. $(maximum(eig.values))")
 end
 function Base.show(io::IO, mime::MIME"text/plain", eig::HamiltonianEigensystem)
     println(io, "Diagonalized hamiltonian (", fmtnum(eig, "eigenvector"), ")")
@@ -109,6 +113,36 @@ function Base.show(io::IO, mime::MIME"text/plain", eig::HamiltonianEigensystem)
     print(io, "Energies in range $(minimum(eig.values)) .. $(maximum(eig.values))\nSystem: ")
     show(io, mime, eig.sys)
 end
+
+function orthogonalize(eig::AbstractEigensystem, vectors, tol)
+    orth = vectors * vectors' * eig.states
+    axpby!(1, eig.states, -1, orth)
+    norms = [norm(@view orth[:, i]) for i in 1:size(orth, 2)]
+    orth_filter = norms .> tol
+    if all(orth_filter)
+        orth ./= norms'
+        return Eigensystem(eig.basis, orth, eig.values)
+    else
+        normalized_eig = (orth ./ norms')[:, orth_filter]
+        return Eigensystem(eig.basis, normalized_eig, eig.values[orth_filter])
+    end
+end
+
+function _union(eig1::AbstractEigensystem, eigs::AbstractEigensystem...)
+    # This function is used to merge eigensystems. No checks are performed.
+    newvals = vcat(eig1.values, (eig.values for eig in eigs)...)
+    sp = sortperm(newvals)
+    newvecs = hcat(eig1.states, (eig.states for eig in eigs)...)[:, sp]
+    return Eigensystem(basis(eig1), newvecs, newvals)
+end
+
+function Base.union(eig1::AbstractEigensystem, eig2::AbstractEigensystem; tol=1e-10)
+    QuantumOpticsBase.check_samebases(basis(eig1), basis(eig2))
+    neig2 = orthogonalize(eig2, eig1.states, tol)
+    return _union(eig1, neig2)
+end
+Base.union(heig1::HamiltonianEigensystem, heig2::HamiltonianEigensystem; kw...) =
+    HamiltonianEigensystem(heig1.sys, union(Eigensystem(heig1), Eigensystem(heig2); kw...))
 
 groundstate(eig::HamiltonianEigensystem) = eig[1]
 groundstate(ham::Hamiltonian) = groundstate(diagonalize(ham))
@@ -228,7 +262,7 @@ function densitymatrix(ham_eig::HamiltonianEigensystem{<:NParticles}; kw...)
     return gibbs_densitymatrix(ham_eig; T = ham_eig.sys.T, kw...)
 end
 densitymatrix(eig::Eigensystem{<:AbstractLatticeBasis}; kw...) =
-    densitymatrix(HamiltonianEigensystem(eig, OneParticleSystem(sample(eig))); kw...)
+    densitymatrix(HamiltonianEigensystem(OneParticleSystem(sample(eig)), eig); kw...)
 densitymatrix(eig::Eigensystem; T::Real = 0) = gibbs_densitymatrix(eig; T = T)
 densitymatrix(ham::DataOperator; kw...) = densitymatrix(diagonalize(ham); kw...)
 
@@ -316,6 +350,11 @@ function Base.show(io::IO, mime::MIME"text/plain", gf::GreenFunctionSlice)
     show(io, mime, gf.values)
 end
 
+"""
+    greenfunction(ham_eig::HamiltonianEigensystem)
+
+Creates a Green's function for a given one-body Hamiltonian eigensystem.
+"""
 function greenfunction(hameig::HamiltonianEigensystem{<:OneParticleBasisSystem}; E₀=0) # Ensemble formula
     p = length(sample(hameig))
     size(hameig.states, 1) == p ||
@@ -324,21 +363,24 @@ function greenfunction(hameig::HamiltonianEigensystem{<:OneParticleBasisSystem};
 end
 
 """
-    dos(eig[; broaden])
-    dos(gf[; broaden])
+    dos(eig[, E; broaden])
+    dos(gf[, E; broaden])
 
-Generates a function that calculates the DOS (Density of States) for a given eigensystem at some energy.
+Calculates the DOS (density of states) for a given eigensystem at energy `E`.
+If `E` is not specified, a function that calculates the DOS at a given energy is returned.
 
 ## Arguments
 - `eig` is an `Eigensystem` or `HamiltonianEigensystem`.
 - `gf` is a `GreenFunction`.
+- `E` is the energy at which the DOS is calculated.
 
 ## Keyword arguments
 - `broaden` is the broadening factor for the energy levels, default is `0.1`.
 """
-dos(eig::AbstractEigensystem; broaden=0.1) = (E -> imag(sum(1 ./ (eig.values .- (E + im * broaden)))))
-dos(gf::GreenFunction; broaden=0.1) = (E -> imag(sum(1 ./ (gf.energies_up .- (E + im * broaden))) -
-    sum(1 ./ (gf.energies_down .+ (E + im * broaden)))))
+dos(eig::AbstractEigensystem, E; broaden=0.1) = imag(sum(1 ./ (eig.values .- (E + im * broaden))))
+dos(gf::GreenFunction, E; broaden=0.1) = imag(sum(1 ./ (gf.energies_up .- (E + im * broaden))) -
+    sum(1 ./ (gf.energies_down .+ (E + im * broaden))))
+dos(any; kw...) = E -> dos(any, E; kw...)
 
 """
     ldos(gf::GreenFunction, E[; broaden])
@@ -347,8 +389,11 @@ Calculates the LDOS (local density of states) for a given Green's function at en
 `broaden` is the broadening factor for the energy levels, default is `0.1`.
 """
 function ldos(gf::GreenFunction, E::Real; broaden=0.1)
-    le = length(sample(gf))
-    vals = [-imag(_term(gf.weights_down[α], gf.weights_down[α], gf.energies_down, E + im * broaden)) +
-        imag(_term(gf.weights_up[α], gf.weights_up[α], gf.energies_up, -(E + im * broaden))) for α in 1:le]
+    le = length(lattice(gf))
+    N = internal_length(gf)
+    _ldosf(α) = imag(
+        - _term(gf.weights_down[α], gf.weights_down[α], gf.energies_down, E + im * broaden)
+        + _term(gf.weights_up[α], gf.weights_up[α], gf.energies_up, -(E + im * broaden)))
+    vals = [sum(_ldosf, (a - 1) * N + 1:a * N) for a in 1:le]
     return LatticeValue(lattice(gf), vals)
 end

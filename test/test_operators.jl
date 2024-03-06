@@ -98,16 +98,34 @@
         @test IS2 == IS3
     end
 
-    @testset "DOS & LDOS" begin
-        sp = diagonalize(qwz(ones(SquareLattice(10, 10))))
+    @testset "Diagonalize" begin
+        l = SquareLattice(5, 5)
+        eig = diagonalize(qwz(l))
+        exact_eig = eigen(Array(qwz(l).data))
+        @test eig.values ≈ exact_eig.values
+        @test eig.states ≈ exact_eig.vectors
+
+        e1 = eig[1:4]
+        @test e1.values ≈ eig.values[1:4]
+        @test e1.states ≈ eig.states[:, 1:4]
+
+        e2 = eig[3:6]
+        e3 = union(e1, e2)
+        @test e3.values ≈ eig.values[1:6]
+        @test e3.states ≈ eig.states[:, 1:6]
+    end
+
+    @testset "Green's function" begin
+        eig = diagonalize(qwz(ones(SquareLattice(10, 10))))
         E = 2
         δ = 0.2
-        Es = sp.values
-        Vs = sp.states
-        ld1 = imag.(diag_reduce(tr, Operator(basis(sp), Vs * (@.(1 / (Es - E - im * δ)) .* Vs'))))
-        ldosf = ldos(sp, δ)
-        @test ldos(sp, E, δ).values ≈ ld1.values
-        @test ldosf(E).values ≈ ld1.values
-        @test dos(sp, δ)(E) ≈ sum(ld1)
+        Es = eig.values
+        Vs = eig.states
+        ld1 = imag.(diag_reduce(tr, Operator(basis(eig), Vs * (@.(1 / (Es - E - im * δ)) .* Vs'))))
+        G = greenfunction(eig)
+        ld2 = ldos(G, E, broaden=δ)
+        @test ld2.values ≈ ld1.values
+        @test dos(eig, E, broaden=δ) ≈ sum(ld1)
+        @test dos(G, E, broaden=δ) ≈ sum(ld1)
     end
 end

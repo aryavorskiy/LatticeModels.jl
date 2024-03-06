@@ -54,7 +54,7 @@ export lattice_density, diag_reduce, apply_field!
 
 include("spectrum.jl")
 export Eigensystem, diagonalize, projector, densitymatrix, groundstate,
-    GreenFunction, diagonalelements, dos, ldos
+    GreenFunction, greenfunction, diagonalelements, dos, ldos
 include("currents.jl")
 export Currents, currents_from, currents_from_to, mapgroup_currents
 include("timesequence.jl")
