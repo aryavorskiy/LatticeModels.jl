@@ -62,6 +62,7 @@ function diagonalize_routine(op::DataOperator, ::Val{:krylovkit};
     vals, vecs = eigsolve(op.data, v0, n, :SR, kw...)
     Eigensystem(basis(op), hcat(vecs...), vals)
 end
+diagonalize_routine(op::DataOperator, ::Val{:auto}; kw...) = diagonalize_routine(find_routine(op)...; kw...)
 diagonalize_routine(::DataOperator, ::Val{Routine}) where Routine =
     error("Unsupported diagonalization routine $Routine")
 
@@ -77,6 +78,7 @@ Two routines are available:
     - `v0` is the starting vector. Default is `rand(ComplexF64, size(op.data, 1))`.
     - `n` is the target number of eigenvectors. Default is 10.
     Remaining keyword arguments are passed to the `KrylovKit.eigsolve` function. See its documentation for details.
+- `:auto` automatically selects the routine based on the size of the operator.
 
 The default routine is `:lapack` for dense operators. If the operator matrix is less than
 5000×5000, it is automatically converted to a dense operator. In other cases `:krylovkit`
@@ -90,8 +92,8 @@ diagonalize(op::DataOperator, routine::Val; kw...) =
     diagonalize_routine(op, routine; kw...)
 diagonalize(op::DataOperator, routine::Symbol; kw...) =
     diagonalize_routine(op, Val(routine); kw...)
-diagonalize(op::DataOperator; kw...) =
-    diagonalize(find_routine(op)...; kw...)
+diagonalize(op::DataOperator; routine=:auto, kw...) =
+    diagonalize(op, routine; kw...)
 find_routine(op::DenseOpType) = op, Val(:lapack)
 find_routine(op::DataOperator) =
     size(op.data, 1) > 5000 ? (op, Val(:krylovkit)) : (dense(op), Val(:lapack))
@@ -150,8 +152,28 @@ end
 Base.union(heig1::HamiltonianEigensystem, heig2::HamiltonianEigensystem; kw...) =
     HamiltonianEigensystem(heig1.sys, union(Eigensystem(heig1), Eigensystem(heig2); kw...))
 
-groundstate(eig::HamiltonianEigensystem) = eig[1]
-groundstate(ham::Hamiltonian) = groundstate(diagonalize(ham))
+"""
+    findgroundstate(eig::HamiltonianEigensystem)
+    findgroundstate(ham::Hamiltonian)
+
+Finds the ground state of a Hamiltonian. Returns the energy and the state.
+
+## Example
+```julia
+eig = diagonalize(ham)
+E, ψ = findgroundstate(eig)
+```
+"""
+findgroundstate(eig::HamiltonianEigensystem) = eig.values[1], eig[1]
+findgroundstate(ham::Hamiltonian) = findgroundstate(diagonalize(ham))
+
+"""
+    groundstate(eig::HamiltonianEigensystem)
+    groundstate(ham::Hamiltonian)
+
+Finds the ground state of a Hamiltonian. Returns the state.
+"""
+groundstate(any) = findgroundstate(any)[2]
 
 @doc raw"""
     projector(eig::Eigensystem)
