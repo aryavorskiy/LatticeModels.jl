@@ -305,16 +305,29 @@ function _term(wt1, wt2, energies, w)
         @inbounds ret += conj(wt1[i]) * wt2[i] / (w + energies[i])
     end
     return ret
-    # sum(zip(wt1, wt2, energies), init=zero(ComplexF64)) do p
-    #     (wt1, wt2, e) = p
-    #     conj(wt1) * wt2 / (w + e)
-    # end
+end
+function Base.getindex(gf::GreenFunction, α::Int, β::Int; ω=nothing, w=ω)
+    w === nothing && throw(ArgumentError("ω or w must be specified"))
+    return -_term(gf.weights_down[α],  gf.weights_down[β], gf.energies_down, w) -
+    _term(gf.weights_up[α], gf.weights_up[β], gf.energies_up, -w)
+end
+function Base.getindex(gf::GreenFunction, site1::AbstractSite, site2::AbstractSite; kw...)
+    l = lattice(gf)
+    i1 = site_index(l, site1)
+    i1 === nothing && throw(ArgumentError("site1 is not in the lattice"))
+    i2 = site_index(l, site2)
+    i2 === nothing && throw(ArgumentError("site2 is not in the lattice"))
+    if hasinternal(gf)
+        N = internal_length(gf)
+        return [getindex(gf, (i1-1)*N + α - 1, (i2-1)*N + β - 1; kw...)
+        for α in 1:internal_length(gf), β in 1:internal_length(gf)]
+    else
+        return getindex(gf, i1, i2; kw...)
+    end
 end
 function (gf::GreenFunction)(ω::Number)
     le = length(sample(gf))
-    mat = [-_term(gf.weights_down[α],  gf.weights_down[β], gf.energies_down, ω) +
-        _term(gf.weights_up[α], gf.weights_up[β], gf.energies_up, -ω) for α in 1:le, β in 1:le]
-    return GreenFunctionEval(gf.sample, mat)
+    return GreenFunctionEval(gf.sample, [gf[α, β, ω=ω] for α in 1:le, β in 1:le])
 end
 
 function Base.show(io::IO, mime::MIME"text/plain", gf::GreenFunction)
@@ -383,26 +396,54 @@ function _to(state, index, bas::ManyBodyBasis; create)
         end
         C === nothing && continue
         j = QuantumOpticsBase.state_index(bas.occupations, buffer)
-        j === nothing && continue
+        if j === nothing
+            @warn "Cannot find state in the basis; check particle numbers"
+            continue
+        end
         zs[j] = C * state.data[i]
     end
     return Ket(bas, zs)
 end
 
 _m1(sys::NParticles) = NParticles(sys.sample, sys.nparticles - 1, sys.statistics, sys.T)
-function greenfunction(psi0::Ket, hamp::Hamiltonian, hamm::Hamiltonian; E₀=0, E0=E₀, tol=1e-5)
-    p = length(sample(hamp))
+"""
+    greenfunction(psi0, hamp, hamm[; E₀, tol, kw...])
+
+Calculates the Green's function for a many-body system with a given initial state `psi0`.
+
+## Arguments
+- `psi0` is the initial state.
+- `hamp` is the Hamiltonian for the subspace with one more particle than in `psi0`.
+- `hamm` is the Hamiltonian for the subspace with one less particle than in `psi0`.
+
+## Keyword arguments
+- `E₀` is the energy shift for the Green's function. Default is `0`. Use `E0` as a synonym
+    if Unicode input is not available.
+- `tol` is the tolerance for the new eigenvectors. Default is `1e-5`.
+All other keyword arguments are passed to the `diagonalize` function. See its documentation for details.
+"""
+function greenfunction(psi0::Ket, hamp::Hamiltonian, hamm::Hamiltonian; E₀=0, E0=E₀, tol=1e-5, kw...)
+    # Checks...
+    bas = basis(psi0)
+    bas isa ManyBodyBasis || throw(ArgumentError("`psi0` must be on a many-body basis"))
+    obb = bas.onebodybasis
+    basis(hamp) isa OneParticleBasis || throw(ArgumentError("`hamp` must be on a one-particle basis"))
+    obb == basis(hamp).onebodybasis || throw(ArgumentError("`hamp` must be on the same one-particle basis as `psi0`"))
+    basis(hamm) isa OneParticleBasis || throw(ArgumentError("`hamm` must be on a one-particle basis"))
+    obb == basis(hamm).onebodybasis || throw(ArgumentError("`hamm` must be on the same one-particle basis as `psi0`"))
+
+    le = length(sample(hamp))
     ep = HamiltonianEigensystem(hamp.sys)
     em = HamiltonianEigensystem(hamm.sys)
     psips = typeof(psi0.data)[]
     psims = typeof(psi0.data)[]
-    @showprogress for i in 1:p
+    @showprogress desc="Calculating Green's function..." for i in 1:le
         psip = _to(psi0, i, basis(hamp); create=true)
         push!(psips, psip.data)
         if size(ep.states, 2) != length(basis(hamp))
             psip2 = psip.data - ep.states * ep.states' * psip.data
             if norm(psip2) > tol
-                newep = diagonalize(hamp, v0=psip2)
+                newep = diagonalize(hamp; v0=psip2, kw...)
                 ep = union(ep, newep)
             end
         end
@@ -411,7 +452,7 @@ function greenfunction(psi0::Ket, hamp::Hamiltonian, hamm::Hamiltonian; E₀=0, 
         if size(em.states, 2) != length(basis(hamm))
             psim2 = psim.data - em.states * em.states' * psim.data
             if norm(psim2) > tol
-                newem = diagonalize(hamm, v0=psim2)
+                newem = diagonalize(hamm, v0=psim2; kw...)
                 em = union(em, newem)
             end
         end
