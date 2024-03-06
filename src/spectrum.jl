@@ -307,7 +307,7 @@ function (gf::GreenFunction)(ω::Number)
     le = length(sample(gf))
     mat = [-_term(gf.weights_down[α],  gf.weights_down[β], gf.energies_down, ω) +
         _term(gf.weights_up[α], gf.weights_up[β], gf.energies_up, -ω) for α in 1:le, β in 1:le]
-    return GreenFunctionSlice(gf.sys, mat)
+    return GreenFunctionEval(gf.sys, mat)
 end
 
 function Base.show(io::IO, mime::MIME"text/plain", gf::GreenFunction)
@@ -316,16 +316,16 @@ function Base.show(io::IO, mime::MIME"text/plain", gf::GreenFunction)
     show(io, mime, lattice(gf))
 end
 
-struct GreenFunctionSlice{ST, MT}
+struct GreenFunctionEval{ST, MT}
     sys::ST
     values::MT
-    function GreenFunctionSlice(sys::ST, values::MT) where {ST<:OneParticleSystem,MT}
+    function GreenFunctionEval(sys::ST, values::MT) where {ST<:OneParticleSystem,MT}
         @check_size values (length(sample(sys)), length(sample(sys)))
         new{ST, MT}(sys, values)
     end
 end
-sample(gf::GreenFunctionSlice) = sample(gf.sys)
-function Base.getindex(gf::GreenFunctionSlice, site1::AbstractSite, site2::AbstractSite)
+sample(gf::GreenFunctionEval) = sample(gf.sys)
+function Base.getindex(gf::GreenFunctionEval, site1::AbstractSite, site2::AbstractSite)
     l = lattice(gf)
     i1 = site_index(l, site1)
     i1 === nothing && throw(ArgumentError("site1 is not in the lattice"))
@@ -338,11 +338,11 @@ function Base.getindex(gf::GreenFunctionSlice, site1::AbstractSite, site2::Abstr
         return gf.values[i1, i2]
     end
 end
-QuantumOpticsBase.Operator(gf::GreenFunctionSlice) = Operator(onebodybasis(gf.sys), gf.values)
-diagonalelements(gf::GreenFunctionSlice{<:System{<:SampleWithoutInternal}}) =
+QuantumOpticsBase.Operator(gf::GreenFunctionEval) = Operator(onebodybasis(gf.sys), gf.values)
+diagonalelements(gf::GreenFunctionEval{<:System{<:SampleWithoutInternal}}) =
     LatticeValue(lattice(gf), diag(gf.values))
 
-function Base.show(io::IO, mime::MIME"text/plain", gf::GreenFunctionSlice)
+function Base.show(io::IO, mime::MIME"text/plain", gf::GreenFunctionEval)
     print(io, "Green's function slice for ")
     summary(io2, lattice(gf))
     requires_compact(io) && return

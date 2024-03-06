@@ -183,9 +183,9 @@ end
     aspect_ratio := :equal
     xwiden := 1.2
     ywiden := 1.2
-    markerscale --> false
+    markerscale --> true
     scale_markers = plotattributes[:markerscale]
-    @assert scale_markers isa Real "`scalemarkers` must be a real number or Bool"
+    @assert scale_markers isa Real "`scalemarkers` must be a real number or `Bool`"
     mx = maximum(abs, lv.values)
     lat = lattice(lv)
     if plotattributes[:seriestype] === :shape && dims(lv) == 2
@@ -221,12 +221,14 @@ end
         linealpha := 0.5
         linewidth := 2
         marker_z := lv.values
+        marker_sz = get(plotattributes, :markersize, scale_markers === false ? 4 : 8)
         @series begin
             markersize := 0
             (lat,)
         end
         @series begin
-            markersize := scale_markers === false ? 5 : @. 8 * abs(lv.values) / mx * scale_markers
+            markersize := scale_markers === false ? marker_sz :
+                @. marker_sz * abs(lv.values) / mx * scale_markers
             markerstrokewidth := 0.5
             lat, :sites
         end
