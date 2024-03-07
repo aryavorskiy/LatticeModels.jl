@@ -91,7 +91,7 @@ end
 diagonalize(op::DataOperator, routine::Val; kw...) =
     diagonalize_routine(op, routine; kw...)
 diagonalize(op::DataOperator, routine::Symbol; kw...) =
-    diagonalize_routine(op, Val(routine); kw...)
+    diagonalize(op, Val(routine); kw...)
 diagonalize(op::DataOperator; routine=:auto, kw...) =
     diagonalize(op, routine; kw...)
 find_routine(op::DenseOpType) = op, Val(:lapack)
@@ -294,6 +294,28 @@ densitymatrix(eig::Eigensystem{<:AbstractLatticeBasis}; kw...) =
 densitymatrix(eig::Eigensystem; T::Real = 0) = gibbs_densitymatrix(eig; T = T)
 densitymatrix(ham::DataOperator; kw...) = densitymatrix(diagonalize(ham); kw...)
 
+struct GreenFunctionPoint{VecC, VecE}
+    weights_up::VecC
+    energies_up::VecE
+    weights_down::VecC
+    energies_down::VecE
+    function GreenFunctionPoint(weights_up::VecC, energies_up::VecE,
+            weights_down::VecC, energies_down::VecE) where {VecC, VecE}
+        @check_size weights_up length(energies_up)
+        @check_size weights_down length(energies_down)
+        new{VecC, VecE}(weights_up, energies_up, weights_down, energies_down)
+    end
+end
+function (gf::GreenFunctionPoint)(ω::Number)
+    return sum(Base.broadcasted((w, e) -> w / (ω - e), gf.weights_down, gf.energies_down),
+        init=-sum(Base.broadcasted((w, e) -> w / (ω + e), gf.weights_up, gf.energies_up)))
+end
+
+function Base.show(io::IO, ::MIME"text/plain", gf::GreenFunctionPoint)
+    print(io, "Green's function point with ", length(gf.energies_up), " create-bands and ",
+        length(gf.energies_down), " annihilate-bands")
+end
+
 """
     GreenFunction
 
@@ -301,39 +323,43 @@ A Green's function for a given lattice and Hamiltonian.
 """
 struct GreenFunction{ST, VecC, VecE}
     sample::ST
-    weights_up::Vector{VecC}
+    weights_up::Matrix{VecC}
     energies_up::VecE
-    weights_down::Vector{VecC}
+    weights_down::Matrix{VecC}
     energies_down::VecE
-    function GreenFunction(sample::ST, mvps::Vector{VecT}, eps::VecE, mvms=nothing, ems=nothing; E₀=0, E0=E₀) where
+    function GreenFunction(sample::ST, mvps::Matrix{VecT}, eps::VecE, mvms=nothing, ems=nothing; E₀=0, E0=E₀) where
             {ST<:Sample, VecT<:AbstractVector, VecE<:AbstractVector}
         p = length(sample)
-        @check_size mvps p
+        @check_size mvps (p,p)
         if mvms === nothing && ems === nothing
-            mvms = fill(empty(first(mvps)), p)
+            mvms = fill(empty(first(mvps)), p, p)
             ems = empty(eps)
         else
-            @check_size mvms p
+            @check_size mvms (p,p)
         end
-        new{ST, VecT, VecE}(sample, mvps, [ee .- E0 for ee in eps], mvms, [ee .- E0 for ee in ems])
+        new{ST, VecT, VecE}(sample, mvps, eps .- E0, mvms, ems .- E0)
+    end
+    function GreenFunction(mvps::Matrix{VecT}, eps::VecE, mvms=nothing, ems=nothing) where
+        {VecT<:AbstractVector, VecE<:AbstractVector}
+        @check_size mvps :square
+        p = size(mvps, 1)
+        if mvms === nothing && ems === nothing
+            mvms = fill(empty(first(mvps)), p, p)
+            ems = empty(eps)
+        else
+            @check_size mvms (p, p)
+        end
+        new{Nothing, VecT, VecE}(nothing, mvps, eps, mvms, ems)
     end
 end
-GreenFunction(sys::System, args...; kw...) = GreenFunction(sample(sys), args...; kw...)
 sample(gf::GreenFunction) = gf.sample
-function _term(wt1, wt2, energies, w)
-    @assert length(wt1) == length(wt2) == length(energies)
-    ret = zero(eltype(wt1))
-    for i in 1:length(wt1)
-        @inbounds ret += conj(wt1[i]) * wt2[i] / (w + energies[i])
-    end
-    return ret
+sample(::GreenFunction{Nothing}) = throw(ArgumentError("GreenFunction has no lattice defined"))
+
+function Base.getindex(gf::GreenFunction, α::Int, β::Int)
+    return GreenFunctionPoint(gf.weights_up[α, β], gf.energies_up,
+        gf.weights_down[α, β], gf.energies_down)
 end
-function Base.getindex(gf::GreenFunction, α::Int, β::Int; ω=nothing, w=ω)
-    w === nothing && throw(ArgumentError("ω or w must be specified"))
-    return -_term(gf.weights_down[α],  gf.weights_down[β], gf.energies_down, w) -
-    _term(gf.weights_up[α], gf.weights_up[β], gf.energies_up, -w)
-end
-function Base.getindex(gf::GreenFunction, site1::AbstractSite, site2::AbstractSite; kw...)
+function Base.getindex(gf::GreenFunction, site1::AbstractSite, site2::AbstractSite)
     l = lattice(gf)
     i1 = site_index(l, site1)
     i1 === nothing && throw(ArgumentError("site1 is not in the lattice"))
@@ -341,15 +367,35 @@ function Base.getindex(gf::GreenFunction, site1::AbstractSite, site2::AbstractSi
     i2 === nothing && throw(ArgumentError("site2 is not in the lattice"))
     if hasinternal(gf)
         N = internal_length(gf)
-        return [getindex(gf, (i1-1)*N + α - 1, (i2-1)*N + β - 1; kw...)
-        for α in 1:internal_length(gf), β in 1:internal_length(gf)]
+        is1 = (i1 - 1) * N + 1:i1 * N
+        is2 = (i2 - 1) * N + 1:i2 * N
+        return GreenFunction(gf.weights_up[is1, is2], gf.energies_up,
+            gf.weights_down[is1, is2], gf.energies_down)
     else
-        return getindex(gf, i1, i2; kw...)
+        return gf[i1, i2]
+    end
+end
+function Base.getindex(gf::GreenFunction, lvw::LatticeValue{Bool})
+    l = lattice(gf)
+    is = site_indices(l, lvw)
+    N = length(l)
+    new_sample = Sample(l[is], sample(gf).internal)
+    if hasinternal(gf)
+        inflated_inds = [(i - 1) * N + j for i in is for j in 1:N]
+        return GreenFunction(new_sample, gf.weights_up[inflated_inds, inflated_inds], gf.energies_up,
+            gf.weights_down[inflated_inds, inflated_inds], gf.energies_down)
+    else
+        return GreenFunction(new_sample, gf.weights_up[is, is], gf.energies_up,
+            gf.weights_down[is, is], gf.energies_down)
     end
 end
 function (gf::GreenFunction)(ω::Number)
     le = length(sample(gf))
-    return GreenFunctionEval(gf.sample, [gf[α, β, ω=ω] for α in 1:le, β in 1:le])
+    return GreenFunctionEval(gf.sample, [gf[α, β](ω) for α in 1:le, β in 1:le])
+end
+function (gf::GreenFunction{Nothing})(ω::Number)
+    le = size(gf.weights_up, 1)
+    return [gf[α, β](ω) for α in 1:le, β in 1:le]
 end
 
 function Base.show(io::IO, mime::MIME"text/plain", gf::GreenFunction)
@@ -367,6 +413,7 @@ struct GreenFunctionEval{ST, MT}
     end
 end
 sample(gf::GreenFunctionEval) = gf.sample
+Base.getindex(gf::GreenFunctionEval, α::Int, β::Int) = gf.values[α, β]
 function Base.getindex(gf::GreenFunctionEval, site1::AbstractSite, site2::AbstractSite)
     l = lattice(gf)
     i1 = site_index(l, site1)
@@ -401,7 +448,9 @@ function greenfunction(hameig::HamiltonianEigensystem{<:OneParticleBasisSystem};
     p = length(sample(hameig))
     size(hameig.states, 1) == p ||
         throw(ArgumentError("HamiltonianEigensystem must be on a one-particle basis"))
-    GreenFunction(hameig.sys, [hameig.states[α, :] for α in 1:p], hameig.values; E0=E0)
+    GreenFunction(sample(hameig.sys),
+        [conj.(@view hameig.states[α, :]) .* (@view hameig.states[β, :]) for α in 1:p, β in 1:p],
+        hameig.values; E0=E0)
 end
 
 function _to(state, index, bas::ManyBodyBasis; create)
@@ -427,7 +476,6 @@ function _to(state, index, bas::ManyBodyBasis; create)
     return Ket(bas, zs)
 end
 
-_m1(sys::NParticles) = NParticles(sys.sample, sys.nparticles - 1, sys.statistics, sys.T)
 """
     greenfunction(psi0, hamp, hamm[; E₀, tol, kw...])
 
@@ -479,9 +527,12 @@ function greenfunction(psi0::Ket, hamp::Hamiltonian, hamm::Hamiltonian; E₀=0, 
             end
         end
     end
-    return GreenFunction(_m1(hamp.sys),
-        Ref(ep.states') .* psips, ep.values,
-        Ref(em.states') .* psims, em.values; E0=E0)
+    _weights(states, psis) =
+        [conj.(states[:, α]' * psis[α]) .* (states[:, β]' * psis[β])
+        for α in 1:length(psis), β in 1:length(psis)]
+    return GreenFunction(sample(hamp.sys),
+        _weights(ep.states,  psips), ep.values,
+        _weights(em.states, psims), em.values; E0=E0)
 end
 
 """
@@ -513,9 +564,6 @@ Calculates the LDOS (local density of states) for a given Green's function at en
 function ldos(gf::GreenFunction, E::Real; broaden=0.1)
     le = length(lattice(gf))
     N = internal_length(gf)
-    _ldosf(α) = imag(
-        - _term(gf.weights_down[α], gf.weights_down[α], gf.energies_down, E + im * broaden)
-        + _term(gf.weights_up[α], gf.weights_up[α], gf.energies_up, -(E + im * broaden)))
-    vals = [sum(_ldosf, (a - 1) * N + 1:a * N) for a in 1:le]
+    vals = [sum(imag(gf[α, α](E + im * broaden)) for α in (a - 1) * N + 1:a * N) for a in 1:le]
     return LatticeValue(lattice(gf), vals)
 end

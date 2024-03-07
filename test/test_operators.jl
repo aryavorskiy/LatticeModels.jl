@@ -116,13 +116,23 @@
     end
 
     @testset "Green's function" begin
-        eig = diagonalize(qwz(ones(SquareLattice(10, 10))))
+        l = SquareLattice(10, 10)
+        eig = diagonalize(qwz(ones(l)))
+        G = greenfunction(eig)
         E = 2
+        site1 = l[1]
+        site2 = l[2]
+        slice = G[site1, site2]
+        point = slice[1, 2]
+        val = point(E)
+        @test slice(E)[1, 2] == val
+        @test G[1, 4] == point
+        @test G(E)[1, 4] == val
+        @test G(E)[site1, site2] == slice(E)
         δ = 0.2
         Es = eig.values
         Vs = eig.states
         ld1 = imag.(diag_reduce(tr, Operator(basis(eig), Vs * (@.(1 / (Es - E - im * δ)) .* Vs'))))
-        G = greenfunction(eig)
         ld2 = ldos(G, E, broaden=δ)
         @test ld2.values ≈ ld1.values
         @test dos(eig, E, broaden=δ) ≈ sum(ld1)
