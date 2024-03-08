@@ -72,10 +72,9 @@ end
 
 Base.getindex(scurr::SubCurrents, i::Int, j::Int) = scurr.parent_currents[scurr.indices[i], scurr.indices[j]]
 lattice(scurr::SubCurrents) = scurr.lat
-function Base.getindex(curr::AbstractCurrents, lvm::LatticeValue{Bool})
-    check_samesites(curr, lvm)
-    indices = findall(lvm.values)
-    SubCurrents(curr, indices)
+function Base.getindex(curr::AbstractCurrents, any)
+    inds = to_inds(lattice(curr), any)
+    SubCurrents(curr, inds)
 end
 
 function Base.summary(io::IO, scurr::SubCurrents)
@@ -83,21 +82,16 @@ function Base.summary(io::IO, scurr::SubCurrents)
     summary(io, scurr.parent_currents)
 end
 
-function _site_indices(l::AbstractLattice, l2::AbstractLattice)
-    check_issublattice(l2, l)
-    return [site_index(l, site) for site in l2]
-end
-_site_indices(l::AbstractLattice, site::AbstractSite) = (site_index(l, site),)
 function currents_from(curr::AbstractCurrents, src)
     lat = lattice(curr)
-    is = _site_indices(lat, src)
+    is = to_inds(lat, src)
     LatticeValue(lat, Float64[j in is ? 0 : sum(curr[i, j] for i in is) for j in eachindex(lat)])
 end
 function currents_from_to(curr::AbstractCurrents, src, dst=nothing)
     lat = lattice(curr)
-    is = _site_indices(lat, src)
-    js = dst === nothing ? setdiff(eachindex(lat), is) : _site_indices(lat, dst)
-    sum(curr[i, j] for i in is, j in js)
+    src_inds = to_inds(lat, src)
+    dst_inds = dst === nothing ? setdiff(eachindex(lat), src_inds) : to_inds(lat, dst)
+    sum(curr[i, j] for i in src_inds, j in dst_inds)
 end
 
 """
@@ -143,10 +137,9 @@ function Base.setindex!(curr::Currents, rhs, site1::AbstractSite, site2::Abstrac
     curr.currents[j, i] = -rhs
 end
 
-function Base.getindex(curr::Currents, lvm::LatticeValue{Bool})
-    check_samesites(curr, lvm)
-    indices = findall(lvm.values)
-    Currents(curr.lat[lvm], curr.currents[indices, indices])
+function Base.getindex(curr::Currents, any)
+    inds = to_inds(lattice(curr), any)
+    Currents(curr.lat[inds], curr.currents[inds, inds])
 end
 
 @inline function Base.iterate(curr::Currents{<:SparseMatrixCSC}, state=(1, findnz(curr.currents)))

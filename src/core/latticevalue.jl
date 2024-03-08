@@ -15,16 +15,6 @@ lattice(lvw::LatticeValueWrapper) = lvw.lat
 Base.copy(lvw::LatticeValueWrapper) = LatticeValueWrapper(lvw.lat, copy(lvw.values))
 Base.length(lvw::LatticeValueWrapper) = length(lvw.values)
 Base.size(lvw::LatticeValueWrapper) = size(lvw.values)
-function Base.getindex(lvw::LatticeValueWrapper, site::AbstractSite)
-    i = site_index(lattice(lvw), site)
-    i === nothing && throw(BoundsError(lvw, site))
-    return lvw.values[i]
-end
-function Base.setindex!(lvw::LatticeValueWrapper, rhs, site::AbstractSite)
-    i = site_index(lattice(lvw), site)
-    i === nothing && throw(BoundsError(lvw, site))
-    lvw.values[i] = rhs
-end
 Base.eltype(lvw::LatticeValueWrapper) = eltype(lvw.values)
 Base.eachindex(lvw::LatticeValueWrapper) = lattice(lvw)
 Base.iterate(lvw::LatticeValueWrapper, s...) = iterate(lvw.values, s...)
@@ -131,67 +121,88 @@ function Base.show(io::IO, ::MIME"text/plain", lv::LatticeValueWrapper)
     end
 end
 
-site_inds(l::AbstractLattice{SiteT}, lv_mask::LatticeValue{Bool, <:AbstractLattice{SiteT}}) where SiteT<:AbstractSite =
-    Int[site_index(l, lattice(lv_mask)[i])
-        for i in eachindex(lv_mask.values) if lv_mask.values[i]]
-Base.@propagate_inbounds function Base.getindex(l::AbstractLattice, lv_mask::LatticeValue{Bool})
-    @boundscheck check_issublattice(lattice(lv_mask), l)
-    inds = site_inds(l, lv_mask)
-    l[inds]
+function to_inds(l::AbstractLattice, lv_mask::LatticeValue{Bool})
+    indices = Int[]
+    l2 = lattice(lv_mask)
+    check_issublattice(l, l2)
+    for (i, site) in enumerate(l2)
+        if lv_mask.values[i]
+            index = site_index(l, site)
+            index === nothing && continue
+            push!(indices, index)
+        end
+    end
+    return indices
+end
+function to_inds(l::AbstractLattice, l2::AbstractLattice)
+    check_issublattice(l2, l)
+    Int[site_index(l, site) for site in l2]
+end
+function to_inds(l::AbstractLattice, pairs::Pair...; kw...)
+    inds = pairs_to_indices(l, to_param_pairs(pairs...; kw...))
+    checkbounds(l, inds)
+    return inds
+end
+function to_inds(l::AbstractLattice, ::typeof(!), pairs::Pair...; kw...)
+    ind = pairs_to_index(l, to_param_pairs(pairs...; kw...))
+    return ind
+end
+to_inds(l::AbstractLattice, site::AbstractSite) = site_index(l, site)
+to_inds(::AbstractLattice, rs::ResolvedSite) = rs.index
+
+Base.@propagate_inbounds function Base.getindex(l::AbstractLattice, args...; kw...)
+    inds = to_inds(l, args...; kw...)
+    if inds isa Nothing
+        throw(BoundsError(l, (args..., NamedTuple(kw))))
+    else
+        return l[inds]
+    end
+end
+Base.@propagate_inbounds function Base.getindex(lv::LatticeValueWrapper, args...; kw...)
+    inds = to_inds(lattice(lv), args...; kw...)
+    if inds isa Nothing
+        throw(BoundsError(lv, (args..., NamedTuple(kw))))
+    elseif inds isa Int
+        return lv.values[inds]
+    else
+        return LatticeValueWrapper(lattice(lv)[inds], lv.values[inds])
+    end
 end
 
-Base.@propagate_inbounds function Base.getindex(lv::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
-    @boundscheck check_samelattice(lv, lv_mask)
-    inds = site_inds(lattice(lv), lv_mask)
-    LatticeValueWrapper(lattice(lv)[inds], lv.values[inds])
-end
-
-Base.@propagate_inbounds function Base.Broadcast.dotview(lv::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
-    @boundscheck check_samelattice(lv, lv_mask)
-    inds = site_inds(lattice(lv), lv_mask)
+Base.@propagate_inbounds function Base.view(lv::LatticeValueWrapper, args...; kw...)
+    inds = to_inds(lattice(lv), args...; kw...)
+    if inds === nothing
+        throw(BoundsError(lv, (args..., NamedTuple(kw))))
+    end
     LatticeValueWrapper(lattice(lv)[inds], @view lv.values[inds])
 end
-function Base.Broadcast.dotview(lv::LatticeValueWrapper, pairs::Pair...; kw...)
-    inds = pairs_to_indices(lattice(lv), to_param_pairs(pairs...; kw...))
-    return LatticeValueWrapper(lattice(lv)[inds], @view lv.values[inds])
-end
 
-Base.@propagate_inbounds function Base.setindex!(lv::LatticeValueWrapper, lv_rhs::LatticeValueWrapper, lv_mask::LatticeValue{Bool})
-    @boundscheck begin
-        check_issublattice(lattice(lv_mask), lattice(lv))
-        check_issublattice(lattice(lv_rhs), lattice(lv))
-    end
-    inds_l = site_inds(lattice(lv), lv_mask)
-    inds_r = site_inds(lattice(lv_rhs), lv_mask)
-    lv.values[inds_l] = @view lv_rhs.values[inds_r]
-    return lv_rhs
-end
+Base.@propagate_inbounds Base.Broadcast.dotview(lv::LatticeValueWrapper, args...; kw...) =
+    view(lv, args...; kw...)
 
-function Base.getindex(lvw::LatticeValueWrapper, pairs::Pair...; kw...)
-    inds = pairs_to_indices(lattice(lvw), to_param_pairs(pairs...; kw...))
-    return length(inds) == 1 ? lvw.values[only(inds)] :
-        LatticeValueWrapper(lattice(lvw)[inds], lvw.values[inds])
-end
-function Base.getindex(lvw::LatticeValueWrapper, ::typeof(!), pairs::Pair...; kw...)
-    ind = pairs_to_index(lattice(lvw), to_param_pairs(pairs...; kw...))
-    ind === nothing && throw(BoundsError(lvw, (pairs..., NamedTuple(kw))))
-    lvw.values[ind]
-end
-
-function Base.setindex!(lv::LatticeValueWrapper, lv_rhs::LatticeValueWrapper, pairs::Pair...; kw...)
-    param_pairs = to_param_pairs(pairs...; kw...)
-    inds_l = pairs_to_indices(lattice(lv), param_pairs)
-    inds_r = pairs_to_indices(lattice(lv_rhs), param_pairs)
-    @boundscheck begin
-        check_samelattice(lattice(lv)[inds_l], lattice(lv_rhs)[inds_r])
+Base.@propagate_inbounds function Base.setindex!(lv::LatticeValueWrapper, lv_rhs::LatticeValueWrapper, args...; kw...)
+    inds_l = to_inds(lattice(lv), args...; kw...)
+    inds_l === nothing && throw(BoundsError(lv, (args..., NamedTuple(kw))))
+    inds_r = Int[]
+    for i in inds_l
+        index = site_index(lattice(lv_rhs), lattice(lv)[i])
+        index === nothing && throw(ArgumentError("Cannot assign: site not found in lattice"))
+        push!(inds_r, index)
     end
     lv.values[inds_l] = @view lv_rhs.values[inds_r]
     return lv_rhs
 end
-function Base.setindex!(lvw::LatticeValueWrapper, rhs, ::typeof(!), pairs::Pair...; kw...)
-    ind = pairs_to_index(lattice(lvw), to_param_pairs(pairs...; kw...))
-    ind === nothing && throw(BoundsError(lvw, (pairs..., NamedTuple(kw))))
-    lvw.values[ind] = rhs
+function Base.setindex!(lvw::LatticeValueWrapper, rhs::Any, args...; kw...)
+    inds = to_inds(lattice(lvw), args...; kw...)
+    if inds === nothing
+        throw(BoundsError(lvw, (args..., NamedTuple(kw))))
+    elseif inds isa Int
+        lvw.values[inds] = rhs
+    else
+        # throw an error, because we don't want to broadcast
+        lvw.values[inds] = 0
+    end
+    return rhs
 end
 
 """

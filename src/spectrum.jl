@@ -375,12 +375,12 @@ function Base.getindex(gf::GreenFunction, site1::AbstractSite, site2::AbstractSi
         return gf[i1, i2]
     end
 end
-function Base.getindex(gf::GreenFunction, lvw::LatticeValue{Bool})
+function Base.getindex(gf::GreenFunction, any)
     l = lattice(gf)
-    is = site_indices(l, lvw)
-    N = length(l)
+    is = to_inds(l, any)
     new_sample = Sample(l[is], sample(gf).internal)
     if hasinternal(gf)
+        N = internal_length(gf)
         inflated_inds = [(i - 1) * N + j for i in is for j in 1:N]
         return GreenFunction(new_sample, gf.weights_up[inflated_inds, inflated_inds], gf.energies_up,
             gf.weights_down[inflated_inds, inflated_inds], gf.energies_down)

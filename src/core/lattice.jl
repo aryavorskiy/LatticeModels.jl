@@ -217,13 +217,6 @@ function pairs_to_indices(l::AbstractLattice, all_pairs::Tuple{Vararg{Pair}})
     return inds
 end
 
-function Base.getindex(l::AbstractLattice, pairs::Pair...; kw...)
-    inds = pairs_to_indices(l, to_param_pairs(pairs...; kw...))
-    length(inds) == 1 ? l[only(inds)] : l[inds]
-end
-Base.getindex(l::AbstractLattice, ::typeof(!), pairs::Pair...; kw...) =
-    l[pairs_to_index(l, to_param_pairs(pairs...; kw...))]
-
 function collect_coords(l::AbstractLattice)
     d = dims(l)
     pts = zeros(d, length(l))
