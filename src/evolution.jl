@@ -36,10 +36,14 @@ end
 evolution_cache(::CachedExp, state::AbstractVector) = similar(state)
 evolution_cache(::CachedExp, state::AbstractMatrix) = (similar(state), similar(state))
 
-function update_solver!(solver::CachedExp, mat, dt)
+function update_solver!(solver::CachedExp, mat, dt, force=false)
     factor = -im * dt
-    solver.mat ≈ _data(mat) && factor ≈ solver.factor && return
-    myexp!(solver.matexp, _data(mat), factor)
+    dmat = _data(mat)
+    if !force
+        factor ≈ solver.factor && (solver.mat === dmat || solver.mat == dmat) && return
+    end
+    solver.mat = dmat
+    solver.matexp = myexp!(solver.matexp, dmat, factor)
     solver.factor = factor
 end
 function myexp!(P::AbstractMatrix, A::AbstractMatrix, factor; threshold=1e-8, nonzero_tol=1e-14)
@@ -61,7 +65,7 @@ function myexp!(P::AbstractMatrix, A::AbstractMatrix, factor; threshold=1e-8, no
             droptol!(next_term, nonzero_tol)
         else
             mul!(nt_buffer, A, next_term, factor / n, 0)
-            copyto!(next_term, nt_buffer)
+            next_term, nt_buffer = nt_buffer, next_term
         end
 
         delta = norm(next_term, Inf)
@@ -73,7 +77,7 @@ function myexp!(P::AbstractMatrix, A::AbstractMatrix, factor; threshold=1e-8, no
             P = P * P
         else
             mul!(nt_buffer, P, P)
-            copyto!(P, nt_buffer)
+            P, nt_buffer = nt_buffer, P
         end
     end
     return P
@@ -83,7 +87,7 @@ struct Evolution{SolverT,HamT,NamedTupleT}
     solver::SolverT
     hamiltonian::HamT
     states::NamedTupleT
-    time::Ref{Float64}
+    time::Base.RefValue{Float64}
     function Evolution(solver::SolverT, hamiltonian::HamT, states::NamedTuple) where
             {SolverT<:SchrodingerSolver,HamT}
         newstates = map(states) do state
@@ -91,16 +95,15 @@ struct Evolution{SolverT,HamT,NamedTupleT}
             cache = evolution_cache(solver, state)
             return copy(state), cache
         end
-        return new{SolverT,HamT,typeof(newstates)}(solver, hamiltonian, newstates, 0.0)
+        return new{SolverT,HamT,typeof(newstates)}(solver, hamiltonian, newstates, Ref(0.0))
     end
 end
-function Evolution(solver::SchrodingerSolver,
-        hamiltonian, states::Pair{Symbol,<:EvolutionStateType}...)
-    return Evolution(solver, hamiltonian, NamedTuple(states))
+function Evolution(solver::SchrodingerSolver, hamiltonian; kw...)
+    return Evolution(solver, hamiltonian, NamedTuple(kw))
 end
-function Evolution(hamiltonian, states::Pair{Symbol,<:EvolutionStateType}...)
+function Evolution(hamiltonian; kw...)
     solver = CachedExp(eval_hamiltonian(hamiltonian, 0))
-    return Evolution(solver, hamiltonian, NamedTuple(states))
+    return Evolution(solver, hamiltonian, NamedTuple(kw))
 end
 
 eval_hamiltonian(hamiltonian, _) = hamiltonian
@@ -112,7 +115,8 @@ end
 function step!(evol::Evolution, dt)
     t = evol.time[]
     H = eval_hamiltonian(evol.hamiltonian, t)
-    update_solver!(evol.solver, H, dt)
+    abs(dt) < 1e-15 && return H
+    update_solver!(evol.solver, H, dt, H isa QuantumOpticsBase.AbstractTimeDependentOperator)
     for (state, cache) in values(evol.states)
         step!(evol.solver, state, cache)
     end
@@ -126,14 +130,13 @@ struct EvolutionIterator{EvolutionT,TimesT}
     evol::EvolutionT
     times::TimesT
 end
-function Base.iterate(iter::EvolutionIterator, i=1)
+@inline function Base.iterate(iter::EvolutionIterator, i=1)
     i > length(iter.times) && return nothing
     dt = i > 1 ? iter.times[i] - iter.times[i-1] : iter.times[i]
     t = iter.evol.time[]
     ham = step!(iter.evol, dt)
-    states = map(iter.evol.states) do tp
-        return tp[1]
-    end
+    states = map(first, iter.evol.states)
+    return states, i+1
     return EvolutionTimestamp(ham, states, Float64(t)), i+1
 end
 
@@ -146,3 +149,6 @@ Base.iterate(ts::EvolutionTimestamp) = ts.H, Val(:time)
 Base.iterate(ts::EvolutionTimestamp, ::Val{:time}) = ts.t, 1
 Base.iterate(ts::EvolutionTimestamp, i::Int) =
     i > length(ts.states) ? nothing : ts.states[i], i+1
+
+Base.getindex(ts::EvolutionTimestamp, sym::Symbol) = ts.states[sym]
+Base.getindex(ts::EvolutionTimestamp, i::Int) = ts.states[i]
