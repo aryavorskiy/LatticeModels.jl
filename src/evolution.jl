@@ -12,11 +12,17 @@ step!(solver::SchrodingerSolver, state::DataOperator, cache) = step!(solver, sta
 step!(::SchrodingerSolver, ::Bra, ::Any) =
     throw(ArgumentError("Bra cannot be evolved in time; convert it to a Ket instead"))
 
+const EvolutionStateType = Union{Ket,Bra,DataOperator,AbstractVecOrMat}
+_data(arr::AbstractVecOrMat) = arr
+_data(ket::Ket) = ket.data
+_data(bra::Bra) = bra.data
+_data(op::DataOperator) = op.data
 mutable struct CachedExp{MT,ET} <: SchrodingerSolver
     mat::MT
     matexp::ET
     factor::ComplexF64
 end
+CachedExp(mat) = CachedExp(zero(_data(mat)), one(complex(float(_data(mat)))), 0.0im)
 function step!(solver::CachedExp, state::AbstractVector, cache)
     copyto!(cache, state)
     mul!(state, solver.matexp, cache)
@@ -32,8 +38,8 @@ evolution_cache(::CachedExp, state::AbstractMatrix) = (similar(state), similar(s
 
 function update_solver!(solver::CachedExp, mat, dt)
     factor = -im * dt
-    solver.mat ≈ mat && factor ≈ solver.factor && return
-    myexp!(solver.matexp, mat, factor)
+    solver.mat ≈ _data(mat) && factor ≈ solver.factor && return
+    myexp!(solver.matexp, _data(mat), factor)
     solver.factor = factor
 end
 function myexp!(P::AbstractMatrix, A::AbstractMatrix, factor; threshold=1e-8, nonzero_tol=1e-14)
@@ -73,33 +79,31 @@ function myexp!(P::AbstractMatrix, A::AbstractMatrix, factor; threshold=1e-8, no
     return P
 end
 
-const EvolutionStateType = Union{Ket,Bra,DataOperator,AbstractVecOrMat}
-
 struct Evolution{SolverT,HamT,NamedTupleT}
     solver::SolverT
     hamiltonian::HamT
     states::NamedTupleT
     time::Ref{Float64}
-    function Evolution(solver::SolverT, hamiltonian::HamT, states::NamedTuple;
-            copystates=true) where {SolverT<:SchrodingerSolver,HamT}
+    function Evolution(solver::SolverT, hamiltonian::HamT, states::NamedTuple) where
+            {SolverT<:SchrodingerSolver,HamT}
         newstates = map(states) do state
             state isa EvolutionStateType || throw(ArgumentError("invalid state type: $(typeof(state))"))
             cache = evolution_cache(solver, state)
-            if copystates
-                return copy(state), cache
-            else
-                return state, cache
-            end
+            return copy(state), cache
         end
         return new{SolverT,HamT,typeof(newstates)}(solver, hamiltonian, newstates, 0.0)
     end
 end
-function Evolution(solver::SolverT, hamiltonian::HamT, states::Pair{Symbol,<:EvolutionStateType}...;
-        kw...) where {SolverT<:SchrodingerSolver,HamT}
-    return Evolution(solver, hamiltonian, NamedTuple(states); kw...)
+function Evolution(solver::SchrodingerSolver,
+        hamiltonian, states::Pair{Symbol,<:EvolutionStateType}...)
+    return Evolution(solver, hamiltonian, NamedTuple(states))
+end
+function Evolution(hamiltonian, states::Pair{Symbol,<:EvolutionStateType}...)
+    solver = CachedExp(eval_hamiltonian(hamiltonian, 0))
+    return Evolution(solver, hamiltonian, NamedTuple(states))
 end
 
-eval_hamiltonian(hamiltonian, t) = hamiltonian
+eval_hamiltonian(hamiltonian, _) = hamiltonian
 eval_hamiltonian(hamiltonian::Function, t) = hamiltonian(t)
 function eval_hamiltonian(ham::QuantumOpticsBase.AbstractTimeDependentOperator, t)
     QuantumOpticsBase.set_time!(ham, t)
@@ -109,10 +113,11 @@ function step!(evol::Evolution, dt)
     t = evol.time[]
     H = eval_hamiltonian(evol.hamiltonian, t)
     update_solver!(evol.solver, H, dt)
-    for (state, cache) in pairs(evol.states)
+    for (state, cache) in values(evol.states)
         step!(evol.solver, state, cache)
     end
     evol.time[] += dt
+    return H
 end
 
 (evol::Evolution)(ts::AbstractVector{<:Real}) = EvolutionIterator(evol, ts)
@@ -124,9 +129,20 @@ end
 function Base.iterate(iter::EvolutionIterator, i=1)
     i > length(iter.times) && return nothing
     dt = i > 1 ? iter.times[i] - iter.times[i-1] : iter.times[i]
-    step!(iter.evol, dt)
+    t = iter.evol.time[]
+    ham = step!(iter.evol, dt)
     states = map(iter.evol.states) do tp
         return tp[1]
     end
-    return states, i+1
+    return EvolutionTimestamp(ham, states, Float64(t)), i+1
 end
+
+struct EvolutionTimestamp{HamT, NamedTupleT}
+    H::HamT
+    states::NamedTupleT
+    t::Float64
+end
+Base.iterate(ts::EvolutionTimestamp) = ts.H, Val(:time)
+Base.iterate(ts::EvolutionTimestamp, ::Val{:time}) = ts.t, 1
+Base.iterate(ts::EvolutionTimestamp, i::Int) =
+    i > length(ts.states) ? nothing : ts.states[i], i+1
