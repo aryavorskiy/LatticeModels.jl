@@ -140,12 +140,13 @@ function update_solver!(solver::KrylovKitExp, mat, dt, _force)
     solver.mat = _data(mat)
 end
 function step!(solver::KrylovKitExp, state::AbstractVector, _cache)
-    newstate, = exponentiate(solver.mat, solver.factor, state; solver.kw...)
+    newstate, info = exponentiate(solver.mat, solver.factor, state; solver.kw...)
+    info.converged == 0 && throw(ArgumentError("`exponentiate` did not converge"))
     copyto!(state, newstate)
 end
 
 """
-    Evolution([solver, ]hamiltonian, states...; namedstates...)
+    Evolution([solver, ]hamiltonian, states...; timedomain, namedstates...)
 
 Create an `Evolution` object that can be used to evolve states in time according to the
 Schroedinger equation.
@@ -157,8 +158,19 @@ Schroedinger equation.
     or a function that returns the Hamiltonian at a given time.
 - `states` and `namedstates`: The states to be evolved. They can be `Ket` wavefunctions or
     `DataOperator` density matrices.
+- `timedomain`: The time domain to be used for the evolution. If omitted, the non-iterable `Evolution`
+    object will be returned, and you will be able to call it with
+    the time domain later.
 
 See `SchrodingerSolver` for more information about solvers.
+
+!!! warning
+    Please note that the `Evolution` object is a **stateful** iterator. This means that it
+    keeps track of the current time and the states as they evolve. You can perform evolution
+    multiple times, but the timeline will be kept and the states will be updated in place.
+
+    Also do not edit the states in place, as this will affect the evolution. If you need to
+    modify the states or save them, make a copy of them first.
 """
 struct Evolution{SolverT,HamT,NamedTupleT}
     solver::SolverT
@@ -179,14 +191,21 @@ function Evolution(hamiltonian::EvolutionHamType, states::EvolutionStateType...;
     solver = CachedExp(eval_hamiltonian(hamiltonian, 0))
     return Evolution(solver, hamiltonian, states...; namedstates...)
 end
-function Evolution(solver::SchrodingerSolver, hamiltonian::EvolutionHamType, states::EvolutionStateType...; namedstates...)
-    if isempty(states)
+function Evolution(solver::SchrodingerSolver, hamiltonian::EvolutionHamType, states::EvolutionStateType...;
+        timedomain=nothing, namedstates...)
+    final_states = if isempty(states)
         isempty(namedstates) && throw(ArgumentError("No states provided"))
-        return Evolution(solver, hamiltonian, NamedTuple(namedstates))
+        NamedTuple(namedstates)
     elseif isempty(namedstates)
-        return Evolution(solver, hamiltonian, states)
+        states
     else
         throw(ArgumentError("Do not use named and unnamed states together"))
+    end
+    evol = Evolution(solver, hamiltonian, final_states)
+    if timedomain === nothing
+        return evol
+    else
+        return evol(timedomain)
     end
 end
 
@@ -214,13 +233,21 @@ struct EvolutionIterator{EvolutionT,TimesT}
     evol::EvolutionT
     times::TimesT
 end
-function Base.iterate(iter::EvolutionIterator, i=1)
+Base.length(iter::EvolutionIterator) = length(iter.times)
+function Base.iterate(iter::EvolutionIterator)
+    p = Progress(length(iter), dt=0.3, desc="Unitary evolution... ", showspeed=true,
+        barglyphs=BarGlyphs("[=> ]"))
+    return iterate(iter, (1, p))
+end
+function Base.iterate(iter::EvolutionIterator, st)
+    i, p = st
     i > length(iter.times) && return nothing
     dt = i > 1 ? iter.times[i] - iter.times[i-1] : iter.times[i]
     t = iter.evol.time[]
     ham = step!(iter.evol, dt)
     states = map(first, iter.evol.states)
-    return EvolutionTimestamp(ham, states, Float64(t)), i+1
+    next!(p)
+    return EvolutionTimestamp(ham, states, Float64(t)), (i+1, p)
 end
 
 struct EvolutionTimestamp{HamT, NamedTupleT}

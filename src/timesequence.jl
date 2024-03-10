@@ -185,17 +185,3 @@ end
 Integrate the values stored in `tseq` and create a copy; see [`integrate!`](@ref).
 """
 integrate(tseq::TimeSequence) = integrate!(copy(tseq))
-
-mutable struct TimeSequenceContainer
-    seq::Nullable{TimeSequence}
-    TimeSequenceContainer() = new(nothing)
-end
-
-function Base.setindex!(tsc::TimeSequenceContainer, val::T, t::Real) where T
-    if tsc.seq === nothing
-        tsc.seq = TimeSequence{T}([t], [val])
-    else
-        tsc.seq[t] = val
-    end
-    return val
-end
