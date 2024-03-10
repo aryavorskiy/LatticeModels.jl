@@ -46,10 +46,13 @@
         end
         P0 = densitymatrix(diagonalize(H0), statistics=FermiDirac)
         X, Y = coord_operators(basis(H0))
-        @evolution {H := h(t), P0 --> H --> P} for t in 0:0.1:10
+        evol = Evolution(h, P = P0)
+        densities = TimeSequence{LatticeValue}()
+        for state in evol(0:0.1:10)
+            P, H, t = state
             d = lattice_density(4π * im * P * X * (one(P) - P) * Y * P)
             ch = Currents(DensityCurrents(H, P))
-            rd = d .|> real
+            densities[t] = d .|> real
         end
         true
     end
@@ -72,10 +75,6 @@
             field = LandauGauge(0.5)
         )
         P = densitymatrix(diagonalize(H), μ = 0.1, statistics=FermiDirac)
-        @evolution k = 2 pade = true {P --> H --> PP} for t in 0:0.1:1
-        end
-        @evolution k = 2 {P --> H --> PP} for t in 0:0.1:1
-        end
 
         dc = DensityCurrents(H, P)
         quiver!(p[1], dc[x.<y])

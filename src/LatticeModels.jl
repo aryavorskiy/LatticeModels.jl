@@ -61,7 +61,7 @@ include("timesequence.jl")
 export integrate, integrate!, differentiate, differentiate!, timestamps,
     TimeSequence
 include("evolution.jl")
-export @evolution
+export Evolution, CachedExp, KrylovKitExp
 
 include("zoo/lattices.jl")
 export Chain, SquareLattice, TriangularLattice, HoneycombLattice, KagomeLattice, GrapheneRibbon

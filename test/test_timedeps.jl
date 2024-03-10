@@ -29,13 +29,28 @@
         l = SquareLattice(10, 10)
         Hs = qwz(l)     # sparse
         Hd = dense(Hs)  # dense
+        psi = groundstate(Hd)
 
-        τ = 10
-        correct_ev = exp(-im * τ * Hd.data)
-        Evs = LatticeModels.evolution_operator!(Operator(Hs), Hs, τ)
-        Evd = Operator(basis(Hd), one(Hd.data))
-        LatticeModels.evolution_operator!(Evd, Hd, τ)
-        @test correct_ev ≈ Evs.data atol=1e-6
-        @test correct_ev ≈ Evd.data atol=1e-6
+        ts = 0:0.1:10
+        val1 = ComplexF64[]
+        for state in Evolution(Hs, psi)(ts)
+            ψ = state[1]
+            push!(val1, ψ.data[2])
+        end
+        val2 = ComplexF64[]
+        solver = CachedExp(Hs, threshold=1e-12)
+        for st in Evolution(solver, Hs, psi)(ts)
+            ψ = st.state
+            push!(val2, ψ.data[2])
+        end
+        correct_val = ComplexF64[]
+        correct_ev = exp(-im * step(ts) * Hd.data)
+        psidata = psi.data
+        for _ in ts
+            push!(correct_val, psidata[2])
+            psidata = correct_ev * psidata
+        end
+        @test val1 ≈ correct_val atol=1e-10
+        @test val2 ≈ correct_val atol=1e-10
     end
 end

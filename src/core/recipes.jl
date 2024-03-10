@@ -183,9 +183,9 @@ end
     aspect_ratio := :equal
     xwiden := 1.2
     ywiden := 1.2
-    markerscale --> true
+    markerscale --> plotattributes[:seriestype] == :scatter
     scale_markers = plotattributes[:markerscale]
-    @assert scale_markers isa Real "`scalemarkers` must be a real number or `Bool`"
+    @assert scale_markers isa Real "`markerscale` must be a real number or `Bool`"
     mx = maximum(abs, lv.values)
     lat = lattice(lv)
     if plotattributes[:seriestype] === :shape && dims(lv) == 2
@@ -200,6 +200,7 @@ end
         if scale_markers !== :none
             @series begin
                 seriestype := :path
+                markershape := :none
                 linecolor := :grey
                 linealpha := 0.5
                 linewidth := 2
@@ -211,6 +212,7 @@ end
         for site in lv.lat
             @series begin
                 seriestype := :shape
+                markershape := :none
                 fill_z := lv[site]
                 moveshape(shape, site.coords,
                     scale_markers === false ? 1 : lv[site] / mx * scale_markers)
