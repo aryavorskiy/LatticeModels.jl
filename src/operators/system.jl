@@ -15,6 +15,9 @@ Base.length(sample::SampleWithoutInternal) = length(sample.lat)
 QuantumOpticsBase.basis(sample::SampleWithInternal) = sample.internal ⊗ LatticeBasis(sample.lat)
 QuantumOpticsBase.basis(sample::SampleWithoutInternal) = LatticeBasis(sample.lat)
 
+Base.getindex(sample::Sample, args...; kw...) =
+    Sample(getindex(sample.lat, args...; kw...), sample.internal)
+
 function Base.show(io::IO, mime::MIME"text/plain", sample::Sample)
     hasinternal(sample) && print(io, "(")
     summary(io, lattice(sample))

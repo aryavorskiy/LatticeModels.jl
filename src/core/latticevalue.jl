@@ -121,6 +121,15 @@ function Base.show(io::IO, ::MIME"text/plain", lv::LatticeValueWrapper)
     end
 end
 
+function to_inds(l::AbstractLattice, sites::AbstractVector{<:AbstractSite})
+    indices = Int[]
+    for site in sites
+        index = site_index(l, site)
+        index === nothing && return nothing
+        push!(indices, index)
+    end
+    return indices
+end
 function to_inds(l::AbstractLattice, lv_mask::LatticeValue{Bool})
     indices = Int[]
     l2 = lattice(lv_mask)
@@ -154,6 +163,8 @@ Base.@propagate_inbounds function Base.getindex(l::AbstractLattice, args...; kw.
     inds = to_inds(l, args...; kw...)
     if inds isa Nothing
         throw(BoundsError(l, (args..., NamedTuple(kw))))
+    elseif length(inds) == 1
+        return l[only(inds)]
     else
         return l[inds]
     end
@@ -162,8 +173,8 @@ Base.@propagate_inbounds function Base.getindex(lv::LatticeValueWrapper, args...
     inds = to_inds(lattice(lv), args...; kw...)
     if inds isa Nothing
         throw(BoundsError(lv, (args..., NamedTuple(kw))))
-    elseif inds isa Int
-        return lv.values[inds]
+    elseif length(inds) == 1
+        return lv.values[only(inds)]
     else
         return LatticeValueWrapper(lattice(lv)[inds], lv.values[inds])
     end

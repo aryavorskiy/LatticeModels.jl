@@ -45,7 +45,7 @@ end
 Eigensystem(ham_eig::HamiltonianEigensystem) =
     Eigensystem(ham_eig.basis, ham_eig.states, ham_eig.values)
 
-function diagonalize_routine(op::DataOperator, ::Val{:lapack}; warning=true, v0=nothing)
+function diagonalize_routine(op::DataOperator, ::Val{:lapack}; warning=true, v0=nothing, n=nothing)
     v = size(op.data, 1)
     v > 10000 && warning &&
         @warn """$v×$v dense operator is too large for exact diagonalization; consider making is sparse with `sparse(op)`.
@@ -307,8 +307,8 @@ struct GreenFunctionPoint{VecC, VecE}
     end
 end
 function (gf::GreenFunctionPoint)(ω::Number)
-    return sum(Base.broadcasted((w, e) -> w / (ω - e), gf.weights_down, gf.energies_down),
-        init=-sum(Base.broadcasted((w, e) -> w / (ω + e), gf.weights_up, gf.energies_up)))
+    return -sum(Base.broadcasted((w, e) -> w / (ω + e), gf.weights_down, gf.energies_down),
+        init=-sum(Base.broadcasted((w, e) -> w / (ω - e), gf.weights_up, gf.energies_up)))
 end
 
 function Base.show(io::IO, ::MIME"text/plain", gf::GreenFunctionPoint)
@@ -375,19 +375,15 @@ function Base.getindex(gf::GreenFunction, site1::AbstractSite, site2::AbstractSi
         return gf[i1, i2]
     end
 end
+inflate_inds(is, N) = N == 1 ? is : [(i - 1) * N + j for i in is for j in 1:N]
 function Base.getindex(gf::GreenFunction, any)
     l = lattice(gf)
-    is = to_inds(l, any)
-    new_sample = Sample(l[is], sample(gf).internal)
-    if hasinternal(gf)
-        N = internal_length(gf)
-        inflated_inds = [(i - 1) * N + j for i in is for j in 1:N]
-        return GreenFunction(new_sample, gf.weights_up[inflated_inds, inflated_inds], gf.energies_up,
-            gf.weights_down[inflated_inds, inflated_inds], gf.energies_down)
-    else
-        return GreenFunction(new_sample, gf.weights_up[is, is], gf.energies_up,
-            gf.weights_down[is, is], gf.energies_down)
-    end
+    inds = to_inds(l, any)
+    new_sample = sample(gf)[inds]
+    N = internal_length(gf)
+    inflated_inds = inflate_inds(inds, N)
+    return GreenFunction(new_sample, gf.weights_up[inflated_inds, inflated_inds], gf.energies_up,
+        gf.weights_down[inflated_inds, inflated_inds], gf.energies_down)
 end
 function (gf::GreenFunction)(ω::Number)
     le = length(sample(gf))
@@ -444,13 +440,18 @@ end
 
 Creates a Green's function for a given one-body Hamiltonian eigensystem.
 """
-function greenfunction(hameig::HamiltonianEigensystem{<:OneParticleBasisSystem}; E₀=0, E0=E₀) # Ensemble formula
-    p = length(sample(hameig))
-    size(hameig.states, 1) == p ||
+function greenfunction(l, hameig::HamiltonianEigensystem{<:OneParticleBasisSystem}; E₀=0, E0=E₀) # Ensemble formula
+    inds = to_inds(lattice(hameig), l)
+    N = internal_length(hameig)
+    inflated_inds = inflate_inds(inds, N)
+    basis(hameig) isa OneParticleBasis ||
         throw(ArgumentError("HamiltonianEigensystem must be on a one-particle basis"))
-    GreenFunction(sample(hameig.sys),
-        [conj.(@view hameig.states[α, :]) .* (@view hameig.states[β, :]) for α in 1:p, β in 1:p],
+    GreenFunction(sample(hameig.sys)[inds],
+        [conj.(@view hameig.states[α, :]) .* (@view hameig.states[β, :]) for α in inflated_inds, β in inflated_inds],
         hameig.values; E0=E0)
+end
+function greenfunction(hameig::HamiltonianEigensystem{<:OneParticleBasisSystem}; E₀=0, E0=E₀)
+    greenfunction(lattice(hameig), hameig; E0=E0)
 end
 
 function _to(state, index, bas::ManyBodyBasis; create)
@@ -492,28 +493,34 @@ Calculates the Green's function for a many-body system with a given initial stat
 - `tol` is the tolerance for the new eigenvectors. Default is `1e-5`.
 All other keyword arguments are passed to the `diagonalize` function. See its documentation for details.
 """
-function greenfunction(psi0::Ket, hamp::Hamiltonian, hamm::Hamiltonian; E₀=0, E0=E₀, tol=1e-5, kw...)
+function greenfunction(l, psi0::Ket, hamp::Hamiltonian, hamm::Hamiltonian;
+        routine=:auto, E₀=0, E0=E₀, tol=1e-5, kw...)
     # Checks...
     bas = basis(psi0)
     bas isa ManyBodyBasis || throw(ArgumentError("`psi0` must be on a many-body basis"))
     obb = bas.onebodybasis
-    basis(hamp) isa OneParticleBasis || throw(ArgumentError("`hamp` must be on a one-particle basis"))
+    basis(hamp) isa OneParticleBasis && throw(ArgumentError("`hamp` must be on a manybody basis"))
     obb == basis(hamp).onebodybasis || throw(ArgumentError("`hamp` must be on the same one-particle basis as `psi0`"))
-    basis(hamm) isa OneParticleBasis || throw(ArgumentError("`hamm` must be on a one-particle basis"))
+    basis(hamm) isa OneParticleBasis && throw(ArgumentError("`hamm` must be on a manybody basis"))
     obb == basis(hamm).onebodybasis || throw(ArgumentError("`hamm` must be on the same one-particle basis as `psi0`"))
 
-    le = length(sample(hamp))
+    inds = to_inds(lattice(psi0), l)
+    N = internal_length(psi0)
+    inflated_inds = inflate_inds(inds, N)
+
     ep = HamiltonianEigensystem(hamp.sys)
     em = HamiltonianEigensystem(hamm.sys)
     psips = typeof(psi0.data)[]
     psims = typeof(psi0.data)[]
-    @showprogress desc="Calculating Green's function..." for i in 1:le
+    p = Progress(length(inflated_inds), dt=0.25, desc="Computing GreenFunction...",
+        barglyphs=BarGlyphs("[=> ]"))
+    for i in inflated_inds
         psip = _to(psi0, i, basis(hamp); create=true)
         push!(psips, psip.data)
         if size(ep.states, 2) != length(basis(hamp))
             psip2 = psip.data - ep.states * ep.states' * psip.data
             if norm(psip2) > tol
-                newep = diagonalize(hamp; v0=psip2, kw...)
+                newep = diagonalize(hamp, routine; v0=psip2, kw...)
                 ep = union(ep, newep)
             end
         end
@@ -526,13 +533,17 @@ function greenfunction(psi0::Ket, hamp::Hamiltonian, hamm::Hamiltonian; E₀=0, 
                 em = union(em, newem)
             end
         end
+        next!(p)
     end
     _weights(states, psis) =
-        [conj.(states[:, α]' * psis[α]) .* (states[:, β]' * psis[β])
+        [conj.(states' * psis[α]) .* (states' * psis[β])
         for α in 1:length(psis), β in 1:length(psis)]
-    return GreenFunction(sample(hamp.sys),
+    return GreenFunction(sample(hamp.sys)[inds],
         _weights(ep.states,  psips), ep.values,
         _weights(em.states, psims), em.values; E0=E0)
+end
+function greenfunction(psi0::Ket, hamp::Hamiltonian, hamm::Hamiltonian; kw...)
+    greenfunction(lattice(psi0), psi0, hamp, hamm; kw...)
 end
 
 """
@@ -564,6 +575,6 @@ Calculates the LDOS (local density of states) for a given Green's function at en
 function ldos(gf::GreenFunction, E::Real; broaden=0.1)
     le = length(lattice(gf))
     N = internal_length(gf)
-    vals = [sum(imag(gf[α, α](E + im * broaden)) for α in (a - 1) * N + 1:a * N) for a in 1:le]
+    vals = [sum(imag(gf[α, α](E - im * broaden)) for α in (a - 1) * N + 1:a * N) for a in 1:le]
     return LatticeValue(lattice(gf), vals)
 end
