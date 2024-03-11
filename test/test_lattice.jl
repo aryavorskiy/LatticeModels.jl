@@ -2,7 +2,7 @@
     @testset "Interface" begin
         sql = SquareLattice(10, 20)
         @test [site_index(sql, s) for s in sql] == 1:length(sql)
-        x, y = coord_values(sql)
+        x, y = coordvalues(sql)
         s_0 = SquareLattice(10, 20) do (x, y)
             x < y
         end
@@ -14,7 +14,7 @@
         @test s_1 == s_2
 
         hl = HoneycombLattice(10, 10)
-        xh, yh = coord_values(hl)
+        xh, yh = coordvalues(hl)
         s_3 = HoneycombLattice(10, 10) do (x, y)
             x < y
         end
@@ -28,7 +28,7 @@
         @test hl[!, LatticeCoord(1) => 3, j2 = 2, index = 1] ==
             LatticeModels.get_site(LatticeModels.stripparams(hl),
             LatticeModels.BravaisPointer(SA[3, 2], 1))
-        xb, yb = coord_values(SquareLattice(5, 40))
+        xb, yb = coordvalues(SquareLattice(5, 40))
         @test_throws LatticeModels.IncompatibleLattices sql[xb.<yb]
         sql2 = filter(sql) do site
             site ∉ (sql[1], sql[end])
@@ -39,7 +39,7 @@
     end
 
     l = SquareLattice(10, 10)
-    x, y = coord_values(l)
+    x, y = coordvalues(l)
     xm2 = LatticeValue(l) do (x, y)
         2x
     end
@@ -55,12 +55,12 @@
 
     @testset "LatticeValue" begin
         small_l = SquareLattice(2, 2)
-        small_x, small_y = coord_values(small_l)
+        small_x, small_y = coordvalues(small_l)
         @test small_x.values == [1, 1, 2, 2]
         @test small_y.values == [1, 2, 1, 2]
 
-        x2 = coord_value(l, :x)
-        x3 = siteproperty_value(l, LatticeModels.Coord(1))
+        x2 = coordvalue(l, :x)
+        x3 = LatticeValue(l, LatticeModels.Coord(1))
         @test [idxs[s] for s in l] == 1:length(l)
         @test x == x2
         @test x == x3
@@ -127,13 +127,21 @@ end
             @test (dst_dxmy === nothing) == (ucy == 1)
         end
     end
-    @testset "Bonds" begin
+    @testset "AdjacencyMatrix" begin
         l = SquareLattice(2, 2)
-        ls1, _, ls3, ls4 = l
-        bs = adjacency_matrix(l, BravaisTranslation(axis=1), BravaisTranslation(axis=2))
-        bs1 = union(adjacency_matrix(l, BravaisTranslation(axis=1)), adjacency_matrix(l, BravaisTranslation(axis=2)))
-        @test bs.mat == bs1.mat
-        @test bs[ls1, ls3]
-        @test !bs[ls1, ls4]
+        ls1, ls2, ls3, ls4 = l
+        am = adjacencymatrix(l, BravaisTranslation(axis=1), BravaisTranslation(axis=2))
+        am1 = union(adjacencymatrix(l, Bravais[1, 0]), adjacencymatrix(l, Bravais[0, 1]))
+        @test am.mat == am1.mat
+        @test am[ls1, ls3]
+        @test !am[ls1, ls4]
+        @test Set(adjacentsites(am, ls1)) == Set([ls2, ls3])
+
+        am2 = AdjacencyMatrix(l)
+        am2[ls1, ls2] = true
+        am2[ls1, ls3] = true
+        am2[ls2, ls4] = true
+        am2[ls3, ls4] = true
+        @test am.mat == am2.mat
     end
 end

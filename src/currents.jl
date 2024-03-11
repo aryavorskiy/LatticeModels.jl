@@ -83,7 +83,7 @@ function Base.summary(io::IO, scurr::SubCurrents)
 end
 
 """
-    currents_from(currents, src)
+    currentsfrom(currents, src)
 
 Create a `LatticeValue` object with the currents from `src` region to all other sites.
 
@@ -91,14 +91,14 @@ Create a `LatticeValue` object with the currents from `src` region to all other 
 - `currents`: The `AbstractCurrents` object to process.
 - `src`: The source region. Can be a site/collection of sites or a `LatticeValue{Bool}` mask.
 """
-function currents_from(curr::AbstractCurrents, src)
+function currentsfrom(curr::AbstractCurrents, src)
     lat = lattice(curr)
     is = to_inds(lat, src)
     LatticeValue(lat, Float64[j in is ? 0 : sum(curr[i, j] for i in is) for j in eachindex(lat)])
 end
 
 """
-    currents_from_to(currents, src[, dst])
+    currentsfromto(currents, src[, dst])
 
 Finds the total current from `src` to `dst` regions. If `dst` is not provided, the current
 from `src` to all other sites is returned.
@@ -110,7 +110,7 @@ from `src` to all other sites is returned.
 
 Both `src` and `dst` can be a site/collection of sites or a `LatticeValue{Bool}` mask.
 """
-function currents_from_to(curr::AbstractCurrents, src, dst=nothing)
+function currentsfromto(curr::AbstractCurrents, src, dst=nothing)
     lat = lattice(curr)
     src_inds = to_inds(lat, src)
     dst_inds = dst === nothing ? setdiff(eachindex(lat), src_inds) : to_inds(lat, dst)

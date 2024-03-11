@@ -143,7 +143,7 @@ Create a manybody system with a given lattice and a given number of particles.
 
 ## Arguments
 - `lat`: the lattice of the system.
-- `internal`: the internal degrees of freedom of the system, if any.
+- `internal`: The basis for the internal degrees of freedom.
 - `sys`: a one-particle system.
 - `N`: the number of particles in the system.
 
@@ -172,7 +172,7 @@ Create a system with a given lattice and optionally internal degrees of freedom.
 
 ## Arguments
 - `lat`: the lattice of the system.
-- `internal`: the internal degrees of freedom of the system, if any.
+- `internal`: The basis for the internal degrees of freedom.
 
 ## Keyword Arguments
 - `T`: the temperature of the system. Default is `0`.

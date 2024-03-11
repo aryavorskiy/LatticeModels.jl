@@ -74,16 +74,16 @@ end
 end
 
 """
-    site_distance([lat, ]site1, site2)
+    sitedistance([lat, ]site1, site2)
 Returns the distance between two sites on the `lat` lattice, taking boundary conditions into account.
 
 # Arguments
 - `lat`: The lattice where the sites are defined.
 - `site1` and `site2`: The sites to measure the distance between.
 """
-site_distance(::AbstractLattice, site1::AbstractSite, site2::AbstractSite) =
+sitedistance(::AbstractLattice, site1::AbstractSite, site2::AbstractSite) =
     norm(site1.coords - site2.coords)
-site_distance(site1, site2) = site_distance(UndefinedLattice(), site1, site2)
+sitedistance(site1, site2) = sitedistance(UndefinedLattice(), site1, site2)
 
 """
     SiteDistance(f, lat)
@@ -100,7 +100,7 @@ struct SiteDistance{LT, FT} <: AbstractBonds{LT}
 end
 
 isadjacent(bonds::SiteDistance, s1::AbstractSite, s2::AbstractSite) =
-    bonds.f(site_distance(bonds.lat, s1, s2))
+    bonds.f(sitedistance(bonds.lat, s1, s2))
 adapt_bonds(bonds::SiteDistance, ::AbstractLattice) = bonds
 
 """
@@ -111,6 +111,14 @@ Represents the bonds on some lattice.
 struct AdjacencyMatrix{LT,MT} <: AbstractBonds{LT}
     lat::LT
     mat::MT
+
+    """
+        AdjacencyMatrix(lat[, mat])
+
+    Construct an adjacency matrix from the `mat` matrix on the `lat` lattice.
+
+    If `mat` is not provided, it is assumed to be a zero matrix.
+    """
     function AdjacencyMatrix(lat::LT, mat::MT) where {LT<:AbstractLattice,MT<:AbstractMatrix{Bool}}
         @check_size mat :square
         @check_size lat size(mat, 1)
@@ -118,7 +126,7 @@ struct AdjacencyMatrix{LT,MT} <: AbstractBonds{LT}
         new{LT,MT}(lat, dropzeros((mat .| transpose(mat)) .& .!eye))
     end
     function AdjacencyMatrix(l::AbstractLattice)
-        AdjacencyMatrix(l, spzeros(length(l), length(l)))
+        AdjacencyMatrix(l, spzeros(Bool, length(l), length(l)))
     end
 end
 function adapt_bonds(b::AdjacencyMatrix, l::AbstractLattice)
@@ -205,11 +213,11 @@ function adjacentsites(am::AdjacencyMatrix, rs::ResolvedSite)
 end
 
 """
-    adjacency_matrix([lat, ]bonds...)
+    adjacencymatrix([lat, ]bonds...)
 
 Constructs an adjacency matrix from the `bonds`. If `lat` is not provided, it is inferred from the `bonds`.
 """
-function adjacency_matrix(bonds::AbstractBonds, more_bonds::AbstractBonds...)
+function adjacencymatrix(bonds::AbstractBonds, more_bonds::AbstractBonds...)
     l = lattice(bonds)
     foreach(more_bonds) do b
         check_samelattice(l, lattice(b))
@@ -224,8 +232,8 @@ function adjacency_matrix(bonds::AbstractBonds, more_bonds::AbstractBonds...)
     end
     return AdjacencyMatrix(l, sparse(Is, Js, Fill(true, length(Is)), length(l), length(l), (i,j)->j))
 end
-adjacency_matrix(l::AbstractLattice, bonds::AbstractBonds...) =
-    adjacency_matrix((adapt_bonds(b, l) for b in bonds)...)
+adjacencymatrix(l::AbstractLattice, bonds::AbstractBonds...) =
+    adjacencymatrix((adapt_bonds(b, l) for b in bonds)...)
 
 """
     UndefinedLattice

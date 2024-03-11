@@ -2,7 +2,7 @@
     @testset "TimeSequence" begin
         l = SquareLattice(3, 3)
         site = l[5]
-        x, y = coord_values(l)
+        x, y = coordvalues(l)
         xy = x .* y
         xly = x .< y
         @test_throws ArgumentError TimeSequence([0.5], [xy, xy])

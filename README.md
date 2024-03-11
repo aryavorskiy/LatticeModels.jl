@@ -45,7 +45,7 @@ for state in ev(0:0.1:2τ)
     P, H, t = state
     p = plot(layout=2, size=(800, 400))
     # Find the local density and plot it
-    plot!(p[1], lattice_density(P), clims=(0,0.1), st=:shape, c=:matter)
+    plot!(p[1], localdensity(P), clims=(0,0.1), st=:shape, c=:matter)
 
     # Show currents on the plot
     plot!(p[2], DensityCurrents(H, P), clims=(0,0.03))

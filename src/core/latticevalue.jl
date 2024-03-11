@@ -46,15 +46,15 @@ LatticeValue(l::AbstractLattice, v::AbstractVector) = LatticeValueWrapper(l, con
 LatticeValue(lf, l::AbstractLattice) = LatticeValueWrapper(l, [lf(site) for site in l])
 
 """
-    coord_values(lat)
+    coordvalues(lat)
 
 Generates a tuple of `LatticeValue`s representing spatial coordinates on lattice `lat`.
 """
-coord_values(l::AbstractLattice) =
+coordvalues(l::AbstractLattice) =
     [LatticeValue(l, vec) for vec in eachrow(collect_coords(l))]
 
 """
-    siteproperty_value(lat, prop)
+    LatticeValue(lat, prop)
 
 Generates a `LatticeValue` representing the site property `prop` on lattice `lat`.
 
@@ -62,12 +62,11 @@ Generates a `LatticeValue` representing the site property `prop` on lattice `lat
 - `lat`: the lattice the value is defined on.
 - `prop`: the `SiteProperty` to be represented. Can be a `SiteProperty` or a `Symbol` defining it.
 """
-siteproperty_value(l::AbstractLattice, a::SiteProperty) = LatticeValue(l, [getsiteproperty(site, a) for site in l])
-siteproperty_value(l::AbstractLattice, sym::Symbol) =
-    siteproperty_value(l, SitePropertyAlias{sym}())
+LatticeValue(l::AbstractLattice, a::SiteProperty) = LatticeValue(l, [getsiteproperty(site, a) for site in l])
+LatticeValue(l::AbstractLattice, sym::Symbol) = LatticeValue(l, SitePropertyAlias{sym}())
 
 """
-    coord_value(lat, coord)
+    coordvalue(lat, coord)
 
 Generates a `LatticeValue` representing the spatial coordinate `coord` on lattice `lat`.
 
@@ -75,8 +74,8 @@ Generates a `LatticeValue` representing the spatial coordinate `coord` on lattic
 - `lat`: the lattice the value is defined on.
 - `coord`: the coordinate to be represented. Can be an integer or a symbol.
 """
-coord_value(l::AbstractLattice, i::Int) = siteproperty_value(l, Coord(i))
-coord_value(l::AbstractLattice, sym::Symbol) = siteproperty_value(l, SitePropertyAlias{sym}())
+coordvalue(l::AbstractLattice, i::Int) = LatticeValue(l, Coord(i))
+coordvalue(l::AbstractLattice, sym::Symbol) = LatticeValue(l, SitePropertyAlias{sym}())
 
 Base.rand(l::AbstractLattice) = LatticeValue(l, rand(length(l)))
 Base.rand(T::Type, l::AbstractLattice) = LatticeValue(l, rand(T, length(l)))

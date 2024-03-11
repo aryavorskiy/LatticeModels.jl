@@ -1,6 +1,6 @@
 @testset "Currents" begin
     l = SquareLattice(4, 4)
-    x, y = coord_values(l)
+    x, y = coordvalues(l)
     H_0 = qwz(l)
     H_1 = qwz(l, field=LandauGauge(0.1))
     dg = diagonalize(H_0)
@@ -23,7 +23,7 @@
         dens_op = one(SpinBasis(1//2)) ⊗ (state ⊗ state')
         dens_dt = tr(im * (H_1 * dens_op - dens_op * H_1) * P)
         @test dc[s1, t1] + dc[s1, t2] + dc[s1, t3] + dc[s1, t4] ≈ dens_dt
-        @test currents_from_to(dc, s1) ≈ dens_dt
+        @test currentsfromto(dc, s1) ≈ dens_dt
 
         # Test state representations
         ground_state = dg[1]
@@ -43,7 +43,7 @@
     end
 
     @testset "Subcurrents" begin
-        bs = adjacency_matrix(H_1)
+        bs = adjacencymatrix(H_1)
         m1 = Currents(dc)[x.<y]
         m2 = Currents(dc[x.<y])
         m3 = Currents(dc, bs)[x.<y]
@@ -81,12 +81,12 @@
         state = basisstate(l, site)
         spin_op = Operator(SpinBasis(1//2), [1 0; 0 -1]) ⊗ (state ⊗ state')
         spin_dt = gs' * im * (H_1 * spin_op - spin_op * H_1) * gs
-        @test currents_from_to(spin_curr, site) ≈ spin_dt
+        @test currentsfromto(spin_curr, site) ≈ spin_dt
 
         mb_spin_curr = LocalOperatorCurrents(H2_1, gs2, [1 0; 0 -1]) |> Currents
         mb_spin_op = manybodyoperator(sys, spin_op)
         mb_spin_dt = gs2' * im * (H2_1 * mb_spin_op - mb_spin_op * H2_1) * gs2
-        @test currents_from_to(mb_spin_curr, site) ≈ mb_spin_dt
+        @test currentsfromto(mb_spin_curr, site) ≈ mb_spin_dt
         @test mb_spin_curr ≈ 2 * spin_curr
     end
 end

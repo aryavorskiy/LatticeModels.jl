@@ -11,7 +11,7 @@
         dens_op = one(SpinBasis(1//2)) ⊗ (state ⊗ state')
         dens_dt = tr(im * (H_1 * dens_op - dens_op * H_1) * P)
 
-        dts = lattice_density(-im * (H_1 * P - P * H_1))
+        dts = localdensity(-im * (H_1 * P - P * H_1))
         @test dens_dt ≈ dts[site]
     end
 
@@ -55,18 +55,18 @@
 
     @testset "Operator builtins" begin
         l = SquareLattice(10, 10)
-        X, Y = coord_operators(l)
-        X2 = coord_operator(l, :x)
-        X3 = siteproperty_operator(l, LatticeModels.Coord(1))
-        X4 = diagonaloperator(coord_value(l, :x))
+        X, Y = coordoperators(l)
+        X2 = coordoperator(l, :x)
+        X3 = diagonaloperator(l, LatticeModels.Coord(1))
+        X4 = diagonaloperator(coordvalue(l, :x))
         @test X == X2
         @test X == X3
         @test X == X4
 
         spin = SpinBasis(1//2)
         Xs = one(spin) ⊗ X
-        Xs1 = siteproperty_operator(l, spin, :x)
-        Xs2 = siteproperty_operator(l ⊗ spin, LatticeModels.Coord(1))
+        Xs1 = diagonaloperator(l, spin, :x)
+        Xs2 = diagonaloperator(l ⊗ spin, LatticeModels.Coord(1))
         @test Xs == Xs1
         @test Xs == Xs2
     end
@@ -119,7 +119,7 @@
         l = SquareLattice(10, 10)
         eig = diagonalize(qwz(ones(l)))
         G = greenfunction(eig)
-        x, y = coord_values(l)
+        x, y = coordvalues(l)
         G2 = G[x .< 3 .&& y .< 3]
         E = 2
         site1 = l[1]

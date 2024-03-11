@@ -20,7 +20,7 @@ makedocs(
             "Working with data" => "manual/latticevalue.md",
             "Constructing the Hamiltonian" => "manual/hamiltonian.md",
             "Operators" => "manual/operators.md",
-            "Green's function" => "manual/greensfunction.md",
+            "Green's function" => "manual/greenfunction.md",
             "Currents" => "manual/currents.md",
             "Unitary evolution" => "manual/evolution.md"
         ],

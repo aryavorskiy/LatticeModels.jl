@@ -32,8 +32,7 @@ This interface is used to define various properties of a site. They can be acces
 `getsiteproperty`. This interface is used in following places:
 - `lattice[...]` syntax to access sites with specific properties.
 - `lattice_value[...]` syntax to access values defined on sites with specific properties.
-- `siteproperty_value` function to generate `LatticeValue` objects for specific properties.
-- `siteproperty_operator` function to generate operators for specific properties.
+- Functions to generate `LatticeValue`s and operators for specific properties.
 
 ## Examples
 ```jldoctest

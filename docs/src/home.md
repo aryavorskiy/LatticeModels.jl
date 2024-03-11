@@ -58,7 +58,7 @@ p = plot(layout = @layout[ grid(n, n) a{0.1w}], size=(1000, 850))
 for i in 1:n^2
     # Plot a density heatmap on each subplot
     E_rounded = round(diag.values[i], sigdigits=4)
-    plot!(p[i], lattice_density(diag[i]), title="\$E_{$i} = $E_rounded\$", clims=clims, cbar=:none)
+    plot!(p[i], localdensity(diag[i]), title="\$E_{$i} = $E_rounded\$", clims=clims, cbar=:none)
 end
 
 # The following 2 lines are kinda hacky; they draw one colorbar for all heatmaps

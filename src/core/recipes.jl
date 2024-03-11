@@ -155,9 +155,9 @@ function getcircle(r::Real, n::Int)
 end
 function getshape(lat::AbstractLattice)
     site = lat[1]
-    r = site_distance(lat, site, lat[2])
+    r = sitedistance(lat, site, lat[2])
     for i in 3:length(lat)
-        r = min(r, site_distance(lat, site, lat[i]))
+        r = min(r, sitedistance(lat, site, lat[i]))
     end
     return getcircle(r/2, 20)
 end

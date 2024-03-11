@@ -24,7 +24,7 @@ clims = (0, 0.0045)
 p = plot(layout = @layout[ grid(n, n) a{0.1w}], size=(1000, 850))
 for i in 1:n^2
     E_rounded = round(diag.values[i], sigdigits=4)
-    plot!(p[i], lattice_density(diag[i]), title="\$E_{$i} = $E_rounded\$", clims=clims, cbar=:none)
+    plot!(p[i], localdensity(diag[i]), title="\$E_{$i} = $E_rounded\$", clims=clims, cbar=:none)
 end
 
 # The following 2 lines are kinda hacky; they draw one colorbar for all heatmaps
@@ -59,7 +59,7 @@ for state in ev(0:0.1:2τ)
     P, H, t = state
     # Find the density and plot it
     p = plot(layout=2, size=(800, 400))
-    plot!(p[1], lattice_density(P), clims=(0, 0.1), st=:shape)
+    plot!(p[1], localdensity(P), clims=(0, 0.1), st=:shape)
 
     # Show currents on the plot
     plot!(p[2], DensityCurrents(H, P))
@@ -90,7 +90,7 @@ using LatticeModels
 using Plots
 
 l = SquareLattice(11, 11)
-x, y = coord_values(l)
+x, y = coordvalues(l)
 
 # Initial hamiltonian: m=1 everywhere
 H1 = qwz(l, 1)
@@ -99,7 +99,7 @@ H1 = qwz(l, 1)
 M = ones(l)
 M[x = 4..8, y = 4..8] .= -1
 H2 = qwz(M)
-X, Y = coord_operators(l, 2)
+X, Y = coordoperators(l, 2)
 
 sp = diagonalize(H1)
 P_0 = densitymatrix(sp, mu = 0)
@@ -113,7 +113,7 @@ for state in ev(0:0.1:2τ)
 
     # Local Chern marker heatmap
     lcm_operator = 4pi * im * P * X * P * Y * P
-    chern_marker = lattice_density(lcm_operator)
+    chern_marker = localdensity(lcm_operator)
     plot!(p[1], chern_marker, clims=(-2, 2), st=:shape)
 
     # Select sites on y=6 line

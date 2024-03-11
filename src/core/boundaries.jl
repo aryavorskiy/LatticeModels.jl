@@ -288,7 +288,7 @@ function translate_to_nearest(l::AbstractLattice, site1::AbstractSite, site2::Ab
     end
     return min_site
 end
-site_distance(l::LatticeWithParams, site1::AbstractSite, site2::AbstractSite) =
+sitedistance(l::LatticeWithParams, site1::AbstractSite, site2::AbstractSite) =
     norm(translate_to_nearest(l, site1, site2).coords - site1.coords)
 
 struct DefaultTranslations{NamedTupleT}

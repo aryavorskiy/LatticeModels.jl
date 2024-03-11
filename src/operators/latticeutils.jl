@@ -1,20 +1,20 @@
 import QuantumOpticsBase: basis, samebases, check_samebases
 
 """
-    lattice_density(state)
+    localdensity(state)
 
-Calculate local density of given `state`.
-The output of this function is a `LatticeValue`.
+Compute the local density of given `state`. The result is a `LatticeValue` with the same
+lattice as the input state.
 
 ## Arguments
 - `state`: A `Ket` or `Bra` representing the wavefunction or an `Operator` representing the density matrix.
 """
-function lattice_density(state::StateType{<:OneParticleBasis})
+function localdensity(state::StateType{<:OneParticleBasis})
     l = lattice(state)
     N = internal_length(state)
     LatticeValue(l, [real(sum(matrix_element(state, j, j) for j in (i-1)*N+1:i*N)) for i in eachindex(l)])
 end
-function lattice_density(state::StateType{<:ManyBodyBasis{<:OneParticleBasis}})
+function localdensity(state::StateType{<:ManyBodyBasis{<:OneParticleBasis}})
     vs = zeros(length(basis(state).onebodybasis))
     bas = basis(state)
     for i in 1:length(bas)
@@ -45,11 +45,11 @@ function QuantumOpticsBase.ptrace(op::CompositeLatticeOperator, sym::Symbol)
 end
 
 """
-    adjacency_matrix(op::Operator)
+    adjacencymatrix(op::Operator)
 
 Generates an `AdjacencyMatrix` for the provided operator.
 """
-function adjacency_matrix(op::OneParticleOperator)
+function adjacencymatrix(op::OneParticleOperator)
     n = internal_length(op)
     ind(k) = (k - 1) * n + 1 : k * n
     colptr = Int[]

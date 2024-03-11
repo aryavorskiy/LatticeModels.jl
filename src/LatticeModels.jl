@@ -14,13 +14,13 @@ include("core/utils.jl")
 include("core/lattice.jl")
 export lattice, site_index, Coord
 include("core/bonds.jl")
-export adjacency_matrix, site_distance, adjacentsites, SiteDistance, Translation
+export AdjacencyMatrix, adjacencymatrix, sitedistance, adjacentsites, SiteDistance, Translation
 include("core/boundaries.jl")
 export BoundaryConditions, PeriodicBoundary, TwistedBoundary, FunctionBoundary, setboundaries
 include("core/lookuptable.jl")
 export addlookuptable
 include("core/latticevalue.jl")
-export LatticeValue, siteproperty_value, coord_value, coord_values, project
+export LatticeValue, coordvalue, coordvalues, project
 include("core/recipes.jl")
 
 include("lattices/genericlattice.jl")
@@ -48,15 +48,15 @@ export tightbinding_hamiltonian, construct_operator, construct_hamiltonian
 include("operators/manybody.jl")
 export interaction
 include("operators/miscoperators.jl")
-export siteproperty_operator, coord_operator, coord_operators
+export coordoperator, coordoperators
 include("operators/latticeutils.jl")
-export lattice_density, diag_reduce, apply_field!
+export localdensity, diag_reduce, apply_field!
 
 include("spectrum.jl")
 export Eigensystem, diagonalize, projector, densitymatrix, groundstate, findgroundstate,
     GreenFunction, greenfunction, diagonalelements, dos, ldos
 include("currents.jl")
-export Currents, currents_from, currents_from_to, mapgroup_currents
+export Currents, currentsfrom, currentsfromto, mapgroup_currents
 include("timesequence.jl")
 export integrate, integrate!, differentiate, differentiate!, timestamps,
     TimeSequence

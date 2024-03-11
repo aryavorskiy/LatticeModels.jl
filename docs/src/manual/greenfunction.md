@@ -4,4 +4,4 @@
 
 ## Many-body Green's function
 
-## LDOS
+## Density of states
