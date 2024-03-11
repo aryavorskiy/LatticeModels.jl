@@ -1,0 +1,11 @@
+.vscode/
+docs/build/
+profile.pb.gz
+demo.ipynb
+lol*.gif
+docs/src/assets/favicon.svg
+precompiles/
+Manifest.toml
+test/Manifest.toml
+docs/Manifest.toml
+demo.jl
