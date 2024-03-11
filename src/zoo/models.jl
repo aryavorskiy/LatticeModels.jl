@@ -10,9 +10,9 @@ end
 """
     bosehubbard([type, ]lat, N[; T, t1, t2, t3, field])
 
-``\hat{H} =
-\sum_{i,j}^\text{sites} t_{ij} c^\dagger_i c_j +
-\sum_i^\text{sites} \frac{U}{2} \hat{n}_i (\hat{n}_i - 1)``
+``\\hat{H} =
+\\sum_{i,j}^\\text{sites} t_{ij} c^\\dagger_i c_j +
+\\sum_i^\\text{sites} \\frac{U}{2} \\hat{n}_i (\\hat{n}_i - 1)``
 
 Generates a Bose-Hubbard model hamiltonian on given lattice `lat`.
 ## Arguments
@@ -30,9 +30,9 @@ bosehubbard(type::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
 """
     fermihubbard([type, ]lat, N[; T, t1, t2, t3, field])
 
-``\hat{H} =
-\sum_{i,j}^\text{sites} t_{ij} c^\dagger_i c_j +
-\sum_i^\text{sites} \frac{U} \hat{n}_i^{↑} \hat{n}_i^{↓}``
+``\\hat{H} =
+\\sum_{i,j}^\\text{sites} t_{ij} c^\\dagger_i c_j +
+\\sum_i^\\text{sites} \\frac{U} \\hat{n}_i^{↑} \\hat{n}_i^{↓}``
 
 Generates a Fermi-Hubbard model hamiltonian on given lattice `lat`.
 
@@ -56,12 +56,12 @@ fermihubbard(type::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
     qwz(m[; T, μ, field, statistics])
     qwz(lat[, m; T, μ, field, statistics])
 
-``\hat{H} =
-\sum_i^\text{sites} m_i c^\dagger_i \sigma_z c_i +
-\sum_i^\text{sites} \left(
-c^\dagger_{i + \hat{x}} \frac{\sigma_z - i \sigma_x}{2} c_i +
-c^\dagger_{i + \hat{y}} \frac{\sigma_z - i \sigma_y}{2} c_i +
-h. c. \right)``
+``\\hat{H} =
+\\sum_i^\\text{sites} m_i c^\\dagger_i \\sigma_z c_i +
+\\sum_i^\\text{sites} \\left(
+c^\\dagger_{i + \\hat{x}} \\frac{\\sigma_z - i \\sigma_x}{2} c_i +
+c^\\dagger_{i + \\hat{y}} \\frac{\\sigma_z - i \\sigma_y}{2} c_i +
+h. c. \\right)``
 
 Generates a QWZ model hamiltonian operator on given square lattice `lat`.
 
@@ -95,11 +95,11 @@ const honeycomb_2nn = BravaisSiteMapping(
 """
     haldane(lat, t1, t2[, m=0; T, μ, field, statistics])
 
-``\hat{H} =
-\sum_i^\text{sublattice A} m c^\dagger_i c_i +
-\sum_j^\text{sublattice B} m c^\dagger_j c_j +
-\sum_{i, j}^\text{adjacent} \left( t_1 c^\dagger_i c_j + h. c. \right) +
-\sum_{i, j}^\text{2-connected,\\counter-clockwise} \left( i \cdot t_2 c^\dagger_i c_j + h. c. \right)``
+``\\hat{H} =
+\\sum_i^\\text{sublattice A} m c^\\dagger_i c_i +
+\\sum_j^\\text{sublattice B} m c^\\dagger_j c_j +
+\\sum_{i, j}^\\text{adjacent} \\left( t_1 c^\\dagger_i c_j + h. c. \\right) +
+\\sum_{i, j}^\\text{2-connected,\\counter-clockwise} \\left( i \\cdot t_2 c^\\dagger_i c_j + h. c. \\right)``
 
 Generates a Haldane topological insulator hamiltonian operator on given lattice `lat`.
 
@@ -121,9 +121,9 @@ end
 """
     kanemele(lat, t1, t2[; T, μ, field, statistics])
 
-``\hat{H} =
-\sum_{i, j}^\text{adjacent} \left( t_1 c^\dagger_i c_j + h. c. \right) +
-\sum_{i, j}^\text{2-connected,\\counter-clockwise} \left( i \cdot t_2 c^\dagger_i σ_z c_j + h. c. \right)``
+``\\hat{H} =
+\\sum_{i, j}^\\text{adjacent} \\left( t_1 c^\\dagger_i c_j + h. c. \\right) +
+\\sum_{i, j}^\\text{2-connected,\\counter-clockwise} \\left( i \\cdot t_2 c^\\dagger_i σ_z c_j + h. c. \\right)``
 
 Generates a Kane-Mele hamiltonian operator on given lattice `lat`.
 

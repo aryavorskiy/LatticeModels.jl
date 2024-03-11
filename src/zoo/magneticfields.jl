@@ -46,7 +46,7 @@ An object representing a small magnetic flux through given point. The field is d
 Construct a `PointFlux` object with given flux and point.
 
 The optional `gauge` argument can be used to specify the gauge of the field. Possible values
-are `:axial` (``A(r) = B \times \frac{r}{|r|}``) and `:singular` (the the phase changes if the
+are `:axial` (``A(r) = B \\times \\frac{r}{|r|}``) and `:singular` (the the phase changes if the
 particle passes below the point). The default is `:axial`.
 """
 struct PointFlux{GaugeT} <: AbstractField

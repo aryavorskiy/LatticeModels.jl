@@ -5,7 +5,7 @@ abstract type AbstractField end
 """
     vector_potential(field, point)
 
-Returns vector potential ``\overrightarrow{A}`` for `field` in location `point`.
+Returns vector potential ``\\overrightarrow{A}`` for `field` in location `point`.
 
 This function should be defined for new field types, but it is not necessary
 unless you want to use built-in trapezoidal rule integrating.
@@ -16,7 +16,7 @@ vector_potential(fld::AbstractField, _) =
 """
     line_integral(field, p1, p2[, n_steps=1])
 
-Calculates the ``\int_{p1}^{p2} \overrightarrow{A} \cdot \overrightarrow{dl}`` integral using the trapezoidal rule.
+Calculates the ``\\int_{p1}^{p2} \\overrightarrow{A} \\cdot \\overrightarrow{dl}`` integral using the trapezoidal rule.
 Increase `n_steps` to improve accuracy (note that for linear field gauges like Landau or symmetrical the formula is already pefrectly accurate).
 If needed, redefine this function for specific field types - this is likely to boost accuracy and performance.
 """

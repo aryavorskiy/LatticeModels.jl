@@ -187,7 +187,7 @@ groundstate(any) = findgroundstate(any)[2]
 
 returns an `Operator` that projects onto the eigenvectors of the spectrum, defined by the formula below.
 
-``\hat{\mathcal{P}} = \sum_i |\psi_i⟩⟨\psi_i|``
+``\\hat{\\mathcal{P}} = \\sum_i |\\psi_i⟩⟨\\psi_i|``
 """
 projector(eig::AbstractEigensystem) = Operator(eig.basis, eig.states * eig.states')
 
@@ -196,7 +196,7 @@ projector(eig::AbstractEigensystem) = Operator(eig.basis, eig.states * eig.state
 
 Returns an `Operator` representing a function applied to the diagonalized operator defined by the formula below:
 
-``\hat{\mathcal{P}} = \sum_i f(A_i) |\psi_i⟩⟨\psi_i|``
+``\\hat{\\mathcal{P}} = \\sum_i f(A_i) |\\psi_i⟩⟨\\psi_i|``
 """
 function projector(f, eig::AbstractEigensystem)
     Operator(eig.basis, eig.states * (f.(eig.values) .* eig.states'))
