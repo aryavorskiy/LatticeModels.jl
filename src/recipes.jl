@@ -50,6 +50,7 @@ end
     ns = SVector(axis_numbers)
     xguide --> axes[1]
     yguide --> axes[2]
+    label --> :none
     Xs = Float64[]
     Ys = Float64[]
     @inline function _pushpts!(pts...)
@@ -74,12 +75,20 @@ end
         _pushpts!(v1, v2, v2 - 0.15d - 0.05o, v2 - 0.15d + 0.05o, v2)
         push!(Vs, val, val, val, val, val, NaN)
     end
-    @series begin
-        seriestype := :path
-        seriescolor --> :matter
-        linewidth --> 2.5
-        line_z --> Vs
-        Xs, Ys
+    if isempty(Vs)
+        @series begin
+            markersize := 0.1
+            lattice(curr), :sites
+        end
+    else
+        @series begin
+            aspect_ratio := 1
+            seriestype := :path
+            seriescolor --> :matter
+            linewidth --> 2.5
+            line_z --> Vs
+            Xs, Ys
+        end
     end
     showsites && @series lattice(curr), :high_contrast
 end

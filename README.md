@@ -6,7 +6,11 @@
 
 This package provides a set of tools to simulate different quantum lattice systems.
 
-WARNING: This package is currently in non-stable stage. The [v0.20](https://github.com/aryavorskiy/LatticeModels.jl/releases/tag/v0.20.0) release introduces lots of breaking changes, which can be seen in [CHANGES.md](CHANGES.md).
+WARNING: This package is gradually becoming stable. No new core functional will be introduced. Short list of things to do until final release:
+- [ ] Tests
+- [ ] Documentation
+- [ ] Examples
+- [ ] Benchmarks - compare with Kwant and Pybinding
 
 ## Installation
 
@@ -36,20 +40,19 @@ P_0 = densitymatrix(h(0))
 # Perform unitary evolution
 τ = 10
 a = Animation()
-@evolution {
-    # Turn on the magnetic field adiabatically
-    H := h(0.1 * min(t, τ) / τ)
-    P_0 --> H --> P
-} for t in 0:0.1:2τ
+ev = Evolution(t -> h(0.1 * min(t, τ) / τ), P_0)
+for state in ev(0:0.1:2τ)
+    P, H, t = state
+    p = plot(layout=2, size=(800, 400))
     # Find the local density and plot it
-    plot(lattice_density(P), clims=(0,1))
+    plot!(p[1], lattice_density(P), clims=(0,0.1), st=:shape, c=:matter)
 
     # Show currents on the plot
-    plot!(DensityCurrents(H, P), arrows_scale=7)
+    plot!(p[2], DensityCurrents(H, P), clims=(0,0.03))
 
     # Some more tweaks to the plot...
     title!("t = $t")
-    frame(a)
+    frame(a, p)
 end
 
 gif(a, "animation.gif")
