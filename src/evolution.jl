@@ -1,6 +1,6 @@
 import Base: exp
 using LinearAlgebra, ProgressMeter
-using KrylovKit
+import KrylovKit
 
 """
     SchrodingerSolver
@@ -140,7 +140,7 @@ function update_solver!(solver::KrylovKitExp, mat, dt, _force)
     solver.mat = _data(mat)
 end
 function step!(solver::KrylovKitExp, state::AbstractVector, _cache)
-    newstate, info = exponentiate(solver.mat, solver.factor, state; solver.kw...)
+    newstate, info = KrylovKit.exponentiate(solver.mat, solver.factor, state; solver.kw...)
     info.converged == 0 && throw(ArgumentError("`exponentiate` did not converge"))
     copyto!(state, newstate)
 end
