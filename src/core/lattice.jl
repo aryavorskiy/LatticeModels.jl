@@ -1,166 +1,236 @@
-using LinearAlgebra, Logging, StaticArrays
-
 """
-    Lattice{LatticeSym, N, NB}
-A finite subset of a `Brvais{N, NB}`. `LatticeSym` is a `Symbol` which represents
-the type of the lattice (e. g. `:square`, `:honeycomb`).
-This makes `Lattice` object behavior known at compile-time,
-which allows to introduce various optimizations or to define specific plot recipes.
+    AbstractSite{N}
 
----
-    Lattice(sym, sz, bvs[, mask])
-Constructs a finite `Lattice{sym, N, NB}` as a subset of the `bvs` Bravais lattice.
-`sz` is a `NTuple{N, Int}` which represents how many times the unit cell of `bvs` was translated by each axis - these sites form a *macrocell*.
-`mask`, if defined, is a `Vector{Bool}` storing information about which of the sites from the macrocell
-are actually included in the lattice, and which are not.
+An abstract type for a site of a `N`-dimensional lattice.
 
-For example, a 3×3 square lattice with its center site excluded is represented as
-`Lattice(:square, (3, 3), Bravais([1 0; 0 1]), Bool[1, 1, 1, 1, 0, 1, 1, 1, 1])`
-
-To define a new type of lattice, create an alias for `Lattice{YourSym, YourN, YourNB}`.
-Refer to the docs for detailed explanation.
+## Fields
+- `coords`: A `SVector` of size `N` representing the spatial coordinates of the site.
+    All subtypes are expected to have this field.
 """
-struct Lattice{LatticeSym,N,NB} <: AbstractVector{LatticeSite{N}}
-    lattice_size::NTuple{N,Int}
-    bravais::Bravais{N,NB}
-    mask::Vector{Bool}
-    function Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N,NB}, mask; kw...) where {N,NB}
-        length(mask) != prod(sz) * length(bvs) &&
-            error("inconsistent mask length")
-        new{sym,N,NB}(sz, bvs, mask)
+abstract type AbstractSite{N} end
+
+dims(::AbstractSite{N}) where N = N
+Base.iterate(site::AbstractSite{N}, i=1) where N = i > N ? nothing : (site.coords[i], i + 1)
+
+function Base.show(io::IO, ::MIME"text/plain", site::AbstractSite{N}) where N
+    if site in get(io, :SHOWN_SET, ())
+        print(io, "at ", site.coords)
+    else
+        print(io, N, "-dim ", typeof(site), " at $(site.coords)")
     end
 end
-Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}) where {N} =
-    Lattice(sym::Symbol, sz::NTuple{N,Int}, bvs::Bravais{N}, fill(true, prod(sz) * length(bvs)))
 
-Base.:(==)(l1::T, l2::T) where {T<:Lattice} =
-    (macrocell_size(l1) == macrocell_size(l2)) && (bravais(l1) == bravais(l2))
+struct NoSite <: AbstractSite{0} end
+Base.show(io::IO, ::NoSite) = print(io, "LatticeModels.NoSite()")
 
-lattice(l::Lattice) = l
-Base.copymutable(l::Lattice{LatticeSym}) where {LatticeSym} =
-    Lattice(LatticeSym, macrocell_size(l), bravais(l), copy(l.mask))
-Base.copy(l::Lattice) = Base.copymutable(l)
-macrocell_size(l::Lattice) = l.lattice_size
-Base.length(l::Lattice) = count(l.mask)
-Base.size(l::Lattice) = (count(l.mask),)
-Base.keys(l::Lattice) = Base.OneTo(length(l))
-lattice_type(::Lattice{LatticeSym}) where {LatticeSym} = LatticeSym
-dims(::Lattice{LatticeSym,N} where {LatticeSym}) where {N} = N
+"""
+    SiteProperty
+
+An abstract type for a property of a site.
+
+This interface is used to define various properties of a site. They can be accessed using
+`getsiteproperty`. This interface is used in following places:
+- `lattice[...]` syntax to access sites with specific properties.
+- `lattice_value[...]` syntax to access values defined on sites with specific properties.
+- `siteproperty_value` function to generate `LatticeValue` objects for specific properties.
+- `siteproperty_operator` function to generate operators for specific properties.
+
+## Examples
+```jldoctest
+julia> l = SquareLattice(3, 3)
+
+julia> l[x = 1, y = 2]          # Get site with x = 1 and y = 2
+Site of a 2-dim lattice @ [1.0, 2.0]
+
+julia> l[x = 1]                 # Get sublattice with x = 1
+3-site 2-dim SquareLattice
+
+julia> l[x = 1, y = 2, z = 3]   # No site with defined z property on a 2D lattice
+ERROR: ArgumentError: Invalid axis index 3 of a 2-dim site
+```
+"""
+abstract type SiteProperty end
+getsiteproperty(::AbstractSite, p::SiteProperty) = throw(ArgumentError("Site has no property `$p`"))
+
+struct SitePropertyAlias{Symb} <: SiteProperty end
+getsiteproperty(::AbstractSite, ::SitePropertyAlias{Symb}) where Symb =
+    throw(ArgumentError("`$Symb` is not a valid site property"))
+@inline getsiteproperty(site::AbstractSite, sym::Symbol) =
+    getsiteproperty(site, SitePropertyAlias{sym}())
+
+@static if VERSION ≥ v"1.8"
+    @inline function Base.getproperty(site::AbstractSite, sym::Symbol)
+        if sym in fieldnames(typeof(site))
+            return getfield(site, sym)
+        end
+        prop = SitePropertyAlias{sym}()
+        if !(prop isa SitePropertyAlias)
+            # If the constructor was overridden, then get site property
+            return getsiteproperty(site, prop)
+        end
+        return getfield(site, sym)
+    end
+end
+
+struct Coord <: SiteProperty axis::Int end
+@inline function getsiteproperty(site::AbstractSite, c::Coord)
+    1 ≤ c.axis ≤ dims(site) ||
+        throw(ArgumentError("Invalid axis index $(c.axis) of a $(dims(site))-dim site"))
+    return getfield(site, :coords)[c.axis]
+end
+SitePropertyAlias{:x}() = Coord(1)
+SitePropertyAlias{:y}() = Coord(2)
+SitePropertyAlias{:z}() = Coord(3)
+for i in 1:32
+    @eval SitePropertyAlias{$(QuoteNode(Symbol("x$i")))}() = Coord($i)
+end
+
+"""
+    AbstractLattice{SiteT}
+
+An abstract type for a lattice of `SiteT` sites.
+
+## Methods for subtypes to implement
+- `length(l::AbstractLattice)`: Return the number of sites in the lattice.
+- `site_index(l::AbstractLattice, site::SiteT)`: Return the index of the site in the lattice.
+- `getindex(l::AbstractLattice, i::Int)`: Return the site with the given index.
+- `getindex(l::AbstractLattice, is::AbstractVector{Int})`: Return an `AbstractLattice` with the sites at the given indices.
+
+## Optional methods for mutable lattices
+- `emptymutable(l::AbstractLattice, ::Type{SiteT})`: Return an empty mutable instance of lattice.
+- `copymutable(l::AbstractLattice)`: Return a mutable copy of the lattice.
+- `push!(l::AbstractLattice, site::SiteT)`: Add a site to the lattice.
+- `deleteat!(l::AbstractLattice, is::AbstractVector{Int})`: Remove the sites with the given indices from the lattice.
+"""
+abstract type AbstractLattice{SiteT} <: AbstractSet{SiteT} end
+
+"""
+    lattice(any)
+
+Return the lattice of the given object (an operator, `LatticeValue`, ...)
+"""
+lattice(l::AbstractLattice) = l
+dims(::AbstractLattice{<:AbstractSite{N}}) where {N} = N
 dims(l) = dims(lattice(l))
-basis_length(::Lattice{LatticeSym,N,NB} where {LatticeSym,N}) where {NB} = NB
-bravais(l::Lattice) = l.bravais
+Base.size(l::AbstractLattice) = (length(l),)
 
-site_coords(l::Lattice, lp::LatticePointer) =
-    bravais(l).basis[:, lp.basis_index] + bravais(l).translation_vectors * lp.unit_cell
-site_coords(l::Lattice{Sym,N,1} where {Sym,N}, lp::LatticePointer) =
-    bravais(l).translation_vectors * lp.unit_cell
-site_coords(::Lattice{:square,N,1} where {N}, lp::LatticePointer) = Float64.(lp.unit_cell)
+"""
+    site_index(lat, site[, range])
 
-default_bonds(::Lattice, ::Val) = ()
-default_bonds(l::Lattice) = default_bonds(l, Val(1))
+Return the index of the `site` in the lattice `lat`. If `range` is given, only search in the
+given range. Return `nothing` if the site is not found.
+"""
+site_index(::AbstractLattice, ::NoSite, range=nothing) = nothing
+site_index(l::AbstractLattice, site::AbstractSite) = site_index(l, site, eachindex(l))
+Base.getindex(::AbstractLattice, ::Nothing) = NoSite()
+Base.pairs(l::AbstractLattice) = Base.Iterators.Pairs(l, 1:length(l))
 
-get_site(l::Lattice, lp::LatticePointer) = LatticeSite(lp, site_coords(l, lp))
-get_site(::Lattice, site::LatticeSite) = site
-get_site(::Lattice, ::Nothing) = nothing
-
-cartesian_indices(l::Lattice{LatticeSym,N,NB} where {LatticeSym}) where {N,NB} =
-    CartesianIndex{N + 1}(1):CartesianIndex(NB, macrocell_size(l)...)
-linear_indices(l::Lattice{LatticeSym,N,NB} where {LatticeSym,N}) where {NB} =
-    LinearIndices((NB, macrocell_size(l)...))
-
-site_coords(::Lattice, site::LatticeSite) =  error("`site_coords(l, site)` is no longer available. Use `site.coords` instead")
-
-function Base.getindex(l::Lattice{Sym, N} where Sym, i::Int) where N
-    counter = 0
-    cinds = cartesian_indices(l)
-    i ≤ 0 && throw(BoundsError(l, i))
-    for j in 1:length(l.mask)
-        counter += l.mask[j]
-        if counter == i
-            return get_site(l, LatticePointer(cinds[j]))
+Base.summary(io::IO, l::AbstractLattice{<:AbstractSite{N}}) where N =
+    print(io, length(l), "-site ", N, "-dim ", typeof(l))
+function Base.show(io::IO, mime::MIME"text/plain", l::AbstractLattice)
+    summary(io, l)
+    if !requires_compact(io) && length(l) > 0
+        io = IOContext(io, :compact => true, :SHOWN_SET => l)
+        print(io, ":")
+        maxlen = get(io, :maxlines, 10)
+        for i in 1:min(length(l), maxlen)
+            print(io, "\n  ")
+            if i == maxlen < length(l)
+                print(io, "  ⋮")
+            else
+                show(io, mime, l[i])
+            end
         end
     end
-    throw(BoundsError(l, i))
-end
-Base.getindex(l::Lattice, ci::CartesianIndex{1}) = getindex(l, only(Tuple(ci)))
-function Base.getindex(l::Lattice{Sym}, is::AbstractVector{Int}) where Sym
-    new_mask = zero(l.mask)
-    @boundscheck checkbounds(l, is)
-    (@view new_mask[l.mask])[is] .= true
-    Lattice(Sym, macrocell_size(l), bravais(l), new_mask)
-end
-function Base.deleteat!(l::Lattice, inds)
-    @boundscheck checkbounds(l, inds)
-    view(l.mask, l.mask)[collect(inds)] .= false
-    l
-end
-Base.pop!(l::Lattice) = Base.deleteat!(l, lastindex(l))
-Base.popfirst!(l::Lattice) = Base.deleteat!(l, firstindex(l))
-
-"""
-    site_index(l::Lattice, site::LatticeSite; macrocell=false)
-
-Returns the integer index for given `site` in `lattice`.
-Returns `nothing` if the site is not present in the lattice.
-"""
-function site_index(l::Lattice, site::Union{LatticeSite, LatticePointer})
-    linds = linear_indices(l)
-    cind = cartesian_index(site)
-    i = get(linds, cind, nothing)
-    (i === nothing || !l.mask[i]) && return nothing
-    count(@view l.mask[1:i])
-end
-site_index(::Lattice, ::Nothing) = nothing
-
-function Base.iterate(l::Lattice{Sym,N} where Sym) where N
-    cinds = cartesian_indices(l)
-    index = findfirst(l.mask)
-    index === nothing && return nothing
-    get_site(l, LatticePointer(cinds[index])), (cinds, index)
 end
 
-function Base.iterate(l::Lattice{Sym,N} where Sym, state) where N
-    cinds, index = state
-    index = findnext(l.mask, index + 1)
-    index === nothing && return nothing
-    get_site(l, LatticePointer(cinds[index])), (cinds, index)
+# Set functions
+Base.copy(l::AbstractLattice) = Base.copymutable(l)
+Base.in(site::SiteT, l::AbstractLattice{SiteT}) where {SiteT} =
+    site_index(l, site) !== nothing
+function Base.delete!(l::AbstractLattice{ST}, site::ST) where ST<:AbstractSite
+    i = site_index(l, site)
+    i !== nothing && Base.deleteat!(l, i)
+    return l
 end
 
-"""
-    radius_vector(l::Lattice, site1::LatticeSite, site2::LatticeSite) -> vector
-Finds the vector between two sites on a lattice according to possibly periodic boundary conditions
-(`site2` will be translated along the macrocell to minimize the distance between them).
-"""
-function radius_vector(l::Lattice, site1::LatticeSite{N}, site2::LatticeSite{N}) where N
-    hsz = SVector{N, Int}(macrocell_size(l) .÷ 2)
-    tr_unitcell = (site1.unit_cell - site2.unit_cell + hsz) .% macrocell_size(l) - hsz
-    bravais(l).basis[:, site1.index] - bravais(l).basis[:, site2.basis_index] + bravais(l).translation_vectors * tr_unitcell
+# iteration (assume that the lattice has fast indexing - usually it does)
+function Base.iterate(l::AbstractLattice, state = (1, length(l)))
+    i, len = state
+    return i > len ? nothing : (l[i], (i+1, len))
 end
 
-"""
-    site_distance(l::Lattice, site1::LatticeSite, site2::LatticeSite[; pbc=false])
-Returns the distance between two sites on the `l` lattice.
+# Indexing
+Base.firstindex(::AbstractLattice) = 1
+Base.lastindex(l::AbstractLattice) = length(l)
+Base.eachindex(l::AbstractLattice) = firstindex(l):lastindex(l)
+Base.checkbounds(::Type{Bool}, l::AbstractLattice, is::Union{Int,AbstractVector{Int}}) =
+    all(1 .≤ is .≤ length(l))
+Base.checkbounds(l::AbstractLattice, is) =
+    !checkbounds(Bool, l, is) && throw(BoundsError(l, is))
+Base.push!(l::AbstractLattice{SiteT}, ::SiteT) where SiteT = error("Define `push!` for $l")
+Base.push!(l::AbstractLattice{SiteT}, x::Any) where SiteT = push!(l, convert(SiteT, x))
+Base.pop!(l::AbstractLattice) = deleteat!(l, lastindex(l))
+Base.popfirst!(l::AbstractLattice) = deleteat!(l, firstindex(l))
 
-**Keyword arguments:**
-- `pbc`: if `true`, the boundary conditions will be considered periodic and
-the distance will be measured on the shortest path.
-"""
-function site_distance(l::Lattice, site1::LatticeSite, site2::LatticeSite; pbc=false)
-    if pbc
-        norm(radius_vector(l, site1, site2))
-    else
-        norm(site1.coords - site2.coords)
+function Base.filter!(f::Function, l::AbstractLattice)
+    is = Int[]
+    for (i, site) in enumerate(l)
+        f(site) || push!(is, i)
+    end
+    deleteat!(l, is)
+    return l
+end
+
+sym_to_param_pair(p::Pair{Symbol}) = SitePropertyAlias{p[1]}() => p[2]
+function check_param_pairs(pairs::Tuple{Vararg{Pair}})
+    for (prop, _) in pairs
+        if prop isa Symbol
+            error("`:$prop => ...` notation is purposely disallowed. Use `$prop = ...`")
+        end
     end
 end
+kw_to_param_pairs(ntup::NamedTuple{T}) where T =
+    tuple(SitePropertyAlias{first(T)}() => first(ntup),
+        kw_to_param_pairs(Base.structdiff(ntup, NamedTuple{(first(T),)}))...)
+kw_to_param_pairs(::NamedTuple{()}) = ()
+kw_to_param_pairs(ps::Base.Iterators.Pairs) = kw_to_param_pairs(NamedTuple(ps))
 
-"""
-    site_distance(; pbc)
-Generates a function that finds the distance between sites (see `site_distance(::Lattice, ::LatticeSite, ::LatticeSite)`).
-This notation can be handy when passing this function as an argument.
-"""
-site_distance(;pbc) = (l, site1, site2) -> site_distance(l, site1, site2, pbc=pbc)
+function to_param_pairs(arg...; kw...)
+    check_param_pairs(arg)
+    return tuple(arg..., kw_to_param_pairs(kw)...)
+end
 
-function collect_coords(l::Lattice)
+match_param_pairs(site, ::Tuple{}) = true
+function match_param_pairs(site, pairs::Tuple{Vararg{Pair}})
+    param, val = first(pairs)
+    return getsiteproperty(site, param) in val && match_param_pairs(site, Base.tail(pairs))
+end
+
+function pairs_to_index(l::AbstractLattice, all_pairs::Tuple{Vararg{Pair}})
+    ind = 0
+    nfound = 0
+    for (i, site) in enumerate(l)
+        if match_param_pairs(site, all_pairs)
+            ind = i
+            nfound += 1
+        end
+    end
+    nfound > 1 && throw(ArgumentError("More than one site satisfies parameter conditions"))
+    nfound < 1 && return nothing
+    return ind
+end
+function pairs_to_indices(l::AbstractLattice, all_pairs::Tuple{Vararg{Pair}})
+    inds = Int[]
+    for (i, site) in enumerate(l)
+        if match_param_pairs(site, all_pairs)
+            push!(inds, i)
+        end
+    end
+    return inds
+end
+
+function collect_coords(l::AbstractLattice)
     d = dims(l)
     pts = zeros(d, length(l))
     for (i, site) in enumerate(l)
@@ -169,119 +239,143 @@ function collect_coords(l::Lattice)
     pts
 end
 
-Base.show(io::IO, l::Lattice) = Base.show_default(io, l)
-function Base.show(io::IO, ::MIME"text/plain", l::Lattice{LatticeSym,N}) where {N,LatticeSym}
-    print(io, "$(length(l))-site ", LatticeSym)
-    if N != 1
-        print(io, " lattice (", join(macrocell_size(l), "×"), " macrocell")
-    elseif !all(l.mask)
-        print(io, " chain (", macrocell_size(l)[1], " unit cells")
-    else
-        print(io, " chain")
-    end
-    if N > 1 && basis_length(l) > 1
-        print(io, ", ", basis_length(l), "-site basis")
-    end
-    print(io, ")")
-end
-
 """
-    sublattice(lf::Function, l::Lattice) -> Lattice
-Generates a a subset of lattice `l` by applying the `lf` function to its sites.
-The `lf` function must return a boolean value.
+    IncompatibleLattices([header, ]lat1, lat2)
+
+An exception thrown when two lattices are incompatible.
 """
-function sublattice(f::Function, l::Lattice{LatticeSym}) where {LatticeSym}
-    new_mask = zero(l.mask)
-    new_mask[l.mask] = [f(site) for site in l]
-    Lattice(LatticeSym, macrocell_size(l), bravais(l), new_mask)
-end
-
-function Lattice{T,N,NB}(f::Function, sz::Vararg{Int,N}; kw...) where {T,N,NB}
-    l = Lattice{T,N,NB}(sz...; kw...)
-    sublattice(f, l)
-end
-
-const AnyDimLattice{T,NB} = Lattice{T,N,NB} where {N}
-
-AnyDimLattice{T,NB}(sz::Vararg{Int,N}; kw...) where {T,N,NB} =
-    Lattice{T,N,NB}(sz...; kw...)
-
-function AnyDimLattice{T,NB}(f::Function, sz::Vararg{Int,N}; kw...) where {T,N,NB}
-    l = Lattice{T,N,NB}(sz...; kw...)
-    sublattice(f, l)
-end
-
 struct IncompatibleLattices <: Exception
     header::String
-    l1::Lattice
-    l2::Lattice
+    l1::AbstractLattice
+    l2::AbstractLattice
     IncompatibleLattices(header, l1, l2) = new(header, lattice(l1), lattice(l2))
 end
-IncompatibleLattices(l1, l2) = IncompatibleLattices("Matching lattices expected", l1, l2)
+IncompatibleLattices(l1, l2) = IncompatibleLattices("Incompatible lattices", l1, l2)
 
 Base.showerror(io::IO, ex::IncompatibleLattices) = print(io,
 """$(ex.header).\nGot following:
         #1: $(repr("text/plain", ex.l1))
         #2: $(repr("text/plain", ex.l2))""")
 
-
 """
-Checks if `l1` and `l2` objects are defined on one lattice. Throws an error if not.
+Checks if `l1` and `l2` objects are defined on the same lattice. Throws an error if not.
 """
 function check_samelattice(l1, l2)
     lattice(l1) != lattice(l2) &&
-        throw(IncompatibleLattices(l1, l2))
+        throw(IncompatibleLattices("Matching lattices expected", l1, l2))
 end
 
 """
-Checks if `l1` and `l2` are defined on one macrocell. Throws an error if not.
+Checks if `l1` and `l2` objects are defined on the same sites. Throws an error if not.
 """
-function check_samemacrocell(l1, l2)
-    la1 = lattice(l1)
-    la2 = lattice(l2)
-    (macrocell_size(la1) != macrocell_size(la2) || bravais(la1) != bravais(la2)) &&
-        throw(IncompatibleLattices("Lattices on matching macrocell expected", la1, la2))
+function check_samesites(l1, l2)
+    stripparams(lattice(l1)) != stripparams(lattice(l2)) &&
+        throw(IncompatibleLattices("Matching sets of sites expected", l1, l2))
 end
 
 """
 Checks if `l1` is sublattice of `l2`. Throws an error if not.
 """
-function check_issublattice(l1::Lattice, l2::Lattice)
-    check_samemacrocell(l1, l2)
-    any(l1.mask .& .!l2.mask) &&
+function check_issublattice(l1::AbstractLattice, l2::AbstractLattice)
+    !issubset(l1, l2) &&
         throw(IncompatibleLattices("#1 is expected to be sublattice of #2", l1, l2))
 end
 
-function Base.union!(l1::Lattice{Sym}, l2::Lattice{Sym}) where Sym
-    check_samemacrocell(l1, l2)
-    @. l1.mask = l1.mask | l2.mask
-    l1
+struct ResolvedSite{ST}
+    site::ST
+    old_site::ST
+    index::Int
+    factor::ComplexF64
+    function ResolvedSite(site::ST, old_site::ST, index::Int, factor) where ST<:AbstractSite
+        new{ST}(site, old_site, index, ComplexF64(factor))
+    end
 end
-function Base.union!(l1::Lattice{Sym}, l2::Lattice{Sym}, ls::Lattice{Sym}...) where Sym
-    Base.union!(Base.union!(l1, l2), ls...)
+ResolvedSite(site::AbstractSite, old_site::AbstractSite, index::Int) =
+    ResolvedSite(site, old_site, index, 1)
+ResolvedSite(site::AbstractSite, index::Int) = ResolvedSite(site, site, index, 1)
+function resolve_site_default(l::AbstractLattice, site::AbstractSite)
+    index = site_index(l, site)
+    index === nothing && return nothing
+    ResolvedSite(site, index)
+end
+resolve_site(l::AbstractLattice, site::AbstractSite) = resolve_site_default(l, site)
+resolve_site(::AbstractLattice, rs::ResolvedSite) = rs
+resolve_site(l::AbstractLattice, i::Int) =
+    i in eachindex(l) ? ResolvedSite(l[i], i) : nothing
+
+struct LatticeWithParams{LT,ParamsT,SiteT} <: AbstractLattice{SiteT}
+    lat::LT
+    params::ParamsT
+    function LatticeWithParams(lat::LT, params::ParamsT) where
+            {SiteT,LT<:AbstractLattice{SiteT},ParamsT<:NamedTuple}
+        new{LT,ParamsT,SiteT}(lat, params)
+    end
+end
+LatticeWithParams(lw::LatticeWithParams, params::NamedTuple) =
+    LatticeWithParams(lw.lat, merge(lw.params, params))
+allparams(::AbstractLattice) = NamedTuple()
+allparams(lw::LatticeWithParams) = lw.params
+
+Base.length(lw::LatticeWithParams) = length(lw.lat)
+Base.getindex(::LatticeWithParams, ::Nothing) = NoSite()
+Base.getindex(lw::LatticeWithParams, i::Int) = lw.lat[i]
+Base.getindex(lw::LatticeWithParams, is::AbstractVector{Int}) = LatticeWithParams(lw.lat[is], lw.params)
+site_index(::LatticeWithParams, ::NoSite) = nothing
+
+Base.emptymutable(l::LatticeWithParams, ::Type{T}) where {T<:AbstractSite} =
+    LatticeWithParams(Base.emptymutable(l.lat, T), l.params)
+Base.copymutable(lw::LatticeWithParams) = LatticeWithParams(Base.copymutable(lw.lat), lw.params)
+Base.deleteat!(lw::LatticeWithParams, is) = (deleteat!(lw.lat, is); return lw)
+function Base.push!(lw::LatticeWithParams{<:AbstractLattice{SiteT}}, site::SiteT) where SiteT
+    push!(lw.lat, site)
+    return lw
 end
 
-function Base.intersect!(l1::Lattice{Sym}, l2::Lattice{Sym}) where Sym
-    check_samemacrocell(l1, l2)
-    @. l1.mask = l1.mask & l2.mask
-    l1
-end
-function Base.intersect!(l1::Lattice{Sym}, l2::Lattice{Sym}, ls::Lattice{Sym}...) where Sym
-    Base.intersect!(Base.intersect!(l1, l2), ls...)
-end
-Base.intersect(l1::Lattice{Sym}, ls::Lattice{Sym}...) where Sym =
-    Base.intersect!(copy(l1), ls...)
+Base.show(io::IO, ::Type{<:LatticeWithParams{LT, ParamsT}}) where {LT, ParamsT} =
+    print(io, "LatticeWithParams{", LT, ", params", fieldnames(ParamsT), "}")
 
-function Base.setdiff!(l1::Lattice{Sym}, l2::Lattice{Sym}) where Sym
-    check_samemacrocell(l1, l2)
-    @. l1.mask = l1.mask & !l2.mask
-    l1
+Base.summary(io::IO, lw::LatticeWithParams) = summary(io, lw.lat)
+function Base.show(io::IO, mime::MIME"text/plain", lw::LatticeWithParams)
+    io = IOContext(io, :maxlines=>4)
+    if requires_compact(io)
+        show(io, mime, lw.lat)
+        return print(io, " (with params)")
+    end
+    show(io, mime, lw.lat)
+    for v in values(lw.params)
+        println(io)
+        show(io, mime, v)
+    end
 end
-function Base.setdiff!(l1::Lattice{Sym}, l2::Lattice{Sym}, ls::Lattice{Sym}...) where Sym
-    Base.setdiff!(Base.setdiff!(l1, l2), ls...)
-end
-Base.setdiff(l1::Lattice{Sym}, ls::Lattice{Sym}...) where Sym =
-    Base.setdiff!(copy(l1), ls...)
 
-Base.emptymutable(l::Lattice{Sym, N}, ::Type{LatticeSite{N}}=eltype(l)) where {Sym, N} =
-    Lattice(Sym, macrocell_size(l), bravais(l), zero(l.mask))
+function Base.getproperty(lw::LatticeWithParams, sym::Symbol)
+    if sym in fieldnames(typeof(lw))
+        return getfield(lw, sym)
+    end
+    params = getfield(lw, :params)
+    if haskey(params, sym)
+        return params[sym]
+    end
+    return getproperty(getfield(lw, :lat), sym)
+end
+
+Base.propertynames(lw::LatticeWithParams) =
+    tuple(propertynames(lw.lat)..., fieldnames(typeof(lw))..., keys(lw.params)...)
+
+const Lattice = LatticeWithParams
+Lattice(l::AbstractLattice; kw...) = LatticeWithParams(l, NamedTuple(kw))
+
+hasparam(::AbstractLattice, ::Symbol) = false
+hasparam(l::LatticeWithParams, param::Symbol) = haskey(l.params, param)
+getparam(::AbstractLattice, ::Symbol, default=nothong) = default
+getparam(l::LatticeWithParams, param::Symbol, default=nothing) = get(l.params, param, default)
+setparam(l::AbstractLattice, param::Symbol, val) = Lattice(l, NamedTuple{(param,)}((val,)))
+delparam(l::LatticeWithParams, param::Symbol) = Lattice(l.lat, Base.structdiff(l.params, NamedTuple{(param,)}))
+
+stripparams(l::AbstractLattice) = l
+stripparams(l::LatticeWithParams) = l.lat
+
+pushparam(l::AbstractLattice, param::Symbol, val) =
+    LatticeWithParams(stripparams(l), merge(NamedTuple{(param,)}((val,)), allparams(l)))
+
+const MaybeWithParams{LT} = Union{LT, LatticeWithParams{<:LT}}

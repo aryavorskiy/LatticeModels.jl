@@ -28,7 +28,7 @@ using LatticeModels, Plots
 l = SquareLattice(10, 10)
 
 # Define a tight-binding model hamiltonian with a point flux field through point (5.5, 5.5)
-h(B) = tightbinding_hamiltonian(l, field=FluxField(B, (5.5, 5.5)))
+h(B) = tightbinding_hamiltonian(l, field=PointFlux(B, (5.5, 5.5)))
 
 # Find density matrix for filled bands (e. g. with energy < 0)
 P_0 = densitymatrix(h(0))

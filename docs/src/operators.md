@@ -17,13 +17,13 @@ This adds $\frac{2\pi}{\phi_0} \int_{r_i}^{r_j} \overrightarrow{A} \cdot \overri
 To generate the Hamiltonian operator, use the [`tightbinding_hamiltonian`](@ref) function:
 
 ```julia
-l = SquareLattice(10, 10)
+l = SquareLattice(10, 10, boundaries = ([10, 0] => true, [0, 10] => true))
 H = tightbinding_hamiltonian(l)     # Yes, it is that simple
 # t1 stands for t, t2 - for t', etc.
 H2 = tightbinding_hamiltonian(l, t1 = 2, t2 = 1, t3 = 0)
 
-s = Sample(l, boundaries = BoundaryConditions(1 => true, 2 => true))
-H3 = tightbinding_hamiltonian(s)    # You can use a `Sample` or a `System` as well
+s = System(l, N = 2, T = 1)
+H3 = tightbinding_hamiltonian(s)    # You can use a `System` as well
 ```
 
 Applying magnetic field is a bit more complicated. You can use a pre-defined magnetic field from the library or define your own. In the latter case 
@@ -34,17 +34,17 @@ you must provide the number of integration steps to calculate the phase in the P
 H4 = tightbinding_hamiltonian(l, field=LandauField(0.1))
 
 # Define the very same magnetic field
-landau_field = MagneticField(n = 100) do crd
+my_landau_field = MagneticField(n = 100) do crd
     x, y = crd
     # The function must return the vector potential as a `Tuple`
     return (0, 0.1 * x)
 end
-H5 = tightbinding_hamiltonian(l, field=landau_field)
+H5 = tightbinding_hamiltonian(l, field=my_landau_field)
 ```
 The pre-defined magnetic field types include:
-- `LandauField(B::Real)` - Landau gauge uniform magnetic field
-- `SymmetricField(B::Real)` - symmetric gauge uniform magnetic field
-- `FluxField(Φ::Real, point::Tuple{Number, Number})` - point magnetic field flux through `point`.
+- `LandauField(B::Real)` - Landau gauge uniform magnetic field,
+- `SymmetricField(B::Real)` - symmetric gauge uniform magnetic field,
+- `FluxField(Φ::Real, point::NTuple{2, Number})` - point magnetic field flux through `point`.
   
 Note that using a user-defined `MagneticField` will most probably result in slower operator generation. See [Custom magnetic fields](@ref) for more info.
 
@@ -53,10 +53,10 @@ Note that using a user-defined `MagneticField` will most probably result in slow
 To create spatial coordinate operators, use the [`coord_operators`](@ref) function. If you want one specific coordinate operator, use [`coord_operator`](@ref). These functions accept a `Sample` as first argument.
 
 ```julia
-X = coord_operator(s, :x)   # X spatial coordinate operator
-J1 = coord_operator(s, :j1) # Unit cell coordinate operator
-X, Y = coord_operators(s)   # Shorthand for generating both coordinate operators
-X, Y = coord_operators(l)   # Also accepts a `Lattice` and optional internal basis
+X = coord_operator(s, :x)       # X spatial coordinate operator
+J1 = coord_operator(s, p"j1")   # Unit cell 1st coordinate operator
+X, Y = coord_operators(s)       # Shorthand for generating both coordinate operators
+X, Y = coord_operators(l)       # Also accepts a `Lattice` and optional internal basis
 ```
 
 If more fine-grained control over the hoppings is required, you can make use of transition operators:
@@ -95,7 +95,7 @@ using LatticeModels
 ```@example env
 const σ = [[0 1; 1 0], [0 -im; im 0], [1 0; 0 -1]]
 
-qwzmodel(m::LatticeValue{<:Number, <:SquareLattice}; field=NoField()) = 
+qwzmodel(m::LatticeValue{<:Number, <:SquareLattice}; field=LatticeModels.NoField()) = 
 build_hamiltonian(lattice(m), SpinBasis(1//2), field=field,
     σ[3] => m,
     (σ[3] - im * σ[1]) / 2 => Bonds(axis = 1),
@@ -124,12 +124,11 @@ m[x = 4..7] .= -1   # Except this ribbon
 H = qwzmodel(m)
 
 X, Y = coord_operators(l, SpinBasis(1//2))  # Coordinate operators
-P = densitymatrix(H)                        # Density matrix
+P = densitymatrix(H, mu = 0)                # Density matrix
 C = 4pi * im * P * X * P * Y * P
-lcm = lattice_density(C)                    # Local Chern marker
 
 using Plots
-plot(lcm)
+plot(lattice_density(C))                    # Local Chern marker
 ```
 
 !!! note
@@ -137,10 +136,83 @@ plot(lcm)
     The only difference is that a `Hamiltonian` stores information about the `System` it is defined on. It is used to build a
     density matrix in a more convenient way. 
 
+### The `Bonds` syntax
+
+The syntax to describe ways of offsetting sites in a Bravais lattice is simple: in a Bravais lattice bonds usually connect a site with its counterpart in the neighboring unit cell. Sometimes their indices in the lattice basis also differ. Thus, setting a `Bonds` means defining the connection between site indices and the unit cell offset.
+
+The connection between site indices can be set using a simple `::Int=>::Int` pair. If it is omitted, the default 
+behavior would be to connect sites with the same index. On the other hand, the unit cell offset can be set using 
+`axis` and `dist` keywords or with a vector of lattice translations. Note that `[0, 2]` will be equivalent to 
+`axis = 2, dist = 2` in this context.
+
+As an example let us consider the honeycomb lattice. It has two sites in every unit cell, so let's plot the two sublattices with two different colors.
+
+```@example env
+l = HoneycombLattice(6, 6)
+
+plot(leg=:none)
+plot!(l[p"index" => 1])
+plot!(l[p"index" => 2])
+
+plot!(l, Bonds(axis = 1), c = :green)       # dist = 1 is the default
+plot!(l, Bonds(2 => 1, [1, 0]), c = :red)   # Same unit cell offset
+plot!(l, Bonds(2 => 1), c = :blue)          # Connects sites in the same unit cell
+plot!(l, Bonds(1 => 1, [1, -1]), c = :black)# Site index #2 not affected
+```
+
 ## The `OperatorBuilder`
 
-!!! info "Docs under construction"
-    This manual page is not written yet. I'm working on that. You can watch [a video on YouTube](https://www.youtube.com/watch?v=dQw4w9WgXcQ) meanwhile.
+The [`OperatorBuilder`](@ref) it the most powerful and flexible way to create a tight-binding operator. Unlike `build_operator`, it allows direct control of what are the hopping terms between any pair of sites.
+
+Let us use this tool to create the same QWZ model hamiltonian:
+
+```julia
+spin = SpinBasis(1//2)
+builder = OperatorBuilder(l, spin, auto_hermitian=true)
+for site in l
+    site_x = site + SiteOffset(axis = 1)    # Offset site in x direction
+    site_y = site + SiteOffset(axis = 2)    # And in y direction also
+
+    builder[site, site] += sigmaz(spin) * m[site]                   # Increment
+    builder[site, site_x] = (sigmaz(spin) - im * sigmax(spin)) / 2  # Assignment
+    builder[site, site_y] = (sigmaz(spin) - im * sigmay(spin)) / 2
+end
+
+H = Hamiltonian(builder)    # The very same H from the example above
+```
+
+Let's go through this example step by step. Firstly, we created a special `OperatorBuilder` object that will take care of things like boundary conditions or magnetic field. `auto_hermitian=true` means that hermitian-conjugate terms will be added automatically.
+
+Thus, `builder[site, site] += sigmaz(spin) * m[site]` is equal to adding the $m_i c^\dagger_i \sigma_z c_i$ term to 
+the resulting Hamiltonian, where $i$ is the index of the `site`. Meanwhile, `builder[site, site_x] = (sigmaz(spin) - 
+im * sigmax(spin)) / 2` sets the horizontal hopping. Note that the right-hand side must be a `Operator` with the right 
+basis. The `SiteOffset` syntax here works exactly the same as the `Bonds` syntax. In fact, `Bonds` is simply an alias 
+for `SiteOffset`, so you can freely use one instead of another.
+
+Note that `H` will be a dense operator, which increases performance but also causes great memory consumption. For large
+Hilbert spaces consider using `SparseMatrixBuilder` instead to reduce the amount of used memory (al other operations 
+remain intact). However, in this case you may experience a significant performance drop. To mitigate this effect, you
+can use the `FastSparseOperatorConstructor`. However, you must follow these rules for correct usage:
+
+- Do not use assignments `builder[site1, site2] = ...`. Only increments `builder[site1, site2] += ...` are allowed.
+- All increment operations (or the block of code that contains them) must be wrapped with the `@increment` macro.
+
+The resulting code will look like this:
+
+```julia
+spin = SpinBasis(1//2)
+builder = FastSparseOperatorBuilder(l, spin, auto_hermitian=true)
+@increment for site in l
+    site_x = site + SiteOffset(axis = 1)
+    site_y = site + SiteOffset(axis = 2)
+
+    builder[site, site] += sigmaz(spin) * m[site]
+    builder[site, site_x] += (sigmaz(spin) - im * sigmax(spin)) / 2
+    builder[site, site_y] += (sigmaz(spin) - im * sigmay(spin)) / 2
+end
+
+H = Hamiltonian(builder)    # The very same H from the example above
+```
 
 ## Diagonalizing operators
 
@@ -151,7 +223,7 @@ A `Eigensystem` object contains eigenvalues and eigenvectors of some hermitian o
 
 It is a very convenient way to work with eigenvectors. Check this out:
 
-```@repl env
+```@example env
 dg = diagonalize(tightbinding_hamiltonian(SquareLattice(5, 5)))
 dg[1]       # Get the first eigenstate (e. g. the state with lowest energy)
 dg[3]       # Get the third eigenstate
@@ -167,7 +239,7 @@ You can use [`densitymatrix`](@ref) or [`projector`](@ref) (only in zero-tempera
 P = projector(E -> E < 0, dg)
 P = projector(diag_filled)              # The same thing
 P = densitymatrix(dg, μ = 0, T = 0)     # The same thing
-P = densitymatrix(dg)                   # The same thing
+P = densitymatrix(dg, mu = 0)           # The same thing
 ```
 
 !!! warning
@@ -180,14 +252,12 @@ The DOS is the imaginary part of $\text{tr}\left(\frac{1}{\hat{H} - E - i\delta}
 It's highly recommended to use the built-in [`dos`](@ref) and [`ldos`](@ref) functions, because the `Eigensystem` object stores the $\hat{H}$ operator already diagonalized, which makes calculations much faster.
 
 ```@example env
-using Plots
-
 p = plot(layout=@layout[_ a{0.5w} _; grid(1, 2)], size=(800, 800))
-plot!(p[1], -4:0.1:4, dos(sp, 0.2), title="DOS with δ = 0.2")
-plot!(p[2], ldos(sp, 1, 0.2), title="LDOS at E = 1 with δ = 0.2")
+plot!(p[1], -4:0.1:4, dos(dg, 0.2), title="DOS with δ = 0.2")
+plot!(p[2], ldos(dg, 1, 0.2), title="LDOS at E = 1 with δ = 0.2")
 
 # These two lines produce exactly the same result as the previous
-ldos_fun = ldos(sp, 0.2)
+ldos_fun = ldos(dg, 0.2)
 plot!(p[3], ldos_fun(1), title="LDOS at E = 1 with δ = 0.2 (via function)")
 ```
 

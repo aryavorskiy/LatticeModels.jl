@@ -1,89 +1,368 @@
-using StaticArrays
+using SparseArrays, FillArrays, StaticArrays, Printf
 
-const SingleBond{N} = Pair{LatticeSite{N}, LatticeSite{N}}
+const SingleBond{LT<:AbstractSite} = Pair{LT, LT}
 
 """
-    SiteOffset{T, N}
+    AbstractBonds{LT}
 
-A struct representing bonds in some direction in a lattice.
+An abstract type for bonds on some lattice.
 
----
-    SiteOffset([site_indices, ]translate_uc)
+## Methods for subtypes to implement
+- `lattice(bonds::AbstractBonds)`: Returns the lattice where the bonds are defined.
+- `isadjacent(bonds::AbstractBonds, site1::AbstractSite, site2::AbstractSite)`:
+    Returns if the sites are connected by the bonds.
 
-Constructs a `SiteOffset` object.
-
-## Arguments:
-- `site_indices`: a `::Int => ::Int` pair with indices of sites connected by the bond.
-When not defined, the resulting `bonds` object will connect site with any basis index to
-a site with the same basis index, but in another unit cell.
-- `translate_uc`: the unit cell offset.
-
-If `site_indices` are equal or undefined and `translate_uc` is zero, the bond connects
-each site with itself. In this case an error will be thrown.
-Note that though the dimension count for the bond is static, it is automatically compatible to higher-dimensional lattices.
+## Optional methods for subtypes to implement
+- `adapt_bonds(bonds::AbstractBonds, l::AbstractLattice)`
 """
-struct SiteOffset{T, N}
-    site_indices::T
-    translate_uc::SVector{N, Int}
-    function SiteOffset(site_indices::Pair{Int, Int}, tr_uc::AbstractVector)
-        any(<(1), site_indices) && throw(ArgumentError("Positive site indices expected"))
-        iszero(tr_uc) && ==(site_indices...) && throw(ArgumentError("bond connects site to itself"))
-        new{Pair{Int, Int}, length(tr_uc)}(site_indices, tr_uc)
+abstract type AbstractBonds{LatticeT} end
+lattice(bonds::AbstractBonds) = bonds.lat
+dims(bonds::AbstractBonds) = dims(lattice(bonds))
+function isadjacent end
+isadjacent(bonds::AbstractBonds, s1::ResolvedSite, s2::ResolvedSite) =
+    isadjacent(bonds, s1.site, s2.site)
+Base.getindex(bonds::AbstractBonds, site1::AbstractSite, site2::AbstractSite) =
+    isadjacent(bonds, site1, site2)
+
+"""
+    adapt_bonds(bonds, lat)
+
+Adapt the bonds to the lattice `lat`. The output can be a different type of
+bonds, more fitting for the concrete type of lattice.
+"""
+adapt_bonds(any, l::AbstractLattice) =
+    throw(ArgumentError(
+        sprint(show, "text/plain", any, context=(:compact=>true)) *
+        " cannot be interpreted as bonds on " *
+        sprint(show, "text/plain", l, context=(:compact=>true))))
+function adapt_bonds(bonds::AbstractBonds{<:AbstractLattice}, l::AbstractLattice)
+    check_samelattice(l, lattice(bonds))
+    return bonds
+end
+
+@inline directed_destinations(bonds::AbstractBonds, site::AbstractSite) =
+    (site2 for site2 in lattice(bonds) if isadjacent(bonds, site, site2) && site2 > site)
+@inline directed_destinations(bonds::AbstractBonds, rs::ResolvedSite) = directed_destinations(bonds, rs.site)
+
+function Base.iterate(bonds::AbstractBonds)
+    isempty(lattice(bonds)) && return nothing
+    l = lattice(bonds)
+    isempty(l) && return nothing
+    targets = directed_destinations(bonds, first(l))
+    jst = iterate(targets)
+    return iterate(bonds, (1, targets, jst))
+end
+
+@inline function Base.iterate(bonds::AbstractBonds, state)
+    i, targets, jst = state
+    l = lattice(bonds)
+    i > length(l) && return nothing
+    if jst === nothing
+        i += 1
+        i > length(l) && return nothing
+        targets = directed_destinations(bonds, resolve_site(l, i))
+        jst = iterate(targets)
     end
-    function SiteOffset(tr_uc::AbstractVector)
-        iszero(tr_uc) && throw(ArgumentError("bond connects site to itself"))
-        new{Nothing, length(tr_uc)}(nothing, tr_uc)
+    jst === nothing && return iterate(bonds, (i, targets, jst))
+
+    rs = resolve_site(l, i)
+    rs2 = resolve_site(l, jst[1])
+    jst = iterate(targets, jst[2])
+
+    rs2 === nothing && return iterate(bonds, (i, targets, jst))
+    return rs => rs2, (i, targets, jst)
+end
+
+"""
+    site_distance([lat, ]site1, site2)
+Returns the distance between two sites on the `lat` lattice, taking boundary conditions into account.
+
+# Arguments
+- `lat`: The lattice where the sites are defined.
+- `site1` and `site2`: The sites to measure the distance between.
+"""
+site_distance(::AbstractLattice, site1::AbstractSite, site2::AbstractSite) =
+    norm(site1.coords - site2.coords)
+site_distance(site1, site2) = site_distance(UndefinedLattice(), site1, site2)
+
+"""
+    SiteDistance(f, lat)
+
+A bonds type that connects sites based on the distance between them.
+
+# Arguments
+- `f`: A function that takes a distance and returns if the distance is allowed.
+- `lat`: The lattice where the bonds are defined.
+"""
+struct SiteDistance{LT, FT} <: AbstractBonds{LT}
+    f::Function
+    lat::LT
+end
+
+isadjacent(bonds::SiteDistance, s1::AbstractSite, s2::AbstractSite) =
+    bonds.f(site_distance(bonds.lat, s1, s2))
+adapt_bonds(bonds::SiteDistance, ::AbstractLattice) = bonds
+
+"""
+    AdjacencyMatrix{LT} where {LT<:Lattice}
+
+Represents the bonds on some lattice.
+"""
+struct AdjacencyMatrix{LT,MT} <: AbstractBonds{LT}
+    lat::LT
+    mat::MT
+    function AdjacencyMatrix(lat::LT, mat::MT) where {LT<:AbstractLattice,MT<:AbstractMatrix{Bool}}
+        @check_size mat :square
+        @check_size lat size(mat, 1)
+        eye = spdiagm(Fill(true, length(lat)))
+        new{LT,MT}(lat, dropzeros((mat .| transpose(mat)) .& .!eye))
+    end
+    function AdjacencyMatrix(l::AbstractLattice)
+        AdjacencyMatrix(l, spzeros(length(l), length(l)))
     end
 end
-SiteOffset(::Nothing, tr_uc) = SiteOffset(tr_uc)
+function adapt_bonds(b::AdjacencyMatrix, l::AbstractLattice)
+    if l == lattice(b)
+        return b
+    else
+        inds = Int[]
+        ext_inds = Int[]
+        for (i, site) in enumerate(lattice(b))
+            j = site_index(l, site)
+            if j !== nothing
+                push!(inds, i)
+                push!(ext_inds, j)
+            end
+        end
+        new_mat = spzeros(Bool, length(l), length(l))
+        new_mat[ext_inds, ext_inds] = b.mat[inds, inds]
+        return AdjacencyMatrix(l, new_mat)
+    end
+end
+
+function isadjacent(am::AdjacencyMatrix, site1::AbstractSite, site2::AbstractSite)
+    rs1 = resolve_site(am.lat, site1)
+    rs1 === nothing && return false
+    rs2 = resolve_site(am.lat, site2)
+    rs2 === nothing && return false
+    return isadjacent(am, rs1, rs2)
+end
+isadjacent(am::AdjacencyMatrix, s1::ResolvedSite, s2::ResolvedSite) = am.mat[s1.index, s2.index]
+
+@inline directed_destinations(am::AdjacencyMatrix, rs::ResolvedSite) =
+    (j for j in rs.index + 1:length(lattice(am)) if am.mat[rs.index, j])
+@inline function directed_destinations(am::AdjacencyMatrix{<:SparseMatrixCSC}, rs::ResolvedSite)
+    i = am.mat.colptr[rs.index]
+    j = am.mat.colptr[rs.index + 1]
+    st = findfirst(>(rs.index), @view(am.mat.rowval[i:j]))
+    st === nothing && return @view am.mat.rowval[j:j-1]
+    @view am.mat.rowval[i + st:j - 1]
+end
+
+function Base.setindex!(b::AdjacencyMatrix, v, site1::AbstractSite, site2::AbstractSite)
+    rs1 = resolve_site(b.lat, site1)
+    rs1 === nothing && return nothing
+    rs2 = resolve_site(b.lat, site2)
+    rs2 === nothing && return nothing
+    setindex!(b, v, rs1, rs2)
+end
+function Base.setindex!(b::AdjacencyMatrix, v, s1::ResolvedSite, s2::ResolvedSite)
+    b.mat[s1.index, s2.index] = v
+    b.mat[s2.index, s1.index] = v
+end
+
+function Base.union(am::AdjacencyMatrix, ams::AdjacencyMatrix...)
+    l = lattice(am)
+    for _am in ams
+        check_samelattice(l, lattice(_am))
+    end
+    return AdjacencyMatrix(l, .|(am.mat, getfield.(ams, :mat)...))
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", am::AdjacencyMatrix)
+    indent = getindent(io)
+    print(io, indent, "Adjacency matrix on ")
+    summary(io, am.lat)
+    requires_compact(io) && return
+    print(io, "\n", indent, "Values in a ")
+    show(io, mime, am.mat)
+end
 
 """
-    SiteOffset(site_indices)
-    SiteOffset([site_indices; ]axis[, dist=1])
+    adjacentsites(bonds, site)
 
-A convenient constructor for a `SiteOffset` object. `site_indices` is `1 => 1` by default.
-
-`site_indices` is a `::Int => ::Int` pair with indices of sites connected by the bond; `1 => 1` is the default value.
-
-**Keyword arguments:**
-- `axis`: The hopping direction axis in terms of unit cell vectors.
-- `dist`: The hopping distance in terms of
+Returns the sites that are connected to `site` by the `bonds`.
 """
-function SiteOffset(site_indices::Nullable{Pair{Int,Int}}=nothing; axis=0, dist=1)
-    axis == 0 && return SiteOffset(site_indices, [])
-    SiteOffset(site_indices, one_hot(axis, axis) * dist)
+function adjacentsites(am::AdjacencyMatrix, site::AbstractSite)
+    SiteT = eltype(lattice(am))
+    rs = resolve_site(am.lat, site)
+    rs === nothing && return SiteT[]
+    return [rs2.site for rs2 in adjacentsites(am, rs)]
 end
-const Bonds{N} = SiteOffset{N}
-
-Base.:(==)(h1::SiteOffset, h2::SiteOffset) =
-    all(getproperty(h1, fn) == getproperty(h2, fn) for fn in fieldnames(SiteOffset))
-
-function Base.show(io::IO, ::MIME"text/plain", hop::SiteOffset{<:Pair})
-    println(io, "SiteOffset connecting site #$(hop.site_indices[1]) with site #$(hop.site_indices[1]) translated by $(hop.translate_uc)")
+function adjacentsites(am::AdjacencyMatrix, rs::ResolvedSite)
+    l = lattice(am)
+    return [ResolvedSite(l[i], i) for i in findall(i->am.mat[rs.index, i], eachindex(l))]
 end
-function Base.show(io::IO, ::MIME"text/plain", hop::SiteOffset{<:Nothing})
-    println(io, "SiteOffset connecting sites translated by $(hop.translate_uc)")
-end
-dims(::SiteOffset{T, N} where T) where N = N
 
 """
-    radius_vector(l::Lattice, hop::SiteOffset)
-Finds the vector between two sites on a lattice according to possibly periodic boundary conditions
-(`site2` will be translated along the macrocell to minimize the distance between them).
+    adjacency_matrix([lat, ]bonds...)
+
+Constructs an adjacency matrix from the `bonds`. If `lat` is not provided, it is inferred from the `bonds`.
 """
-function radius_vector(l::Lattice, hop::SiteOffset{<:Pair})
-    i, j = hop.site_indices
-    return bravais(l).basis[:, j] - bravais(l).basis[:, i] +
-     mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
+function adjacency_matrix(bonds::AbstractBonds, more_bonds::AbstractBonds...)
+    l = lattice(bonds)
+    foreach(more_bonds) do b
+        check_samelattice(l, lattice(b))
+    end
+    Is = Int[]
+    Js = Int[]
+    for adj in tuple(bonds, more_bonds...)
+        for (s1, s2) in adj
+            push!(Is, s1.index)
+            push!(Js, s2.index)
+        end
+    end
+    return AdjacencyMatrix(l, sparse(Is, Js, Fill(true, length(Is)), length(l), length(l), (i,j)->j))
 end
-radius_vector(l::Lattice, hop::SiteOffset{Nothing}) =
-    mm_assuming_zeros(bravais(l).translation_vectors, hop.translate_uc)
+adjacency_matrix(l::AbstractLattice, bonds::AbstractBonds...) =
+    adjacency_matrix((adapt_bonds(b, l) for b in bonds)...)
 
-@inline function Base.:(+)(lp::LatticePointer, bs::SiteOffset{<:Pair})
-    bs.site_indices[1] != lp.basis_index && return nothing
-    return LatticePointer(add_assuming_zeros(lp.unit_cell, bs.translate_uc), bs.site_indices[2])
+"""
+    UndefinedLattice
+
+A lattice that is not defined.
+The bonds can be 'defined' on it in context where the lattice is already defined before,
+e. g. in `construct_operator`.
+"""
+struct UndefinedLattice <: AbstractLattice{NoSite} end
+Base.iterate(::UndefinedLattice) = nothing
+Base.length(::UndefinedLattice) = 0
+
+"""
+    DirectedBonds{LT} <: AbstractBonds{LT}
+
+An abstract type for bonds on some lattice that have a direction.
+
+## Methods for subtypes to implement
+- `lattice(bonds::DirectionalBonds)`: Returns the lattice where the bonds are defined.
+- `destinations(bonds::DirectionalBonds, site::AbstractSite)`: Returns the sites where the
+`site` is connected to, accounting for the direction of the bonds.
+"""
+abstract type DirectedBonds{LT} <: AbstractBonds{LT} end
+function destinations end
+function isadjacent(bonds::DirectedBonds, site1::AbstractSite, site2::AbstractSite)
+    return site2 in destinations(bonds, site1) || site1 in destinations(bonds, site2)
 end
-@inline Base.:(+)(lp::LatticePointer, bs::SiteOffset{<:Nothing}) =
-    return LatticePointer(add_assuming_zeros(lp.unit_cell, bs.translate_uc), lp.basis_index)
+directed_destinations(bonds::DirectedBonds, site::AbstractSite) =
+    destinations(bonds, site)
+function destination(db::DirectedBonds, site::AbstractSite)
+    counter = 0
+    ret = NoSite()
+    for dest in destinations(db, site)
+        if dest !== NoSite()
+            ret = dest
+            counter += 1
+            counter > 1 &&
+                throw(ArgumentError("The site $site has more than one destination."))
+        end
+    end
+    return ret
+end
+Base.inv(::DirectedBonds) = throw(ArgumentError("Inverse of the translation is not defined."))
+adjacentsites(bonds::DirectedBonds, site::AbstractSite) =
+    Base.Iterators.flatten((destinations(bonds, site), destinations(inv(bonds), site)))
 
-@inline Base.:(+)(site::LatticeSite, bs) = site.lp + bs
+
+"""
+    AbstractTranslation{LT}
+
+An abstract type for translations on some lattice.
+
+## Methods for subtypes to implement
+- `lattice(bonds::AbstractTranslation)`: Returns the lattice where the translations are defined.
+- `destination(bonds::AbstractTranslation, site::AbstractSite)`: Returns the site where the `site` is translated to.
+
+## Optional methods for subtypes to implement
+- `adapt_bonds(bonds::AbstractTranslation, l::AbstractLattice)`:
+    Adapt the translation to the lattice `l`. The output can be a different type of
+    translation, more fitting for the concrete type of lattice.
+- `inv(bonds::AbstractTranslation)`: Returns the inverse of the translation, if any.
+"""
+abstract type AbstractTranslation{LT} <: DirectedBonds{LT} end
+destinations(bonds::AbstractTranslation, site::AbstractSite) = (destination(bonds, site),)
+@inline function Base.iterate(bonds::AbstractTranslation, i = 1)
+    l = lattice(bonds)
+    i > length(l) && return nothing
+    dest = destination(bonds, l[i])
+    s2 = resolve_site(l, dest)
+    s2 === nothing && return iterate(bonds, i + 1)
+    return ResolvedSite(l[i], i) => s2, i + 1
+end
+adjacentsites(bonds::AbstractTranslation, site::AbstractSite) =
+    (destination(bonds, site), destination(inv(bonds), site))
+
+Base.:(+)(site::AbstractSite, bonds::AbstractTranslation) = destination(bonds, site)
+Base.:(+)(::AbstractSite, ::AbstractTranslation{UndefinedLattice}) =
+    throw(ArgumentError("Using a `AbstractBonds`-type object on undefined lattice is allowed only in `construct_operator`. Please define the lattice."))
+Base.:(-)(bonds::AbstractTranslation) = inv(bonds)
+Base.:(-)(site::AbstractSite, bonds::AbstractTranslation) = destination(inv(bonds), site)
+
+"""
+    Translation <: AbstractTranslation
+
+A spatial translation on some lattice.
+
+## Fields
+- `lat`: The lattice where the translations are defined.
+- `R`: The vector of the translation.
+"""
+struct Translation{LT, N} <: AbstractTranslation{LT}
+    lat::LT
+    R::SVector{N, Float64}
+    function Translation(lat::LT, R::AbstractVector{<:Number}) where
+            {N, LT<:AbstractLattice{<:AbstractSite{N}}}
+        @check_size R N
+        new{LT, N}(lat, SVector{N}(R))
+    end
+    function Translation(R::AbstractVector{<:Number})
+        n = length(R)
+        new{UndefinedLattice, n}(UndefinedLattice(), SVector{n}(R))
+    end
+end
+adapt_bonds(bonds::Translation, l::AbstractLattice) = Translation(l, bonds.R)
+adapt_bonds(bonds::Translation, ::UndefinedLattice) = Translation(bonds.R)
+function destination(sh::Translation, site::AbstractSite)
+    for dest in lattice(sh)
+        if isapprox(site.coords + sh.R, dest.coords, atol=√eps())
+            return dest
+        end
+    end
+    return NoSite()
+end
+dims(::Translation{UndefinedLattice, N}) where N = N
+
+isadjacent(sh::Translation, site1::AbstractSite, site2::AbstractSite) =
+    isapprox(site2.coords - site1.coords, sh.R, atol=√eps())
+Base.inv(sh::Translation) = Translation(sh.lat, -sh.R)
+
+Base.summary(io::IO, sh::Translation) = print(io, "Translation by ", sh.R)
+function Base.show(io::IO, ::MIME"text/plain", sh::Translation)
+    indent = getindent(io)
+    print(io, indent)
+    summary(io, sh)
+    requires_compact(io) && return
+    if !(sh.lat isa UndefinedLattice)
+        print(io, "\n", indent, " on ")
+        summary(io, sh.lat)
+    end
+end
+
+function translate_lattice(l::AbstractLattice, tr::AbstractTranslation)
+    e = Base.emptymutable(l, eltype(l))
+    ntr = adapt_bonds(tr, l)
+    for site in l
+        push!(e, destination(ntr, site))
+    end
+    return e
+end
+Base.:(+)(l::AbstractLattice, tr::AbstractTranslation) = translate_lattice(l, tr)

@@ -54,7 +54,7 @@ h(B) = tightbinding_hamiltonian(l, field=FluxField(B))
 diag = diagonalize(h(0))
 
 # Find density matrix for filled bands (e. g. energy < 0)
-P_0 = densitymatrix(diag)
+P_0 = densitymatrix(diag, mu = 0)
 # Perform unitary evolution
 τ = 10
 a = Animation()
@@ -106,7 +106,7 @@ H2 = qwz(M)
 X, Y = coord_operators(l, 2)
 
 sp = diagonalize(H1)
-P_0 = densitymatrix(sp)
+P_0 = densitymatrix(sp, mu = 0)
 
 τ = 10
 a = Animation()
