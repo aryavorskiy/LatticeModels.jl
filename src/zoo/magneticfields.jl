@@ -62,14 +62,20 @@ function vector_potential(field::PointFlux{:axial}, p1)
     normsq = (x^2 + y^2)
     SA[-y, x] / normsq * field.flux
 end
+const FLUX_WARNING = "Hopping line goes through the point of the delta flux, numerical errors possible"
 function line_integral(field::PointFlux{:axial}, p1, p2)
     Pv = SVector(field.point)
     p1 = p1[1:2] - Pv
     p2 = p2[1:2] - Pv
-    if iszero(p1) || iszero(p2)
-        return 0.0
+    if norm(p1) < 1e-11 || norm(p2) < 1e-11
+        @warn FLUX_WARNING
+        return zero(field.flux)
     end
-    asin((1 - 1e-11) * det(hcat(p1, p2)) / norm(p1) / norm(p2)) * field.flux
+    nnorm = norm(p1) * norm(p2)
+    anglesinsign = det(hcat(p1, p2))
+    anglecos = dot(p1, p2) / nnorm / (1 + 1e-11)
+    angle = acos(anglecos) * sign(anglesinsign)
+    return angle * field.flux / 2pi
 end
 function vector_potential(::PointFlux{:singular}, p1)
     throw(ArgumentError("Vector potential for a point flux is singular"))
@@ -78,11 +84,17 @@ function line_integral(field::PointFlux{:singular}, p1, p2)
     Pv = SVector(field.point)
     x1, y1 = p1[1:2] - Pv
     x2, y2 = p2[1:2] - Pv
-    x1 ≈ x2 && return 0.0
+    sg = x2 - x1
+    if abs(sg) < 1e-11
+        abs(x1) < 1e-11 && y1 * y2 ≤ 0 && @warn FLUX_WARNING
+        return zero(field.flux)
+    end
+    if x1 * x2 > 0 || iszero(max(x1, x2))
+        return zero(field.flux)
+    end
     yintercept = (- y1 * x2 + y2 * x1) / (x1 - x2)
-    yintercept == 0 &&
-        @warn "Hopping line goes through the point of the delta flux, numerical errors possible"
-    yintercept > 0 ? 0.0 : field.flux
+    abs(yintercept) < 1e-11 && @warn FLUX_WARNING
+    yintercept > 0 ? zero(field.flux) : field.flux * sign(sg)
 end
 Base.show(io::IO, ::MIME"text/plain", field::PointFlux) =
     print(io, "Delta flux field through point $(field.point), $(field.gauge) gauge; Φ = $(field.flux) flux quanta")

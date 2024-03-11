@@ -14,7 +14,7 @@
     end
 
     @test begin
-        l = HoneycombLattice(10, 10, boundaries = (:axis1 => true))
+        l = GrapheneRibbon(10, 5, rotate=pi/2)
         H = haldane(l, 1, 1, 1)
         P = densitymatrix(diagonalize(H), statistics=BoseEinstein)
         X, Y = coordoperators(basis(H))
@@ -24,7 +24,7 @@
     end
 
     @test begin
-        l = SquareLattice(10, 10)
+        l = SquareLattice(10, 10, boundaries = (:axis1 => true))
         spin = SpinBasis(1//2)
         phasespace = l ⊗ spin
         H0 = construct_hamiltonian(phasespace,

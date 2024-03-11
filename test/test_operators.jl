@@ -96,6 +96,12 @@
         end
         @test IS1 == IS2
         @test IS2 == IS3
+
+        H = bosehubbard(l, 1)
+        d1 = localdensity(groundstate(H))
+        H2 = bosehubbard(l, 2)
+        d2 = localdensity(groundstate(H2))
+        @test d1.values * 2 ≈ d2.values
     end
 
     @testset "Diagonalize" begin
@@ -113,6 +119,10 @@
         e3 = union(e1, e2)
         @test e3.values ≈ eig.values[1:6]
         @test e3.states ≈ eig.states[:, 1:6]
+
+        d1 = diagonalize(qwz(l, field=PointFlux(0.1, (3.5, 3.5))))
+        d2 = diagonalize(qwz(l, field=PointFlux(0.1, (3.5, 3.5), gauge=:singular)))
+        @test d1.values ≈ d2.values
     end
 
     @testset "Green's function" begin
