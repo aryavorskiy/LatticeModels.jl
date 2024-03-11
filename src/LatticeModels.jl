@@ -12,11 +12,11 @@ const Nullable{T} = Union{Nothing,T}
 
 include("core/utils.jl")
 include("core/lattice.jl")
-export lattice, sublattice, site_index, Coord
+export lattice, site_index, Coord
 include("core/bonds.jl")
 export adjacency_matrix, site_distance, adjacentsites, SiteDistance, Translation
 include("core/boundaries.jl")
-export BoundaryConditions, PeriodicBoundary, TwistedBoundary, FunctionBoundary
+export BoundaryConditions, PeriodicBoundary, TwistedBoundary, FunctionBoundary, setboundaries
 include("core/lookuptable.jl")
 export addlookuptable
 include("core/latticevalue.jl")
@@ -29,7 +29,7 @@ export GenericLattice, GenericSite
 include("lattices/bravais/unitcell.jl")
 export UnitCell, LatticeCoord, BasisIndex
 include("lattices/bravais/lattice.jl")
-export add_boundaries, span_unitcells
+export span_unitcells
 include("lattices/bravais/bonds.jl")
 export BravaisTranslation, Bravais
 include("lattices/bravais/nearestneighbor.jl")

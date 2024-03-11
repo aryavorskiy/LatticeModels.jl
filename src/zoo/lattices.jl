@@ -168,7 +168,7 @@ getshape(l::BravaisLattice, ::Type{HoneycombLattice}) =
 Construct a graphene ribbon sample with zigzag edges.
 To get armchair edges, simply rotate the lattice by 90 degrees.
 
-## Arguments:
+## Arguments
 - `len`: the length of the ribbon.
 - `wid`: the width of the ribbon.
 - `center`: the unit cell coordinates of the bottom-left corner of the ribbon. Default is `(0, 0)`.

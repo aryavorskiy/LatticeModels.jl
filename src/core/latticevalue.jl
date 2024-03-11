@@ -46,15 +46,35 @@ LatticeValue(l::AbstractLattice, v::AbstractVector) = LatticeValueWrapper(l, con
 LatticeValue(lf, l::AbstractLattice) = LatticeValueWrapper(l, [lf(site) for site in l])
 
 """
-    coord_values(l::Lattice)
+    coord_values(lat)
 
-Generates a tuple of `LatticeValue`s representing spatial coordinates.
+Generates a tuple of `LatticeValue`s representing spatial coordinates on lattice `lat`.
 """
 coord_values(l::AbstractLattice) =
     [LatticeValue(l, vec) for vec in eachrow(collect_coords(l))]
+
+"""
+    siteproperty_value(lat, prop)
+
+Generates a `LatticeValue` representing the site property `prop` on lattice `lat`.
+
+## Arguments
+- `lat`: the lattice the value is defined on.
+- `prop`: the `SiteProperty` to be represented. Can be a `SiteProperty` or a `Symbol` defining it.
+"""
 siteproperty_value(l::AbstractLattice, a::SiteProperty) = LatticeValue(l, [getsiteproperty(site, a) for site in l])
 siteproperty_value(l::AbstractLattice, sym::Symbol) =
     siteproperty_value(l, SitePropertyAlias{sym}())
+
+"""
+    coord_value(lat, coord)
+
+Generates a `LatticeValue` representing the spatial coordinate `coord` on lattice `lat`.
+
+## Arguments
+- `lat`: the lattice the value is defined on.
+- `coord`: the coordinate to be represented. Can be an integer or a symbol.
+"""
 coord_value(l::AbstractLattice, i::Int) = siteproperty_value(l, Coord(i))
 coord_value(l::AbstractLattice, sym::Symbol) = siteproperty_value(l, SitePropertyAlias{sym}())
 

@@ -1,6 +1,7 @@
 """
     TimeSequence{ET}
-Series of some data depending on time.
+
+A time-ordered sequence of values.
 """
 struct TimeSequence{ET} <: AbstractDict{Float64, ET}
     times::Vector{Float64}
@@ -13,12 +14,21 @@ struct TimeSequence{ET} <: AbstractDict{Float64, ET}
 end
 """
     TimeSequence(times, values)
-Constructs a TimeSequence with given timestamps and values.
+
+Constructs a `TimeSequence` with the given `times` and `values`.
 """
 TimeSequence(ts, vs::AbstractVector) = TimeSequence{eltype(vs)}(ts, vs)
+
+"""
+    TimeSequence{ET}()
+
+Constructs an empty `TimeSequence` with eltype `ET`.
+"""
 TimeSequence{ET}() where ET = TimeSequence{ET}(Float64[], ET[])
+
 """
     TimeSequence(value[; t=0])
+
 Constructs a TimeSequence with one single snapshot.
 The timestamp is zero by default but can be over
 riden.

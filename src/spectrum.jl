@@ -77,7 +77,7 @@ Two routines are available:
     Accepts following parameters:
     - `v0` is the starting vector. Default is `rand(ComplexF64, size(op.data, 1))`.
     - `n` is the target number of eigenvectors. Default is 10.
-    Remaining keyword arguments are passed to the `KrylovKit.eigsolve` function. See its documentation for details.
+    All other keyword arguments are passed to the `KrylovKit.eigsolve` function. See its documentation for details.
 - `:auto` automatically selects the routine based on the size of the operator.
 
 The default routine is `:lapack` for dense operators. If the operator matrix is less than
@@ -106,6 +106,7 @@ Base.getindex(eig::AbstractEigensystem, mask::AbstractVector) =
     Eigensystem(eig.basis, eig.states[:, mask], eig.values[mask])
 Base.getindex(eig::HamiltonianEigensystem, mask::AbstractVector) =
     HamiltonianEigensystem(eig.sys, eig.basis, eig.states[:, mask], eig.values[mask])
+Base.extrema(eig::AbstractEigensystem) = eig.values[begin], eig.values[end]
 sample(eig::AbstractEigensystem) = sample(eig.basis)
 sample(eig::HamiltonianEigensystem) = sample(eig.sys)
 QuantumOpticsBase.basis(eig::AbstractEigensystem) = eig.basis
@@ -172,24 +173,30 @@ findgroundstate(ham::Hamiltonian) = findgroundstate(diagonalize(ham))
     groundstate(ham::Hamiltonian)
 
 Finds the ground state of a Hamiltonian. Returns the state.
+
+## Example
+```julia
+eig = diagonalize(ham)
+ψ = groundstate(eig)
+```
 """
 groundstate(any) = findgroundstate(any)[2]
 
-@doc raw"""
+"""
     projector(eig::Eigensystem)
 
 returns an `Operator` that projects onto the eigenvectors of the spectrum, defined by the formula below.
 
-$$\hat{\mathcal{P}} = \sum_i |\psi_i⟩⟨\psi_i|$$
+``\hat{\mathcal{P}} = \sum_i |\psi_i⟩⟨\psi_i|``
 """
 projector(eig::AbstractEigensystem) = Operator(eig.basis, eig.states * eig.states')
 
-@doc raw"""
+"""
     projector(f, eig::Eigensystem)
 
 Returns an `Operator` representing a function applied to the diagonalized operator defined by the formula below:
 
-$$\hat{\mathcal{P}} = \sum_i f(A_i) |\psi_i⟩⟨\psi_i|$$
+``\hat{\mathcal{P}} = \sum_i f(A_i) |\psi_i⟩⟨\psi_i|``
 """
 function projector(f, eig::AbstractEigensystem)
     Operator(eig.basis, eig.states * (f.(eig.values) .* eig.states'))
@@ -202,46 +209,60 @@ end
     return E -> -exp((E - mu) / T) / T / (exp((E - mu) / T) + Int(statistics))^2
 end
 
-function groundstate_densitymatrix(eig::AbstractEigensystem)
+const DISABLE_INFO = "; set `info=false` to disable this message"
+function groundstate_densitymatrix(eig::AbstractEigensystem; info=true)
+    info && @info "Creating density matrix: ground state" * DISABLE_INFO
     ψ = groundstate(eig)
     return (ψ ⊗ ψ')
 end
-function gibbs_densitymatrix(eig::AbstractEigensystem; T::Real=0)
+function gibbs_densitymatrix(eig::AbstractEigensystem; T::Real=0, info=true)
+    info && @info "Creating density matrix: Gibbs distribution, T = $T" * DISABLE_INFO
     if T == 0
-        return groundstate_densitymatrix(eig)
+        return groundstate_densitymatrix(eig, info=false)
     else
         Z = sum(E -> exp(-E / T), eig.values)
         return projector(E -> exp(-E / T) / Z, eig)
     end
 end
 function ensemble_densitymatrix(eig::AbstractEigensystem;
-        μ::Real=0, mu::Real=μ, T::Real=0, statistics::ParticleStatistics=FermiDirac)
+        μ::Real=0, mu::Real=μ, T::Real=0, statistics::ParticleStatistics=FermiDirac, info=true)
+    info && @info "Creating density matrix: $statistics distribution, T = $T, μ = $mu" * DISABLE_INFO
     return projector(densfun(T, mu, statistics), eig)
 end
-function fermisphere_densitymatrix(eig::AbstractEigensystem; N::Int)
-    length(Es) < N &&
+function fermisphere_densitymatrix(eig::AbstractEigensystem; N::Int, info=true)
+    info && @info "Creating density matrix: Fermi sphere, N = $N" * DISABLE_INFO
+    length(eig) < N &&
         throw(ArgumentError("cannot build Fermi sphere with $N particles: only $(length(Es)) bands present"))
-    length(Es) == N && return projector(ham_eig)
-    Es[N] ≈ Es[N+1] && @warn "degenerate levels on the Fermi sphere"
+    length(eig) == N && return projector(eig)
+    eig.values[N] ≈ eig.values[N+1] && @warn "degenerate levels on the Fermi sphere"
     return projector(eig[1:N])
 end
 function fixn_densitymatrix(eig::AbstractEigensystem;
-        T::Real=0, N::Int, statistics::ParticleStatistics=FermiDirac, maxiter=1000, atol=√eps())
+        T::Real=0, N::Int, statistics::ParticleStatistics=FermiDirac, maxiter=1000, atol=√eps(), info=true)
+    if T ≈ 0
+        if statistics == BoseEinstein
+            # condensate
+            return groundstate_densitymatrix(eig, info=info) * N
+        else
+            # Fermi sphere
+            return fermisphere_densitymatrix(eig; N=N, info=info)
+        end
+    end
+    info && @info "Creating density matrix: $statistics distribution, N = $N (μ found automatically), T = $T"  * DISABLE_INFO
     Es = eig.values
-    T ≈ 0 && @warn "chempotential detection may fail on low temperatures"
     newmu = 0.
     for _ in 1:maxiter
         N_ev = sum(densfun(T, newmu, statistics), Es)
         dN_ev = sum(ddensfun(T, newmu, statistics), Es)
         dMu = (N_ev - N) / dN_ev
-        abs(dMu) < atol && return ensemble_densitymatrix(eig; T=T, statistics=statistics, mu=newmu)
+        abs(dMu) < atol && return ensemble_densitymatrix(eig; T=T, statistics=statistics, mu=newmu, info=false)
         newmu += dMu
     end
     throw(ArgumentError("did not converge"))
 end
 
 """
-    densitymatrix(eig::Eigensystem[; T=0, μ=0, statistics])
+    densitymatrix(eig::Eigensystem[; T=0, μ, N, statistics, info=true])
 
 Creates an `Operator` representing a equilibrium density matrix, given the eigensystem `eig`
 of the Hamiltonian.
@@ -251,11 +272,12 @@ specified, otherwise the Gibbs distribution will be used.
 
 ## Keyword arguments
 - `T` is the temperature of the system. Default is zero.
-- `μ` is the chemical potential. Use keyword `mu` as a synonym if Unicode input is not available.
-- `field` is the magnetic field. Default is `NoField()`.
+- `μ` is the chemical potential. Use `mu` as a synonym if Unicode input is not available.
+- `N` is the number of particles. If specified, the chemical potential is found automatically.
 - `statistics` defines the particle statistics, either `FermiDirac` or `BoseEinstein`.
+- `info` is a boolean flag to enable/disable logging. Default is `true`.
 
-Note that if `eig` is a diagonalized `Hamiltonian`, the `μ` and `statistics` parameters are inserted automatically.
+Note that if `eig` is a diagonalized `Hamiltonian`, the `μ`, `N` and `statistics` parameters are inserted automatically.
 """
 densitymatrix(ham_eig::HamiltonianEigensystem{<:FixedMu}; kw...) =
     ensemble_densitymatrix(Eigensystem(ham_eig);
@@ -264,21 +286,11 @@ function densitymatrix(ham_eig::HamiltonianEigensystem{<:FixedN}; kw...)
     N = get(kw, :N, ham_eig.sys.nparticles)
     T = get(kw, :T, ham_eig.sys.T)
     statistics = get(kw, :statistics, ham_eig.sys.statistics)
-    if T ≈ 0
-        if statistics == BoseEinstein
-            # condensate
-            return groundstate_densitymatrix(ham_eig) * N
-        else
-            # Fermi sphere
-            return fermisphere_densitymatrix(ham_eig; N=N)
-        end
-    else
-        # Newton's method
-        return fixn_densitymatrix(ham_eig; N=N, T=T, statistics=statistics, kw...)
-    end
+    return fixn_densitymatrix(ham_eig; N=N, T=T, statistics=statistics, kw...)
 end
 function densitymatrix(ham_eig::HamiltonianEigensystem{<:OneParticleSystem}; kw...)
     if :N in keys(kw)
+        (:μ in keys(kw) || :mu in keys(kw)) && throw(ArgumentError("cannot specify both N and μ"))
         return fixn_densitymatrix(ham_eig; T = ham_eig.sys.T, kw...)
     elseif :μ in keys(kw) || :mu in keys(kw) || :statistics in keys(kw)
         return ensemble_densitymatrix(ham_eig; T = ham_eig.sys.T, kw...)
@@ -424,11 +436,17 @@ function Base.getindex(gf::GreenFunctionEval, site1::AbstractSite, site2::Abstra
     end
 end
 QuantumOpticsBase.Operator(gf::GreenFunctionEval) = Operator(basis(sample(gf)), gf.values)
+
+"""
+    diagonalelements(gf::GreenFunctionEval)
+
+Return the diagonal elements of the Green's function as a `LatticeValue`.
+"""
 diagonalelements(gf::GreenFunctionEval{<:System{<:SampleWithoutInternal}}) =
     LatticeValue(lattice(gf), diag(gf.values))
 
 function Base.show(io::IO, mime::MIME"text/plain", gf::GreenFunctionEval)
-    print(io, "Green's function slice for ")
+    print(io, "Evaluated Green's function for ")
     summary(io2, lattice(gf))
     requires_compact(io) && return
     print(io, "Values in a ")
@@ -547,8 +565,8 @@ function greenfunction(psi0::Ket, hamp::Hamiltonian, hamm::Hamiltonian; kw...)
 end
 
 """
-    dos(eig[, E; broaden, imagaxis])
-    dos(gf[, E; broaden, imagaxis])
+    dos(eig[, E; broaden])
+    dos(gf[, E; broaden])
 
 Calculates the DOS (density of states) for a given eigensystem at energy `E`.
 If `E` is not specified, a function that calculates the DOS at a given energy is returned.

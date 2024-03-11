@@ -75,23 +75,24 @@ end
 
 """
     site_distance([lat, ]site1, site2)
-Returns the distance between two sites on the `l` lattice, taking boundary conditions into account.
+Returns the distance between two sites on the `lat` lattice, taking boundary conditions into account.
 
 # Arguments
-- `l::Lattice`: The lattice where the sites are defined.
-- `site1::LatticeSite`: The first site.
+- `lat`: The lattice where the sites are defined.
+- `site1` and `site2`: The sites to measure the distance between.
 """
 site_distance(::AbstractLattice, site1::AbstractSite, site2::AbstractSite) =
     norm(site1.coords - site2.coords)
 site_distance(site1, site2) = site_distance(UndefinedLattice(), site1, site2)
 
 """
-    SiteDistance{FT}
+    SiteDistance(f, lat)
 
 A bonds type that connects sites based on the distance between them.
 
 # Arguments
-- `f::Function`: A function that takes a distance and returns if the distance is allowed.
+- `f`: A function that takes a distance and returns if the distance is allowed.
+- `lat`: The lattice where the bonds are defined.
 """
 struct SiteDistance{LT, FT} <: AbstractBonds{LT}
     f::Function
@@ -187,6 +188,11 @@ function Base.show(io::IO, mime::MIME"text/plain", am::AdjacencyMatrix)
     show(io, mime, am.mat)
 end
 
+"""
+    adjacentsites(bonds, site)
+
+Returns the sites that are connected to `site` by the `bonds`.
+"""
 function adjacentsites(am::AdjacencyMatrix, site::AbstractSite)
     SiteT = eltype(lattice(am))
     rs = resolve_site(am.lat, site)
@@ -198,6 +204,11 @@ function adjacentsites(am::AdjacencyMatrix, rs::ResolvedSite)
     return [ResolvedSite(l[i], i) for i in findall(i->am.mat[rs.index, i], eachindex(l))]
 end
 
+"""
+    adjacency_matrix([lat, ]bonds...)
+
+Constructs an adjacency matrix from the `bonds`. If `lat` is not provided, it is inferred from the `bonds`.
+"""
 function adjacency_matrix(bonds::AbstractBonds, more_bonds::AbstractBonds...)
     l = lattice(bonds)
     foreach(more_bonds) do b

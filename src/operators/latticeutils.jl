@@ -6,7 +6,7 @@ import QuantumOpticsBase: basis, samebases, check_samebases
 Calculate local density of given `state`.
 The output of this function is a `LatticeValue`.
 
-## Arguments:
+## Arguments
 - `state`: A `Ket` or `Bra` representing the wavefunction or an `Operator` representing the density matrix.
 """
 function lattice_density(state::StateType{<:OneParticleBasis})

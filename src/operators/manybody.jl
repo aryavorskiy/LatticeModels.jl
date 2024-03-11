@@ -1,5 +1,11 @@
 import QuantumOpticsBase: Basis, SparseOperator
 
+"""
+    interaction(f, [T, ]sys)
+
+Create an two-site interaction operator for a given `NParticles` system. The function `f` takes two
+arguments, which are the two sites, and returns the interaction energy.
+"""
 function interaction(f::Function, T::Type{<:Number}, sys::NParticles)
     l = lattice(sys)
     occups = occupations(sys)
@@ -24,8 +30,20 @@ function interaction(f::Function, T::Type{<:Number}, sys::NParticles)
     diagonaloperator(basis(sys), diags)
 end
 
-# This function uses undocumented QuantumOpticsBase API. Be careful!
+"""
+    interaction(f, [T, ]sys, K[; affect_internal=true])
+
+Create an `2K`-site interaction operator for a given `NParticles` system. The function `f`
+takes two `K`-tuples of integer numbers, which are site indices for creation and annihilation
+operators, and returns the interaction energy.
+
+If `affect_internal` is `true` (default), the interaction operator will act on the internal
+degrees of freedom as well, and `f` will take four `K`-tuples - lattice and internal indices for
+creation and annihilation operators. If the system has no internal degrees of freedom,
+`affect_internal` will automatically be set to `false` and `f` will take two `K`-tuples.
+"""
 function interaction(f::Function, T::Type{<:Number}, sys::NParticles, ::Val{K}; affect_internal=true) where K
+    # This function uses undocumented QuantumOpticsBase API. Be careful!
     @assert K ≤ sys.nparticles
     l = lattice(sys)
     N = internal_length(sys)

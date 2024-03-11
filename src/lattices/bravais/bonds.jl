@@ -5,7 +5,6 @@ using StaticArrays
 
 A struct representing bonds in some direction in a lattice.
 
----
 Note that though the dimension count for the bond is static, it is automatically compatible with higher-dimensional lattices.
 """
 struct BravaisTranslation{LT,NU} <: AbstractTranslation{LT}
@@ -26,6 +25,11 @@ adapt_bonds(bsh::BravaisTranslation, l::AbstractLattice) =
     BravaisTranslation(l, bsh.site_indices, bsh.translate_uc)
 ldims(::BravaisTranslation{UndefinedLattice, NU}) where NU = NU
 
+"""
+    Bravais[ lattice_coords ]
+
+A convenient constructor for a `BravaisTranslation` that does not permute sublattices.
+"""
 struct Bravais end
 Base.getindex(::Type{Bravais}, I::Int...) = BravaisTranslation(UndefinedLattice(), 0=>0, SVector(I))
 
@@ -36,12 +40,12 @@ Base.getindex(::Type{Bravais}, I::Int...) = BravaisTranslation(UndefinedLattice(
 
 A convenient constructor for a `BravaisTranslation` object.
 
-## Arguments:
+## Arguments
 - `site_indices`: a `::Int => ::Int` pair with indices of sites connected by the bond;
 if omitted, the bond connects sites with the same sublattice index.
 - `translate_uc`: The unit cell offset.
 
-## Keyword arguments:
+## Keyword arguments
 - `axis`: The hopping direction axis in terms of unit cell vectors.
 - `dist`: The hopping distance in terms of unit cell vectors.
 

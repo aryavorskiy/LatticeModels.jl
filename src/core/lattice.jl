@@ -103,10 +103,23 @@ An abstract type for a lattice of `SiteT` sites.
 - `deleteat!(l::AbstractLattice, is::AbstractVector{Int})`: Remove the sites with the given indices from the lattice.
 """
 abstract type AbstractLattice{SiteT} <: AbstractSet{SiteT} end
+
+"""
+    lattice(any)
+
+Return the lattice of the given object (an operator, `LatticeValue`, ...)
+"""
 lattice(l::AbstractLattice) = l
 dims(::AbstractLattice{<:AbstractSite{N}}) where {N} = N
 dims(l) = dims(lattice(l))
 Base.size(l::AbstractLattice) = (length(l),)
+
+"""
+    site_index(lat, site[, range])
+
+Return the index of the `site` in the lattice `lat`. If `range` is given, only search in the
+given range. Return `nothing` if the site is not found.
+"""
 site_index(::AbstractLattice, ::NoSite, range=nothing) = nothing
 site_index(l::AbstractLattice, site::AbstractSite) = site_index(l, site, eachindex(l))
 Base.getindex(::AbstractLattice, ::Nothing) = NoSite()

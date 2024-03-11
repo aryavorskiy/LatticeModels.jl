@@ -82,11 +82,34 @@ function Base.summary(io::IO, scurr::SubCurrents)
     summary(io, scurr.parent_currents)
 end
 
+"""
+    currents_from(currents, src)
+
+Create a `LatticeValue` object with the currents from `src` region to all other sites.
+
+## Arguments
+- `currents`: The `AbstractCurrents` object to process.
+- `src`: The source region. Can be a site/collection of sites or a `LatticeValue{Bool}` mask.
+"""
 function currents_from(curr::AbstractCurrents, src)
     lat = lattice(curr)
     is = to_inds(lat, src)
     LatticeValue(lat, Float64[j in is ? 0 : sum(curr[i, j] for i in is) for j in eachindex(lat)])
 end
+
+"""
+    currents_from_to(currents, src[, dst])
+
+Finds the total current from `src` to `dst` regions. If `dst` is not provided, the current
+from `src` to all other sites is returned.
+
+## Arguments
+- `currents`: The `AbstractCurrents` object to process.
+- `src`: The source region.
+- `dst`: The destination region.
+
+Both `src` and `dst` can be a site/collection of sites or a `LatticeValue{Bool}` mask.
+"""
 function currents_from_to(curr::AbstractCurrents, src, dst=nothing)
     lat = lattice(curr)
     src_inds = to_inds(lat, src)
@@ -172,7 +195,7 @@ end
 
 Creates a `Currents` instance for `currents`.
 
-## Arguments:
+## Arguments
 - `currents`: The `AbstractCurrents` object to be turned into `Currents`. That might be time-consuming,
     because  this requires evaluation of the current between all pairs.
 - `adjacency_matrix`: If provided, the current will be evaluated only between adjacent sites.
@@ -222,12 +245,12 @@ _mulorder(p::Pair, by::Function) = by(p[1]) < by(p[2]) ? 1 : -1
 Find the current between all possible pairs of sites, apply `f` to every site pair and
 group the result by value of `f`,
 
-## Arguments:
+## Arguments
 - `f`: This function will be applied to all site pairs. Must accept two `AbstractSite`s.
 - `group`: This function will be used to group the current values for pairs with the same mapped value. Must accept a `Vector` of numbers.
 - `currents`: The `AbstractCurrents` object to process.
 
-## Keyword arguments:
+## Keyword arguments
 - `sortresults`: if true, the output arrays will be sorted by results of `f`.
 - `sortpairsby`: if provided, the sites in each pair will be sorted by this function.
     Must accept one `AbstractSite`; by default the order of the sites in the pair matches

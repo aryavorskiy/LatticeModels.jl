@@ -61,7 +61,7 @@ struct DensityCurrents{HT, ST} <: AbstractCurrents
 
     Constructs a `DensityCurrents` object for given `hamiltonian` and `state`.
 
-    ## Arguments:
+    ## Arguments
     - `hamiltonian`: A `Hamiltonian` object representing the Hamiltonian of the system.
     - `state`: A `Ket` or `Bra` representing the wavefunction or an `Operator` representing the density matrix.
     """
@@ -90,6 +90,11 @@ function Base.show(io::IO, mime::MIME"text/plain", curr::DensityCurrents)
     show(io, mime, curr.hamiltonian.sys)
 end
 
+"""
+    LocalOperatorCurrents <: AbstractCurrents
+
+Local operator (e. g. spin) currents for given density matrix and given hamiltonian.
+"""
 struct LocalOperatorCurrents{HT, ST, OT} <: AbstractCurrents
     hamiltonian::HT
     state::ST
@@ -100,7 +105,7 @@ struct LocalOperatorCurrents{HT, ST, OT} <: AbstractCurrents
 
     Constructs a `DensityCurrents` object for given `hamiltonian` and `state`.
 
-    ## Arguments:
+    ## Arguments
     - `hamiltonian`: A `Hamiltonian` object representing the Hamiltonian of the system.
     - `state`: A `Ket` or `Bra` representing the wavefunction or an `Operator` representing the density matrix.
     - `op`: A local (on-site) operator; either an `Operator` or a matrix of such.

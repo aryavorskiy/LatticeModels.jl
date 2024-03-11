@@ -35,7 +35,6 @@ A boundary condition with a phase twist. A `PeriodicBoundary` is a special case 
 
 ---
     TwistedBoundary(translation, Θ)
-    PeriodicBoundary(translation)
 
 Construct a `TwistedBoundary` with a given translation and twist angle.
 
@@ -51,6 +50,12 @@ struct TwistedBoundary{TranslationT} <: Boundary{TranslationT}
         new{TranslationT}(tr, Float64(Θ))
 end
 TwistedBoundary(tr::AbstractArray, Θ::Real) = TwistedBoundary(Translation(tr), Θ)
+
+"""
+    PeriodicBoundary(translation)
+
+Construct a `PeriodicBoundary` with a given translation.
+"""
 PeriodicBoundary(tr) = TwistedBoundary(tr, 0)
 adapt_boundary(b::TwistedBoundary, l::AbstractLattice) = TwistedBoundary(adapt_bonds(b.translation, l), b.Θ)
 
@@ -70,12 +75,12 @@ end
 
 phasefactor(b::TwistedBoundary, ::AbstractSite) = exp(im * b.Θ)
 
-@doc raw"""
+"""
     FunctionBoundary <: Boundary
 
 A boundary condition with a function that returns the phase factor for a given site.
-The boundary condition is encoded in form $ψ(x + R) = f(x)ψ(x)$, where $f(x)$ is the
-function and $R$ is the translation vector.
+The boundary condition is encoded in form ``ψ(x + R) = f(x)ψ(x)``, where ``f(x)`` is the
+function and ``R`` is the translation vector.
 
 ---
     FunctionBoundary(f, translation)
@@ -113,10 +118,10 @@ A collection of boundary conditions for a lattice.
 - `depth`: The upper limit of the depth of the boundary conditions (used for routing).
 """
 struct BoundaryConditions{CondsTuple}
-    bcs::CondsTuple
+    boundaries::CondsTuple
     depth::Int
-    function BoundaryConditions(bcs::CondsTuple; depth=1) where CondsTuple<:Tuple{Vararg{Boundary}}
-        new{CondsTuple}(bcs, depth)
+    function BoundaryConditions(boundaries::CondsTuple; depth=1) where CondsTuple<:Tuple{Vararg{Boundary}}
+        new{CondsTuple}(boundaries, depth)
     end
 end
 
@@ -143,7 +148,7 @@ function parse_boundaries(l::AbstractLattice, arg)
 end
 
 adapt_boundaries(bcs::BoundaryConditions, l::AbstractLattice) =
-    BoundaryConditions(map(b -> adapt_boundary(b, l), bcs.bcs); depth=bcs.depth)
+    BoundaryConditions(map(b -> adapt_boundary(b, l), bcs.boundaries); depth=bcs.depth)
 getboundaries(l::AbstractLattice) = adapt_boundaries(getparam(l, :boundaries, BoundaryConditions()), l)
 
 function mappings(bcs::BoundaryConditions, site::AbstractSite)
@@ -183,6 +188,19 @@ function checkoverlap(l::AbstractLattice, bcs::BoundaryConditions; checkboundari
 end
 checkoverlap(::AbstractLattice, ::BoundaryConditions{Tuple{}}; _...) = nothing
 
+"""
+    setboundaries(lat, bcs[; checkboundaries=true, rmdup=false])
+
+Set the boundary conditions for the lattice `lat`.
+
+## Arguments
+- `lat`: The lattice.
+- `bcs`: The boundary conditions. It can be a single `Boundary` or a `Tuple` of `Boundary` objects.
+
+## Keyword arguments
+- `checkboundaries`: If `true`, check if the boundary conditions overlap within the lattice sites.
+- `rmdup`: If `true`, remove duplicate sites from the lattice.
+"""
 function setboundaries(l::AbstractLattice, bcs::BoundaryConditions; kw...)
     checkoverlap(l, bcs; kw...)
     setparam(l, :boundaries, adapt_boundaries(bcs, UndefinedLattice()))
@@ -190,19 +208,19 @@ end
 setboundaries(l::AbstractLattice, bcs; kw...) =
     setboundaries(l, parse_boundaries(l, bcs); kw...)
 
-Base.getindex(bcs::BoundaryConditions, i::Int) = bcs.bcs[i]
+Base.getindex(bcs::BoundaryConditions, i::Int) = bcs.boundaries[i]
 
 function Base.show(io::IO, mime::MIME"text/plain", bcs::BoundaryConditions)
     indent = getindent(io)
     print(io, indent, "Boundary conditions")
-    length(bcs.bcs) == 0 && return print(io, ": none")
+    length(bcs.boundaries) == 0 && return print(io, ": none")
     if requires_compact(io)
-        print(io, ": (", length(bcs.bcs),
+        print(io, ": (", length(bcs.boundaries),
         " not shown; depth = ", bcs.depth, ")")
     else
         print(io, " (depth = ", bcs.depth, "):")
         io = addindent(io, :compact => true)
-        for i in 1:length(bcs.bcs)
+        for i in 1:length(bcs.boundaries)
             println(io)
             show(io, mime, bcs[i])
         end
@@ -216,7 +234,7 @@ cartesian_indices(l::AbstractLattice) = cartesian_indices(getboundaries(l))
 function route(bcs::BoundaryConditions, l::AbstractLattice, site::AbstractSite)
     rs = resolve_site_default(l, site)
     if rs !== nothing
-        tup = Tuple(zero(SVector{length(bcs.bcs), Int}))
+        tup = Tuple(zero(SVector{length(bcs.boundaries), Int}))
         return tup, rs
     end
     for (tup, new_site) in mappings(bcs, site)
@@ -249,7 +267,7 @@ function resolve_site(l::LatticeWithParams, site::AbstractSite)
     r === nothing && return nothing
     tup, rs = r
     all(==(0), tup) && return rs
-    factor = findfactor(site, tup, bcs.bcs)
+    factor = findfactor(site, tup, bcs.boundaries)
     return ResolvedSite(rs.site, site, rs.index, factor * rs.factor)
 end
 

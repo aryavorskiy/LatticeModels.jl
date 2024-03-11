@@ -2,7 +2,8 @@
     LandauGauge <: AbstractField
 
 An object representing Landau gauge uniform magnetic field along z-axis.
-Fields:
+
+## Fields
 - `B`: The magnetic field value
 """
 struct LandauGauge <: AbstractField
@@ -16,7 +17,8 @@ Base.show(io::IO, ::MIME"text/plain", field::LandauGauge) = print(io, "Landau ga
     SymmetricGauge <: AbstractField
 
 An object representing symmetrically gauged uniform magnetic field along z-axis.
-Fields:
+
+## Fields
 - `B`: The magnetic field value
 """
 struct SymmetricGauge <: AbstractField
@@ -32,7 +34,9 @@ const DELTA_GAUGES = (:axial, :singular)
     PointFlux{GaugeT} <: AbstractField
 
 An object representing a small magnetic flux through given point. The field is directed along z-axis.
-Fields:
+
+
+## Fields
 - `flux`: The magnetic flux value.
 - `point`: A `Tuple` of x and y coordinates of the point.
 
@@ -42,7 +46,8 @@ Fields:
 Construct a `PointFlux` object with given flux and point.
 
 The optional `gauge` argument can be used to specify the gauge of the field. Possible values
-are `:axial` and `:singular`. The default is `:axial`.
+are `:axial` (``A(r) = B \times \frac{r}{|r|}``) and `:singular` (the the phase changes if the
+particle passes below the point). The default is `:axial`.
 """
 struct PointFlux{GaugeT} <: AbstractField
     flux::Float64

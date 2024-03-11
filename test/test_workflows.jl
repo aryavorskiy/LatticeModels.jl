@@ -9,14 +9,14 @@
         hy = construct_operator(l, BravaisTranslation(axis=2))
         H = d + hx + hy
         eig = diagonalize(H)
-        P = densitymatrix(eig, statistics=FermiDirac)
+        P = densitymatrix(eig, statistics=FermiDirac, N = 3)
         all(isfinite, P.data)
     end
 
     @test begin
         l = HoneycombLattice(10, 10, boundaries = (:axis1 => true))
         H = haldane(l, 1, 1, 1)
-        P = densitymatrix(diagonalize(H), statistics=FermiDirac)
+        P = densitymatrix(diagonalize(H), statistics=BoseEinstein)
         X, Y = coord_operators(basis(H))
         d = lattice_density(4π * im * P * X * (one(P) - P) * Y * P)
         rd = d .|> real
@@ -44,7 +44,7 @@
                 field = LandauGauge(t)
             )
         end
-        P0 = densitymatrix(diagonalize(H0), statistics=FermiDirac)
+        P0 = densitymatrix(diagonalize(H0), μ = 3)
         X, Y = coord_operators(basis(H0))
         evol = Evolution(h, P = P0)
         densities = TimeSequence{LatticeValue}()
@@ -74,7 +74,7 @@
             [1 1; -1 -1] / 2 => BravaisTranslation(axis = 2),
             field = LandauGauge(0.5)
         )
-        P = densitymatrix(diagonalize(H), μ = 0.1, statistics=FermiDirac)
+        P = densitymatrix(diagonalize(H), N = 3, T = 1, statistics=FermiDirac)
 
         dc = DensityCurrents(H, P)
         quiver!(p[1], dc[x.<y])

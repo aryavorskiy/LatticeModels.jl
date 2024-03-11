@@ -134,18 +134,52 @@ struct NParticles{SampleT} <: ManyBodySystem{SampleT}
     statistics::ParticleStatistics
     T::Float64
 end
+
+"""
+    NParticles(lat[, internal], N[; T=0, statistics=FermiDirac])
+    NParticles(sys, N[; T=0, statistics=FermiDirac])
+
+Create a manybody system with a given lattice and a given number of particles.
+
+## Arguments
+- `lat`: the lattice of the system.
+- `internal`: the internal degrees of freedom of the system, if any.
+- `sys`: a one-particle system.
+- `N`: the number of particles in the system.
+
+## Keyword Arguments
+- `T`: the temperature of the system. Default is `0`.
+- `statistics`: the statistics of the particles. Default is `FermiDirac`.
+"""
 function NParticles(sample::SampleT, nparticles; statistics = FermiDirac, T = 0) where SampleT<:Sample
     NParticles{SampleT}(sample, nparticles, statistics, T)
 end
 NParticles(onep::OneParticleSystem, n; kw...) = NParticles(onep.sample, n;
     T = onep.T, kw...)
 NParticles(l::AbstractLattice, n; kw...) = NParticles(Sample(l, nothing), n; kw...)
+NParticles(l::AbstractLattice, b::Basis, n; kw...) = NParticles(Sample(l, b), n; kw...)
 function Base.show(io::IO, mime::MIME"text/plain", sys::NParticles)
     noun = sys.statistics == FermiDirac ? "fermion" : "boson"
     print(io, "NParticles(", fmtnum(sys.nparticles, noun), ") on ")
     show(io, mime, sys.sample)
 end
 
+"""
+    System(lat[, internal; T, μ, N, statistics])
+
+Create a system with a given lattice and optionally internal degrees of freedom.
+
+
+## Arguments
+- `lat`: the lattice of the system.
+- `internal`: the internal degrees of freedom of the system, if any.
+
+## Keyword Arguments
+- `T`: the temperature of the system. Default is `0`.
+- `μ`: the chemical potential of the system. Use `mu` synonym if Unicode input is not available.
+- `N`: the number of particles in the system.
+- `statistics`: the statistics of the particles. Default is `FermiDirac`.
+"""
 function System(sample::Sample; μ = nothing, mu = μ, N = nothing, T = 0, statistics=FermiDirac)
     if mu !== nothing && N === nothing
         return FixedMu(sample, mu, statistics=statistics, T=T)
@@ -154,7 +188,7 @@ function System(sample::Sample; μ = nothing, mu = μ, N = nothing, T = 0, stati
     elseif N === mu === nothing
         return OneParticleSystem(sample, T)
     else
-        throw(ArgumentError("Both chemical potential `μ` and the particle number `N` are defined"))
+        throw(ArgumentError("cannot specify both N and μ"))
     end
 end
 System(onep::OneParticleSystem; kw...) = System(onep.sample; T=onep.T, kw...)

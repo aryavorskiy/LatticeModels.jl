@@ -27,7 +27,19 @@ A generic lattice of `SiteT` sites.
 struct GenericLattice{SiteT} <: AbstractLattice{SiteT}
     sites::Vector{SiteT}
 end
+
+"""
+    GenericLattice{N}()
+
+Constructs an empty `N`-dimensional `GenericLattice` of `GenericSite`s.
+"""
 GenericLattice{N}() where N = GenericLattice(GenericSite{N}[])
+
+"""
+    GenericLattice(lat)
+
+Constructs a `GenericLattice` from some other lattice `lat`.
+"""
 GenericLattice(lat::AbstractLattice) = GenericLattice(collect(lat))
 
 Base.length(l::GenericLattice) = length(l.sites)

@@ -5,12 +5,12 @@ using Logging, StaticArrays, Printf
 
 Constructs a Bravais lattice unit cell with given translation vectors and locations of basis sites.
 
-## Arguments:
+## Arguments
 - `translations`: an `AbstractMatrix` of size `N×N` representing the translation vectors of the lattice.
 - `basis`: an `AbstractMatrix` of size `N×NB` representing the locations of basis sites.
     If not provided, the lattice basis will consist of one site located in the bottom-left corner of the unit cell.
 
-## Keyword arguments:
+## Keyword arguments
 - `offset`: a keyword argument that specifies how to shift the lattice basis.
     Possible values:
     - `:origin`: no shift (default).
@@ -136,7 +136,7 @@ end
     BravaisSite{N,NU,B}
 A site of a `BravaisLattice{N,NU,B}` lattice.
 
-Fields:
+## Fields
 - `unitcell`: a `UnitCell` object representing the lattice unit cell.
 - `latcoords`: a `SVector` of size `N` representing the lattice coordinates of the site.
 - `basindex`: an `Int` representing the index of the site in the lattice basis.

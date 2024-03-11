@@ -59,7 +59,7 @@ end
 arg_to_pair(sample::Sample, arg::AbstractMatrix) = op_to_matrix(sample, arg) => 1
 arg_to_pair(sample::Sample, arg) = _internal_one_mat(sample) => arg
 
-function arg_to_pair(sample::Sample, arg::Pair)
+function arg_to_pair(sample::Sample, arg::Pair{<:Union{Number,AbstractMatrix,DataOperator}})
     op, onlat = arg
     if onlat isa LatticeValue
         check_samesites(onlat, sample)
@@ -74,6 +74,32 @@ function arg_to_pair(sample::Sample, arg::Pair)
     return op_to_matrix(sample, op) => new_onlat
 end
 
+"""
+    construct_operator([T, ]sys, terms...[; field])
+    construct_operator([T, ]lat[, internal, terms...; field])
+
+Construct an operator for the given system.
+
+Each of the `terms` describes a term of the Hamiltonian. The term can be given in several ways:
+- A `DataOperator` on the lattice, internal or composite basis (will be matched automatically).
+- A `Pair` of an "internal" and an "on-lattice" part (e.g. `int_p => lat_p`):
+    - The "internal" part can be a `DataOperator`, a matrix or a number.
+    - The "on-lattice" part can be a `LatticeValue` (represents a diagonal term), a site
+    (represents a local on-site potential), a bond (represents a hopping term) or a `site1 => site2`
+    pair (represents a single hopping).
+    - Identity "internal" or "on-lattice" parts can be omitted.
+
+See documentation for more details.
+
+## Arguments
+- `T`: The element type of the Hamiltonian. Default is `ComplexF64`.
+- `sys`: The `System` for which the Hamiltonian is constructed.
+- `lat`: The lattice for which the Hamiltonian is constructed.
+- `internal`: The basis for the internal degrees of freedom.
+
+## Keyword Arguments
+- `field`: The gauge field to use for the bond operators. Default is `NoField()`.
+"""
 function construct_operator(T::Type, sys::System, args...; field=NoField())
     sample = sys.sample
     builder = FastOperatorBuilder(T, sys; field=field, auto_hermitian=true)
@@ -86,10 +112,35 @@ function construct_operator(T::Type, sys::System, args...; field=NoField())
 end
 @accepts_system_t construct_operator
 
+"""
+    construct_hamiltonian([T, ]sys, terms...[; field])
+    construct_hamiltonian([T, ]lat[, internal, terms...; field])
+
+Construct a Hamiltonian for the given system. Does the same as `construct_operator`, but wraps
+the result in a `Hamiltonian` type.
+"""
 construct_hamiltonian(T::Type, sys::System, args...; kw...) =
     Hamiltonian(sys, construct_operator(T, sys, args...; kw...))
 @accepts_system_t construct_hamiltonian
 
+"""
+    tightbinding_hamiltonian([T, ]sys[, args...; t1=1, t2=0, t3=0, field])
+    tightbinding_hamiltonian([T, ]lat[, internal, args...; t1=1, t2=0, t3=0, field])
+
+Construct a tight-binding Hamiltonian for the given system.
+
+## Arguments
+- `T`: The element type of the Hamiltonian. Default is `ComplexF64`.
+- `sys`: The `System` for which the Hamiltonian is constructed.
+- `lat`: The lattice for which the Hamiltonian is constructed.
+- `internal`: The basis for the internal degrees of freedom.
+All other arguments are interpreted as terms of the Hamiltonian and passed to `construct_hamiltonian`.
+
+## Keyword Arguments
+- `t1`, `t2`, `t3`: The hopping amplitudes for the nearest, next-nearest, and next-next-nearest
+    neighbors, respectively.
+- `field`: The gauge field to use for the bond operators. Default is `NoField()`.
+"""
 tightbinding_hamiltonian(T::Type, sys::System, args...; t1=1, t2=0, t3=0, field=NoField()) =
     construct_hamiltonian(T, sys, args...,
         t1 => NearestNeighbor(1),

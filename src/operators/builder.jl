@@ -85,6 +85,29 @@ Base.@propagate_inbounds function Base.setindex!(b::SparseMatrixBuilder, incr::B
     b[I..., overwrite=false, factor=incr.factor * factor] = incr.B
 end
 
+"""
+    OperatorBuilder
+
+A helper struct for building custom operators. This struct is used to build operators for a
+given system or lattice.
+
+## Example
+```julia
+l = SquareLattice(5, 5)
+builder = OperatorBuilder(l, field=LandauGauge(0.1), auto_hermitian=true)
+xhop = Bravais[1, 0]
+yhop = Bravais[0, 1]
+for site in l
+    x, y = site
+    builder[site, site] = x + 2y
+    builder[site, site + xhop] = 1
+    builder[site, site + yhop] = 1im
+    site2 = l[rand(1:25)]
+    builder[site, site2] += 1
+end
+H = Hamiltonian(builder)
+```
+"""
 struct OperatorBuilder{SystemT, FieldT, T}
     sys::SystemT
     field::FieldT
@@ -93,12 +116,38 @@ struct OperatorBuilder{SystemT, FieldT, T}
     auto_hermitian::Bool
 end
 
+"""
+    OperatorBuilder([T, ]sys, [; field=NoField(), auto_hermitian=false])
+    OperatorBuilder([T, ]lat, [internal; field=NoField(), auto_hermitian=false])
+
+Construct an `OperatorBuilder` for a given system or lattice.
+
+## Arguments
+- `T`: The type of the matrix elements. Defaults to `ComplexF64`.
+- `sys`: A `System` object representing the system.
+- `lat`: A `Lattice` object representing the lattice.
+- `internal`: The basis for the internal degrees of freedom.
+
+## Keyword arguments
+- `field`: The gauge field to use for the bond operators.
+- `auto_hermitian`: Whether to automatically add the hermitian conjugate of the operator. Defaults to `false`.
+"""
 function OperatorBuilder(T::Type{<:Number}, sys::SystemT;
         field::FieldT=NoField(), auto_hermitian=false) where {SystemT<:System, FieldT<:AbstractField}
     oneparticle_len = length(onebodybasis(sys))
     OperatorBuilder{SystemT, FieldT, ArrayEntry{T}}(sys, field, internal_length(sys),
         SparseMatrixBuilder{ArrayEntry{T}}(oneparticle_len, oneparticle_len), auto_hermitian)
 end
+
+"""
+    FastOperatorBuilder([T, ]sys, [; field=NoField(), auto_hermitian=false])
+    FastOperatorBuilder([T, ]lat, [internal; field=NoField(), auto_hermitian=false])
+
+Construct an `OperatorBuilder` for a given system or lattice. This version of the constructor
+uses a slightly faster internal representation of the operator matrix, but only allows
+increment/decrement assignments.
+`builder[site1, site2] += 1` is allowed, but `builder[site1, site2] = 1` is not.
+"""
 function FastOperatorBuilder(T::Type{<:Number}, sys::SystemT;
     field::FieldT=NoField(), auto_hermitian=false) where {SystemT<:System, FieldT<:AbstractField}
     oneparticle_len = length(onebodybasis(sys))

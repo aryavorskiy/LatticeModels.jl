@@ -35,6 +35,11 @@ end
 Base.getindex(dnn::DefaultNNBonds, i::Int) = dnn.nnbonds[i]
 Base.length(dnn::DefaultNNBonds) = length(dnn.nnbonds)
 
+"""
+    getnnbonds(lat)
+
+Returns the nearest neighbor bonds of the lattice `lat`.
+"""
 getnnbonds(l::AbstractLattice) = getparam(l, :nnbonds, DefaultNNBonds((), ()))
 setnnbonds(l::AbstractLattice, dnn::DefaultNNBonds) = setparam(l, :nnbonds, dnn)
 

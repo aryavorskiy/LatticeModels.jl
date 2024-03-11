@@ -2,6 +2,11 @@ using SparseArrays
 import QuantumOpticsBase
 import QuantumOpticsBase: basis
 
+"""
+    LatticeBasis <: QuantumOpticsBase.Basis
+
+Basis for a lattice system.
+"""
 struct LatticeBasis{LT} <: QuantumOpticsBase.Basis
     shape::Int
     lat::LT
