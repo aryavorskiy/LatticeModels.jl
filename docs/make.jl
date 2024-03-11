@@ -13,14 +13,16 @@ makedocs(
     authors = "A. Yavorsky",
     format = format,
     pages = [
-        "Home" => "index.md",
-        "Step-by-step tutorial" => "tutorial.md",
+        "Home" => "home.md",
+        "Examples" => "examples.md",
         "Manual" => [
-            "Defining the system" => "system.md",
-            "Operators" => "operators.md",
-            "Processing data" => "processing.md",
-            "Currents" => "currents.md",
-            "Unitary evolution" => "evolution.md"
+            "Defining the lattice" => "manual/lattice.md",
+            "Working with data" => "manual/latticevalue.md",
+            "Constructing the Hamiltonian" => "manual/hamiltonian.md",
+            "Operators" => "manual/operators.md",
+            "Green's function" => "manual/greensfunction.md",
+            "Currents" => "manual/currents.md",
+            "Unitary evolution" => "manual/evolution.md"
         ],
         "Internals" => "internals.md",
         "Library" => "library.md"

@@ -1,7 +1,4 @@
-# Tutorial
-
-!!! danger "Outdated docs"
-    This part of the documentation is outdated and does not refer to the current functionality of the package.
+# Examples
 
 ## Local density for lowest states in a tight-binding model
 
@@ -33,12 +30,12 @@ end
 # The following 2 lines are kinda hacky; they draw one colorbar for all heatmaps
 plot!(p[n^2+1], framestyle=:none)
 scatter!([NaN], zcolor=[NaN], clims=clims, leg=:none, cbar=:right, background_subplot=:transparent, 
-    framestyle=:none, inset=bbox(0.0, 0.05, 0.95, 0.9), subplot=n^2+2)
+    framestyle=:none, inset=bbox(0.0, 0.05, 0.95, 0.9), subplot=n^2+2, c=:matter)
 ```
 
 ## Currents in a tight-binding model on a ring-shaped sample
 
-In this example we delete part of the sites in the middle of a square lattice. 
+In this example we create a ring-shaped sample of a triangular lattice.
 Then we adiabatically turn on magnetic field through the hole and see currents emerge.
 
 The tight-binding hamiltonian is the same as in the example above.
@@ -47,9 +44,8 @@ The tight-binding hamiltonian is the same as in the example above.
 using LatticeModels
 using Plots
 
-l = SquareLattice(10, 10) do (x, y)
-    !(4 < x < 7 && 4 < y < 7)
-end
+l = TriangularLattice(Circle(10), !Circle(5))
+removedangling!(l)
 h(B) = tightbinding_hamiltonian(l, field=FluxField(B))
 diag = diagonalize(h(0))
 
@@ -58,15 +54,15 @@ P_0 = densitymatrix(diag, mu = 0)
 # Perform unitary evolution
 τ = 10
 a = Animation()
-@evolution {
-    H := h(0.1 * min(t, τ) / τ)
-    P_0 --> H --> P
-} for t in 0:0.1:2τ
-    # Find the partial trace and plot it
-    plot(lattice_density(P), clims=(0,1))
+ev = Evolution(t -> h(0.1 * min(t, τ) / τ), P_0)
+for state in ev(0:0.1:2τ)
+    P, H, t = state
+    # Find the density and plot it
+    p = plot(layout=2, size=(800, 400))
+    plot!(p[1], lattice_density(P), clims=(0,1), st=:shape)
 
     # Show currents on the plot
-    plot!(DensityCurrents(H, P), arrows_scale=7, arrows_rtol=0.1)
+    plot!(p[2], DensityCurrents(H, P))
 
     title!("t = $t")
     frame(a)
@@ -101,7 +97,7 @@ H1 = qwz(l, 1)
 
 # Quenched hamiltonian: m=-1 in the central 3x3 square
 M = ones(l)
-M[@. 4 < x < 8 && 4 < y < 8] .= -1
+M[x = 4..8, y = 4..8] .= -1
 H2 = qwz(M)
 X, Y = coord_operators(l, 2)
 
@@ -110,20 +106,19 @@ P_0 = densitymatrix(sp, mu = 0)
 
 τ = 10
 a = Animation()
-@evolution {
-    H := H2
-    P_0 --> H --> P
-} for t in 0:0.1:2τ
+ev = Evolution(H2, P_0)
+for state in ev(0:0.1:2τ)
+    P, H, t = state
     p = plot(layout=2, size=(900, 400))
 
     # Local Chern marker heatmap
     lcm_operator = 4pi * im * P * X * P * Y * P
     chern_marker = lattice_density(lcm_operator)
-    plot!(p[1], chern_marker, clims=(-2, 2))
+    plot!(p[1], chern_marker, clims=(-2, 2), st=:shape)
 
     # Select sites on y=6 line
     chern_marker_on_sw = chern_marker[y = 6]
-    # Mark selected sites on the heatmap
+    # Mark selected sites on the plot
     plot!(p[1], lattice(chern_marker_on_sw), high_contrast=true)
     # Add a line plot
     plot!(p[2], project(chern_marker_on_sw, :x), ylims=(-3, 3), lab=:none)
@@ -151,13 +146,13 @@ dg = diagonalize(H)
 δ = 0.1
 Es = -4:0.1:4
 Es_d = -4:0.01:4
-ldosf = ldos(dg, δ)
+G = greenfunction(dg)
 a = @animate for E in Es
     print("\rE = $E") # hide
     p = plot(layout=2, size=(800, 400))
-    plot!(p[1], Es_d, dos(dg, δ), lab="", title="DOS")
+    plot!(p[1], Es_d, dos(G, broaden=δ), lab="", title="DOS")
     vline!(p[1], [E], lab="")
-    plot!(p[2], ldosf(E), clims=(0, NaN), title="LDOS")
+    plot!(p[2], ldos(G, E, broaden=δ), clims=(0, NaN), title="LDOS")
     plot!(p, plot_title="E = $E, δ = $δ")
 end
 
