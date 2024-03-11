@@ -32,6 +32,8 @@ otherwise, the dimensionality will be inferred from the unit cell.
 ## Examples
 
 ```jldoctest
+julia> using LatticeModels
+
 julia> @bravaisdef MyBravaisLattice UnitCell([1 0; 0 1]);   # 2D square lattice
 
 julia> MyBravaisLattice(3, 3)

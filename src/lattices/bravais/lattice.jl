@@ -150,6 +150,8 @@ and `postrotate` keywords.
 ```jldoctest
 julia> using LatticeModels
 
+julia> using LatticeModels
+
 julia> uc = UnitCell([[1, 0] [0, 1]]);
 
 julia> span_unitcells(uc, 3, 3) == SquareLattice(3, 3)

@@ -12,6 +12,7 @@ makedocs(
     sitename = "LatticeModels.jl",
     authors = "A. Yavorsky",
     format = format,
+    repo = "github.com/aryavorskiy/LatticeModels.jl.git",
     pages = [
         "Home" => "home.md",
         "Examples" => "examples.md",

@@ -174,5 +174,8 @@ Base.:(==)(site1::BravaisSite, site2::BravaisSite) =
 Base.isless(site1::BravaisSite, site2::BravaisSite) =
     isless(bravaispointer(site1), bravaispointer(site2))
 
+Base.summary(io::IO, ::BravaisSite{N,NU}) where {N, NU} =
+    print(io, N, "-dim Bravais lattice site in ", NU, "D space")
+
 sitekey(site::BravaisSite) = site.latcoords[1]
 secondarykey(site::BravaisSite{N,2} where N) = site.basindex + site.latcoords[2] * length(site.unitcell)

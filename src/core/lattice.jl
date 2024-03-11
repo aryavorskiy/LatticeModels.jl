@@ -12,11 +12,14 @@ abstract type AbstractSite{N} end
 dims(::AbstractSite{N}) where N = N
 Base.iterate(site::AbstractSite{N}, i=1) where N = i > N ? nothing : (site.coords[i], i + 1)
 
+Base.summary(io::IO, site::AbstractSite{N}) where N =
+    print(io, N, "-dim ", typeof(site))
 function Base.show(io::IO, ::MIME"text/plain", site::AbstractSite{N}) where N
     if site in get(io, :SHOWN_SET, ())
-        print(io, "at ", site.coords)
+        print(io, "Site at ", site.coords)
     else
-        print(io, N, "-dim ", typeof(site), " at $(site.coords)")
+        summary(io, site)
+        print(io, " at ", site.coords)
     end
 end
 
@@ -36,16 +39,72 @@ This interface is used to define various properties of a site. They can be acces
 
 ## Examples
 ```jldoctest
+julia> using LatticeModels
+
 julia> l = SquareLattice(3, 3)
+9-site 2-dim Bravais lattice in 2D space
+Unit cell:
+  Basis site coordinates:
+    ┌      ┐
+    │ 0.000│
+    │ 0.000│
+    └      ┘
+  Translation vectors:
+    ┌      ┐ ┌      ┐
+    │ 1.000│ │ 0.000│
+    │ 0.000│ │ 1.000│
+    └      ┘ └      ┘
+Lattice type: SquareLattice{2}
+Default translations:
+  :axis1 → Bravais[3, 0]
+  :axis2 → Bravais[0, 3]
+Nearest neighbor hoppings:
+  1.00000 =>
+    Bravais[1, 0]
+    Bravais[0, 1]
+  1.41421 =>
+    Bravais[1, -1]
+    Bravais[1, 1]
+  2.00000 =>
+    Bravais[2, 0]
+    Bravais[0, 2]
+Boundary conditions: none
 
 julia> l[x = 1, y = 2]          # Get site with x = 1 and y = 2
-Site of a 2-dim lattice @ [1.0, 2.0]
+2-dim Bravais lattice site in 2D space at [1.0, 2.0]
 
 julia> l[x = 1]                 # Get sublattice with x = 1
-3-site 2-dim SquareLattice
+3-site 2-dim Bravais lattice in 2D space
+Unit cell:
+  Basis site coordinates:
+    ┌      ┐
+    │ 0.000│
+    │ 0.000│
+    └      ┘
+  Translation vectors:
+    ┌      ┐ ┌      ┐
+    │ 1.000│ │ 0.000│
+    │ 0.000│ │ 1.000│
+    └      ┘ └      ┘
+Lattice type: SquareLattice{2}
+Default translations:
+  :axis1 → Bravais[3, 0]
+  :axis2 → Bravais[0, 3]
+Nearest neighbor hoppings:
+  1.00000 =>
+    Bravais[1, 0]
+    Bravais[0, 1]
+  1.41421 =>
+    Bravais[1, -1]
+    Bravais[1, 1]
+  2.00000 =>
+    Bravais[2, 0]
+    Bravais[0, 2]
+Boundary conditions: none
 
 julia> l[x = 1, y = 2, z = 3]   # No site with defined z property on a 2D lattice
 ERROR: ArgumentError: Invalid axis index 3 of a 2-dim site
+[...]
 ```
 """
 abstract type SiteProperty end

@@ -64,6 +64,7 @@ include("evolution.jl")
 export Evolution, CachedExp, KrylovKitExp
 
 include("zoo/lattices.jl")
+export @bravaisdef
 export Chain, SquareLattice, TriangularLattice, HoneycombLattice, KagomeLattice, GrapheneRibbon
 include("zoo/shapes.jl")
 export scalefactor, shaperadius, fillshapes, addshapes!, deleteshapes!, removedangling!,
