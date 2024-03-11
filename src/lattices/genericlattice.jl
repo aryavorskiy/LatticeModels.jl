@@ -34,6 +34,7 @@ end
 Constructs an empty `N`-dimensional `GenericLattice` of `GenericSite`s.
 """
 GenericLattice{N}() where N = GenericLattice(GenericSite{N}[])
+GenericLattice{SiteT}() where SiteT<:AbstractSite = GenericLattice(SiteT[])
 
 """
     GenericLattice(lat)

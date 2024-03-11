@@ -169,6 +169,12 @@ Base.checkbounds(l::AbstractLattice, is) =
     !checkbounds(Bool, l, is) && throw(BoundsError(l, is))
 Base.push!(l::AbstractLattice{SiteT}, ::SiteT) where SiteT = error("Define `push!` for $l")
 Base.push!(l::AbstractLattice{SiteT}, x::Any) where SiteT = push!(l, convert(SiteT, x))
+function Base.push!(l::AbstractLattice, xs::Any...)
+    for x in xs
+        push!(l, x)
+    end
+    return l
+end
 Base.pop!(l::AbstractLattice) = deleteat!(l, lastindex(l))
 Base.popfirst!(l::AbstractLattice) = deleteat!(l, firstindex(l))
 

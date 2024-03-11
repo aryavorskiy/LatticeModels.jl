@@ -309,11 +309,11 @@ end
 adjacentsites(bonds::AbstractTranslation, site::AbstractSite) =
     (destination(bonds, site), destination(inv(bonds), site))
 
-Base.:(+)(site::AbstractSite, bonds::AbstractTranslation) = destination(bonds, site)
-Base.:(+)(::AbstractSite, ::AbstractTranslation{UndefinedLattice}) =
+Base.:(+)(site::AbstractSite, bonds::DirectedBonds) = destination(bonds, site)
+Base.:(+)(::AbstractSite, ::DirectedBonds{UndefinedLattice}) =
     throw(ArgumentError("Using a `AbstractBonds`-type object on undefined lattice is allowed only in `construct_operator`. Please define the lattice."))
-Base.:(-)(bonds::AbstractTranslation) = inv(bonds)
-Base.:(-)(site::AbstractSite, bonds::AbstractTranslation) = destination(inv(bonds), site)
+Base.:(-)(bonds::DirectedBonds) = inv(bonds)
+Base.:(-)(site::AbstractSite, bonds::DirectedBonds) = destination(inv(bonds), site)
 
 """
     Translation <: AbstractTranslation
@@ -365,7 +365,7 @@ function Base.show(io::IO, ::MIME"text/plain", sh::Translation)
     end
 end
 
-function translate_lattice(l::AbstractLattice, tr::AbstractTranslation)
+function translate_lattice(l::AbstractLattice, tr::DirectedBonds)
     e = Base.emptymutable(l, eltype(l))
     ntr = adapt_bonds(tr, l)
     for site in l
@@ -373,4 +373,4 @@ function translate_lattice(l::AbstractLattice, tr::AbstractTranslation)
     end
     return e
 end
-Base.:(+)(l::AbstractLattice, tr::AbstractTranslation) = translate_lattice(l, tr)
+Base.:(+)(l::AbstractLattice, tr::DirectedBonds) = translate_lattice(l, tr)

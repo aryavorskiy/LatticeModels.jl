@@ -30,12 +30,25 @@
             LatticeModels.BravaisPointer(SA[3, 2], 1))
         xb, yb = coordvalues(SquareLattice(5, 40))
         @test_throws LatticeModels.IncompatibleLattices sql[xb.<yb]
+        s = sql[!, x = 1, y = 2]
         sql2 = filter(sql) do site
-            site ∉ (sql[1], sql[end])
+            site ∉ (sql[1], sql[end], s)
         end
         pop!(sql)
         popfirst!(sql)
+        delete!(sql, s)
         @test sql == sql2
+
+        sql3 = sql[x = -Inf..5.2]
+        filter!(site -> site.coords[1] < 5.2, sql)
+        @test sql == sql3
+
+        small_l = SquareLattice(2, 2)
+        ls1, ls2, ls3, ls4 = small_l
+        gl1 = GenericLattice(small_l)
+        gl2 = GenericLattice{typeof(ls1)}()
+        push!(gl2, ls3, ls4, ls2, ls1)
+        @test gl1 == gl2
     end
 
     l = SquareLattice(10, 10)
@@ -72,6 +85,12 @@
         @test all(mn .≤ xy.values .≤ mx)
         imx = findall(==(mx), xy)
         @test all((site in imx || xy[site] < mx) for site in l)
+
+        gl = GenericLattice{2}()
+        push!(gl, (1, 2), (2, 1), (3, 4))
+        gx = coordvalue(gl, :y)
+        @test gx.values == [2, 1, 4]
+        @test_throws ArgumentError coordvalue(gl, :j1)
     end
 
     @testset "Broadcast" begin
@@ -143,5 +162,26 @@ end
         am2[ls2, ls4] = true
         am2[ls3, ls4] = true
         @test am.mat == am2.mat
+
+        ps = Tuple{Int, Int}[]
+        for (s1, s2) in am2
+            push!(ps, (s1.index, s2.index))
+        end
+        @test Set(ps) == Set([(1, 2), (1, 3), (2, 4), (3, 4)])
+    end
+
+    @testset "Abstract bonds" begin
+        l = HoneycombLattice(-2:2, -2:2)
+        tr = Translation(l, [0, 2√3/3])
+        site1 = l[!, j1 = 1, j2 = 1, index = 1]
+        site2 = site1 + tr
+        @test site2 == l[!, j1 = 0, j2 = 2, index = 2]
+        @test only(tr.translations) == BravaisTranslation(1 => 2, [-1, 1])
+
+        bsm = LatticeModels.BravaisSiteMapping(l,
+            BravaisTranslation(axis=1),
+            BravaisTranslation(axis=2),
+            BravaisTranslation([1, -1]))
+        @test bsm.translations == union(Bravais[1], Bravais[0, 1], Bravais[1, -1]).translations
     end
 end

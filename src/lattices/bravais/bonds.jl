@@ -116,6 +116,7 @@ Base.inv(bsm::BravaisSiteMapping) = BravaisSiteMapping(bsm.lat, inv.(bsm.transla
 merge_lats(l1::AbstractLattice, l2::AbstractLattice) = throw(IncompatibleLattices(l1, l2))
 merge_lats(l::AbstractLattice, ::UndefinedLattice) = l
 merge_lats(::UndefinedLattice, l::AbstractLattice) = l
+merge_lats(::UndefinedLattice, ::UndefinedLattice) = UndefinedLattice()
 
 function Base.union(tr1::BravaisTranslation, tr2::BravaisTranslation)
     u_tr1 = adapt_bonds(tr1, UndefinedLattice())
@@ -139,6 +140,8 @@ end
 Base.union(tr::BravaisTranslation, trs::BravaisSiteMapping) = union(trs, tr)
 Base.union(trs::BravaisSiteMapping, trs2::BravaisSiteMapping) =
     foldl(union, trs2.translations, init=trs)
+Base.union(tr::BravaisTranslation, tr2, args...) = union(union(tr, tr2), args...)
+Base.union(trs::BravaisSiteMapping, tr2, args...) = union(union(trs, tr2), args...)
 
 function Base.summary(io::IO, trs::BravaisSiteMapping)
     print(io, "BravaisSiteMapping with $(length(trs.translations)) translations")
@@ -193,4 +196,4 @@ function adapt_bonds(tr::Translation{UndefinedLattice}, l::MaybeWithParams{Brava
     end
     return BravaisSiteMapping(l, shifts...)
 end
-Translation(l::MaybeWithParams{BravaisLattice}, R::AbstractVector) = adapt_bonds(Translation(R), l)
+Translation(l::MaybeWithParams{BravaisLattice}, R::AbstractVector{<:Number}) = adapt_bonds(Translation(R), l)
