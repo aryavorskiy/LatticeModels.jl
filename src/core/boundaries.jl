@@ -10,8 +10,8 @@ function nshifts(site::AbstractSite, tr::DirectedBonds, n::Int)
     return site
 end
 function nshifts_phase(site::AbstractSite, b::Boundary, n::Int)
-    n == 0 && return 1., site
-    factor = 1.
+    n == 0 && return one(ComplexF64), site
+    factor = one(ComplexF64)
     for _ in 1:abs(n)
         if n > 0
             site -= b.translation

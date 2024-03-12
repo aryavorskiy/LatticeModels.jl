@@ -194,7 +194,7 @@ function expand_bond(l::AbstractLattice, site1::AbstractSite, site2::AbstractSit
 end
 
 @inline function expand_bond(::AbstractLattice, s1::ResolvedSite, s2::ResolvedSite, field::AbstractField)
-    field_fact = exp(-2π * im * line_integral(field, s1.site.coords, s2.site.coords))
+    field_fact = exp(-2π * im * line_integral(field, s1.old_site.coords, s2.old_site.coords))
     return s1.index, s2.index, s2.factor * field_fact * s1.factor'
 end
 

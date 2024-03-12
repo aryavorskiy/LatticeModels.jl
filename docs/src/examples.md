@@ -26,8 +26,8 @@ clims = (0, 0.0045)
 p = plot(layout = @layout[grid(n, n) a{0.1w}], size=(1000, 850))
 for i in 1:n^2
     E_rounded = round(diag.values[i], sigdigits=4)
-    plot!(p[i], localdensity(diag[i]), title="\$E_{$i} = $E_rounded\$", st=:shape, clims=clims, 
-        c=:inferno, cbar=:none, lw=0, framestyle=:none)
+    plot!(p[i], localdensity(diag[i]), title="\$E_{$i} = $E_rounded\$", st=:shape, 
+        clims=clims, c=:inferno, cbar=:none, lw=0, framestyle=:none, xlab="", ylab="")
 end
 
 # The following lines are kinda hacky; they draw one colorbar for all heatmaps
@@ -109,7 +109,8 @@ a = @animate for E in Es
     p = plot(layout=2, size=(800, 400))
     plot!(p[1], Es_d, dos(G, broaden=δ), lab="", title="DOS")
     vline!(p[1], [E], lab="")
-    plot!(p[2], ldos(G, E, broaden=δ), st=:shape, c=:inferno, clims=(0, NaN), title="LDOS", lw=0)
+    plot!(p[2], ldos(G, E, broaden=δ), st=:shape, 
+        c=:inferno, clims=(0, NaN), title="LDOS", lw=0)
     plot!(p, plot_title="E = $E, δ = $δ")
 end
 

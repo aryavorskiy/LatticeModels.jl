@@ -159,7 +159,7 @@ isadjacent(am::AdjacencyMatrix, s1::ResolvedSite, s2::ResolvedSite) = am.mat[s1.
 
 @inline directed_destinations(am::AdjacencyMatrix, rs::ResolvedSite) =
     (j for j in rs.index + 1:length(lattice(am)) if am.mat[rs.index, j])
-@inline function directed_destinations(am::AdjacencyMatrix{<:SparseMatrixCSC}, rs::ResolvedSite)
+@inline function directed_destinations(am::AdjacencyMatrix{<:Any,<:SparseMatrixCSC}, rs::ResolvedSite)
     i = am.mat.colptr[rs.index]
     j = am.mat.colptr[rs.index + 1]
     st = findfirst(>(rs.index), @view(am.mat.rowval[i:j]))

@@ -10,8 +10,9 @@ struct LandauGauge <: AbstractField
     B::Float64
 end
 vector_potential(field::LandauGauge, p1) = (0, p1[1] * field.B)
-line_integral(field::LandauGauge, p1, p2) = ((p1[1] + p2[1]) / 2) * (p2[2] - p1[2]) * field.B
-Base.show(io::IO, ::MIME"text/plain", field::LandauGauge) = print(io, "Landau gauge uniform field; B = $(field.B) flux quanta per 1×1 plaquette")
+line_integral(field::LandauGauge, p1, p2) = (p1[1] + p2[1]) * (p2[2] - p1[2]) * field.B / 2
+Base.show(io::IO, ::MIME"text/plain", field::LandauGauge) =
+    print(io, "Landau gauge uniform field; B = $(field.B) flux quanta per 1×1 area")
 
 """
     SymmetricGauge <: AbstractField
@@ -27,7 +28,7 @@ end
 vector_potential(field::SymmetricGauge, p1) = SA[-p1[2], p1[1]] * field.B / 2
 line_integral(field::SymmetricGauge, p1, p2) = (p1[1] * p2[2] - p2[1] * p1[2]) / 2 * field.B
 Base.show(io::IO, ::MIME"text/plain", field::SymmetricGauge) =
-    print(io, "Symmetric gauge uniform field; B = $(field.B) flux quanta per 1×1 plaquette")
+    print(io, "Symmetric gauge uniform field; B = $(field.B) flux quanta per 1×1 area")
 
 const DELTA_GAUGES = (:axial, :singular)
 """

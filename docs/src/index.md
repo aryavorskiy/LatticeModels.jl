@@ -27,19 +27,18 @@ import Pkg; Pkg.add(url="https://github.com/aryavorskiy/LatticeModels.jl")
 
 ## Similar packages
 
-Packages such as [Quantica.jl](https://github.com/pablosanjose/Quantica.jl), [pybinding](https://docs.pybinding.site/en/stable/index.html) and [Kwant](https://kwant-project.org/) provide similar functionality. However, they lack some features that are present in `LatticeModels.jl`:
+Packages such as [Quantica.jl](https://github.com/pablosanjose/Quantica.jl), [pybinding](https://docs.pybinding.site/en/stable/index.html) and [Kwant](https://kwant-project.org/) provide similar functionality. However, they are in general designed for other purposes and lack some features that are present in `LatticeModels.jl`:
 
 - **Schroedinger equation solvers with time-dependent Hamiltonians**. Only Kwant provides similar 
-    functionality with its `Tkwant` module, but it lacks the performance and flexibility of the 
-    [`Evolution`](@ref) struct.
-- **Convenient tools for setting boundary conditions and gauge fields**. The only way to do this in 
+    functionality with its `Tkwant` module, but it lacks the performance and flexibility in some cases.
+- **Convenient tools for setting periodic boundary conditions and gauge fields**. The only way to do this in 
     Kwant or Pybinding is to manually set the hopping values.
 - **A flexible interface for defining new types of lattices and bonds**. Random lattices can be implemented
     on top of [`GenericLattice`](@ref) with ease.
-- **Manybody computations**. Kwant and Pybinding are designed mostly for single-particle simulations, while 
-    `LatticeModels.jl` can handle manybody systems with particle interaction.
+- **Manybody computations**. `LatticeModels.jl` can handle manybody systems with particle interaction.
 
-Still, these packages have their own gigantic advantage - they support leads. This is a feature that is not present in `LatticeModels.jl`, and it is not planned to be implemented in the near future.
+Overall, while `Kwant` and `pybinding` are mostly focused on quantum transport problems and `Quantica.jl` is
+designed to find various properties of lattices, `LatticeModels.jl` focuses on dynamic simulations.
 
 ## Usage example
 
@@ -58,8 +57,8 @@ p = plot(layout = @layout[ grid(n, n) a{0.1w}], size=(1000, 850))
 for i in 1:n^2
     # Plot local density on each subplot
     E_rounded = round(diag.values[i], sigdigits=4)
-    plot!(p[i], localdensity(diag[i]), title="\$E_{$i} = $E_rounded\$", st=:shape, clims=clims,
-        c=:inferno, cbar=:none, lw=0, framestyle=:none)
+    plot!(p[i], localdensity(diag[i]), title="\$E_{$i} = $E_rounded\$", st=:shape, 
+        clims=clims, c=:inferno, cbar=:none, lw=0, framestyle=:none, xlab="", ylab="")
 end
 
 # The following lines are kinda hacky; they draw one colorbar for all heatmaps
