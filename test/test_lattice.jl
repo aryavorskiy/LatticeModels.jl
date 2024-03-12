@@ -64,11 +64,13 @@
         @test LatticeModels.stripparams(circle_l) == LatticeModels.stripparams(circle_l2)
 
         complexsample = SquareLattice{2}(
-            Circle(10), Circle(10, [20, 0]), Circle(10, [10, 5√3]),
-            !Circle(5), !Circle(5, [20, 0]), !Circle(5, [10, 5√3]),
-            Path([-12, -12], [-12, 32]), sites=10000
+            Circle(10), Circle(10, [20, 0]), Circle(10, [10, 10√3]),
+            !Circle(5), !Circle(5, [20, 0]), !Circle(5, [10, 10√3]),
+            Rectangle(-5..5, -14..(-12)), Rectangle(15..25, -14..(-12)),
+            Path([-12, 32], [32, 32]), sites=10000
         )
         removedangling!(complexsample, maxdepth=2)
+        addshapes!(complexsample, SiteAt([0, 0]))
         @test length(complexsample) ≈ 10000 rtol=0.03
 
         @test_throws ArgumentError SquareLattice(Circle(10))

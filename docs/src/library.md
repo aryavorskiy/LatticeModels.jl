@@ -92,7 +92,7 @@ Filter = t -> t ∉ (LatticeModels.AbstractCurrents, LatticeModels.AbstractTrans
 ```@autodocs
 Modules = [LatticeModels]
 Pages = ["evolution.jl", "timesequence.jl"]
-Filter = t -> t ∉ (LatticeModels.SchrodingerSolver)
+Filter = t -> t ∉ (LatticeModels.SchrodingerSolver,)
 ```
 
 ## Internals

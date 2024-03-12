@@ -4,7 +4,6 @@ struct ArrayEntry{T}
     val::T
     overwrite::Bool
 end
-Base.:(*)(mw::ArrayEntry, n::Number) = ArrayEntry(mw.val * n, mw.overw)
 function combine_writes(mw1::ArrayEntry, mw2::ArrayEntry)
     if mw2.overwrite
         return mw2
