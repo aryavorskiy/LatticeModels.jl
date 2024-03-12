@@ -1,7 +1,6 @@
 @testset "Lattice" begin
     @testset "Interface" begin
         sql = SquareLattice(10, 20)
-        @test [site_index(sql, s) for s in sql] == 1:length(sql)
         x, y = coordvalues(sql)
         s_0 = SquareLattice(10, 20) do (x, y)
             x < y
@@ -51,15 +50,16 @@
         @test gl1 == gl2
     end
 
+    circle_l = TriangularLattice(-10:10, -10:10) do site
+        x, y = site
+        return x^2 + y^2 ≤ 50 && (abs(x) > 3 || abs(y) > 3)
+    end
+
     @testset "Creation" begin
         sl = SquareLattice(-1:1, -1:1)
         sl2 = SquareLattice{2}(Square(h = 1))
         @test LatticeModels.stripparams(sl) == LatticeModels.stripparams(sl2)
 
-        circle_l = TriangularLattice(-10:10, -10:10) do site
-            return site.coords[1]^2 + site.coords[2]^2 ≤ 50 &&
-                (abs(site.coords[1]) > 3 || abs(site.coords[2]) > 3)
-        end
         circle_l2 = TriangularLattice(Circle(√50), !Square(h = 3))
         @test LatticeModels.stripparams(circle_l) == LatticeModels.stripparams(circle_l2)
 
@@ -74,6 +74,14 @@
         @test length(complexsample) ≈ 10000 rtol=0.03
 
         @test_throws ArgumentError SquareLattice(Circle(10))
+    end
+
+    @testset "Indexing" begin
+        circle_lt = addlookuptable(circle_l)
+        for (i, site) in enumerate(circle_l)
+            @test site_index(circle_l, site) == i
+            @test site_index(circle_lt, site) == i
+        end
     end
 
     l = SquareLattice(10, 10)
