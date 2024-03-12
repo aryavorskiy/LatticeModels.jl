@@ -79,7 +79,7 @@
         dc = DensityCurrents(H, P)
         quiver!(p[1], dc[x.<y])
         scatter!(p[1], l)
-        scatter!(p[1], l[x.<y], high_contrast=true)
+        scatter!(p[1], l[x.<y], :high_contrast)
         scatter!(p[1], xy[x.≥y])
         plot!(p[1], adjacencymatrix(H))
         plot!(p[1], adjacencymatrix(BravaisTranslation(l, [1, 1])))

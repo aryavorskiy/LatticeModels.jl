@@ -43,7 +43,7 @@ end
     tseq.times, tseq.values
 end
 
-@recipe function f(curr::AbstractCurrents; showsites=false)
+@recipe function f(curr::AbstractCurrents; showsites=false, arrowheadsize=0.15)
     lat = lattice(curr)
     axes, axis_numbers = _get_axes(lat, get(plotattributes, :axes, nothing))
     length(axes) != 2 && error("2D axes expected; got $axes")
@@ -72,23 +72,23 @@ end
         v2 = site2.coords[ns]
         d = normalize(v2 - v1)
         o = SVector(d[2], -d[1])
-        _pushpts!(v1, v2, v2 - 0.15d - 0.05o, v2 - 0.15d + 0.05o, v2)
+        _pushpts!(v1, v2, v2 - arrowheadsize * (d - o / 3),
+            v2 - arrowheadsize * (d + o / 3), v2)
         push!(Vs, val, val, val, val, val, NaN)
     end
-    if isempty(Vs)
-        @series begin
-            markersize := 0.1
-            lattice(curr), :sites
-        end
-    else
-        @series begin
-            aspect_ratio := 1
-            seriestype := :path
-            seriescolor --> :matter
-            linewidth --> 2.5
-            line_z --> Vs
-            Xs, Ys
-        end
+    isempty(Vs) || @series begin
+        aspect_ratio := 1
+        seriestype := :path
+        seriescolor --> :matter
+        linewidth --> 2.5
+        line_z --> Vs
+        Xs, Ys
+    end
+    @series begin
+        seriestype := :scatter
+        markersize := 0.5
+        markercolor := :grey
+        lattice(curr), :sites
     end
     showsites && @series lattice(curr), :high_contrast
 end

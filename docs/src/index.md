@@ -56,15 +56,19 @@ n = 5
 clims = (0, 0.0045)
 p = plot(layout = @layout[ grid(n, n) a{0.1w}], size=(1000, 850))
 for i in 1:n^2
-    # Plot a density heatmap on each subplot
+    # Plot local density on each subplot
     E_rounded = round(diag.values[i], sigdigits=4)
-    plot!(p[i], localdensity(diag[i]), title="\$E_{$i} = $E_rounded\$", clims=clims, cbar=:none)
+    plot!(p[i], localdensity(diag[i]), title="\$E_{$i} = $E_rounded\$", st=:shape, clims=clims,
+        c=:inferno, cbar=:none, lw=0)
 end
 
-# The following 2 lines are kinda hacky; they draw one colorbar for all heatmaps
+# The following lines are kinda hacky; they draw one colorbar for all heatmaps
 plot!(p[n^2+1], framestyle=:none)
-scatter!([NaN], zcolor=[NaN], clims=clims, leg=:none, cbar=:right, background_subplot=:transparent, 
-    framestyle=:none, inset=bbox(0.0, 0.05, 0.95, 0.9), subplot=n^2+2, c=:matter)
+scatter!([NaN], zcolor=[NaN], clims=clims, leg=:none, cbar=:right, subplot=n^2+2, 
+    framestyle=:none, inset=bbox(0.0, 0.05, 0.95, 0.9), background_subplot=:transparent)
+savefig("example.png")
+nothing # hide
 ```
+![](example.png)
 
 See more examples in the [Examples](@ref) section.

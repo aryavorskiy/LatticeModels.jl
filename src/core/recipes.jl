@@ -57,6 +57,7 @@ end
 end
 
 @recipe function f(lat::AbstractLattice, ::Val{:high_contrast})
+    label --> :none
     markersize := 4
     markercolor := :black
     markerstrokealpha := 1

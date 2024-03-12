@@ -115,7 +115,8 @@ function checktype(l::AbstractLattice, T::Type{<:BravaisLatticeType})
 end
 checktype(any, T) = checktype(lattice(any), T)
 
-function _ngonshape(r::SVector{2}, n, skip=true)
+function _ngonshape(r::SVector{2}, n, skip=true, expand=true)
+    expand && (r = r * 1.04)
     is = (skip / 2:n + skip / 2) .* 2pi/n
     skip && (r /= cos(pi / n))
     return r[1] .* cos.(is) .+ r[2] .* sin.(is), r[1] .* sin.(is) .- r[2] .* cos.(is)

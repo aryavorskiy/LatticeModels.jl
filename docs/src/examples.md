@@ -24,14 +24,18 @@ clims = (0, 0.0045)
 p = plot(layout = @layout[ grid(n, n) a{0.1w}], size=(1000, 850))
 for i in 1:n^2
     E_rounded = round(diag.values[i], sigdigits=4)
-    plot!(p[i], localdensity(diag[i]), title="\$E_{$i} = $E_rounded\$", clims=clims, cbar=:none)
+    plot!(p[i], localdensity(diag[i]), title="\$E_{$i} = $E_rounded\$", st=:shape, clims=clims, 
+        c=:inferno, cbar=:none, lw=0)
 end
 
-# The following 2 lines are kinda hacky; they draw one colorbar for all heatmaps
+# The following lines are kinda hacky; they draw one colorbar for all heatmaps
 plot!(p[n^2+1], framestyle=:none)
-scatter!([NaN], zcolor=[NaN], clims=clims, leg=:none, cbar=:right, background_subplot=:transparent, 
-    framestyle=:none, inset=bbox(0.0, 0.05, 0.95, 0.9), subplot=n^2+2, c=:matter)
+scatter!([NaN], zcolor=[NaN], clims=clims, leg=:none, cbar=:right, subplot=n^2+2, 
+    background_subplot=:transparent, framestyle=:none, inset=bbox(0.0, 0.05, 0.95, 0.9))
+savefig("local_density.png")
+nothing # hide
 ```
+![](local_density.png)
 
 ## Currents in a tight-binding model on a ring-shaped sample
 
@@ -46,7 +50,7 @@ using Plots
 
 l = TriangularLattice(Circle(10), !Circle(5))
 removedangling!(l)
-h(B) = tightbinding_hamiltonian(l, field=FluxField(B))
+h(B) = tightbinding_hamiltonian(l, field=PointFlux(B))
 diag = diagonalize(h(0))
 
 # Find density matrix for filled bands (e. g. energy < 0)
@@ -58,17 +62,17 @@ ev = Evolution(t -> h(0.1 * min(t, τ) / τ), P_0)
 for state in ev(0:0.1:2τ)
     P, H, t = state
     # Find the density and plot it
-    p = plot(layout=2, size=(800, 400))
-    plot!(p[1], localdensity(P), clims=(0, 0.1), st=:shape)
+    p = plot(layout=2, size=(1000, 500))
+    plot!(p[1], localdensity(P), clims=(0, 1), st=:shape)
 
     # Show currents on the plot
-    plot!(p[2], DensityCurrents(H, P))
+    plot!(p[2], DensityCurrents(H, P), clims=(0, 0.005), lw=1, arrowheadsize=0.3)
 
     title!("t = $t")
     frame(a)
 end
 
-gif(a, "animation.gif")
+gif(a, "adiabatic_flux.gif")
 ```
 
 ## Local Chern marker with hamiltonian quench
@@ -99,7 +103,7 @@ H1 = qwz(l, 1)
 M = ones(l)
 M[x = 4..8, y = 4..8] .= -1
 H2 = qwz(M)
-X, Y = coordoperators(l, 2)
+X, Y = coordoperators(l, SpinBasis(1//2))
 
 sp = diagonalize(H1)
 P_0 = densitymatrix(sp, mu = 0)
@@ -119,7 +123,7 @@ for state in ev(0:0.1:2τ)
     # Select sites on y=6 line
     chern_marker_on_sw = chern_marker[y = 6]
     # Mark selected sites on the plot
-    plot!(p[1], lattice(chern_marker_on_sw), high_contrast=true)
+    plot!(p[1], lattice(chern_marker_on_sw), :high_contrast)
     # Add a line plot
     plot!(p[2], project(chern_marker_on_sw, :x), ylims=(-3, 3), lab=:none)
 
@@ -127,7 +131,7 @@ for state in ev(0:0.1:2τ)
     frame(a)
 end
 
-gif(a, "animation.gif")
+gif(a, "chern_marker.gif")
 ```
 
 ## LDOS animation
@@ -139,7 +143,7 @@ Let's take the same hamiltonian from the previous example and create a LDOS anim
 ```@example
 using LatticeModels
 using Plots
-l = SquareLattice(40, 40)
+l = SquareLattice(20, 20)
 H = qwz(l, 1)
 
 dg = diagonalize(H)
@@ -152,9 +156,9 @@ a = @animate for E in Es
     p = plot(layout=2, size=(800, 400))
     plot!(p[1], Es_d, dos(G, broaden=δ), lab="", title="DOS")
     vline!(p[1], [E], lab="")
-    plot!(p[2], ldos(G, E, broaden=δ), clims=(0, NaN), title="LDOS")
+    plot!(p[2], ldos(G, E, broaden=δ), st=:shape, clims=(0, NaN), title="LDOS", lw=0)
     plot!(p, plot_title="E = $E, δ = $δ")
 end
 
-gif(a, "animation.gif", fps=10)
+gif(a, "ldos_animation.gif", fps=10)
 ```
