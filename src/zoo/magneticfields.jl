@@ -60,7 +60,7 @@ end
 function vector_potential(field::PointFlux{:axial}, p1)
     (x, y) = p1
     normsq = (x^2 + y^2)
-    SA[-y, x] / normsq * field.flux
+    SA[-y, x] / normsq / 2pi * field.flux
 end
 const FLUX_WARNING = "Hopping line goes through the point of the delta flux, numerical errors possible"
 function line_integral(field::PointFlux{:axial}, p1, p2)
