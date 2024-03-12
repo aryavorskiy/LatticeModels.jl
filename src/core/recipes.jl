@@ -182,8 +182,6 @@ end
     seriescolor --> :matter
     label --> ""
     aspect_ratio := :equal
-    xwiden := 1.2
-    ywiden := 1.2
     markerscale --> plotattributes[:seriestype] == :scatter
     scale_markers = plotattributes[:markerscale]
     @assert scale_markers isa Real "`markerscale` must be a real number or `Bool`"

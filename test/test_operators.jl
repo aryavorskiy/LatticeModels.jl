@@ -151,5 +151,14 @@
         @test ld2.values ≈ ld1.values
         @test dos(eig, E, broaden=δ) ≈ sum(ld1)
         @test dos(G, E, broaden=δ) ≈ sum(ld1)
+
+        l2 = SquareLattice(4, 4)
+        U = 0
+        G1 = greenfunction(diagonalize(tightbinding_hamiltonian(l2)))
+        E0, gs = findgroundstate(bosehubbard(l2, 2, U = U))
+        Hp = bosehubbard(l2, 3, U = U)
+        Hm = bosehubbard(l2, 1, U = U)
+        G2 = greenfunction(gs, Hp, Hm, E₀ = E0)
+        @test G1(E + 0.1im).values ≈ G2(E + 0.1im).values
     end
 end

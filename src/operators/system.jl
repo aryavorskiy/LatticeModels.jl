@@ -97,9 +97,11 @@ function Base.show(io::IO, mime::MIME"text/plain", sys::OneParticleBasisSystem)
     if sys isa OneParticleSystem
         print(io, "One particle on ")
     elseif sys isa FixedN
-        print(io, fmtnum(sys.nparticles, "non-interacting particles"), " on ")
+        noun = sys.statistics == FermiDirac ? "fermion" : "boson"
+        print(io, fmtnum(sys.nparticles, "non-interacting " * noun), " on ")
     elseif sys isa FixedMu
-        print(io, "Non-interactng particles with fixed μ=",
+        noun = sys.statistics == FermiDirac ? "fermion" : "boson"
+        print(io, "Non-interactng $(noun)s with fixed μ=",
             trunc(sys.chempotential, digits=2), " on ")
     end
     show(io, mime, sys.sample)
@@ -150,6 +152,16 @@ Create a manybody system with a given lattice and a given number of particles.
 ## Keyword Arguments
 - `T`: the temperature of the system. Default is `0`.
 - `statistics`: the statistics of the particles. Default is `FermiDirac`.
+
+## Example
+```jldoctest
+julia> using LatticeModels
+
+julia> lat = SquareLattice(3, 3);
+
+julia> NParticles(lat, 4, statistics=BoseEinstein)
+NParticles(4 bosons) on 9-site 2-dim Bravais lattice in 2D space
+```
 """
 function NParticles(sample::SampleT, nparticles; statistics = FermiDirac, T = 0) where SampleT<:Sample
     NParticles{SampleT}(sample, nparticles, statistics, T)
@@ -179,6 +191,22 @@ Create a system with a given lattice and optionally internal degrees of freedom.
 - `μ`: the chemical potential of the system. Use `mu` synonym if Unicode input is not available.
 - `N`: the number of particles in the system.
 - `statistics`: the statistics of the particles. Default is `FermiDirac`.
+
+## Example
+```jldoctest
+julia> using LatticeModels
+
+julia> lat = SquareLattice(3, 3);
+
+julia> System(lat)
+One particle on 9-site 2-dim Bravais lattice in 2D space
+
+julia> System(lat, N=4, statistics=BoseEinstein)
+4 non-interacting bosons on 9-site 2-dim Bravais lattice in 2D space
+
+julia> System(lat, mu=0, statistics=BoseEinstein)
+Non-interactng bosons with fixed μ=0.0 on 9-site 2-dim Bravais lattice in 2D space
+```
 """
 function System(sample::Sample; μ = nothing, mu = μ, N = nothing, T = 0, statistics=FermiDirac)
     if mu !== nothing && N === nothing

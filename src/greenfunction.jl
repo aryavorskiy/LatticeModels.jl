@@ -155,7 +155,7 @@ diagonalelements(gf::GreenFunctionEval{<:System{<:SampleWithoutInternal}}) =
 
 function Base.show(io::IO, mime::MIME"text/plain", gf::GreenFunctionEval)
     print(io, "Evaluated Green's function for ")
-    summary(io2, lattice(gf))
+    summary(io, lattice(gf))
     requires_compact(io) && return
     print(io, "Values in a ")
     show(io, mime, gf.values)

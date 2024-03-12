@@ -8,7 +8,7 @@ function hubbard(T::Type, sys::NParticles; U::Real=0, kw...)
     Hamiltonian(sys, op)
 end
 """
-    bosehubbard([type, ]lat, N[; T, t1, t2, t3, field])
+    bosehubbard([type, ]lat, N[; U, T, t1, t2, t3, field])
 
 ``\\hat{H} =
 \\sum_{i,j}^\\text{sites} t_{ij} c^\\dagger_i c_j +
@@ -22,13 +22,14 @@ Generates a Bose-Hubbard model hamiltonian on given lattice `lat`.
 ## Keyword arguments
 - `t1`, `t2`, `t3` denote the coefficient on first, second and third hoppings respectively.
     By default `t1` is equal to one, the rest are zero.
+- `U`: The interaction strength. Default is zero.
 - `T`: The temperature of the system. Default is zero.
 - `field`: The magnetic field. Default is `NoField()`.
 """
 bosehubbard(type::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
     hubbard(type, NParticles(l, N; T = T, statistics = BoseEinstein); kw...)
 """
-    fermihubbard([type, ]lat, N[; T, t1, t2, t3, field])
+    fermihubbard([type, ]lat, N[; U, T, t1, t2, t3, field])
 
 ``\\hat{H} =
 \\sum_{i,j}^\\text{sites} t_{ij} c^\\dagger_i c_j +
@@ -43,6 +44,7 @@ Generates a Fermi-Hubbard model hamiltonian on given lattice `lat`.
 ## Keyword arguments
 - `t1`, `t2`, `t3` denote the coefficient on first, second and third hoppings respectively.
     By default `t1` is equal to one, the rest are zero.
+- `U`: The interaction strength. Default is zero.
 - `T`: The temperature of the system. Default is zero.
 - `field`: The magnetic field. Default is `NoField()`.
 """
