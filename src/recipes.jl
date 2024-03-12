@@ -23,7 +23,7 @@ end
             seriestype := :scatter
             markersize --> 15
             markeralpha --> markeralphas_one
-            aspect_ratio := 1
+            aspect_ratio := :equal
             ywiden := 1.3
             label := ""
             l[BasisIndex() => i], :sites
@@ -32,7 +32,7 @@ end
     @series begin
         seriestype := :quiver
         linewidth := 2
-        aspect_ratio := 1
+        aspect_ratio := :equal
         ywiden := 1.2
         quiver := [Tuple(unitvector(uc, j)) for j in 1:NU]
         zeros(NU), zeros(NU)
@@ -43,7 +43,7 @@ end
     tseq.times, tseq.values
 end
 
-@recipe function f(curr::AbstractCurrents; showsites=false, arrowheadsize=0.15)
+@recipe function f(curr::AbstractCurrents; showsites=false, arrowheadsize=0.15, arrowtransparency=true)
     lat = lattice(curr)
     axes, axis_numbers = _get_axes(lat, get(plotattributes, :axes, nothing))
     length(axes) != 2 && error("2D axes expected; got $axes")
@@ -76,11 +76,18 @@ end
             v2 - arrowheadsize * (d + o / 3), v2)
         push!(Vs, val, val, val, val, val, NaN)
     end
-    isempty(Vs) || @series begin
-        aspect_ratio := 1
+    if isempty(Vs)
+        _pushpts!()
+        push!(Vs, NaN)
+    end
+    @series begin
         seriestype := :path
         seriescolor --> :matter
         linewidth --> 2.5
+        if arrowtransparency
+            mx = maximum(x -> isnan(x) ? zero(x) : x, Vs)
+            linealpha --> @view(Vs[1:end-1]) / mx
+        end
         line_z --> Vs
         Xs, Ys
     end
@@ -88,6 +95,7 @@ end
         seriestype := :scatter
         markersize := 0.5
         markercolor := :grey
+        markeralpha := 0.5
         lattice(curr), :sites
     end
     showsites && @series lattice(curr), :high_contrast
