@@ -4,7 +4,9 @@
 
 The tight-binding model hamiltonian is defined by this formula:
 
-$$\hat{H} = \sum_i^\text{sites} \left( c^\dagger_{i + \hat{x}} c_i + c^\dagger_{i + \hat{y}} c_i + h. c. \right)$$
+```math
+\hat{H} = \sum_i^\text{sites} \left( c^\dagger_{i + \hat{x}} c_i + c^\dagger_{i + \hat{y}} c_i + h. c. \right)
+```
 
 Here we will find its eigenstates and plot their local density on heatmaps.
 
@@ -79,15 +81,17 @@ gif(a, "adiabatic_flux.gif")
 
 The Chern insulator hamiltonian is described by this formula:
 
-$$\hat{H} = 
+```math
+\hat{H} = 
 \sum_i^\text{sites} m_i c^\dagger_i \sigma_z c_i + 
 \sum_i^\text{sites} \left( 
-c^\dagger_{i + \hat{x}} \frac{\sigma_z - i \sigma_x}{2} c_i + 
-c^\dagger_{i + \hat{y}} \frac{\sigma_z - i \sigma_y}{2} c_i + 
-h. c. \right)$$
+    c^\dagger_{i + \hat{x}} \frac{\sigma_z - i \sigma_x}{2} c_i + 
+    c^\dagger_{i + \hat{y}} \frac{\sigma_z - i \sigma_y}{2} c_i + 
+    h. c. \right)
+```
 
-In this experiment we create a filled state density matrix for a system with $m_i = 1$. 
-After that we change the $m_i$ in the center of the lattice to $-1$ and start the evolution.
+In this experiment we create a filled state density matrix for a system with ``m_i = 1``. 
+After that we change the ``m_i`` in the center of the lattice to ``-1`` and start the evolution.
 
 ```@example
 using LatticeModels

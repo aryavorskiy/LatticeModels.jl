@@ -3,11 +3,13 @@
 
 A helper data structure to quickly find the index of a site in a lattice.
 
+Relies on `sitekey(site)` and `secondarykey(function)` functions to determine the index of a site in the lattice.
+
 Works well under following assumptions:
 - The `sitekey` is some integer property of the sites.
 - The sites in the lattice are ordered by `sitekey`.
 - The numbering is mostly contiguous, i.e. there are no (or few) gaps in the numbering.
-- Secondary keys are also integers, mostly contiguous, ordered and unique for all sites with the same `sitekey`.
+- The `secondarykey` is also integer, mostly contiguous, ordered and unique for all sites with the same `sitekey`.
 Set them to `nothing` to disable usage.
 """
 struct LookupTable
