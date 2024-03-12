@@ -51,6 +51,29 @@
         @test gl1 == gl2
     end
 
+    @testset "Creation" begin
+        sl = SquareLattice(-1:1, -1:1)
+        sl2 = SquareLattice{2}(Square(h = 1))
+        @test LatticeModels.stripparams(sl) == LatticeModels.stripparams(sl2)
+
+        circle_l = TriangularLattice(-10:10, -10:10) do site
+            return site.coords[1]^2 + site.coords[2]^2 ≤ 50 &&
+                (abs(site.coords[1]) > 3 || abs(site.coords[2]) > 3)
+        end
+        circle_l2 = TriangularLattice(Circle(√50), !Square(h = 3))
+        @test LatticeModels.stripparams(circle_l) == LatticeModels.stripparams(circle_l2)
+
+        complexsample = SquareLattice{2}(
+            Circle(10), Circle(10, [20, 0]), Circle(10, [10, 5√3]),
+            !Circle(5), !Circle(5, [20, 0]), !Circle(5, [10, 5√3]),
+            Path([-12, -12], [-12, 32]), sites=10000
+        )
+        removedangling!(complexsample, maxdepth=2)
+        @test length(complexsample) ≈ 10000 rtol=0.03
+
+        @test_throws ArgumentError SquareLattice(Circle(10))
+    end
+
     l = SquareLattice(10, 10)
     x, y = coordvalues(l)
     xm2 = LatticeValue(l) do (x, y)
