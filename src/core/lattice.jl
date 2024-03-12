@@ -41,34 +41,7 @@ This interface is used to define various properties of a site. They can be acces
 ```jldoctest
 julia> using LatticeModels
 
-julia> l = SquareLattice(3, 3)
-9-site 2-dim Bravais lattice in 2D space
-Unit cell:
-  Basis site coordinates:
-    ┌      ┐
-    │ 0.000│
-    │ 0.000│
-    └      ┘
-  Translation vectors:
-    ┌      ┐ ┌      ┐
-    │ 1.000│ │ 0.000│
-    │ 0.000│ │ 1.000│
-    └      ┘ └      ┘
-Lattice type: SquareLattice{2}
-Default translations:
-  :axis1 → Bravais[3, 0]
-  :axis2 → Bravais[0, 3]
-Nearest neighbor hoppings:
-  1.00000 =>
-    Bravais[1, 0]
-    Bravais[0, 1]
-  1.41421 =>
-    Bravais[1, -1]
-    Bravais[1, 1]
-  2.00000 =>
-    Bravais[2, 0]
-    Bravais[0, 2]
-Boundary conditions: none
+julia> l = SquareLattice(3, 3);
 
 julia> l[x = 1, y = 2]          # Get site with x = 1 and y = 2
 2-dim Bravais lattice site in 2D space at [1.0, 2.0]

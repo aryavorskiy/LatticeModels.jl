@@ -29,7 +29,7 @@ import Pkg; Pkg.add(url="https://github.com/aryavorskiy/LatticeModels.jl")
 
 Packages such as [Quantica.jl](https://github.com/pablosanjose/Quantica.jl), [pybinding](https://docs.pybinding.site/en/stable/index.html) and [Kwant](https://kwant-project.org/) provide similar functionality. However, they lack some features that are present in `LatticeModels.jl`:
 
-- **Schroedinger equation solvers with time-dependent hamiltonians**. Only Kwant provides similar 
+- **Schroedinger equation solvers with time-dependent Hamiltonians**. Only Kwant provides similar 
     functionality with its `Tkwant` module, but it lacks the performance and flexibility of the 
     [`Evolution`](@ref) struct.
 - **Convenient tools for setting boundary conditions and gauge fields**. The only way to do this in 
@@ -59,7 +59,7 @@ for i in 1:n^2
     # Plot local density on each subplot
     E_rounded = round(diag.values[i], sigdigits=4)
     plot!(p[i], localdensity(diag[i]), title="\$E_{$i} = $E_rounded\$", st=:shape, clims=clims,
-        c=:inferno, cbar=:none, lw=0)
+        c=:inferno, cbar=:none, lw=0, framestyle=:none)
 end
 
 # The following lines are kinda hacky; they draw one colorbar for all heatmaps
