@@ -9,14 +9,11 @@ These features can be useful in non-trivial cases, but are not necessary for bas
 
 ## `AbstractLattice` interface
 
-The base of `LatticeModels.jl` is its interfaces, allowing to define lattices with arbitrary geometry, topology and boundary conditions. The `AbstractLattice` interface is the main interface for defining lattices.
+The base of `LatticeModels.jl` is its interfaces, allowing to define lattices with arbitrary geometry, topology and boundary conditions. The [`LatticeModels.AbstractLattice`](@ref) interface is the main interface for defining lattices.
 
-```@docs
-LatticeModels.AbstractLattice
-LatticeModels.AbstractSite
-```
+Generally speaking, a lattice is a set of sites. Each site, in turn, has its spatial coordinates in its `coords` field and maybe some additional properties. It also must be a subtype of [`LatticeModels.AbstractSite`](@ref).
 
-Generally speaking, a lattice is a set of sites. Each site, in turn, has its spatial coordinates and maybe some additional properties. Note that the bonds between sites and the boundary conditions are initially not part of the lattice, but are added to its metadata later.
+Note that the bonds between sites and the boundary conditions are initially not part of the lattice, but are added to its metadata later.
 
 ### Basic functions
 
@@ -32,17 +29,13 @@ Generally speaking, a lattice is a set of sites. Each site, in turn, has its spa
 
 ## `AbstractBonds` interface
 
-The `AbstractBonds` interface is used to define different types of bonds between sites. Most generally speaking,
+The [`LatticeModels.AbstractBonds`](@ref) interface is used to define different types of bonds between sites. Most generally speaking,
 such object is a mapping that decides if the sites are connected for each pair.
-
-```@docs
-LatticeModels.AbstractBonds
-```
 
 Note that there are three basic types of bonds in `LatticeModels.jl`:
 - `LatticeModels.AbstractBonds`: a most general interface. Basically, it is just a mapping from site pairs to boolean values.
-- `LatticeModels.DirectBonds`: this type of bonds defines a set of bonds that has a defined direction. The whole topology can be defined by the "destination" sites for each site. Since the bonds are usually sparse, the general performance of this type of bonds is much higher.
-- `LatticeModels.AbstractTranslation`: this is a subtype of `DirectBonds`, where every site has one or zero "destination" sites. This allows to increase the performance even more, and also to transform the sites in a convenient manner:
+- [`LatticeModels.DirectedBonds`](@ref): this type of bonds defines a set of bonds that has a defined direction. The whole topology can be defined by the "destination" sites for each site. Since the bonds are usually sparse, the general performance of this type of bonds is much higher.
+- [`LatticeModels.AbstractTranslation`](@ref): this is a subtype of `DirectedBonds`, where every site has one or zero "destination" sites. This allows to increase the performance even more, and also to transform the sites in a convenient manner:
 
 ```julia
 site1 = lat[!, x = 1, y = 1]    # Get the site at [1, 1]
@@ -61,20 +54,11 @@ It is very easy to diagonalize a matrix in Julia. However, problems can arise wh
 
 ## `SchroedingerSolver`s
 
-The `SchroedingerSolver` interface is used to solve the time-dependent Schroedinger equation. It is used in the `Evolution` struct to perform unitary evolution. As with the diagonalization problem, one can add a new algorithm to the default toolchain by creating a new `SchroedingerSolver` type.
-
-```@docs
-LatticeModels.SchrodingerSolver
-```
+The [`LatticeModels.SchroedingerSolver`](@ref) interface is used to solve the time-dependent Schroedinger equation. It is used in the `Evolution` struct to perform unitary evolution. As with the diagonalization problem, one can add a new algorithm to the default toolchain by creating a new `SchroedingerSolver` type.
 
 ## Currents
 
-The `AbstractCurrents` interface allows to define different types of currents on the lattice. This allows it to be
-a lazy objects, which computes the currents only when needed.
-
-```@docs
-LatticeModels.AbstractCurrents
-```
+The [`LatticeModels.AbstractCurrents`](@ref) interface allows to define different types of currents on the lattice. This allows it to be a lazy object, which computes the currents only when needed.
 
 To implement basic currents semantics, you need to define the following methods:
 - `LatticeModels.lattice(your_currents)`: returns the lattice, on which the currents are defined.

@@ -3,7 +3,7 @@ using LinearAlgebra, ProgressMeter
 import KrylovKit
 
 """
-    SchrodingerSolver
+    SchroedingerSolver
 
 Abstract type for solvers that can be used to evolve states in time according to the
 Schroedinger equation.
@@ -22,14 +22,14 @@ See also concrete implementations: `CachedExp`, `KrylovKitExp`.
     intermediate results for the given state. Returns `nothing` if the solver does not need
     a cache for the given state (this is the default implementation).
 """
-abstract type SchrodingerSolver end
+abstract type SchroedingerSolver end
 function update_solver! end
-evolution_cache(solver::SchrodingerSolver, state::Ket) = evolution_cache(solver, state.data)
-evolution_cache(solver::SchrodingerSolver, state::DataOperator) = evolution_cache(solver, state.data)
-evolution_cache(::SchrodingerSolver, _) = nothing
-step!(solver::SchrodingerSolver, state::Ket, cache) = step!(solver, state.data, cache)
-step!(solver::SchrodingerSolver, state::DataOperator, cache) = step!(solver, state.data, cache)
-step!(::SchrodingerSolver, ::Bra, ::Any) =
+evolution_cache(solver::SchroedingerSolver, state::Ket) = evolution_cache(solver, state.data)
+evolution_cache(solver::SchroedingerSolver, state::DataOperator) = evolution_cache(solver, state.data)
+evolution_cache(::SchroedingerSolver, _) = nothing
+step!(solver::SchroedingerSolver, state::Ket, cache) = step!(solver, state.data, cache)
+step!(solver::SchroedingerSolver, state::DataOperator, cache) = step!(solver, state.data, cache)
+step!(::SchroedingerSolver, ::Bra, ::Any) =
     throw(ArgumentError("Bra cannot be evolved in time; convert it to a Ket instead"))
 
 const EvolutionHamType = Union{AbstractMatrix,DataOperator,AbstractTimeDependentOperator,Function}
@@ -42,7 +42,7 @@ _data(op::DataOperator) = op.data
 """
     CachedExp(ham[; threshold=1e-10, nonzero_tol=1e-14])
 
-A `SchrodingerSolver` that finds the matrix exponential of the Hamiltonian and caches it.
+A `SchroedingerSolver` that finds the matrix exponential of the Hamiltonian and caches it.
 The matrix exponential is computed using a scaling and squaring method, so this solver works
 well with sparse or GPU arrays.
 
@@ -52,7 +52,7 @@ well with sparse or GPU arrays.
 - `nonzero_tol`: The tolerance for dropping small elements in the matrix exponential if it is
     sparse.
 """
-mutable struct CachedExp{MT,ET,KWT} <: SchrodingerSolver
+mutable struct CachedExp{MT,ET,KWT} <: SchroedingerSolver
     mat::MT
     matexp::ET
     factor::ComplexF64
@@ -122,14 +122,14 @@ end
 """
     KrylovKitExp(ham[; kw...])
 
-A `SchrodingerSolver` that uses the `exponentiate` function from KrylovKit.jl to evolve the
+A `SchroedingerSolver` that uses the `exponentiate` function from KrylovKit.jl to evolve the
 wavefunction vectors. This solver is useful for large, sparse, time-dependent Hamiltonians.
 
 ## Arguments
 - `ham`: The Hamiltonian of the system. It can be an `Operator` or its matrix.
 - `kw...`: Keyword arguments to be passed to `exponentiate`.
 """
-mutable struct KrylovKitExp{MT<:AbstractMatrix,KWT} <: SchrodingerSolver
+mutable struct KrylovKitExp{MT<:AbstractMatrix,KWT} <: SchroedingerSolver
     mat::MT
     factor::ComplexF64
     kw::KWT
@@ -152,7 +152,7 @@ Create an `Evolution` object that can be used to evolve states in time according
 Schroedinger equation.
 
 # Arguments
-- `solver`: A `SchrodingerSolver` object that will be used to evolve the states. If omitted,
+- `solver`: A `SchroedingerSolver` object that will be used to evolve the states. If omitted,
     a `CachedExp` solver will be created.
 - `hamiltonian`: The Hamiltonian of the system. It can be a matrix, a time-dependent operator
     or a function that returns the Hamiltonian at a given time.
@@ -162,7 +162,7 @@ Schroedinger equation.
     object will be returned, and you will be able to call it with
     the time domain later.
 
-See `SchrodingerSolver` for more information about solvers.
+See `SchroedingerSolver` for more information about solvers.
 
 !!! warning
     Please note that the `Evolution` object is a **stateful** iterator. This means that it
@@ -178,7 +178,7 @@ struct Evolution{SolverT,HamT,NamedTupleT}
     states::NamedTupleT
     time::Base.RefValue{Float64}
     function Evolution(solver::SolverT, hamiltonian::HamT, states::Union{Tuple,NamedTuple}) where
-            {SolverT<:SchrodingerSolver,HamT}
+            {SolverT<:SchroedingerSolver,HamT}
         newstates = map(states) do state
             state isa EvolutionStateType || throw(ArgumentError("invalid state type: $(typeof(state))"))
             cache = evolution_cache(solver, state)
@@ -191,7 +191,7 @@ function Evolution(hamiltonian::EvolutionHamType, states::EvolutionStateType...;
     solver = CachedExp(eval_hamiltonian(hamiltonian, 0))
     return Evolution(solver, hamiltonian, states...; namedstates...)
 end
-function Evolution(solver::SchrodingerSolver, hamiltonian::EvolutionHamType, states::EvolutionStateType...;
+function Evolution(solver::SchroedingerSolver, hamiltonian::EvolutionHamType, states::EvolutionStateType...;
         timedomain=nothing, namedstates...)
     final_states = if isempty(states)
         isempty(namedstates) && throw(ArgumentError("No states provided"))
