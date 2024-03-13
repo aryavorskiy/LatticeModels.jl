@@ -48,6 +48,11 @@
         gl2 = GenericLattice{typeof(ls1)}()
         push!(gl2, ls3, ls4, ls2, ls1)
         @test gl1 == gl2
+
+        gl3 = GenericLattice{2}()
+        union!(gl3, small_l)
+        gl4 = GenericLattice([GenericSite(1, 1), GenericSite(1, 2), GenericSite(2, 1), GenericSite(2, 2)])
+        @test gl3 == gl4
     end
 
     circle_l = TriangularLattice(-10:10, -10:10) do site
