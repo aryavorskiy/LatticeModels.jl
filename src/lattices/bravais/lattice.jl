@@ -9,14 +9,14 @@ struct BravaisLattice{N,NU,UnitcellT} <: AbstractLattice{BravaisSite{N,NU,Unitce
     end
 end
 unitcell(l::BravaisLattice) = l.unitcell
-unitcell(lw::LatticeWithParams) = unitcell(lw.lat)
+unitcell(lw::LatticeWithMetadata) = unitcell(lw.lat)
 basvector(any, i::Int) = basvector(unitcell(any), i)
 unitvector(any, i::Int) = unitvector(unitcell(any), i)
 unitvectors(any) = unitvectors(unitcell(any))
 baslength(any) = length(unitcell(any))
 transform_unitcell(l::BravaisLattice; kw...) = BravaisLattice(transform_unitcell(l.unitcell; kw...), l.pointers)
-transform_unitcell(lw::LatticeWithParams; kw...) =
-    LatticeWithParams(transform_unitcell(lw.lat; kw...), lw.params)
+transform_unitcell(lw::LatticeWithMetadata; kw...) =
+    LatticeWithMetadata(transform_unitcell(lw.lat; kw...), lw.metadata)
 
 Base.:(==)(l1::BravaisLattice, l2::BravaisLattice) =
     (l1.pointers == l2.pointers) && (l1.unitcell == l2.unitcell)
@@ -119,7 +119,7 @@ end
 
 function finalize_lattice(lat; boundaries=BoundaryConditions(), default_translations=(),
         rmdup=false, postoffset=:origin, postrotate=nothing)
-    lat = setnnbonds(lat, getnnbonds(stripparams(lat)))
+    lat = setnnbonds(lat, getnnbonds(stripmeta(lat)))
     lat = addtranslations(lat, default_translations)
     lat = setboundaries(lat, parse_boundaries(lat, boundaries), rmdup=rmdup)
     lat = transform_unitcell(lat, offset=postoffset, rotate=postrotate)

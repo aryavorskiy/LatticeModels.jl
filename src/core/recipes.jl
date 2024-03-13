@@ -162,15 +162,15 @@ function getshape(lat::AbstractLattice)
     end
     return getcircle(r/2, 20)
 end
-getshape(lat::AbstractLattice, _) = getshape(stripparams(lat))   # fallback for undefined lattice types
-function getshape(lat::LatticeWithParams)
-    if hasparam(lat, :latticetype)
-        return getshape(stripparams(lat), gettype(lat))
+getshape(lat::AbstractLattice, _) = getshape(stripmeta(lat))   # fallback for undefined lattice types
+function getshape(lat::LatticeWithMetadata)
+    if hasmeta(lat, :latticetype)
+        return getshape(stripmeta(lat), gettype(lat))
     elseif length(getnnbonds(lat)) > 0
         nnb = getnnbonds(lat)
         return getcircle(nnb.dists[1], 20)
     else
-        return getshape(stripparams(lat))
+        return getshape(stripmeta(lat))
     end
 end
 function moveshape(shape, loc::SVector{2}, scale=1)

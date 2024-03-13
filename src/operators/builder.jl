@@ -124,7 +124,7 @@ Construct an `OperatorBuilder` for a given system or lattice.
 ## Arguments
 - `T`: The type of the matrix elements. Defaults to `ComplexF64`.
 - `sys`: A `System` object representing the system.
-- `lat`: A `Lattice` object representing the lattice.
+- `lat`: The lattice on which the operator is defined.
 - `internal`: The basis for the internal degrees of freedom.
 
 ## Keyword arguments

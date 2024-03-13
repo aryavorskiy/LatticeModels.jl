@@ -79,9 +79,9 @@ function Base.show(io::IO, ::MIME"text/plain", lt::LookupTable)
         isempty(lt.secondarykeyranges) ? "" : ", secondary keys enabled")
 end
 
-function site_index(lw::LatticeWithParams, site::AbstractSite, range)
-    if hasparam(lw, :lookup)
-        lookup_table = getparam(lw, :lookup)
+function site_index(lw::LatticeWithMetadata, site::AbstractSite, range)
+    if hasmeta(lw, :lookup)
+        lookup_table = getmeta(lw, :lookup)
         lrange = indrange(lookup_table, site)
         tot_range = intersect(range, lrange)
         isempty(tot_range) && return nothing
@@ -103,5 +103,5 @@ Adds a lookup table to the lattice `lat` and returns the lattice with the lookup
     This operation is not in-place.
 """
 function addlookuptable(lat::AbstractLattice)
-    return setparam(lat, :lookup, LookupTable(lat))
+    return setmeta(lat, :lookup, LookupTable(lat))
 end

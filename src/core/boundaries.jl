@@ -149,7 +149,7 @@ end
 
 adapt_boundaries(bcs::BoundaryConditions, l::AbstractLattice) =
     BoundaryConditions(map(b -> adapt_boundary(b, l), bcs.boundaries); depth=bcs.depth)
-getboundaries(l::AbstractLattice) = adapt_boundaries(getparam(l, :boundaries, BoundaryConditions()), l)
+getboundaries(l::AbstractLattice) = adapt_boundaries(getmeta(l, :boundaries, BoundaryConditions()), l)
 
 function mappings(bcs::BoundaryConditions, site::AbstractSite)
     Base.Iterators.map(cartesian_indices(bcs)) do cind
@@ -203,7 +203,7 @@ Set the boundary conditions for the lattice `lat`.
 """
 function setboundaries(l::AbstractLattice, bcs::BoundaryConditions; kw...)
     checkoverlap(l, bcs; kw...)
-    setparam(l, :boundaries, adapt_boundaries(bcs, UndefinedLattice()))
+    setmeta(l, :boundaries, adapt_boundaries(bcs, UndefinedLattice()))
 end
 setboundaries(l::AbstractLattice, bcs; kw...) =
     setboundaries(l, parse_boundaries(l, bcs); kw...)
@@ -260,7 +260,7 @@ end
     return exp(im * sum(bounds[i].Θ * tup[i] for i in 1:length(tup)))
 end
 
-function resolve_site(l::LatticeWithParams, site::AbstractSite)
+function resolve_site(l::LatticeWithMetadata, site::AbstractSite)
     site === NoSite() && return nothing
     bcs = getboundaries(l)
     r = route(bcs, l, site)
@@ -288,7 +288,7 @@ function translate_to_nearest(l::AbstractLattice, site1::AbstractSite, site2::Ab
     end
     return min_site
 end
-sitedistance(l::LatticeWithParams, site1::AbstractSite, site2::AbstractSite) =
+sitedistance(l::LatticeWithMetadata, site1::AbstractSite, site2::AbstractSite) =
     norm(translate_to_nearest(l, site1, site2).coords - site1.coords)
 
 struct DefaultTranslations{NamedTupleT}
@@ -319,16 +319,16 @@ function Base.show(io::IO, mime::MIME"text/plain", dt::DefaultTranslations)
 end
 
 function addtranslations(l::AbstractLattice, translations::Pair{Symbol, <:DirectedBonds}...; overwrite=false)
-    tr = getparam(l, :defaulttranslations, DefaultTranslations())
+    tr = getmeta(l, :defaulttranslations, DefaultTranslations())
     if overwrite
-        setparam(l, :defaulttranslations, DefaultTranslations(translations...))
+        setmeta(l, :defaulttranslations, DefaultTranslations(translations...))
     else
-        setparam(l, :defaulttranslations, DefaultTranslations(tr, translations...))
+        setmeta(l, :defaulttranslations, DefaultTranslations(tr, translations...))
     end
 end
 addtranslations(l::AbstractLattice, translations::Tuple; kw...) =
     addtranslations(l, translations...; kw...)
 
 function defaulttranslations(l::AbstractLattice)
-    getparam(l, :defaulttranslations, DefaultTranslations())
+    getmeta(l, :defaulttranslations, DefaultTranslations())
 end

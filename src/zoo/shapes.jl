@@ -71,7 +71,7 @@ shaperadius(uc::UnitCell, shape::AbstractShape, sites::Int) =
     shape.radius * scalefactor(uc, shape; sites=sites)
 shaperadius(LT::Type{<:BravaisLatticeType}, shape::AbstractShape, sites::Int) =
     shaperadius(construct_unitcell(LT), shape, sites)
-shaperadius(lat::MaybeWithParams{BravaisLattice}, shape::AbstractShape) =
+shaperadius(lat::MaybeWithMetadata{BravaisLattice}, shape::AbstractShape) =
     shaperadius(lat.unitcell, shape, length(lat))
 
 function fillshapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...;
@@ -104,7 +104,7 @@ fillshapes(LT::Type{<:BravaisLatticeType}, shapes::AbstractShape...; kw...) =
 (::Type{LT})(shapes::AbstractShape...; kw...) where LT<:BravaisLatticeType =
     settype(fillshapes(construct_unitcell(LT), shapes...; kw...), LT)
 
-function addshapes!(l::MaybeWithParams{BravaisLattice{N}}, shapes::AbstractShape...) where N
+function addshapes!(l::MaybeWithMetadata{BravaisLattice{N}}, shapes::AbstractShape...) where N
     bps = l.pointers
     uc = l.unitcell
     for shape in shapes

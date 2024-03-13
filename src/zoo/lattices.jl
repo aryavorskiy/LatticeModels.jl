@@ -103,8 +103,8 @@ function (::Type{T})(args...; kw...) where T<:BravaisLatticeType
 end
 
 Base.show(io::IO, ::MIME"text/plain", T::Type{<:BravaisLatticeType}) = print(io, "Lattice type: ", string(T))
-settype(l::AbstractLattice, T::Type{<:BravaisLatticeType}) = pushparam(l, :latticetype, T)
-gettype(l::AbstractLattice) = getparam(l, :latticetype, nothing)
+settype(l::AbstractLattice, T::Type{<:BravaisLatticeType}) = pushmeta(l, :latticetype, T)
+gettype(l::AbstractLattice) = getmeta(l, :latticetype, nothing)
 function checktype(l::AbstractLattice, T::Type{<:BravaisLatticeType})
     AT = gettype(l)
     if AT === nothing

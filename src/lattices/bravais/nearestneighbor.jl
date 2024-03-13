@@ -40,10 +40,10 @@ Base.length(dnn::DefaultNNBonds) = length(dnn.nnbonds)
 
 Returns the nearest neighbor bonds of the lattice `lat`.
 """
-getnnbonds(l::AbstractLattice) = getparam(l, :nnbonds, DefaultNNBonds((), ()))
-setnnbonds(l::AbstractLattice, dnn::DefaultNNBonds) = setparam(l, :nnbonds, dnn)
+getnnbonds(l::AbstractLattice) = getmeta(l, :nnbonds, DefaultNNBonds((), ()))
+setnnbonds(l::AbstractLattice, dnn::DefaultNNBonds) = setmeta(l, :nnbonds, dnn)
 
-function adapt_bonds(b::NearestNeighbor{N}, l::LatticeWithParams) where {N}
+function adapt_bonds(b::NearestNeighbor{N}, l::LatticeWithMetadata) where {N}
     default_nnhops = getnnbonds(l)
     if default_nnhops === nothing || N > length(default_nnhops)
         return adapt_bonds(adapt_bonds(b, l.lat), l)
@@ -51,7 +51,7 @@ function adapt_bonds(b::NearestNeighbor{N}, l::LatticeWithParams) where {N}
         return adapt_bonds(default_nnhops[N], l)
     end
 end
-NearestNeighbor(l::LatticeWithParams, N) = adapt_bonds(NearestNeighbor(N), l)
+NearestNeighbor(l::LatticeWithMetadata, N) = adapt_bonds(NearestNeighbor(N), l)
 
 function detect_nnhops(uc::UnitCell{Sym, N,NB} where Sym, depth=2, limit=3) where {N,NB}
     lens = Float64[]

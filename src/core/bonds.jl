@@ -162,9 +162,9 @@ isadjacent(am::AdjacencyMatrix, s1::ResolvedSite, s2::ResolvedSite) = am.mat[s1.
 @inline function directed_destinations(am::AdjacencyMatrix{<:Any,<:SparseMatrixCSC}, rs::ResolvedSite)
     i = am.mat.colptr[rs.index]
     j = am.mat.colptr[rs.index + 1]
-    st = findfirst(>(rs.index), @view(am.mat.rowval[i:j]))
+    st = findfirst(>(rs.index), @view(am.mat.rowval[i:j-1]))
     st === nothing && return @view am.mat.rowval[j:j-1]
-    @view am.mat.rowval[i + st:j - 1]
+    @view am.mat.rowval[i + st - 1:j - 1]
 end
 
 function Base.setindex!(b::AdjacencyMatrix, v, site1::AbstractSite, site2::AbstractSite)

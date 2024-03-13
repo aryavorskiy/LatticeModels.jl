@@ -5,7 +5,7 @@ import KrylovKit: eigsolve
 
 abstract type AbstractEigensystem{BT} end
 """
-    Eigensystem{LT, MT} where {LT<:Lattice, MT<:AbstractMatrix}
+    Eigensystem{LT, MT} where {LT<:AbstractLattice, MT<:AbstractMatrix}
 
 Eigenvalues and eigenvectors for some operator.
 """

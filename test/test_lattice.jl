@@ -25,7 +25,7 @@
         @test s_4 == s_5
         @test_throws LatticeModels.IncompatibleLattices hl[x.<y]
         @test hl[!, LatticeCoord(1) => 3, j2 = 2, index = 1] ==
-            LatticeModels.get_site(LatticeModels.stripparams(hl),
+            LatticeModels.get_site(LatticeModels.stripmeta(hl),
             LatticeModels.BravaisPointer(SA[3, 2], 1))
         xb, yb = coordvalues(SquareLattice(5, 40))
         @test_throws LatticeModels.IncompatibleLattices sql[xb.<yb]
@@ -58,10 +58,10 @@
     @testset "Creation" begin
         sl = SquareLattice(-1:1, -1:1)
         sl2 = SquareLattice{2}(Square(h = 1))
-        @test LatticeModels.stripparams(sl) == LatticeModels.stripparams(sl2)
+        @test LatticeModels.stripmeta(sl) == LatticeModels.stripmeta(sl2)
 
         circle_l2 = TriangularLattice(Circle(√50), !Square(h = 3))
-        @test LatticeModels.stripparams(circle_l) == LatticeModels.stripparams(circle_l2)
+        @test LatticeModels.stripmeta(circle_l) == LatticeModels.stripmeta(circle_l2)
 
         complexsample = SquareLattice{2}(
             Circle(10), Circle(10, [20, 0]), Circle(10, [10, 10√3]),

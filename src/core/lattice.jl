@@ -306,7 +306,7 @@ end
 Checks if `l1` and `l2` objects are defined on the same sites. Throws an error if not.
 """
 function check_samesites(l1, l2)
-    stripparams(lattice(l1)) != stripparams(lattice(l2)) &&
+    stripmeta(lattice(l1)) != stripmeta(lattice(l2)) &&
         throw(IncompatibleLattices("Matching sets of sites expected", l1, l2))
 end
 
@@ -340,79 +340,80 @@ resolve_site(::AbstractLattice, rs::ResolvedSite) = rs
 resolve_site(l::AbstractLattice, i::Int) =
     i in eachindex(l) ? ResolvedSite(l[i], i) : nothing
 
-struct LatticeWithParams{LT,ParamsT,SiteT} <: AbstractLattice{SiteT}
+struct LatticeWithMetadata{LT,MetaT,SiteT} <: AbstractLattice{SiteT}
     lat::LT
-    params::ParamsT
-    function LatticeWithParams(lat::LT, params::ParamsT) where
-            {SiteT,LT<:AbstractLattice{SiteT},ParamsT<:NamedTuple}
-        new{LT,ParamsT,SiteT}(lat, params)
+    metadata::MetaT
+    function LatticeWithMetadata(lat::LT, meta::MetaT) where
+            {SiteT,LT<:AbstractLattice{SiteT},MetaT<:NamedTuple}
+        new{LT,MetaT,SiteT}(lat, meta)
     end
 end
-LatticeWithParams(lw::LatticeWithParams, params::NamedTuple) =
-    LatticeWithParams(lw.lat, merge(lw.params, params))
-allparams(::AbstractLattice) = NamedTuple()
-allparams(lw::LatticeWithParams) = lw.params
+LatticeWithMetadata(lw::LatticeWithMetadata, newmeta::NamedTuple) =
+    LatticeWithMetadata(lw.lat, merge(lw.metadata, newmeta))
+allmeta(::AbstractLattice) = NamedTuple()
+allmeta(lw::LatticeWithMetadata) = lw.metadata
 
-Base.length(lw::LatticeWithParams) = length(lw.lat)
-Base.getindex(::LatticeWithParams, ::Nothing) = NoSite()
-Base.getindex(lw::LatticeWithParams, i::Int) = lw.lat[i]
-Base.getindex(lw::LatticeWithParams, is::AbstractVector{Int}) = LatticeWithParams(lw.lat[is], lw.params)
-site_index(::LatticeWithParams, ::NoSite) = nothing
+Base.length(lw::LatticeWithMetadata) = length(lw.lat)
+Base.getindex(::LatticeWithMetadata, ::Nothing) = NoSite()
+Base.getindex(lw::LatticeWithMetadata, i::Int) = lw.lat[i]
+Base.getindex(lw::LatticeWithMetadata, is::AbstractVector{Int}) =
+    LatticeWithMetadata(lw.lat[is], lw.metadata)
+site_index(::LatticeWithMetadata, ::NoSite) = nothing
 
-Base.emptymutable(l::LatticeWithParams, ::Type{T}) where {T<:AbstractSite} =
-    LatticeWithParams(Base.emptymutable(l.lat, T), l.params)
-Base.copymutable(lw::LatticeWithParams) = LatticeWithParams(Base.copymutable(lw.lat), lw.params)
-Base.deleteat!(lw::LatticeWithParams, is) = (deleteat!(lw.lat, is); return lw)
-function Base.push!(lw::LatticeWithParams{<:AbstractLattice{SiteT}}, site::SiteT) where SiteT
+Base.emptymutable(l::LatticeWithMetadata, ::Type{T}) where {T<:AbstractSite} =
+    LatticeWithMetadata(Base.emptymutable(l.lat, T), l.metadata)
+Base.copymutable(lw::LatticeWithMetadata) =
+    LatticeWithMetadata(Base.copymutable(lw.lat), lw.metadata)
+Base.deleteat!(lw::LatticeWithMetadata, is) = (deleteat!(lw.lat, is); return lw)
+function Base.push!(lw::LatticeWithMetadata{<:AbstractLattice{SiteT}}, site::SiteT) where SiteT
     push!(lw.lat, site)
     return lw
 end
 
-Base.show(io::IO, ::Type{<:LatticeWithParams{LT, ParamsT}}) where {LT, ParamsT} =
-    print(io, "LatticeWithParams{", LT, ", params", fieldnames(ParamsT), "}")
+Base.show(io::IO, ::Type{<:LatticeWithMetadata{LT, MetaT}}) where {LT, MetaT} =
+    print(io, "LatticeWithMetadata{", LT, ", params", fieldnames(MetaT), "}")
 
-Base.summary(io::IO, lw::LatticeWithParams) = summary(io, lw.lat)
-function Base.show(io::IO, mime::MIME"text/plain", lw::LatticeWithParams)
+Base.summary(io::IO, lw::LatticeWithMetadata) = summary(io, lw.lat)
+function Base.show(io::IO, mime::MIME"text/plain", lw::LatticeWithMetadata)
     io = IOContext(io, :maxlines=>4)
     if requires_compact(io)
         show(io, mime, lw.lat)
         return print(io, " (with params)")
     end
     show(io, mime, lw.lat)
-    for v in values(lw.params)
+    for v in values(lw.metadata)
         println(io)
         show(io, mime, v)
     end
 end
 
-function Base.getproperty(lw::LatticeWithParams, sym::Symbol)
+function Base.getproperty(lw::LatticeWithMetadata, sym::Symbol)
     if sym in fieldnames(typeof(lw))
         return getfield(lw, sym)
     end
-    params = getfield(lw, :params)
-    if haskey(params, sym)
-        return params[sym]
+    meta = getfield(lw, :metadata)
+    if haskey(meta, sym)
+        return meta[sym]
     end
     return getproperty(getfield(lw, :lat), sym)
 end
 
-Base.propertynames(lw::LatticeWithParams) =
-    tuple(propertynames(lw.lat)..., fieldnames(typeof(lw))..., keys(lw.params)...)
+Base.propertynames(lw::LatticeWithMetadata) =
+    tuple(propertynames(lw.lat)..., fieldnames(typeof(lw))..., keys(lw.metadata)...)
 
-const Lattice = LatticeWithParams
-Lattice(l::AbstractLattice; kw...) = LatticeWithParams(l, NamedTuple(kw))
+LatticeWithMetadata(l::AbstractLattice; kw...) = LatticeWithMetadata(l, NamedTuple(kw))
 
-hasparam(::AbstractLattice, ::Symbol) = false
-hasparam(l::LatticeWithParams, param::Symbol) = haskey(l.params, param)
-getparam(::AbstractLattice, ::Symbol, default=nothong) = default
-getparam(l::LatticeWithParams, param::Symbol, default=nothing) = get(l.params, param, default)
-setparam(l::AbstractLattice, param::Symbol, val) = Lattice(l, NamedTuple{(param,)}((val,)))
-delparam(l::LatticeWithParams, param::Symbol) = Lattice(l.lat, Base.structdiff(l.params, NamedTuple{(param,)}))
+hasmeta(::AbstractLattice, ::Symbol) = false
+hasmeta(l::LatticeWithMetadata, meta::Symbol) = haskey(l.metadata, meta)
+getmeta(::AbstractLattice, ::Symbol, default=nothong) = default
+getmeta(l::LatticeWithMetadata, meta::Symbol, default=nothing) = get(l.metadata, meta, default)
+setmeta(l::AbstractLattice, param::Symbol, val) = LatticeWithMetadata(l, NamedTuple{(param,)}((val,)))
+delmeta(l::LatticeWithMetadata, param::Symbol) = LatticeWithMetadata(l.lat, Base.structdiff(l.metadata, NamedTuple{(param,)}))
 
-stripparams(l::AbstractLattice) = l
-stripparams(l::LatticeWithParams) = l.lat
+stripmeta(l::AbstractLattice) = l
+stripmeta(l::LatticeWithMetadata) = l.lat
 
-pushparam(l::AbstractLattice, param::Symbol, val) =
-    LatticeWithParams(stripparams(l), merge(NamedTuple{(param,)}((val,)), allparams(l)))
+pushmeta(l::AbstractLattice, param::Symbol, val) =
+    LatticeWithMetadata(stripmeta(l), merge(NamedTuple{(param,)}((val,)), allmeta(l)))
 
-const MaybeWithParams{LT} = Union{LT, LatticeWithParams{<:LT}}
+const MaybeWithMetadata{LT} = Union{LT, LatticeWithMetadata{<:LT}}

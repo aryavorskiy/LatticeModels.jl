@@ -11,8 +11,8 @@ struct LatticeBasis{LT} <: QuantumOpticsBase.Basis
     shape::Int
     lat::LT
     function LatticeBasis(l::LT) where LT<:AbstractLattice
-        new_l = stripparams(l)
-        hasparam(l, :latticetype) && (new_l = settype(new_l, gettype(l)))
+        new_l = stripmeta(l)
+        hasmeta(l, :latticetype) && (new_l = settype(new_l, gettype(l)))
         return new{typeof(new_l)}(length(l), new_l)
     end
 end
