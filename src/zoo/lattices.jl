@@ -89,7 +89,7 @@ macro bravaisdef(type, expr)
         end |> esc
     end
 end
-(::Type{T})(;kw...) where T<:BravaisLatticeType = transform_unitcell(construct_unitcell(T); kw...)
+UnitCell(::Type{T}; kw...) where T<:BravaisLatticeType = transform_unitcell(construct_unitcell(T); kw...)
 function (::Type{T})(f::Function, sz::Vararg{LatticeModels.RangeT, NU}; kw...) where {T<:BravaisLatticeType,NU}
     l = LatticeModels.span_unitcells(f, construct_unitcell(T, NU), sz...; kw...)
     if T <: BravaisLatticeTypeVarN

@@ -28,13 +28,12 @@ struct UnitCell{N,NU,NB,NND,NNB}
     translations::SMatrix{N,NU,Float64,NND}
     basissites::SMatrix{N,NB,Float64,NNB}
     function UnitCell(translations::AbstractMatrix,
-            basissites::AbstractMatrix=zeros(size(translations, 1), 1);
-            offset=:origin, rotate=nothing)
+            basissites::AbstractMatrix=zeros(size(translations, 1), 1); kw...)
         N, NU = size(translations)
         NB = size(basissites, 2)
         @check_size basissites (N, NB)
         u = new{N,NU,NB,N*NU,N*NB}(translations, basissites)
-        return rotate_unitcell(offset_unitcell(u, offset), rotate)
+        return transform_unitcell(u; kw...)
     end
 end
 function offset_unitcell(uc::UnitCell, offset)

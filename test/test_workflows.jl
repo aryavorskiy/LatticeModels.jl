@@ -66,8 +66,8 @@
         X, Y = coordoperators(l)
         x, y = coordvalues(l)
         xy = x .* y
-        p = plot(layout=4)
-        plot!(p[1], xy)
+        p = plot(layout=5)
+        plot!(p[1], xy, st=:shape, shape=:circle, markerscale=true)
         H = construct_hamiltonian(l, spin,
             sigmaz(spin),
             [1 im; im -1] / 2 => BravaisTranslation(axis = 1),
@@ -77,18 +77,19 @@
         P = densitymatrix(diagonalize(H), N = 3, T = 1, statistics=FermiDirac)
 
         dc = DensityCurrents(H, P)
-        quiver!(p[1], dc[x.<y])
-        scatter!(p[1], l)
+        plot!(p[1], dc[x.<y])
+        scatter!(p[1], l, shownumbers=true)
         scatter!(p[1], l[x.<y], :high_contrast)
         scatter!(p[1], xy[x.≥y])
         plot!(p[1], adjacencymatrix(H))
         plot!(p[1], adjacencymatrix(BravaisTranslation(l, [1, 1])))
         surface!(p[2], xy)
-        scatter!(p[3], SquareLattice(3, 4, 5))
+        plot!(p[3], SquareLattice(3, 4, 5))
         plot!(p[4], project(xy, :x))
         plot!(p[4], project(xy, :j1))
         mpcs = mapgroup_currents(sitedistance, sum, dc, sortresults=true)
         plot!(p[4], mpcs)
+        plot!(p[5], UnitCell([[1, 0] [0.1, 1]], [[0, 0.1] [-0.2, 0]]))
         true
     end
 end
