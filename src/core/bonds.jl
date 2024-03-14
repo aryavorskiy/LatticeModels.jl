@@ -118,6 +118,30 @@ struct AdjacencyMatrix{LT,MT} <: AbstractBonds{LT}
     Construct an adjacency matrix from the `mat` matrix on the `lat` lattice.
 
     If `mat` is not provided, it is assumed to be a zero matrix.
+
+    ## Example
+    ```jldoctest
+    julia> l = SquareLattice(2, 2);
+
+    julia> a = AdjacencyMatrix(l)
+    Adjacency matrix on 4-site 2-dim Bravais lattice in 2D space
+    Values in a 4×4 SparseArrays.SparseMatrixCSC{Bool, Int64} with 0 stored entries:
+    ⋅  ⋅  ⋅  ⋅
+    ⋅  ⋅  ⋅  ⋅
+    ⋅  ⋅  ⋅  ⋅
+    ⋅  ⋅  ⋅  ⋅
+
+    julia> site1, site2, site3, site4 = l;
+
+    julia> a[site1, site2] = a[site2, site4] = a[site3, site4] = true;
+
+    julia> a
+    Adjacency matrix on 4-site 2-dim Bravais lattice in 2D space
+    Values in a 4×4 SparseArrays.SparseMatrixCSC{Bool, Int64} with 3 stored entries:
+    ⋅  1  ⋅  ⋅
+    1  ⋅  ⋅  1
+    ⋅  ⋅  ⋅  1
+    ⋅  1  1  ⋅
     """
     function AdjacencyMatrix(lat::LT, mat::MT) where {LT<:AbstractLattice,MT<:AbstractMatrix{Bool}}
         @check_size mat :square
