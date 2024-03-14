@@ -47,7 +47,7 @@ States can be defined by `LatticeSite`s or integers.
 
 Standard rules for functions accepting `System`s apply.
 """
-function QuantumOpticsBase.transition(sys::System, site1::AbstractSite, site2::AbstractSite, op=internal_one(sample); field=NoField())
+function QuantumOpticsBase.transition(sys::System, site1::AbstractSite, site2::AbstractSite, op=internal_one(sys); field=NoField())
     return construct_operator(sys, op => site1 => site2, field=field)
 end
 QuantumOpticsBase.transition(sys::System, i1::Int, i2::Int, op=internal_one(sys); field=NoField()) =

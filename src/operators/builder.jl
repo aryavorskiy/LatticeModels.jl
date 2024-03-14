@@ -4,7 +4,7 @@ struct ArrayEntry{T}
     val::T
     overwrite::Bool
 end
-function combine_writes(mw1::ArrayEntry, mw2::ArrayEntry)
+function combine_entries(mw1::ArrayEntry, mw2::ArrayEntry)
     if mw2.overwrite
         return mw2
     else
@@ -26,7 +26,7 @@ function to_matrix(A::SparseMatrixBuilder)
     sparse(A.Is, A.Js, A.Vs, A.size...)
 end
 function to_matrix(A::SparseMatrixBuilder{<:ArrayEntry})
-    _mat = sparse(A.Is, A.Js, A.Vs, A.size..., combine_writes)
+    _mat = sparse(A.Is, A.Js, A.Vs, A.size..., combine_entries)
     return SparseMatrixCSC(_mat.m, _mat.n, _mat.colptr, _mat.rowval, to_number.(_mat.nzval))
 end
 
@@ -58,12 +58,13 @@ Base.@propagate_inbounds function Base.setindex!(A::SparseMatrixBuilder, B::Abst
         iszero(v) || (A[j1, j2, overwrite=overwrite, factor=factor] = v)
     end
 end
-Base.@propagate_inbounds function increment!(A::SparseMatrixBuilder, B::SparseMatrixCSC)
+Base.@propagate_inbounds function increment!(A::SparseMatrixBuilder,
+        B::SparseMatrixCSC; factor=1)
     # global increment
     nis, njs, nvs = findnz(B)
     append!(A.Is, nis)
     append!(A.Js, njs)
-    append!(A.Vs, ArrayEntry.(nvs * factor, false))
+    append!(A.Vs, nvs * factor)
 end
 
 struct BuilderView{AT}

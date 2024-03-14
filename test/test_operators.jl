@@ -19,9 +19,11 @@
         l = SquareLattice(10, 10)
         spin = SpinBasis(1//2)
         builder = OperatorBuilder(l, spin, auto_hermitian=true, field=LandauGauge(0.1))
-        builder2 = OperatorBuilder(l ⊗ spin, field=LandauGauge(0.1))
+        builder2 = FastOperatorBuilder(l ⊗ spin, field=LandauGauge(0.1))
         builder3 = OperatorBuilder(ComplexF16, l, spin, auto_hermitian=true, field=LandauGauge(0.1))
 
+        site = l[10]
+        builder[site, site] = 1234  # This should be overwritten
         for site in l
             site_hx = site + BravaisTranslation(l, axis = 1)
             site_hy = site + BravaisTranslation(l, axis = 2)
@@ -51,6 +53,14 @@
         @test H ≈ H2
         @test H ≈ H3
         @test H ≈ H4
+
+        site1, site2 = l[10], l[25]
+        sigmay10 = sigmay(spin) ⊗ diagonaloperator(l .== Ref(site1))
+        H5 = construct_hamiltonian(l, spin, field=LandauGauge(0.1), sigmaz(spin) => 1,
+            (sigmaz(spin) - im * sigmax(spin)) / 2 => BravaisTranslation(axis = 1),
+            (sigmaz(spin) - im * sigmay(spin)) / 2 => BravaisTranslation(axis = 2),
+            sigmay10, sigmay(spin) => site1, site1 => site2)
+        @test H5 == H4 + 2sigmay10 + one(spin) ⊗ transition(l, site1, site2, field=LandauGauge(0.1))
     end
 
     @testset "Operator builtins" begin

@@ -106,7 +106,8 @@ function construct_operator(T::Type, sys::System, args...; field=NoField())
     sizehint!(builder.mat_builder, length(sample) * length(args))
     for arg in args
         pair = arg_to_pair(sample, arg)
-        iszero(first(pair)) || add_term!(builder, pair)
+        pair isa Pair && iszero(first(pair)) && continue
+        add_term!(builder, pair)
     end
     Operator(builder)
 end

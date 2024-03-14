@@ -276,19 +276,28 @@ struct Hamiltonian{SystemT, BasisT, T} <: DataOperator{BasisT, BasisT}
     basis_r::BasisT
     data::T
 end
-function Hamiltonian(sys::System, op::Operator)
-    return Hamiltonian(sys, basis(op), basis(op), op.data)
-end
+Hamiltonian(sys::System, op::Operator) = Hamiltonian(sys, basis(op), basis(op), op.data)
+Hamiltonian(sys::System, data::AbstractMatrix) = Hamiltonian(sys, basis(sys), basis(sys), data)
+
 QuantumOpticsBase.Operator(ham::Hamiltonian) = Operator(ham.basis_l, ham.data)
 sample(ham::Hamiltonian) = sample(ham.sys)
 lattice(ham::Hamiltonian) = lattice(sample(ham))
 
 Base.:(*)(op::Operator{B1, B2}, ham::Hamiltonian{Sys, B2}) where {Sys, B1, B2} = op * Operator(ham)
 Base.:(*)(ham::Hamiltonian{Sys, B2}, op::Operator{B1, B2}) where {Sys, B1, B2} = Operator(ham) * op
-Base.:(+)(op::Operator{B, B}, ham::Hamiltonian{Sys, B}) where {Sys, B} = op + Operator(ham)
-Base.:(+)(ham::Hamiltonian{Sys, B}, op::Operator{B, B}) where {Sys, B} = Operator(ham) + op
-Base.:(-)(op::Operator{B, B}, ham::Hamiltonian{Sys, B}) where {Sys, B} = op - Operator(ham)
-Base.:(-)(ham::Hamiltonian{Sys, B}, op::Operator{B, B}) where {Sys, B} = Operator(ham) - op
+function Base.:(+)(op::Operator{B, B}, ham::Hamiltonian{Sys, B}) where {Sys, B}
+    QuantumOpticsBase.check_samebases(basis(op), ham.basis_l)
+    return Hamiltonian(ham.sys, op.data + ham.data)
+end
+Base.:(+)(ham::Hamiltonian{Sys, B}, op::Operator{B, B}) where {Sys, B} = op + ham
+function Base.:(-)(op::Operator{B, B}, ham::Hamiltonian{Sys, B}) where {Sys, B}
+    QuantumOpticsBase.check_samebases(basis(op), ham.basis_l)
+    return Hamiltonian(ham.sys, op.data - ham.data)
+end
+function Base.:(-)(ham::Hamiltonian{Sys, B}, op::Operator{B, B}) where {Sys, B}
+    QuantumOpticsBase.check_samebases(basis(op), ham.basis_l)
+    return Hamiltonian(ham.sys, ham.data - op.data)
+end
 
 function Base.:(+)(ham::Hamiltonian{Sys, B}, ham2::Hamiltonian{Sys, B}) where {Sys, B}
     @assert ham.sys == ham2.sys
