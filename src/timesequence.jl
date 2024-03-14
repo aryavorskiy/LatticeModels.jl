@@ -51,6 +51,7 @@ Base.values(tseq::TimeSequence) = tseq.values
 
 Base.copy(tseq::TimeSequence) = TimeSequence(copy(tseq.times), [copy(s) for s in tseq.values])
 Base.length(tseq::TimeSequence) = length(timestamps(tseq))
+Base.map(f, tseq::TimeSequence) = TimeSequence(timestamps(tseq), map(f, tseq.values))
 
 function Base.show(io::IO, mime::MIME"text/plain", tseq::TimeSequence{ET}) where ET
     print(io, "TimeSequence{$ET} with ", fmtnum(tseq, "entr", "y", "ies"))
@@ -180,7 +181,7 @@ function integrate!(tseq::TimeSequence)
     td = timestamps(tseq)
     for i in 2:length(tseq)
         dt = td[i] - td[i-1]
-        tseq.values[i-1] = _axpby!(1/2dt, tseq.values[i], 1/2dt, tseq.values[i-1])
+        tseq.values[i-1] = _axpby!(dt/2, tseq.values[i], dt/2, tseq.values[i-1])
     end
     last = pop!(tseq.values)
     pushfirst!(tseq.values, zero(last))

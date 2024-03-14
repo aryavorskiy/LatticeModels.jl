@@ -75,6 +75,37 @@ end
 gif(a, "adiabatic_flux.gif")
 ```
 
+## Time sequences
+
+In this example we will see how to use `TimeSequence` to store and manipulate time-dependent data.
+
+We will calculate the evolution of a ground state of a tight-binding model after a magnetic field is turned on.
+We will store the local density at each time step and use it to plot the local density depending on time, as well as its time derivative and integral over time.
+
+```@example
+using LatticeModels, Plots
+
+l = SquareLattice(20, 20)
+H = tightbinding_hamiltonian(l)
+psi_0 = groundstate(H)
+H1 = tightbinding_hamiltonian(l, field=LandauGauge(0.1))
+ev = Evolution(H1, psi_0)
+
+densities = TimeSequence{LatticeValue}()
+for (psi, _, t) in ev(0:0.1:10)
+    densities[t] = localdensity(psi)
+end
+
+site_bulk = l[!, x = 10, y = 10]
+site_edge = l[!, x = 10, y = 1]
+ds_bulk = densities[site_bulk]
+ds_edge = densities[site_edge]
+plot(ds_bulk, label="ρ(t) (bulk)")
+plot!(differentiate(ds_bulk), label="dρ(t)/dt (bulk)")
+plot!(ds_edge, label="ρ(t) (edge)")
+plot!(integrate(ds_edge), label="∫ρ(t)dt (edge)")
+```
+
 ## Hofstadter butterfly
 
 The Hofstadter butterfly is a fractal-like structure that appears when the tight-binding model is subjected to a magnetic field. It is a plot of the energy spectrum as a function of the magnetic flux through the unit cell.
