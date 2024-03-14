@@ -33,14 +33,12 @@
 
         ts = 0:0.1:10
         val1 = ComplexF64[]
-        solver = KrylovKitExp(Hs)
-        for state in Evolution(solver, Hs, psi)(ts)
+        for state in Evolution(KrylovKitExp, Hs, psi)(ts)
             ψ = state[1]
             push!(val1, ψ.data[2])
         end
         val2 = ComplexF64[]
-        solver2 = CachedExp(Hs, threshold=1e-12)
-        for st in Evolution(solver2, Hs, psi, timedomain=ts)
+        for st in Evolution(CachedExp(threshold=1e-12), Hs, psi, timedomain=ts)
             ψ = st.state
             push!(val2, ψ.data[2])
         end

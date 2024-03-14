@@ -208,6 +208,25 @@ function Evolution(solver::SchroedingerSolver, hamiltonian::EvolutionHamType, st
         return evol(timedomain)
     end
 end
+struct IncompleteSolver{SolverT, KWT}
+    kws::KWT
+    function IncompleteSolver{SolverT}(;kw...) where SolverT
+        kws = NamedTuple(kw)
+        return new{SolverT,typeof(kws)}(kws)
+    end
+end
+(::Type{T})(;kw...) where T<:SchroedingerSolver = IncompleteSolver{T}(;kw...)
+function Evolution(incompsolver::IncompleteSolver{SolverT}, hamiltonian::EvolutionHamType,
+        states::EvolutionStateType...; kw...) where SolverT
+    H = eval_hamiltonian(hamiltonian, 0)
+    solver = SolverT(H; incompsolver.kws...)
+    return Evolution(solver, hamiltonian, states...; kw...)
+end
+function Evolution(solvertype::Type{<:SchroedingerSolver}, hamiltonian::EvolutionHamType,
+        states::EvolutionStateType...; kw...)
+    solver = solvertype(hamiltonian)
+    return Evolution(solver, hamiltonian, states...; kw...)
+end
 
 eval_hamiltonian(hamiltonian, _) = hamiltonian
 eval_hamiltonian(hamiltonian::Function, t) = hamiltonian(t)
