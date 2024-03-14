@@ -211,8 +211,8 @@ julia> l2 = setboundaries(l, [4, 0] => true, [0, 4] => pi);
 
 julia> l2.boundaries
 Boundary conditions (depth = 1):
-  [4, 0] → periodic
-  [0, 4] → twist θ = 3.14
+  Bravais[4, 0] → periodic
+  Bravais[0, 4] → twist θ = 3.14
 ```
 """
 function setboundaries(l::AbstractLattice, bcs::BoundaryConditions; kw...)

@@ -2,13 +2,13 @@
 
 ## Lowest states in a tight-binding model
 
-The tight-binding model Hamiltonian is defined by this formula:
+The tight-binding model Hamiltonian is defined by this formula (the sum is performed over adjacent sites):
 
 ```math
-\hat{H} = \sum_i^\text{sites} \left( c^\dagger_{i + \hat{x}} c_i + c^\dagger_{i + \hat{y}} c_i + h. c. \right)
+\hat{H} = \sum_{<i, j>}^\text{sites} \left( c^\dagger_i c_j + h. c. \right)
 ```
 
-Here we will find its eigenstates and plot their local density on heatmaps.
+Here we take a square lattice and build a Hamiltonian for it. Then we find its eigenstates and plot their local density on heatmaps.
 
 ```@example
 using LatticeModels
@@ -113,7 +113,7 @@ The Hofstadter butterfly is a fractal-like structure that appears when the tight
 To create the Hofstadter butterfly, we will use the Landau gauge for the magnetic field. Note that we have to set periodic boundary conditions, and to make them compatible with the gauge field, they should be tweaked a little:
 
 ```math
-\psi(x + L_x, y) = \psi(x, y) e^{-2\pi i B y L_x},
+\psi(x + L_x, y) = \psi(x, y) e^{2\pi i B y L_x},
 \psi(x, y + L_y) = \psi(x, y)
 ```
 

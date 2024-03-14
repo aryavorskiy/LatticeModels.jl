@@ -6,11 +6,7 @@
 
 This package provides a set of tools to simulate different quantum lattice systems.
 
-WARNING: This package is gradually becoming stable. No new core functional will be introduced. Short list of things to do until final release:
-- [ ] Tests
-- [ ] Documentation
-- [ ] Examples
-- [ ] Benchmarks - compare with Kwant and Pybinding
+WARNING: This package is in its alpha version. You may encounter unexpected behavior and bugs. Feel free to file an issue.
 
 ## Installation
 
