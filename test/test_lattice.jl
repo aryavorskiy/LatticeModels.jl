@@ -1,72 +1,29 @@
+import LatticeModels: stripmeta, get_site, BravaisPointer
+
 @testset "Lattice" begin
-    @testset "Interface" begin
-        sql = SquareLattice(10, 20)
-        x, y = coordvalues(sql)
-        s_0 = SquareLattice(10, 20) do (x, y)
-            x < y
-        end
-        s_1 = filter(sql) do (x, y)
-            x < y
-        end
-        s_2 = sql[x.<y]
-        @test s_0 == s_1
-        @test s_1 == s_2
-
-        hl = HoneycombLattice(10, 10)
-        xh, yh = coordvalues(hl)
-        s_3 = HoneycombLattice(10, 10) do (x, y)
-            x < y
-        end
-        s_4 = filter(hl) do (x, y)
-            x < y
-        end
-        s_5 = hl[xh.<yh]
-        @test s_3 == s_4
-        @test s_4 == s_5
-        @test_throws LatticeModels.IncompatibleLattices hl[x.<y]
-        @test hl[!, LatticeCoord(1) => 3, j2 = 2, index = 1] ==
-            LatticeModels.get_site(LatticeModels.stripmeta(hl),
-            LatticeModels.BravaisPointer(SA[3, 2], 1))
-        xb, yb = coordvalues(SquareLattice(5, 40))
-        @test_throws LatticeModels.IncompatibleLattices sql[xb.<yb]
-        s = sql[!, x = 1, y = 2]
-        sql2 = filter(sql) do site
-            site ∉ (sql[1], sql[end], s)
-        end
-        pop!(sql)
-        popfirst!(sql)
-        delete!(sql, s)
-        @test sql == sql2
-
-        sql3 = sql[x = -Inf..5.2]
-        filter!(site -> site.coords[1] < 5.2, sql)
-        @test sql == sql3
-
-        small_l = SquareLattice(2, 2)
-        ls1, ls2, ls3, ls4 = small_l
-        gl1 = GenericLattice(small_l)
-        gl2 = GenericLattice{typeof(ls1)}()
-        push!(gl2, ls3, ls4, ls2, ls1)
-        @test gl1 == gl2
-
-        gl3 = GenericLattice{2}()
-        union!(gl3, small_l)
-        gl4 = GenericLattice([GenericSite(1, 1), GenericSite(1, 2), GenericSite(2, 1), GenericSite(2, 2)])
-        @test gl3 == gl4
-    end
-
-    circle_l = TriangularLattice(-10:10, -10:10) do site
-        x, y = site
-        return x^2 + y^2 ≤ 50 && (abs(x) > 3 || abs(y) > 3)
-    end
-
     @testset "Creation" begin
+        sl = SquareLattice(3, 3, offset=[0.234, 1], rotate=[0 1; 1 0])
+        @test sl[!, j1=1, j2=1].coords == [2, 1.234]
+        su = SquareLattice(3, 3, offset=[-100, 0], postoffset=:centeralign) do (x, y)
+            (x + 100) ^ 2 + y ^ 2 < 10
+        end
+        su2 = SquareLattice(3, 3, offset=:centeralign) do (x, y)
+            (x - 0.5) ^ 2 + (y - 0.5) ^ 2 < 10
+        end
+        @test su == su2
+        uc = UnitCell([1 0; 0 1], [[0.2, 0] [-0.3, 0]], offset=:center)
+        @test uc.basissites == [0.25 -0.25; 0 0]
+        @test_throws ArgumentError UnitCell([1 0; 0 1], [[0.2, 0] [-0.3, 0]], offset=:AAA)
+
         sl = SquareLattice(-1:1, -1:1)
         sl2 = SquareLattice{2}(Square(h = 1))
-        @test LatticeModels.stripmeta(sl) == LatticeModels.stripmeta(sl2)
+        @test stripmeta(sl) == stripmeta(sl2)
 
+        circle_l = TriangularLattice(-10:10, -10:10) do (x, y)
+            x^2 + y^2 < 50 && (abs(x) > 3 || abs(y) > 3)
+        end
         circle_l2 = TriangularLattice(Circle(√50), !Square(h = 3))
-        @test LatticeModels.stripmeta(circle_l) == LatticeModels.stripmeta(circle_l2)
+        @test stripmeta(circle_l) == stripmeta(circle_l2)
 
         complexsample = SquareLattice{2}(
             Circle(10), Circle(10, [20, 0]), Circle(10, [10, 10√3]),
@@ -80,15 +37,71 @@
 
         @test_throws ArgumentError SquareLattice(Circle(10))
     end
-
     @testset "Indexing" begin
-        circle_lt = addlookuptable(circle_l)
-        for (i, site) in enumerate(circle_l)
-            @test site_index(circle_l, site) == i
-            @test site_index(circle_lt, site) == i
+        sl = SquareLattice(10, 20)
+        x, y = coordvalues(sl)
+        s_0 = SquareLattice(10, 20) do (x, y)
+            x < y
+        end
+        s_1 = filter(sl) do (x, y)
+            x < y
+        end
+        s_2 = sl[x.<y]
+        filter!(site -> site.coords[1] < site.coords[2], sl)
+        @test sl == s_0
+        @test sl == s_1
+        @test sl == s_2
+
+        hl = HoneycombLattice(10, 10)
+        xh = LatticeValue(hl, :x)
+        j1h = LatticeValue(hl, :j1)
+        h_1 = hl[x = 4..Inf, j1 = 1..3]
+        h_2 = hl[@. xh > 4 && j1h ∈ Ref([1, 2, 3])]
+        @test h_1 == h_2
+        @test_throws LatticeModels.IncompatibleLattices hl[x.<y]
+
+        @test hl[!, LatticeCoord(1) => 3, j2 = 2, index = 1] ==
+            get_site(stripmeta(hl), BravaisPointer(SA[3, 2], 1))
+        @test_throws BoundsError hl[!, LatticeCoord(1) => 100]
+
+        xb, yb = coordvalues(SquareLattice(5, 40))
+        @test_throws LatticeModels.IncompatibleLattices sl[xb.<yb]
+        s = sql[!, x = 1, y = 2]
+        sql2 = filter(sql) do site
+            site ∉ (sql[1], sql[end], s)
+        end
+        pop!(sql)
+        popfirst!(sql)
+        delete!(sql, s)
+        @test sql == sql2
+
+        lwh = SquareLattice(10, 10) do (x, y)
+            x^2 + y^2 > 25
+        end
+        lwh2 = addlookuptable(lwh)
+        gen_lwh = GenericLattice(lwh)
+        for (i, site) in enumerate(lwh)
+            @test site_index(lwh, site) == i
+            @test site_index(lwh2, site) == i
+            @test site_index(gen_lwh, site) == i
         end
     end
+    @testset "GenericLattice" begin
+        small_l = SquareLattice(2, 2)
+        ls1, ls2, ls3, ls4 = small_l
+        gl1 = GenericLattice(small_l)
+        gl2 = GenericLattice{typeof(ls1)}()
+        push!(gl2, ls3, ls4, ls2, ls1)
+        @test gl1 == gl2
 
+        gl3 = GenericLattice{2}()
+        union!(gl3, small_l)
+        gl4 = GenericLattice([GenericSite(1, 1), GenericSite(1, 2), GenericSite(2, 1), GenericSite(2, 2)])
+        @test gl3 == gl4
+    end
+end
+
+@testset "LatticeValue" begin
     l = SquareLattice(10, 10)
     x, y = coordvalues(l)
     xm2 = LatticeValue(l) do (x, y)
@@ -104,7 +117,7 @@
         site_index(l, site)
     end
 
-    @testset "LatticeValue" begin
+    @testset "Builtins" begin
         small_l = SquareLattice(2, 2)
         small_x, small_y = coordvalues(small_l)
         @test small_x.values == [1, 1, 2, 2]
@@ -130,7 +143,6 @@
         @test gx.values == [2, 1, 4]
         @test_throws ArgumentError coordvalue(gl, :j1)
     end
-
     @testset "Broadcast" begin
         x4 = l .|> (site -> site.coords[1])
         @test x == x4
@@ -141,13 +153,9 @@
         y .= x .* y
         @test y == xy
         @test_throws ArgumentError x .* ones(100)
-        l′ = SquareLattice(5, 20)
-        x′ = LatticeValue(l′) do (x, y)
-            x
-        end
+        x′ = LatticeValue(SquareLattice(5, 20), :x)
         @test_throws LatticeModels.IncompatibleLattices x .* x′
     end
-
     @testset "Indexing" begin
         z = zeros(l)
         z2 = zero(z)
@@ -207,7 +215,6 @@ end
         end
         @test Set(ps) == Set([(1, 2), (1, 3), (2, 4), (3, 4)])
     end
-
     @testset "Abstract bonds" begin
         l = HoneycombLattice(-2:2, -2:2)
         tr = Translation(l, [0, 2√3/3])
