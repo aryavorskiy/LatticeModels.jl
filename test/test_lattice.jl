@@ -1,4 +1,4 @@
-import LatticeModels: stripmeta, get_site, BravaisPointer
+import LatticeModels: stripmeta, get_site, BravaisPointer, IncompatibleLattices
 
 @testset "Lattice" begin
     @testset "Creation" begin
@@ -52,28 +52,30 @@ import LatticeModels: stripmeta, get_site, BravaisPointer
         @test sl == s_1
         @test sl == s_2
 
+        x, y = coordvalues(SquareLattice(10, 20))
         hl = HoneycombLattice(10, 10)
         xh = LatticeValue(hl, :x)
         j1h = LatticeValue(hl, :j1)
         h_1 = hl[x = 4..Inf, j1 = 1..3]
-        h_2 = hl[@. xh > 4 && j1h ∈ Ref([1, 2, 3])]
+        h_2 = hl[@. xh ≥ 4 && 1 ≤ j1h ≤ 3]
         @test h_1 == h_2
-        @test_throws LatticeModels.IncompatibleLattices hl[x.<y]
+        @test_throws IncompatibleLattices hl[x.<y]
 
         @test hl[!, LatticeCoord(1) => 3, j2 = 2, index = 1] ==
             get_site(stripmeta(hl), BravaisPointer(SA[3, 2], 1))
         @test_throws BoundsError hl[!, LatticeCoord(1) => 100]
 
+        sl = SquareLattice(10, 20)
         xb, yb = coordvalues(SquareLattice(5, 40))
-        @test_throws LatticeModels.IncompatibleLattices sl[xb.<yb]
-        s = sql[!, x = 1, y = 2]
-        sql2 = filter(sql) do site
-            site ∉ (sql[1], sql[end], s)
+        @test_throws IncompatibleLattices sl[xb.<yb]
+        s = sl[!, x = 1, y = 2]
+        sl2 = filter(sl) do site
+            site ∉ (sl[1], sl[end], s)
         end
-        pop!(sql)
-        popfirst!(sql)
-        delete!(sql, s)
-        @test sql == sql2
+        pop!(sl)
+        popfirst!(sl)
+        delete!(sl, s)
+        @test sl == sl2
 
         lwh = SquareLattice(10, 10) do (x, y)
             x^2 + y^2 > 25
@@ -154,7 +156,7 @@ end
         @test y == xy
         @test_throws ArgumentError x .* ones(100)
         x′ = LatticeValue(SquareLattice(5, 20), :x)
-        @test_throws LatticeModels.IncompatibleLattices x .* x′
+        @test_throws IncompatibleLattices x .* x′
     end
     @testset "Indexing" begin
         z = zeros(l)
@@ -215,7 +217,7 @@ end
         end
         @test Set(ps) == Set([(1, 2), (1, 3), (2, 4), (3, 4)])
     end
-    @testset "Abstract bonds" begin
+    @testset "Bravais translations" begin
         l = HoneycombLattice(-2:2, -2:2)
         tr = Translation(l, [0, 2√3/3])
         site1 = l[!, j1 = 1, j2 = 1, index = 1]
@@ -223,10 +225,20 @@ end
         @test site2 == l[!, j1 = 0, j2 = 2, index = 2]
         @test only(tr.translations) == BravaisTranslation(1 => 2, [-1, 1])
 
-        bsm = LatticeModels.BravaisSiteMapping(l,
+        bsm = LatticeModels.BravaisSiteMapping(
             BravaisTranslation(axis=1),
             BravaisTranslation(axis=2),
             BravaisTranslation([1, -1]))
-        @test bsm.translations == union(Bravais[1], Bravais[0, 1], Bravais[1, -1]).translations
+        bsm2 = LatticeModels.adapt_bonds(bsm, l)
+        @test bsm == union(Bravais[1], Bravais[0, 1], Bravais[1, -1])
+        @test bsm == union(Bravais[0, 1], bsm)
+        @test bsm == union(bsm, bsm)
+        @test bsm2 == union(bsm, bsm2)
+
+        t1 = BravaisTranslation(l, axis=1)
+        t2 = BravaisTranslation(l, axis=2)
+        t3 = BravaisTranslation(HoneycombLattice(2, 2), [1, -1])
+        @test union(t1, t2, bsm) == bsm2
+        @test_throws IncompatibleLattices union(t1, t2, t3)
     end
 end

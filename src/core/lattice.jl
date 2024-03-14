@@ -289,10 +289,13 @@ struct IncompatibleLattices <: Exception
 end
 IncompatibleLattices(l1, l2) = IncompatibleLattices("Incompatible lattices", l1, l2)
 
-Base.showerror(io::IO, ex::IncompatibleLattices) = print(io,
-"""$(ex.header).\nGot following:
-        #1: $(repr("text/plain", ex.l1))
-        #2: $(repr("text/plain", ex.l2))""")
+function Base.showerror(io::IO, ex::IncompatibleLattices)
+    print(io, "$(ex.header).\nGot following:\n  #1: ")
+    io = IOContext(io, :compact => true)
+    show(io, "text/plain", ex.l1)
+    print(io, "\n  #2: ")
+    show(io, "text/plain", ex.l2)
+end
 
 """
 Checks if `l1` and `l2` objects are defined on the same lattice. Throws an error if not.
@@ -378,7 +381,7 @@ function Base.show(io::IO, mime::MIME"text/plain", lw::LatticeWithMetadata)
     io = IOContext(io, :maxlines=>4)
     if requires_compact(io)
         show(io, mime, lw.lat)
-        return print(io, " (with params)")
+        return print(io, " ; metadata keys: ", fieldnames(typeof(lw.metadata)))
     end
     show(io, mime, lw.lat)
     for v in values(lw.metadata)

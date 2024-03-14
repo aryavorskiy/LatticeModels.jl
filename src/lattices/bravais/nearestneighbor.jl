@@ -51,7 +51,7 @@ function adapt_bonds(b::NearestNeighbor{N}, l::LatticeWithMetadata) where {N}
         return adapt_bonds(default_nnhops[N], l)
     end
 end
-NearestNeighbor(l::LatticeWithMetadata, N) = adapt_bonds(NearestNeighbor(N), l)
+NearestNeighbor(l::LatticeWithMetadata, N=1) = adapt_bonds(NearestNeighbor(N), l)
 
 function detect_nnhops(uc::UnitCell{Sym, N,NB} where Sym, depth=2, limit=3) where {N,NB}
     lens = Float64[]
@@ -92,7 +92,43 @@ end
 function adapt_bonds(::NearestNeighbor{N}, l::BravaisLattice) where N
     adapt_bonds(detect_nnhops(l.unitcell, 1 + ceil(Int, √N), N)[2][N], l)
 end
-NearestNeighbor(l::BravaisLattice, N) = adapt_bonds(NearestNeighbor(N), l)
+
+"""
+    NearestNeighbor(lat[, N=1])
+
+Returns the nearest neighbor bonds of order `N` for the lattice `lat`.
+
+## Example
+```jldoctest
+julia> using LatticeModels
+
+julia> lat = HoneycombLattice(5, 5);
+
+julia> NearestNeighbor(lat)
+BravaisSiteMapping with 3 translations:
+  1 => 2, [0, -1]
+  1 => 2, [-1, 0]
+  1 => 2, [0, 0]
+ on 50-site 2-dim Bravais lattice in 2D space (2-site basis)
+
+julia> lat = SquareLattice(3, 3, 3, 3);
+
+julia> NearestNeighbor(lat, 4)
+BravaisSiteMapping with 12 translations:
+  Bravais[1, -1, -1, -1]
+  Bravais[1, 1, -1, -1]
+  Bravais[1, -1, 1, -1]
+  Bravais[1, 1, 1, -1]
+  Bravais[2, 0, 0, 0]
+  Bravais[0, 2, 0, 0]
+  Bravais[0, 0, 2, 0]
+  Bravais[1, -1, -1, 1]
+  Bravais[1, 1, -1, 1]
+   ⋮
+ on 81-site 4-dim Bravais lattice in 4D space
+```
+"""
+NearestNeighbor(l::BravaisLattice, N=1) = adapt_bonds(NearestNeighbor(N), l)
 
 function getnnbonds(l::BravaisLattice)
     lens, trs = detect_nnhops(l.unitcell)

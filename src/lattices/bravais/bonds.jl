@@ -108,12 +108,17 @@ BravaisSiteMapping(trs::BravaisTranslation{UndefinedLattice}...) =
     BravaisSiteMapping(UndefinedLattice(), trs...)
 adapt_bonds(bts::BravaisSiteMapping, l::AbstractLattice) =
     BravaisSiteMapping(l, bts.translations...)
+Base.:(==)(bsm1::BravaisSiteMapping, bsm2::BravaisSiteMapping) =
+    bsm1.lat == bsm2.lat && bsm1.translations == bsm2.translations
 
 Base.inv(bsm::BravaisSiteMapping) = BravaisSiteMapping(bsm.lat, inv.(bsm.translations)...)
 @inline destinations(bsm::BravaisSiteMapping, site::BravaisSite) =
     (destination(tr, site) for tr in bsm.translations)
 
-merge_lats(l1::AbstractLattice, l2::AbstractLattice) = throw(IncompatibleLattices(l1, l2))
+function merge_lats(l1::AbstractLattice, l2::AbstractLattice)
+    check_samelattice(l1, l2)
+    return l1
+end
 merge_lats(l::AbstractLattice, ::UndefinedLattice) = l
 merge_lats(::UndefinedLattice, l::AbstractLattice) = l
 merge_lats(::UndefinedLattice, ::UndefinedLattice) = UndefinedLattice()
@@ -138,8 +143,11 @@ function Base.union(trs::BravaisSiteMapping, tr::BravaisTranslation)
     end
 end
 Base.union(tr::BravaisTranslation, trs::BravaisSiteMapping) = union(trs, tr)
-Base.union(trs::BravaisSiteMapping, trs2::BravaisSiteMapping) =
-    foldl(union, trs2.translations, init=trs)
+function Base.union(trs::BravaisSiteMapping, trs2::BravaisSiteMapping)
+    lat = merge_lats(trs.lat, trs2.lat)
+    newtrs = BravaisSiteMapping(lat, trs.translations...)
+    foldl(union, trs2.translations, init=newtrs)
+end
 Base.union(tr::BravaisTranslation, tr2, args...) = union(union(tr, tr2), args...)
 Base.union(trs::BravaisSiteMapping, tr2, args...) = union(union(trs, tr2), args...)
 
@@ -160,10 +168,13 @@ function Base.show(io::IO, ::MIME"text/plain", trs::BravaisSiteMapping)
     else
         for i in 1:length(trs.translations)
             print(io, getindent(io))
-            if get(io, :maxlines, typemax(Int)) ≤ i < length(trs.translations)
-                print(io, " ⋮ ")
+            if get(io, :maxlines, 10) ≤ i < length(trs.translations)
                 omitted = length(trs.translations) - i + 1
-                get(io, :showtitle, true) || print(io, "($omitted more omitted)")
+                if get(io, :showtitle, true)
+                    print(io, " ⋮ ")
+                else
+                    print(io, "($omitted more omitted)")
+                end
                 break
             end
             summary(io, trs.translations[i])
