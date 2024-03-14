@@ -55,11 +55,13 @@ julia> l[2]
 """
 struct GenericLattice{SiteT} <: AbstractLattice{SiteT}
     sites::Vector{SiteT}
-    function GenericLattice(sites::Vector{SiteT}) where SiteT
-        @assert issorted(sites) "Sites must be sorted"
+    function GenericLattice(sites::Vector{SiteT}) where SiteT<:AbstractSite{N} where N
+        issorted(sites) || throw(ArgumentError("Sites must be sorted"))
         new{SiteT}(sites)
     end
 end
+GenericLattice(::Vector{<:AbstractSite}) =
+    throw(ArgumentError("Sites must be of same dimensionality"))
 
 """
     GenericLattice{N}()
@@ -80,6 +82,7 @@ GenericLattice{SiteT}() where SiteT<:AbstractSite = GenericLattice(SiteT[])
 Constructs a `GenericLattice` from some other lattice `lat`.
 """
 GenericLattice(lat::AbstractLattice) = GenericLattice(collect(lat))
+GenericLattice(iterable) = GenericLattice([convert(GenericSite, x) for x in iterable])
 
 Base.length(l::GenericLattice) = length(l.sites)
 Base.getindex(l::GenericLattice, i::Int) = l.sites[i]

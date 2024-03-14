@@ -107,42 +107,44 @@ adapt_bonds(bonds::SiteDistance, ::AbstractLattice) = bonds
     AdjacencyMatrix{LT} where {LT<:Lattice}
 
 Represents the bonds on some lattice.
+
+---
+    AdjacencyMatrix(lat[, mat])
+
+Construct an adjacency matrix from the `mat` matrix on the `lat` lattice.
+
+If `mat` is not provided, it is assumed to be a zero matrix.
+
+## Example
+```jldoctest
+julia> using LatticeModels
+
+julia> l = SquareLattice(2, 2);
+
+julia> a = AdjacencyMatrix(l)
+Adjacency matrix on 4-site 2-dim Bravais lattice in 2D space
+Values in a 4×4 SparseArrays.SparseMatrixCSC{Bool, Int64} with 0 stored entries:
+ ⋅  ⋅  ⋅  ⋅
+ ⋅  ⋅  ⋅  ⋅
+ ⋅  ⋅  ⋅  ⋅
+ ⋅  ⋅  ⋅  ⋅
+
+julia> site1, site2, site3, site4 = l;
+
+julia> a[site1, site2] = a[site2, site4] = a[site3, site4] = true;
+
+julia> a
+Adjacency matrix on 4-site 2-dim Bravais lattice in 2D space
+Values in a 4×4 SparseArrays.SparseMatrixCSC{Bool, Int64} with 6 stored entries:
+ ⋅  1  ⋅  ⋅
+ 1  ⋅  ⋅  1
+ ⋅  ⋅  ⋅  1
+ ⋅  1  1  ⋅
+```
 """
 struct AdjacencyMatrix{LT,MT} <: AbstractBonds{LT}
     lat::LT
     mat::MT
-
-    """
-        AdjacencyMatrix(lat[, mat])
-
-    Construct an adjacency matrix from the `mat` matrix on the `lat` lattice.
-
-    If `mat` is not provided, it is assumed to be a zero matrix.
-
-    ## Example
-    ```jldoctest
-    julia> l = SquareLattice(2, 2);
-
-    julia> a = AdjacencyMatrix(l)
-    Adjacency matrix on 4-site 2-dim Bravais lattice in 2D space
-    Values in a 4×4 SparseArrays.SparseMatrixCSC{Bool, Int64} with 0 stored entries:
-    ⋅  ⋅  ⋅  ⋅
-    ⋅  ⋅  ⋅  ⋅
-    ⋅  ⋅  ⋅  ⋅
-    ⋅  ⋅  ⋅  ⋅
-
-    julia> site1, site2, site3, site4 = l;
-
-    julia> a[site1, site2] = a[site2, site4] = a[site3, site4] = true;
-
-    julia> a
-    Adjacency matrix on 4-site 2-dim Bravais lattice in 2D space
-    Values in a 4×4 SparseArrays.SparseMatrixCSC{Bool, Int64} with 3 stored entries:
-    ⋅  1  ⋅  ⋅
-    1  ⋅  ⋅  1
-    ⋅  ⋅  ⋅  1
-    ⋅  1  1  ⋅
-    """
     function AdjacencyMatrix(lat::LT, mat::MT) where {LT<:AbstractLattice,MT<:AbstractMatrix{Bool}}
         @check_size mat :square
         @check_size lat size(mat, 1)
@@ -347,6 +349,31 @@ A spatial translation on some lattice.
 ## Fields
 - `lat`: The lattice where the translations are defined.
 - `R`: The vector of the translation.
+
+## Example
+```jldoctest
+julia> using LatticeModels
+
+julia> gl = GenericLattice([(1, 1), (1, 2), (2, 1), (2, 2)])
+4-site 2-dim GenericLattice{GenericSite{2}}:
+  Site at [1.0, 1.0]
+  Site at [1.0, 2.0]
+  Site at [2.0, 1.0]
+  Site at [2.0, 2.0]
+
+julia> tr = Translation(gl, [1, 0])     # Translation by [1, 0]
+Translation by [1.0, 0.0]
+ on 4-site 2-dim GenericLattice{GenericSite{2}}
+
+julia> site1 = gl[!, x = 1, y = 1]      # Site at [1, 1]
+2-dim GenericSite{2} at [1.0, 1.0]
+
+julia> site1 + tr                       # Translated site
+2-dim GenericSite{2} at [2.0, 1.0]
+
+julia> site1 - tr                       # Inverse translation - no site at [0, 1]
+LatticeModels.NoSite()
+```
 """
 struct Translation{LT, N} <: AbstractTranslation{LT}
     lat::LT

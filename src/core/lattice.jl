@@ -24,7 +24,7 @@ function Base.show(io::IO, ::MIME"text/plain", site::AbstractSite{N}) where N
 end
 
 struct NoSite <: AbstractSite{0} end
-Base.show(io::IO, ::NoSite) = print(io, "LatticeModels.NoSite()")
+Base.show(io::IO, ::MIME"text/plain", ::NoSite) = print(io, "LatticeModels.NoSite()")
 
 """
     SiteProperty

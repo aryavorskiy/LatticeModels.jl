@@ -99,7 +99,11 @@ import LatticeModels: stripmeta, get_site, BravaisPointer, IncompatibleLattices
         gl3 = GenericLattice{2}()
         union!(gl3, small_l)
         gl4 = GenericLattice([GenericSite(1, 1), GenericSite(1, 2), GenericSite(2, 1), GenericSite(2, 2)])
+        gl5 = GenericLattice([(1, 1), (1, 2), (2, 1), [2, 2]])
         @test gl3 == gl4
+        @test gl3 == gl5
+        @test_throws ArgumentError GenericLattice([(1, 2), (3, 4, 5)])
+        @test_throws ArgumentError GenericLattice([(1, 2), (1, 1)])
     end
 end
 

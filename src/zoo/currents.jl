@@ -51,20 +51,19 @@ end
 DensityCurrents <: AbstractCurrents
 
 Density currents for given density matrix and given hamiltonian.
+
+---
+    DensityCurrents(hamiltonian, state)
+
+Constructs a `DensityCurrents` object for given `hamiltonian` and `state`.
+
+## Arguments
+- `hamiltonian`: A `Hamiltonian` object representing the Hamiltonian of the system.
+- `state`: A `Ket` or `Bra` representing the wavefunction or an `Operator` representing the density matrix.
 """
 struct DensityCurrents{HT, ST} <: AbstractCurrents
     hamiltonian::HT
     state::ST
-
-    """
-        DensityCurrents(hamiltonian, state)
-
-    Constructs a `DensityCurrents` object for given `hamiltonian` and `state`.
-
-    ## Arguments
-    - `hamiltonian`: A `Hamiltonian` object representing the Hamiltonian of the system.
-    - `state`: A `Ket` or `Bra` representing the wavefunction or an `Operator` representing the density matrix.
-    """
     function DensityCurrents(ham::HT, state::ST) where {HT<:AbstractLatticeOperator, ST<:StateType}
         check_samebases(basis(ham), basis(state))
         new{HT, ST}(ham, state)
@@ -94,22 +93,21 @@ end
     LocalOperatorCurrents <: AbstractCurrents
 
 Local operator (e. g. spin) currents for given density matrix and given hamiltonian.
+
+---
+    LocalOperatorCurrents(hamiltonian, state, op)
+
+Constructs a `DensityCurrents` object for given `hamiltonian` and `state`.
+
+## Arguments
+- `hamiltonian`: A `Hamiltonian` object representing the Hamiltonian of the system.
+- `state`: A `Ket` or `Bra` representing the wavefunction or an `Operator` representing the density matrix.
+- `op`: A local (on-site) operator; either an `Operator` or a matrix of such.
 """
 struct LocalOperatorCurrents{HT, ST, OT} <: AbstractCurrents
     hamiltonian::HT
     state::ST
     op::OT
-
-    """
-        LocalOperatorCurrents(hamiltonian, state, op)
-
-    Constructs a `DensityCurrents` object for given `hamiltonian` and `state`.
-
-    ## Arguments
-    - `hamiltonian`: A `Hamiltonian` object representing the Hamiltonian of the system.
-    - `state`: A `Ket` or `Bra` representing the wavefunction or an `Operator` representing the density matrix.
-    - `op`: A local (on-site) operator; either an `Operator` or a matrix of such.
-    """
     function LocalOperatorCurrents(ham::HT, state::ST, op::OT; check_commutator=true) where {HT<:AbstractLatticeOperator, ST<:StateType, OT<:DataOperator}
         !hasinternal(ham) && throw(ArgumentError("System expected to have internal degrees of freedom"))
         check_samebases(basis(ham), basis(state))
