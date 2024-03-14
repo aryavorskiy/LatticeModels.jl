@@ -55,12 +55,13 @@
         @test H ≈ H4
 
         site1, site2 = l[10], l[25]
-        sigmay10 = sigmay(spin) ⊗ diagonaloperator(l .== Ref(site1))
-        H5 = construct_hamiltonian(l, spin, field=LandauGauge(0.1), sigmaz(spin) => 1,
-            (sigmaz(spin) - im * sigmax(spin)) / 2 => BravaisTranslation(axis = 1),
-            (sigmaz(spin) - im * sigmay(spin)) / 2 => BravaisTranslation(axis = 2),
-            sigmay10, sigmay(spin) => site1, site1 => site2)
-        @test H5 == H4 + 2sigmay10 + one(spin) ⊗ transition(l, site1, site2, field=LandauGauge(0.1))
+        sigmaydi10 = sigmay(spin) ⊗ diagonaloperator(l .== Ref(site1))
+        @test 2sigmaydi10 == construct_operator(l, spin, sigmaydi10, sigmay(spin) => site1)
+        onedi25 = diagonaloperator(l .== Ref(site2))
+        @test 3 * one(spin) ⊗ onedi25 == construct_operator(l, spin, onedi25, site2, [1 0; 0 1] => site2)
+        @test one(spin) ⊗ one(LatticeBasis(l)) == construct_operator(l, spin, [1 0; 0 1])
+        @test transition(l, site1, site2) == construct_operator(l, site1 => site2)
+        @test_throws ArgumentError construct_operator(l, spin, one(spin) ⊗ one(spin))
     end
 
     @testset "Operator builtins" begin

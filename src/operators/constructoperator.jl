@@ -47,9 +47,9 @@ function arg_to_pair(sample::Sample, arg::DataOperator)
         return arg.data => 1
     elseif samebases(basis(arg), LatticeBasis(lattice(sample)))
         if hasinternal(sample)
-            return sparse(arg)
-        else
             return internal_one(sample) ⊗ sparse(arg)
+        else
+            return sparse(arg)
         end
     else
         throw(ArgumentError("operator basis does not match neither lattice nor internal phase space"))
