@@ -189,24 +189,40 @@ end
 checkoverlap(::AbstractLattice, ::BoundaryConditions{Tuple{}}; _...) = nothing
 
 """
-    setboundaries(lat, bcs[; checkboundaries=true, rmdup=false])
+    setboundaries(lat, boundaries...[; checkboundaries=true, rmdup=false])
 
 Set the boundary conditions for the lattice `lat`.
 
 ## Arguments
 - `lat`: The lattice.
-- `bcs`: The boundary conditions. It can be a single `Boundary` or a `Tuple` of `Boundary` objects.
+- `boundaries`: The boundary conditions. It can be a single `Boundary` or a `Tuple` of `Boundary` objects.
 
 ## Keyword arguments
 - `checkboundaries`: If `true`, check if the boundary conditions overlap within the lattice sites.
 - `rmdup`: If `true`, remove duplicate sites from the lattice.
+
+## Example
+```jldoctest
+julia> using LatticeModels
+
+julia> l = SquareLattice(4, 4);
+
+julia> l2 = setboundaries(l, [4, 0] => true, [0, 4] => pi);
+
+julia> l2.boundaries
+Boundary conditions (depth = 1):
+  [4, 0] → periodic
+  [0, 4] → twist θ = 3.14
+```
 """
 function setboundaries(l::AbstractLattice, bcs::BoundaryConditions; kw...)
     checkoverlap(l, bcs; kw...)
     setmeta(l, :boundaries, adapt_boundaries(bcs, UndefinedLattice()))
 end
-setboundaries(l::AbstractLattice, bcs; kw...) =
-    setboundaries(l, parse_boundaries(l, bcs); kw...)
+setboundaries(l::AbstractLattice, arg::Tuple; kw...) =
+    setboundaries(l, parse_boundaries(l, arg); kw...)
+setboundaries(l::AbstractLattice, args...; kw...) =
+    setboundaries(l, parse_boundaries(l, args); kw...)
 
 Base.getindex(bcs::BoundaryConditions, i::Int) = bcs.boundaries[i]
 

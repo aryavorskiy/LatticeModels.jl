@@ -75,6 +75,53 @@ end
 gif(a, "adiabatic_flux.gif")
 ```
 
+## Hofstadter butterfly
+
+The Hofstadter butterfly is a fractal-like structure that appears when the tight-binding model is subjected to a magnetic field. It is a plot of the energy spectrum as a function of the magnetic flux through the unit cell.
+
+To create the Hofstadter butterfly, we will use the Landau gauge for the magnetic field. Note that we have to set periodic boundary conditions, and to make them compatible with the gauge field, they should be tweaked a little:
+
+```math
+\psi(x + L_x, y) = \psi(x, y) e^{-2\pi i B y L_x},
+\psi(x, y + L_y) = \psi(x, y)
+```
+
+Let us plot the Hofstadter butterfiles for square, triangular and honeycomb lattices. The magnetic field field will be changed from zero to one ``\phi_0`` flux quantum per plaquette.
+
+```@example
+using LatticeModels, Plots
+
+function get_butterfly(l, lx, ly, plaquette_area)
+    xs = Float64[]
+    ys = Float64[]
+    area = lx * ly
+    dflux = 1 / area
+    totflux = 1 / plaquette_area
+    for B in 0:dflux:totflux
+        # magnetic boundary conditions
+        f(site) = exp(2pi * im * B * site.y * lx)
+        lb = setboundaries(l, [lx, 0] => f, [0, ly] => true)
+        H = tightbinding_hamiltonian(lb, field=LandauGauge(B))
+        dg = diagonalize(H)
+        append!(xs, fill(B, length(dg.values)))
+        append!(ys, dg.values)
+    end
+    return xs, ys
+end
+
+p = plot(layout = @layout[a b; _ c{0.5w} _], size=(800, 500), leg=false,
+    xlabel="B", ylabel="E")
+scatter!(p[1], title="Square lattice",
+    get_butterfly(SquareLattice(10, 10), 10, 10, 1), ms=1)
+scatter!(p[2], title="Triangluar lattice",
+    get_butterfly(TriangularLattice(10, 10), 10, 5 * sqrt(3), sqrt(3) / 4), ms=1)
+scatter!(p[3], title="Honeycomb lattice",
+    get_butterfly(HoneycombLattice(10, 10), 10, 5 * sqrt(3), sqrt(3) / 2), ms=1)
+savefig("hofstadter_butterfly.png")
+nothing # hide
+```
+![](hofstadter_butterfly.png)
+
 ## LDOS animation
 
 Local density can be a bit ambiguous for degenerate eigenstates. That's where the LDOS (e. g. the Local Density of States) will be helpful.
@@ -85,7 +132,7 @@ The formula for the LDOS is the following:
 \text{LDOS}_\alpha(E) = \text{Im} G_{\alpha\alpha}(E - i\delta)
 ```
 
-where \(G\) is the Green's function and \(\delta\) is the broadening.
+where ``G`` is the Green's function and ``\delta`` is the broadening.
 
 Let's create an animation presenting the DOS and LDOS for a square lattice with a hole indside.
 We will use the QWZ model hamiltonian, because it has a two-zone band structure, which will make
