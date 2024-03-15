@@ -69,7 +69,8 @@ function rotate_unitcell(uc::UnitCell, rotation)
     end
 end
 transform_unitcell(uc::UnitCell; offset=:origin, rotate=nothing) =
-    return rotate_unitcell(offset_unitcell(uc, offset), rotate)
+    offset_unitcell(rotate_unitcell(uc, rotate), offset)
+
 
 basvector(uc::UnitCell, i::Int) = uc.basissites[:, i]
 unitvector(uc::UnitCell, i::Int) = uc.translations[:, i]

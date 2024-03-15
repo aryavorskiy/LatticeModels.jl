@@ -172,7 +172,7 @@ true
 function span_unitcells(f, unitcell::UnitCell{N,NU,NB}, axes::Vararg{RangeT,NU};
         unitvectortrs=true, offset=:origin, rotate=nothing, kw...) where {N,NU,NB}
     ptrs = BravaisPointer{NU}[]
-    new_unitcell = rotate_unitcell(offset_unitcell(unitcell, offset), rotate)
+    new_unitcell = transform_unitcell(unitcell, rotate=rotate, offset=offset)
     add_bravaispointers!(f, ptrs, new_unitcell, axes)
     b = BravaisLattice(new_unitcell, ptrs)
     unitvectortrs && for (i, ax) in enumerate(axes)
