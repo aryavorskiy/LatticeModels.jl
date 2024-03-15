@@ -74,14 +74,34 @@ shaperadius(LT::Type{<:BravaisLatticeType}, shape::AbstractShape, sites::Int) =
 shaperadius(lat::MaybeWithMetadata{BravaisLattice}, shape::AbstractShape, sites=length(lat)) =
     shaperadius(lat.unitcell, shape, sites)
 
+"""
+    fillshapes(uc, shapes...[; sites, scale, kw...])
+
+Create a lattice sample with geometry defined by the given shapes. The lattice is filled with
+sites that are inside the shapes.
+
+## Arguments
+- `uc`: The `UnitCell` of the lattice. Might also be a lattice type.
+- `shapes`: The shapes to fill the lattice with.
+
+## Keyword Arguments
+- `sites`: If given, an attepmt will be made to fill the lattice with the given number of sites.
+    The scaling will be approximate and relying on assumptions that the shapes do not overlap.
+- `scale`: The scaling factor for the shapes. If `sites` is given, the scaling factor will be
+    calculated automatically.
+All other keyword arguments are passed to the lattice constructor. See [`span_unitcells`](@ref)
+for more information.
+"""
 function fillshapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...;
         sites::Nullable{Int}=nothing, scale::Real=1, offset=:origin, rotate=nothing, kw...) where N
     bps = BravaisPointer{N}[]
     if sites !== nothing
         scale != 1 && @warn "Ignoring scale factor when `sites` is given"
         scale = scalefactor(uc, shapes...; sites=sites)
+        new_shapes = LatticeModels.scale.(shapes, scale)
+    else
+        new_shapes = shapes
     end
-    new_shapes = LatticeModels.scale.(shapes, scale)
     new_unitcell = transform_unitcell(uc, rotate=rotate, offset=offset)
     for shape in new_shapes
         dims(shape) != N &&

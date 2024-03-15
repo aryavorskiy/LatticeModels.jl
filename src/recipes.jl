@@ -102,7 +102,8 @@ end
     showsites && @series lattice(curr), :high_contrast
 end
 
-@recipe function f(shapes::AbstractShape...; scale=1)
+@recipe function f(shapes::AbstractShape...;)
+    c = get(plotattributes, :scale, 1)
     for shape in shapes
         @series topath2d(scale(shape, c))
     end

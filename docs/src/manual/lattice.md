@@ -27,13 +27,13 @@ What happened here? We created a honeycomb lattice by translating the unit cell 
 If we need to create a lattice with a less trivial shape, we can use any function we need:
 
 ```@example 1
-l = TrianglularLattice(-10:10, -10:10) do site
-    return 5 < sqrt(site.x^2 + site.y^2) < 8     # Create a ring-shaped lattice
+l = TriangularLattice(-10:10, -10:10) do site
+    return 4 < sqrt(site.x^2 + site.y^2) < 8     # Create a ring-shaped lattice
 end
 plot(l)
 ```
 
-Here the lattice constructor first translated the unit cell from -10 to 10 in both directions, and then applied the function to each site to create a ring-shaped lattice. This is similar to the `filter` function in Julia - in fact, you can use `filter` or `filter!` on an existing lattice to create a new one as well.
+Here the lattice constructor first translated the unit cell from -10 to 10 in both directions, and then applied the function to each site to create a ring-shaped lattice. This is similar to the `filter` function in Julia — in fact, you can use `filter` or `filter!` on an existing lattice to create a new one as well.
 
 There are other things you can control when creating a lattice, such as the lattice offset & rotation.
 
@@ -46,12 +46,12 @@ plot!(l2, lab="Center the unit cell", shape=:star)
 plot!(l3, lab="Shifted and rotated by π/3", shape=:square)
 ```
 
-To find out more about offset and rotation, see [`UnitCell`](@ref) - the keywords are described there.
+To find out more about offset and rotation, see [`UnitCell`](@ref) — the keywords are described there.
 
 !!! note
     If you use both offset/rotation and a function to create a lattice, the function will be applied to the sites **after** the offset/rotation is applied. Use the `postoffset` and `postrotate` keywords to control the position and orientation of the lattice after the function is applied.
     
-The lattices implement the `AbstractSet` interface, so you can use all the set operations on them - `union`, `intersect`, `setdiff` etc.
+The lattices implement the `AbstractSet` interface, so you can use all the set operations on them — `union`, `intersect`, `setdiff` etc.
 
 ```@example 1
 l1 = SquareLattice(-2:0, -2:0)
@@ -69,6 +69,7 @@ Let's find out what sites actually are. A site is generally a point in the latti
 A lattice is generally a set-like structure that allows indexing. Let's take a closer look in the REPL:
 
 ```@repl 2
+using LatticeModels, Plots
 l = HoneycombLattice(-2:2, -2:2)
 site = l[1]     # Get the first site
 site.x          # Get the x-coordinate of the site
@@ -79,11 +80,11 @@ x, y = site     # Destructure the site
 
 As we see, we can access the properties of the site simply as fields of the site object. We can also destructure the site to get its coordinates.
 
-!!! compat Julia 1.8
-    Accessing the properties of the site as fields like `site.x` is available in Julia 1.8 and later. This is done with purpose, since this seriously affected performance in earlier versions. You will still be able to destructure the site to get its coordinates, or use the following fields:
-    - `site.coords` - the position of the site
-    - `site.latcoords` - the unit cell indices
-    - `site.index` - the index of the site in the unit cell
+!!! compat "Julia 1.8"
+    Accessing the properties of the site as fields like `site.x` requires Julia 1.8 and later. This limitation is imposed with purpose, since this seriously affects runtime performance in earlier versions. You will still be able to destructure the site to get its coordinates, or use the following fields:
+    - `site.coords` — the position of the site
+    - `site.latcoords` — the unit cell indices
+    - `site.index` — the index of the site in the unit cell
 
 Properties like `x`, `j1`, `index` etc. are part of a general `SiteProperty` interface. You can use them to create 'slices' of lattices:
 
@@ -102,7 +103,7 @@ l[x = 1.5, y = √3/2]    # Find the site with x = 1.5 and y = √3/2
 l[x = 1.2, y = 3]       # No such site, throws an error
 ```
 
-This is notation is convenient yet type-unstable, since it returns a `Site` object if there is one site satisfying the condition - otherwise a lattice is returned. To make sure that the result is indeed a site, add `!` to the beginning of the condition:
+This is notation is convenient yet type-unstable, since it returns a `Site` object if there is one site satisfying the condition — otherwise a lattice is returned. To make sure that the result is indeed a site, add `!` to the beginning of the condition:
 
 ```@repl 2
 l[!, x = 1.5, y = √3/2]    # Find the site with x = 1.5 and y = √3/2
@@ -118,20 +119,20 @@ using LatticeModels, Plots
 # This will be our custom honeycomb lattice unit cell
 # First argument - vectors of the unit cell
 # Second argument - radius-vectors for the sites in the unit cell
-uc = UnitCell([[1/2, sqrt(3)/2] [-1/2, sqrt(3)/2]], [[0, sqrt(3)/3] [0, -sqrt(3)/3]])
+uc = UnitCell([[1/2, sqrt(3)/2] [-1/2, sqrt(3)/2]], [[0, sqrt(3)/6] [0, -sqrt(3)/6]])
 plot(uc)    # Plot the unit cell
 ```
 
-Note that both arguments are actually matrices - the first one is a matrix of the unit cell vectors, and the second one is a matrix of the site positions in the unit cell. However, here we used concatenation to create the matrices for the sake of readability: remember that `[[a, b] [c, d]]` is equivalent to `[a c; b d]`.
+Note that both arguments are actually matrices — the first one is a matrix of the unit cell vectors, and the second one is a matrix of the site positions in the unit cell. However, here we used concatenation to create the matrices for the sake of readability: remember that `[[a, b] [c, d]]` is equivalent to `[a c; b d]`.
 
 To create a lattice, we can use the [`span_unitcells`](@ref) function:
 
 ```@example 3
 l = span_unitcells(uc, -5:5, -5:5) do site
     x, y = site
-    return abs(x) < 5 && 
-        abs(x * 1 / 2 + y * sqrt(3) / 2) < 5 && 
-        abs(x * 1 / 2 - y * sqrt(3) / 2) < 5
+    return abs(y) < 5 && 
+        abs(y * 1 / 2 + x * sqrt(3) / 2) < 5 && 
+        abs(y * 1 / 2 - x * sqrt(3) / 2) < 5
 end   # Create a hex shape
 plot(l)
 ```
@@ -144,7 +145,7 @@ The shapes framework is a powerful tool for creating lattices of arbitrary geome
 
 ```@example 4
 using LatticeModels, Plots
-l = SquareLattice{2}(Hexagon(10, [5, 5]), Circle(10, [-5, 5]))
+l = SquareLattice{2}(Hexagon(10, [-10, 0]), Circle(10, [10, 0]))
 plot(l)
 ```
 
@@ -162,7 +163,7 @@ plot(complex_l)
 
 Note that adding `!` before the shape inverts it. This is useful when you need to create a lattice with a hole in it.
 
-Sometimes the shape can become ill-formed - this happens when the unit cell has non-trivial geometry. In this case you may need to remove the dangling sites using the [`removedangling!`](@ref) function. For example, they can arise when creating a path on a honeycomb lattice:
+Sometimes the shape can become ill-formed — this happens when the unit cell has non-trivial geometry. In this case you may need to remove the dangling sites using the [`removedangling!`](@ref) function. For example, they can arise when creating a path on a honeycomb lattice:
 
 ```@example 4
 l = HoneycombLattice(Circle(3, [0, 0]), Circle(3, [-2, 10]), Path([0, 0], [-2, 10]))

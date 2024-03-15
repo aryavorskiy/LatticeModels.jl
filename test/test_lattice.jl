@@ -3,7 +3,7 @@ import LatticeModels: stripmeta, get_site, BravaisPointer, IncompatibleLattices
 @testset "Lattice" begin
     @testset "Creation" begin
         sl = SquareLattice(3, 3, offset=[0.234, 1], rotate=[0 1; 1 0])
-        @test sl[!, j1=1, j2=1].coords == [2, 1.234]
+        @test sl[!, j1=1, j2=2].coords == [2.234, 2]
         su = SquareLattice(3, 3, offset=[-100, 0], postoffset=:centeralign) do (x, y)
             (x + 100) ^ 2 + y ^ 2 < 10
         end
