@@ -18,6 +18,7 @@ makedocs(
         "Examples" => "examples.md",
         "Manual" => [
             "Defining the lattice" => "manual/lattice.md",
+            "Adding bonds" => "manual/bonds.md",
             "Working with data" => "manual/latticevalue.md",
             "Constructing the Hamiltonian" => "manual/hamiltonian.md",
             "Operators" => "manual/operators.md",
