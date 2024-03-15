@@ -57,7 +57,7 @@ Base.:(!)(n::NotShape) = n.shape
 
 """
     shape_radius(unitcell, shape, sites)
-    shape_radius(lat, shape)
+    shape_radius(lat, shape[, sites])
 
 Calculate the radius of a shape such that it contains appriximately `sites` sites.
 
@@ -71,8 +71,8 @@ shaperadius(uc::UnitCell, shape::AbstractShape, sites::Int) =
     shape.radius * scalefactor(uc, shape; sites=sites)
 shaperadius(LT::Type{<:BravaisLatticeType}, shape::AbstractShape, sites::Int) =
     shaperadius(construct_unitcell(LT), shape, sites)
-shaperadius(lat::MaybeWithMetadata{BravaisLattice}, shape::AbstractShape) =
-    shaperadius(lat.unitcell, shape, length(lat))
+shaperadius(lat::MaybeWithMetadata{BravaisLattice}, shape::AbstractShape, sites=length(lat)) =
+    shaperadius(lat.unitcell, shape, sites)
 
 function fillshapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...;
         sites::Nullable{Int}=nothing, scale::Real=1, offset=:origin, rotate=nothing, kw...) where N
@@ -82,7 +82,7 @@ function fillshapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...;
         scale = scalefactor(uc, shapes...; sites=sites)
     end
     new_shapes = LatticeModels.scale.(shapes, scale)
-    new_unitcell = rotate_unitcell(offset_unitcell(uc, offset), rotate)
+    new_unitcell = transform_unitcell(uc, rotate=rotate, offset=offset)
     for shape in new_shapes
         dims(shape) != N &&
             throw(ArgumentError("$(dims(shape))-dim $(typeof(shape)) incompatible with $N-dim lattice"))
@@ -108,6 +108,7 @@ function addshapes!(l::MaybeWithMetadata{BravaisLattice{N}}, shapes::AbstractSha
     bps = l.pointers
     uc = l.unitcell
     for shape in shapes
+        shape isa NotShape && throw(ArgumentError("Shape negation is not supported in `addshapes!`"))
         dims(shape) != N &&
             throw(ArgumentError("$(dims(shape))-dim $(typeof(shape)) incompatible with $N-dim lattice"))
         add_bravaispointers!(site -> inshape(shape, site), bps, uc, bounding_region(uc, shape))
@@ -144,6 +145,8 @@ end
 scale(f::BallND{N}, c) where N = BallND{N}(c * f.radius, c * f.center)
 volume(f::BallND{N}) where N = ndvol(dims(f)) * f.radius^N
 inshape(f::BallND, site) = sum(abs2, site.coords - f.center) ≤ f.radius^2
+topath2d(f::BallND{2}) =
+    [Tuple(f.center .+ f.radius * SA[cos(θ), sin(θ)]) for θ in range(0, 2pi, length=100)]
 
 const Circle = BallND{2}
 const Ball = BallND{3}
@@ -188,6 +191,8 @@ volume(f::Polygon{N}) where N = N / 2 * sin(2pi / N) * f.radius^2
         return $and_expr
     end
 end
+topath2d(f::Polygon{N}) where N =
+    [Tuple(f.center .+ f.radius * SA[cos(2pi * i / N), sin(2pi * i / N)]) for i in 0:N]
 
 const Triangle = Polygon{3}
 const Square = Polygon{4}
@@ -206,6 +211,7 @@ circumscribed_sphere(::UnitCell, f::SiteAt) = 1, f.coords
 scale(::SiteAt, _) = throw(ArgumentError("SiteAt does not support scaling"))
 volume(::SiteAt) = 0
 inshape(f::SiteAt, site) = isapprox(site.coords, f.coords, atol=1e-10)
+topath2d(f::SiteAt) = [Tuple(f.coords)]
 
 """
     Rectangle(w, h)
@@ -230,6 +236,11 @@ scale(int::Interval{L, R}, c) where {L, R} =
 scale(f::Rectangle, c) = Rectangle(scale(f.w, c), scale(f.h, c))
 volume(f::Rectangle) = width(f.w) * width(f.h)
 inshape(f::Rectangle, site) = (site.coords[1] in f.w) && (site.coords[2] in f.h)
+function topath2d(f::Rectangle)
+    x1, x2 = endpoints(f.w)
+    y1, y2 = endpoints(f.h)
+    return [(x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)]
+end
 
 """
     Path(start, stop)
@@ -277,6 +288,7 @@ function inshape(f::Path, site::BravaisSite)
     e = orth[findfirst(!=(0), orth)]
     return sb < eb || (sb ≈ eb && e > 0)
 end
+topath2d(f::Path{2}) = [Tuple(f.start), Tuple(f.stop)]
 
 function _countneighbors(check, lat::AbstractLattice, nns::AbstractBonds, i)
     counter, index = 0, 0

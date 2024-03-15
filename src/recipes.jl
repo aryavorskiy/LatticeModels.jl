@@ -101,3 +101,9 @@ end
     end
     showsites && @series lattice(curr), :high_contrast
 end
+
+@recipe function f(shapes::AbstractShape...; scale=1)
+    for shape in shapes
+        @series topath2d(scale(shape, c))
+    end
+end
