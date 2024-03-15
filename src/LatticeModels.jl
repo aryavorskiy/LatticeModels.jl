@@ -14,7 +14,7 @@ include("core/utils.jl")
 include("core/lattice.jl")
 export lattice, site_index, Coord
 include("core/bonds.jl")
-export AdjacencyMatrix, adjacencymatrix, sitedistance, adjacentsites, SiteDistance, Translation
+export AdjacencyMatrix, sitedistance, adjacentsites, SiteDistance, Translation
 include("core/boundaries.jl")
 export BoundaryConditions, PeriodicBoundary, TwistedBoundary, FunctionBoundary, setboundaries
 include("core/lookuptable.jl")

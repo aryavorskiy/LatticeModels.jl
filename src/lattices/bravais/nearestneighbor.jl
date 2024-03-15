@@ -8,7 +8,7 @@ struct NearestNeighbor{N} <: AbstractBonds{UndefinedLattice}
         new{N}()
     end
 end
-NearestNeighbor(N::Int) = NearestNeighbor(Val(N))
+NearestNeighbor(N::Int=1) = NearestNeighbor(Val(N))
 
 struct DefaultNNBonds{M, TupleT}
     dists::NTuple{M, Float64}

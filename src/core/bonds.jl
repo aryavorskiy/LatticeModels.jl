@@ -239,11 +239,12 @@ function adjacentsites(am::AdjacencyMatrix, rs::ResolvedSite)
 end
 
 """
-    adjacencymatrix([lat, ]bonds...)
+    AdjacencyMatrix([lat, ]bonds...)
 
-Constructs an adjacency matrix from the `bonds`. If `lat` is not provided, it is inferred from the `bonds`.
+Constructs an adjacency matrix from the `bonds`. If `lat` is not provided, it is inferred
+from the `bonds`.
 """
-function adjacencymatrix(bonds::AbstractBonds, more_bonds::AbstractBonds...)
+function AdjacencyMatrix(bonds::AbstractBonds, more_bonds::AbstractBonds...)
     l = lattice(bonds)
     foreach(more_bonds) do b
         check_samelattice(l, lattice(b))
@@ -256,10 +257,33 @@ function adjacencymatrix(bonds::AbstractBonds, more_bonds::AbstractBonds...)
             push!(Js, s2.index)
         end
     end
-    return AdjacencyMatrix(l, sparse(Is, Js, Fill(true, length(Is)), length(l), length(l), (i,j)->j))
+    mat = sparse(Is, Js, Fill(true, length(Is)), length(l), length(l), (i,j)->j)
+    return AdjacencyMatrix(l, mat)
 end
-adjacencymatrix(l::AbstractLattice, bonds::AbstractBonds...) =
-    adjacencymatrix((adapt_bonds(b, l) for b in bonds)...)
+AdjacencyMatrix(l::AbstractLattice, bonds::AbstractBonds...) =
+AdjacencyMatrix((adapt_bonds(b, l) for b in bonds)...)
+
+"""
+    AdjacencyMatrix(f, lat)
+
+Constructs an adjacency matrix from the function `f` that returns if the sites are connected
+on the `lat` lattice.
+"""
+function AdjacencyMatrix(f::Function, l::AbstractLattice)
+    Is = Int[]
+    Js = Int[]
+    for (i, site1) in enumerate(l)
+        for (j, site2) in enumerate(l)
+            j > i || continue
+            if f(site1, site2)
+                push!(Is, i, j)
+                push!(Js, j, i)
+            end
+        end
+    end
+    mat = sparse(Is, Js, Fill(true, length(Is)), length(l), length(l))
+    return AdjacencyMatrix(l, mat)
+end
 
 """
     UndefinedLattice

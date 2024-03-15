@@ -45,11 +45,11 @@ function QuantumOpticsBase.ptrace(op::CompositeLatticeOperator, sym::Symbol)
 end
 
 """
-    adjacencymatrix(op::Operator)
+    AdjacencyMatrix(op::Operator)
 
 Generates an `AdjacencyMatrix` for the provided operator.
 """
-function adjacencymatrix(op::OneParticleOperator)
+function AdjacencyMatrix(op::OneParticleOperator)
     n = internal_length(op)
     ind(k) = (k - 1) * n + 1 : k * n
     colptr = Int[]

@@ -43,7 +43,7 @@
     end
 
     @testset "Subcurrents" begin
-        bs = adjacencymatrix(H_1)
+        bs = AdjacencyMatrix(H_1)
         m1 = Currents(dc)[x.<y]
         m2 = Currents(dc[x.<y])
         m3 = Currents(dc, bs)[x.<y]

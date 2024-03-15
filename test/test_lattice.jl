@@ -201,8 +201,8 @@ end
     @testset "AdjacencyMatrix" begin
         l = SquareLattice(2, 2)
         ls1, ls2, ls3, ls4 = l
-        am = adjacencymatrix(l, BravaisTranslation(axis=1), BravaisTranslation(axis=2))
-        am1 = union(adjacencymatrix(l, Bravais[1, 0]), adjacencymatrix(l, Bravais[0, 1]))
+        am = AdjacencyMatrix(l, BravaisTranslation(axis=1), BravaisTranslation(axis=2))
+        am1 = union(AdjacencyMatrix(l, Bravais[1, 0]), AdjacencyMatrix(l, Bravais[0, 1]))
         @test am.mat == am1.mat
         @test am[ls1, ls3]
         @test !am[ls1, ls4]
