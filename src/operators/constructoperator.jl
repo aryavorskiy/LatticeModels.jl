@@ -85,8 +85,8 @@ Each of the `terms` describes a term of the Hamiltonian. The term can be given i
 - A `Pair` of an "internal" and an "on-lattice" part (e.g. `int_p => lat_p`):
     - The "internal" part can be a `DataOperator`, a matrix or a number.
     - The "on-lattice" part can be a `LatticeValue` (represents a diagonal term), a site
-    (represents a local on-site potential), a bond (represents a hopping term) or a `site1 => site2`
-    pair (represents a single hopping).
+        (represents a local on-site potential), a bond (represents a hopping term) or a `site1 => site2`
+        pair (represents a single hopping).
     - Identity "internal" or "on-lattice" parts can be omitted.
 
 See documentation for more details.

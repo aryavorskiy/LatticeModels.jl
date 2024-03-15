@@ -48,9 +48,9 @@ function _block(op::AbstractLatticeOperator, i, j)
 end
 
 """
-DensityCurrents <: AbstractCurrents
+    DensityCurrents <: AbstractCurrents
 
-Density currents for given density matrix and given hamiltonian.
+Density currents for given state and given hamiltonian.
 
 ---
     DensityCurrents(hamiltonian, state)
@@ -92,7 +92,7 @@ end
 """
     LocalOperatorCurrents <: AbstractCurrents
 
-Local operator (e. g. spin) currents for given density matrix and given hamiltonian.
+Local operator (e. g. spin) currents for given state and given hamiltonian.
 
 ---
     LocalOperatorCurrents(hamiltonian, state, op)

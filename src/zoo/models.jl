@@ -32,7 +32,7 @@ bosehubbard(type::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
 
 ``\\hat{H} =
 \\sum_{i,j}^\\text{sites} t_{ij} c^\\dagger_i c_j +
-\\sum_i^\\text{sites} \\frac{U} \\hat{n}_i^{↑} \\hat{n}_i^{↓}``
+\\sum_i^\\text{sites} \\frac{U} \\hat{n}_i^{\\uparrow} \\hat{n}_i^{\\downarrow}``
 
 Generates a Fermi-Hubbard model hamiltonian on given lattice `lat`.
 
@@ -100,7 +100,7 @@ const honeycomb_2nn = BravaisSiteMapping(
 \\sum_i^\\text{sublattice A} m c^\\dagger_i c_i +
 \\sum_j^\\text{sublattice B} m c^\\dagger_j c_j +
 \\sum_{i, j}^\\text{adjacent} \\left( t_1 c^\\dagger_i c_j + h. c. \\right) +
-\\sum_{i, j}^\\text{2-connected,\\counter-clockwise} \\left( i \\cdot t_2 c^\\dagger_i c_j + h. c. \\right)``
+\\sum_{i, j}^\\text{2-connected, counter-clockwise} \\left( i \\cdot t_2 c^\\dagger_i c_j + h. c. \\right)``
 
 Generates a Haldane topological insulator hamiltonian operator on given lattice `lat`.
 
@@ -124,7 +124,7 @@ end
 
 ``\\hat{H} =
 \\sum_{i, j}^\\text{adjacent} \\left( t_1 c^\\dagger_i c_j + h. c. \\right) +
-\\sum_{i, j}^\\text{2-connected,\\counter-clockwise} \\left( i \\cdot t_2 c^\\dagger_i σ_z c_j + h. c. \\right)``
+\\sum_{i, j}^\\text{2-connected, counter-clockwise} \\left( i \\cdot t_2 c^\\dagger_i σ_z c_j + h. c. \\right)``
 
 Generates a Kane-Mele hamiltonian operator on given lattice `lat`.
 
