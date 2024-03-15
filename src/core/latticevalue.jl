@@ -180,7 +180,7 @@ to_inds(::AbstractLattice, rs::ResolvedSite) = rs.index
 
 Base.@propagate_inbounds function Base.getindex(l::AbstractLattice, args...; kw...)
     inds = to_inds(l, args...; kw...)
-    if inds isa Nothing
+    if inds isa Nothing || isempty(inds)
         throw(BoundsError(l, (args..., NamedTuple(kw))))
     elseif length(inds) == 1
         return l[only(inds)]
@@ -190,7 +190,7 @@ Base.@propagate_inbounds function Base.getindex(l::AbstractLattice, args...; kw.
 end
 Base.@propagate_inbounds function Base.getindex(lv::LatticeValueWrapper, args...; kw...)
     inds = to_inds(lattice(lv), args...; kw...)
-    if inds isa Nothing
+    if inds isa Nothing || isempty(inds)
         throw(BoundsError(lv, (args..., NamedTuple(kw))))
     elseif length(inds) == 1
         return lv.values[only(inds)]
