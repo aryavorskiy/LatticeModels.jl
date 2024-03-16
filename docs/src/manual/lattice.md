@@ -1,6 +1,6 @@
 # Lattices
 
-This chapter describes the basic functionality of `LatticeModels.jl` and how to use it to create and manipulate lattices.
+This chapter describes the basic functionality of this package — creating and manipulating lattices.
 
 ## Basics
 
@@ -110,6 +110,11 @@ l[!, x = 1.5, y = √3/2]    # Find the site with x = 1.5 and y = √3/2
 l[!, x = 1.5]              # More than one site, throws an error
 ```
 
+Here is a short list of site parameters you can use:
+- `x`, `y`, `z` — the position of the site. ALternatively, you can use `x1`, `x2`, `x3`, `x4` and so on to access the coordinates of the site in the unit cell.
+- `j1`, `j2`, `j3` and so on — the indices of the unit cell.
+- `index` — the index of the site in the unit cell.
+
 ## Custom `UnitCell`
 
 You can also create a lattice from a custom unit cell:
@@ -199,6 +204,32 @@ plot!(Circle(r), c=:grey, ls=:dash, lab = "r ≈ $r")
     Radius estimation is not always precise and works under following assumptions:
     - The shapes are large enough to contain the unit cell and do not intersect with each other.
     - The inverted shapes are all contained in the non-inverted ones, and also do not intersect with each other.
+
+## Multi-dimensional lattices
+
+This package supports multi-dimensional lattices. You can create a lattice of any dimension by creating a suitable unit cell first. Or by passing the required amount of axes to the lattice constructor, if the type supports it:
+
+```@example 5
+using LatticeModels, Plots
+l = SquareLattice(5, 4, 3)
+plot(l)     # A 3D cubic lattice
+```
+
+Also remember that the dimensions of the lattice are not necessarily spatial dimensions. For example, you can create a bilayer Graphene lattice by defining a unit cell with two layers:
+
+```@example 5
+# Bilayer Graphene with shifted layers
+uc = UnitCell([[1, 0, 0] [1/2, √3/2, 0]], 
+    [[0, 0, 0] [1/2, √3/6, 0] [0, 0, √3/3] [-1/2, -√3/6, √3/3]]) 
+l = span_unitcells(uc, -2:2, -2:2)
+plot(l, lc=:grey, zwiden=1.3)
+```
+
+Effectively, it is a 2D lattice in 3D space. Note that you can always project a multi-dimensional lattice or its slice to a 2D plane when plotting it:
+
+```@example 5
+plot(l[index=(1, 2)], axes=(:x, :y))    # Plot the first layer
+```
 
 ## Bonds and hoppings
 
