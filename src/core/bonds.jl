@@ -40,15 +40,15 @@ function adapt_bonds(bonds::AbstractBonds{<:AbstractLattice}, l::AbstractLattice
     return bonds
 end
 
-@inline directed_destinations(bonds::AbstractBonds, site::AbstractSite) =
+@inline _destinations(bonds::AbstractBonds, site::AbstractSite) =
     (site2 for site2 in lattice(bonds) if isadjacent(bonds, site, site2) && site2 > site)
-@inline directed_destinations(bonds::AbstractBonds, rs::ResolvedSite) = directed_destinations(bonds, rs.site)
+@inline _destinations(bonds::AbstractBonds, rs::ResolvedSite) = _destinations(bonds, rs.site)
 
 function Base.iterate(bonds::AbstractBonds)
     isempty(lattice(bonds)) && return nothing
     l = lattice(bonds)
     isempty(l) && return nothing
-    targets = directed_destinations(bonds, first(l))
+    targets = _destinations(bonds, first(l))
     jst = iterate(targets)
     return iterate(bonds, (1, targets, jst))
 end
@@ -60,7 +60,7 @@ end
     if jst === nothing
         i += 1
         i > length(l) && return nothing
-        targets = directed_destinations(bonds, resolve_site(l, i))
+        targets = _destinations(bonds, resolve_site(l, i))
         jst = iterate(targets)
     end
     jst === nothing && return iterate(bonds, (i, targets, jst))
@@ -94,8 +94,8 @@ A bonds type that connects sites based on the distance between them.
 - `f`: A function that takes a distance and returns if the distance is allowed.
 - `lat`: The lattice where the bonds are defined.
 """
-struct SiteDistance{LT, FT} <: AbstractBonds{LT}
-    f::Function
+struct SiteDistance{LT, FT<:Function} <: AbstractBonds{LT}
+    f::FT
     lat::LT
 end
 
@@ -183,14 +183,15 @@ function isadjacent(am::AdjacencyMatrix, site1::AbstractSite, site2::AbstractSit
 end
 isadjacent(am::AdjacencyMatrix, s1::ResolvedSite, s2::ResolvedSite) = am.mat[s1.index, s2.index]
 
-@inline directed_destinations(am::AdjacencyMatrix, rs::ResolvedSite) =
+@inline _destinations(am::AdjacencyMatrix, rs::ResolvedSite) =
     (j for j in rs.index + 1:length(lattice(am)) if am.mat[rs.index, j])
-@inline function directed_destinations(am::AdjacencyMatrix{<:Any,<:SparseMatrixCSC}, rs::ResolvedSite)
+@inline function _destinations(am::AdjacencyMatrix{<:Any,<:SparseMatrixCSC}, rs::ResolvedSite)
     i = am.mat.colptr[rs.index]
     j = am.mat.colptr[rs.index + 1]
     st = findfirst(>(rs.index), @view(am.mat.rowval[i:j-1]))
-    st === nothing && return @view am.mat.rowval[j:j-1]
-    @view am.mat.rowval[i + st - 1:j - 1]
+    st === nothing && return ()
+    v = @view(am.mat.rowval[i+st-1:j-1])
+    return (v[k] for k in eachindex(v) if am.mat.nzval[i+st-1+k-1])
 end
 
 function Base.setindex!(b::AdjacencyMatrix, v, site1::AbstractSite, site2::AbstractSite)
@@ -296,6 +297,13 @@ struct UndefinedLattice <: AbstractLattice{NoSite} end
 Base.iterate(::UndefinedLattice) = nothing
 Base.length(::UndefinedLattice) = 0
 
+struct NoBonds <: AbstractBonds{UndefinedLattice} end
+lattice(::NoBonds) = UndefinedLattice()
+isadjacent(::NoBonds, ::AbstractSite, ::AbstractSite) = false
+adapt_bonds(::NoBonds, ::AbstractLattice) = NoBonds()
+adapt_bonds(::NoBonds, ::LatticeWithMetadata) = NoBonds()
+Base.iterate(::NoBonds) = nothing
+
 """
     DirectedBonds{LT} <: AbstractBonds{LT}
 
@@ -311,7 +319,7 @@ function destinations end
 function isadjacent(bonds::DirectedBonds, site1::AbstractSite, site2::AbstractSite)
     return site2 in destinations(bonds, site1) || site1 in destinations(bonds, site2)
 end
-directed_destinations(bonds::DirectedBonds, site::AbstractSite) =
+_destinations(bonds::DirectedBonds, site::AbstractSite) =
     destinations(bonds, site)
 function destination(db::DirectedBonds, site::AbstractSite)
     counter = 0
@@ -412,6 +420,7 @@ struct Translation{LT, N} <: AbstractTranslation{LT}
         new{UndefinedLattice, n}(UndefinedLattice(), SVector{n}(R))
     end
 end
+Translation(::UndefinedLattice, R::AbstractVector{<:Number}) = Translation(R)
 adapt_bonds(bonds::Translation, l::AbstractLattice) = Translation(l, bonds.R)
 adapt_bonds(bonds::Translation, ::UndefinedLattice) = Translation(bonds.R)
 function destination(sh::Translation, site::AbstractSite)

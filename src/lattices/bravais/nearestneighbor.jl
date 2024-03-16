@@ -43,6 +43,7 @@ Returns the nearest neighbor bonds of the lattice `lat`.
 getnnbonds(l::AbstractLattice) = getmeta(l, :nnbonds, DefaultNNBonds((), ()))
 setnnbonds(l::AbstractLattice, dnn::DefaultNNBonds) = setmeta(l, :nnbonds, dnn)
 
+adapt_bonds(::NearestNeighbor, ::AbstractLattice) = NoBonds()
 function adapt_bonds(b::NearestNeighbor{N}, l::LatticeWithMetadata) where {N}
     default_nnhops = getnnbonds(l)
     if default_nnhops === nothing || N > length(default_nnhops)

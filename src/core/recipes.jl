@@ -281,6 +281,9 @@ end
     end
     @series Tuple(rows[i] for i in axis_numbers)
 end
+@recipe function f(::AbstractBonds{UndefinedLattice})
+    nothing
+end
 
 @recipe function f(l::AbstractLattice, b::AbstractBonds)
     adapt_bonds(b, l)

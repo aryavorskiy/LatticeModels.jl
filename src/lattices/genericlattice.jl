@@ -22,6 +22,8 @@ Base.convert(::Type{GenericSite{N}}, s::AbstractSite{N}) where N = GenericSite(s
 
 sitekey(s::GenericSite) = round(Int, s.coords[1])
 
+destination(tr::Translation, s::GenericSite) = GenericSite(s.coords + tr.R)
+
 """
     GenericLattice{SiteT}
 
