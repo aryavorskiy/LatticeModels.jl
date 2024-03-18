@@ -403,8 +403,8 @@ julia> site1 = gl[!, x = 1, y = 1]      # Site at [1, 1]
 julia> site1 + tr                       # Translated site
 2-dim GenericSite{2} at [2.0, 1.0]
 
-julia> site1 - tr                       # Inverse translation - no site at [0, 1]
-LatticeModels.NoSite()
+julia> site1 - tr                       # Inverse translation
+2-dim GenericSite{2} at [0.0, 1.0]
 ```
 """
 struct Translation{LT, N} <: AbstractTranslation{LT}
