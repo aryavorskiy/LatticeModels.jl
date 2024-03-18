@@ -41,6 +41,23 @@ Constructs a LatticeValue object.
 ## Arguments
 - `lat`: the lattice the value is defined on.
 - `values`: an `AbstractVector` of values on the lattice.
+
+## Example
+```jldoctest
+julia> using LatticeModels
+
+julia> l = SquareLattice(2, 2);
+
+julia> LatticeValue(l, [1, 2, 3, 4])    # Custom values
+LatticeValue{Int64} on a 4-site 2-dim Bravais lattice in 2D space
+Values stored in a Vector{Int64}:
+[1, 2, 3, 4]
+
+julia> LatticeValue(l, :x)              # x-coordinate
+LatticeValue{Float64} on a 4-site 2-dim Bravais lattice in 2D space
+Values stored in a Vector{Float64}:
+[1.0, 1.0, 2.0, 2.0]
+```
 """
 LatticeValue(l::AbstractLattice, v::AbstractVector) = LatticeValueWrapper(l, convert(Vector, v))
 LatticeValue(lf, l::AbstractLattice) = LatticeValueWrapper(l, [lf(site) for site in l])

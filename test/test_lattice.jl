@@ -176,6 +176,18 @@ end
             z3[x=i] .= i
         end
         @test z3 == x
+
+        sites = [l[!, x = 2, y = i] for i in 1:10]
+        @test z2[x = 2] == z2[sites]
+
+        zz = zeros(l)
+        for i in 1:10
+            zz[!, x=i, y=i] =1
+        end
+        zzvals = zeros(100)
+        zzvals[1:11:end] .= 1
+        @test zz.values == zzvals
+        @test_throws ArgumentError zz[x=1, y=1] = 1
     end
 end
 
