@@ -74,6 +74,14 @@ end
 end
 
 """
+    translate_to_nearest(lat, site1, site2)
+
+Translate `site2` to its equivalent nearest to `site1` in the lattice `lat`, taking the
+boundary conditions into account.
+"""
+translate_to_nearest(::AbstractLattice, ::AbstractSite, site2::AbstractSite) = site2
+
+"""
     sitedistance([lat, ]site1, site2)
 Returns the distance between two sites on the `lat` lattice, taking boundary conditions into account.
 
@@ -84,6 +92,8 @@ Returns the distance between two sites on the `lat` lattice, taking boundary con
 sitedistance(::AbstractLattice, site1::AbstractSite, site2::AbstractSite) =
     norm(site1.coords - site2.coords)
 sitedistance(site1, site2) = sitedistance(UndefinedLattice(), site1, site2)
+sitedistance(l::LatticeWithMetadata, site1::AbstractSite, site2::AbstractSite) =
+    norm(translate_to_nearest(l, site1, site2).coords - site1.coords)
 
 """
     SiteDistance(f, lat)
@@ -98,9 +108,14 @@ struct SiteDistance{LT, FT<:Function} <: AbstractBonds{LT}
     f::FT
     lat::LT
 end
-
 isadjacent(bonds::SiteDistance, s1::AbstractSite, s2::AbstractSite) =
     bonds.f(sitedistance(bonds.lat, s1, s2))
+@inline function _destinations(bonds::SiteDistance, site::AbstractSite)
+    l = lattice(bonds)
+    return (translate_to_nearest(l, site, site2) for site2 in l
+        if bonds.f(sitedistance(site, translate_to_nearest(l, site, site2)))
+            && site2 > site)
+end
 adapt_bonds(bonds::SiteDistance, ::AbstractLattice) = bonds
 
 """
@@ -423,14 +438,6 @@ end
 Translation(::UndefinedLattice, R::AbstractVector{<:Number}) = Translation(R)
 adapt_bonds(bonds::Translation, l::AbstractLattice) = Translation(l, bonds.R)
 adapt_bonds(bonds::Translation, ::UndefinedLattice) = Translation(bonds.R)
-function destination(sh::Translation, site::AbstractSite)
-    for dest in lattice(sh)
-        if isapprox(site.coords + sh.R, dest.coords, atol=√eps())
-            return dest
-        end
-    end
-    return NoSite()
-end
 dims(::Translation{UndefinedLattice, N}) where N = N
 
 isadjacent(sh::Translation, site1::AbstractSite, site2::AbstractSite) =

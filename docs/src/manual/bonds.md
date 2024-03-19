@@ -174,7 +174,7 @@ for i in 1:100
     md = minimum(site -> norm(pt - site.coords), l, init=1.0)
     md > 0.5 && push!(l, pt)    # Add a site if it is far enough from the others
 end
-l2 = setboundaries(l)
+l2 = setboundaries(l, [0, 5] => true, [5, 0] => true)  # Periodic boundary conditions
 bonds = SiteDistance(<(1), l2)  # Connect sites that are closer than 0.5
 plot(bonds)
 plot!(l2)       # Unlike Bravais lattices, GenericLattice does not have default bonds

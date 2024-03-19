@@ -287,13 +287,7 @@ function resolve_site(l::LatticeWithMetadata, site::AbstractSite)
     return ResolvedSite(rs.site, site, rs.index, factor * rs.factor)
 end
 
-"""
-    translate_to_nearest(lat, site1, site2)
-
-Translate `site2` to its equivalent nearest to `site1` in the lattice `lat`, taking the
-boundary conditions into account.
-"""
-function translate_to_nearest(l::AbstractLattice, site1::AbstractSite, site2::AbstractSite)
+function translate_to_nearest(l::LatticeWithMetadata, site1::AbstractSite, site2::AbstractSite)
     min_site = site2
     min_dist = norm(site1.coords - site2.coords)
     for (_, new_site) in mappings(getboundaries(l), site2)
@@ -304,8 +298,6 @@ function translate_to_nearest(l::AbstractLattice, site1::AbstractSite, site2::Ab
     end
     return min_site
 end
-sitedistance(l::LatticeWithMetadata, site1::AbstractSite, site2::AbstractSite) =
-    norm(translate_to_nearest(l, site1, site2).coords - site1.coords)
 
 struct DefaultTranslations{NamedTupleT}
     translations::NamedTupleT

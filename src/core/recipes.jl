@@ -1,4 +1,4 @@
-using RecipesBase
+using RecipesBase, ColorTypes
 
 @recipe function f(site::AbstractSite)
     seriestype := :scatter
@@ -69,7 +69,10 @@ end
 
 @recipe function f(lat::AbstractLattice, ::Val{:numbers})
     label --> ""
-    annotations = [(" " * string(i), :left, :top, :grey, 6) for i in eachindex(lat)]
+    inds = get(plotattributes, :site_indices, eachindex(lat))
+    alphas = get(plotattributes, :markeralpha, ones(length(lat)))
+    annotations = [(" " * string(inds[j]), :left, :top, RGBA(0.5, 0.5, 0.5, alphas[j]), 6)
+        for j in eachindex(inds)]
     @series begin   # The sites
         seriestype := :scatter
         markershape := :none
@@ -112,9 +115,10 @@ latticedist2(lat::AbstractLattice, site::AbstractSite) =
             end
         end
         ldists = [latticedist2(lat, site) for site in lat2]
-        diam2 = maximum(ldists)
+        diam2 = maximum(ldists, init=1.0)
         q = max(1/3.1, 3.5/√diam2)
         is = findall(<(diam2 * q^2), ldists)
+        site_indices := is
         alphafalloff = map(x -> 0.65 * exp(-2.5x / (diam2 * q^2)), @view ldists[is])
         @series begin
             sitealpha := alphafalloff
@@ -129,7 +133,9 @@ latticedist2(lat::AbstractLattice, site::AbstractSite) =
             else
                 seriescolor --> :lightblue
             end
-            lat2[is], :sites
+            showbonds := false
+            showboundaries := false
+            lat2[is]
         end
     end
 end
