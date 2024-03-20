@@ -84,7 +84,7 @@
         @test currentsfromto(spin_curr, site) ≈ spin_dt
 
         mb_spin_curr = LocalOperatorCurrents(H2_1, gs2, [1 0; 0 -1]) |> Currents
-        mb_spin_op = manybodyoperator(sys, spin_op)
+        mb_spin_op = construct_operator(sys, spin_op)
         mb_spin_dt = gs2' * im * (H2_1 * mb_spin_op - mb_spin_op * H2_1) * gs2
         @test currentsfromto(mb_spin_curr, site) ≈ mb_spin_dt
         @test mb_spin_curr ≈ 2 * spin_curr

@@ -1,4 +1,4 @@
-import QuantumOpticsBase: Operator, check_samebases
+import QuantumOpticsBase: Operator, manybodyoperator, check_samebases
 
 struct ArrayEntry{T}
     val::T
@@ -224,7 +224,11 @@ Base.@propagate_inbounds function Base.setindex!(opbuilder::OperatorBuilder, rhs
     return nothing
 end
 
-_construct_manybody_maybe(sys::ManyBodySystem, op::AbstractOperator) = manybodyoperator(sys, op)
+function _construct_manybody_maybe(sys::ManyBodySystem, op::AbstractOperator)
+    bas = basis(op)
+    check_samebases(bas, onebodybasis(sys))
+    return manybodyoperator(ManyBodyBasis(bas, occupations(sys)), op)
+end
 _construct_manybody_maybe(::OneParticleBasisSystem, op::AbstractOperator) = op
 function QuantumOpticsBase.Operator(opb::OperatorBuilder; warning=true)
     op = Operator(onebodybasis(opb.sys), to_matrix(opb.mat_builder))
