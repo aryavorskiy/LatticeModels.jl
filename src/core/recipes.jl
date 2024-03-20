@@ -48,9 +48,12 @@ end
     seriestype := :scatter
     axes, axis_numbers = _get_axes(lat, get(plotattributes, :axes, nothing))
     xguide --> axes[1]
+    xwiden --> 1.1
     yguide --> axes[2]
+    ywiden --> 1.1
     if length(axes) > 2
         zguide --> axes[3]
+        zwiden --> 1.1
     end
     rows = eachrow(collect_coords(lat))
     @series Tuple(rows[i] for i in axis_numbers)
@@ -194,7 +197,7 @@ end
     @assert scale_markers isa Real "`markerscale` must be a real number or `Bool`"
     mx = maximum(abs, lv.values)
     lat = lattice(lv)
-    if plotattributes[:seriestype] === :shape && dims(lv) == 2
+    if plotattributes[:seriestype] in (:shape, :heatmap) && dims(lv) == 2
         :axes in keys(plotattributes) && throw(ArgumentError("Cannot use `:axes` with `:shape` seriestype"))
         shapetype = get(plotattributes, :markershape, :polygon)
         if shapetype === :circle

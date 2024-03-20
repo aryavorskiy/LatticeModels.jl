@@ -22,6 +22,19 @@ Base.pairs(lvw::LatticeValueWrapper) = Iterators.map(=>, lvw.lat, lvw.values)
 Base.keys(lvw::LatticeValueWrapper) = lvw.lat
 Base.values(lvw::LatticeValueWrapper) = lvw.values
 
+function Base.:(+)(lvw1::LatticeValueWrapper, lvw2::LatticeValueWrapper)
+    check_samelattice(lvw1.lat, lvw2.lat)
+    LatticeValueWrapper(lvw1.lat, lvw1.values + lvw2.values)
+end
+Base.:(-)(lvw1::LatticeValueWrapper) = LatticeValueWrapper(lvw1.lat, -lvw1.values)
+function Base.:(-)(lvw1::LatticeValueWrapper, lvw2::LatticeValueWrapper)
+    check_samelattice(lvw1.lat, lvw2.lat)
+    LatticeValueWrapper(lvw1.lat, lvw1.values - lvw2.values)
+end
+Base.:(*)(lvw::LatticeValueWrapper, x::Number) = LatticeValueWrapper(lvw.lat, lvw.values * x)
+Base.:(*)(x::Number, lvw::LatticeValueWrapper) = lvw * x
+Base.:(/)(lvw::LatticeValueWrapper, x::Number) = LatticeValueWrapper(lvw.lat, lvw.values / x)
+
 """
     LatticeValue{T, LT}
 
@@ -120,7 +133,7 @@ Base.getindex(l::AbstractLattice, i::CartesianIndex{1}) = l[only(Tuple(i))]
 Base.BroadcastStyle(::Type{<:LatticeValueWrapper}) = LatticeStyle()
 Base.BroadcastStyle(::Type{<:AbstractLattice}) = LatticeStyle()
 Base.BroadcastStyle(bs::Broadcast.BroadcastStyle, ::LatticeStyle) =
-    throw(ArgumentError("cannot broadcast LatticeValue along style $bs"))
+    throw(ArgumentError("cannot broadcast LatticeValue along $bs"))
 Base.BroadcastStyle(::Broadcast.DefaultArrayStyle{0}, ::LatticeStyle) = LatticeStyle()
 
 function Base.similar(bc::Broadcast.Broadcasted{LatticeStyle}, ::Type{Eltype}) where {Eltype}

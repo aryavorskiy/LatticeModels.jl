@@ -180,4 +180,4 @@ plot(bonds)
 plot!(l2)       # Unlike Bravais lattices, GenericLattice does not have default bonds
 ```
 
-This tool is not very mature yet, but it can be useful for tasks not related to Braavais lattices. Note that boundary conditions can be set to the `GenericLattice` as well.
+This tool is not very mature yet, but it can be useful for tasks not related to Bravais lattices. Note that boundary conditions or default nearest-neighbor hoppings can be set to the `GenericLattice` as well.

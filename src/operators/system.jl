@@ -300,7 +300,7 @@ struct IncompatibleSystems <: Exception
     sys2::System
 end
 function Base.showerror(io::IO, e::IncompatibleSystems)
-    print(io, "Incompatible systems: ")
+    println(io, "Incompatible Hamiltonians:")
     io = IOContext(io, :compact => true)
     print(io, "  #1: ")
     show(io, "text/plain", e.sys1)

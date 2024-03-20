@@ -154,7 +154,11 @@ end
         @test x == x4
         @test x .* y == xy
         @test x .* 2 == xm2
+        @test x * 2 == xm2
         @test 2 .* x == xm2
+        @test 2x == xm2
+        @test x - x == zero(x)
+        @test -x + x == zero(x)
         @test x .|> (x -> 2x) == xm2
         y .= x .* y
         @test y == xy

@@ -110,10 +110,19 @@ l[!, x = 1.5, y = √3/2]    # Find the site with x = 1.5 and y = √3/2
 l[!, x = 1.5]              # More than one site, throws an error
 ```
 
+Note that __pair notation__ is also supported. You can use it to access the properties of the site using the `Coord` and `LatticeCoord` types. For example, the following two lines are equivalent to ones above:
+
+```@repl 2
+l[!, Coord(1) => 1.5, Coord(2) => √3/2] # Same as l[!, x = 1.5, y = √3/2]
+l[!, Coord(1) => 1.5]                   # Same as l[!, x = 1.5]
+```
+
+This notation improves performance on Julia 1.7 and earlier, since it does not need any type-inference tricks to work fast. You may also find it useful when you work with multi-dimensional lattices.
+
 Here is a short list of site parameters you can use:
-- `x`, `y`, `z` — the position of the site. ALternatively, you can use `x1`, `x2`, `x3`, `x4` and so on to access the coordinates of the site in the unit cell.
-- `j1`, `j2`, `j3` and so on — the indices of the unit cell.
-- `index` — the index of the site in the unit cell.
+- `x`, `y`, `z` — the position of the site. Alternatively, you can use `x1`, `x2`, `x3`, `x4` and so on to access the coordinates of the site in the unit cell. Use `Coord(i)` to access the `i`-th coordinate using pair notation.
+- `j1`, `j2`, `j3` and so on — the indices of the unit cell. Use `LatticeCoord(i)` to access the `i`-th index using pair notation.
+- `index` — the index of the site in the unit cell. Use `BasisIndex()` to access it using pair notation.
 
 ## Custom `UnitCell`
 

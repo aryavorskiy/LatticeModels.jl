@@ -19,7 +19,7 @@ makedocs(
         "Manual" => [
             "Defining the lattice" => "manual/lattice.md",
             "Adding bonds" => "manual/bonds.md",
-            "Working with data" => "manual/latticevalue.md",
+            "Working with 'LatticeValue's" => "manual/latticevalue.md",
             "Constructing the Hamiltonian" => "manual/hamiltonian.md",
             "Operators" => "manual/operators.md",
             "Green's function" => "manual/greenfunction.md",
