@@ -100,7 +100,11 @@ end
 
 latticedist2(lat::AbstractLattice, site::AbstractSite) =
     minimum(s -> sum(abs2, s.coords - site.coords), lat)
-@recipe function f(lat::AbstractLattice, ::Val{:boundaries})
+@recipe f(::AbstractLattice, ::Val{:boundaries}) = @series begin
+    aspect_ratio := :equal
+    ()
+end
+@recipe function f(lat::LatticeWithMetadata, ::Val{:boundaries})
     label := ""
     trs = adapt_boundaries(getboundaries(lat), UndefinedLattice())
     for cind in cartesian_indices(lat)
@@ -133,16 +137,13 @@ latticedist2(lat::AbstractLattice, site::AbstractSite) =
             else
                 seriescolor --> :lightblue
             end
-            showbonds := false
-            showboundaries := false
-            lat2[is]
+            stripmeta(lat2)[is]
         end
     end
 end
 
 @recipe function f(lat::AbstractLattice; showboundaries=true, showbonds=true, shownumbers=false)
     label --> ""
-    shownumbers --> showboundaries
     if showbonds isa Bool
         showbonds := (showbonds ? (1,) : ())
     elseif showbonds isa Union{Int, Tuple}

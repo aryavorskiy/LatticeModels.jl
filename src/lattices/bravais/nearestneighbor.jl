@@ -16,6 +16,8 @@ struct DefaultNNBonds{M, TupleT}
     function DefaultNNBonds(dists::NTuple{M, Float64}, nnbonds::Tuple) where {M}
         length(dists) == length(nnbonds) ||
             throw(ArgumentError("The number of distances and the number of hops must be the same."))
+        all(isfinite, dists) || all(isnan, dists) ||
+            throw(ArgumentError("All distances must be finite"))
         nnbonds_nolat = Tuple(adapt_bonds(b, UndefinedLattice()) for b in nnbonds)
         new{M, typeof(nnbonds_nolat)}(dists, nnbonds_nolat)
     end
@@ -27,7 +29,11 @@ function Base.show(io::IO, mime::MIME"text/plain", dnn::DefaultNNBonds)
     isempty(dnn.dists) && return print(io, "none")
     io = addindent(io, 2, :showtitle => false)
     for i in 1:length(dnn.dists)
-        println(io, "\n", indent, @sprintf("%9.5f", dnn.dists[i]), " =>")
+        if isfinite(dnn.dists[i])
+            println(io, "\n", indent, @sprintf("%9.5f", dnn.dists[i]), " =>")
+        else
+            println(io, "\n", indent, "  #$i =>")
+        end
         show(io, mime, dnn.nnbonds[i])
     end
 end
@@ -42,6 +48,39 @@ Returns the nearest neighbor bonds of the lattice `lat`.
 """
 getnnbonds(l::AbstractLattice) = getmeta(l, :nnbonds, DefaultNNBonds((), ()))
 setnnbonds(l::AbstractLattice, dnn::DefaultNNBonds) = setmeta(l, :nnbonds, dnn)
+_to_nnb(b::AbstractBonds) = NaN => b
+_to_nnb(p::Pair{Float64,<:AbstractBonds}) = p
+_to_nnb(b) =
+    throw(ArgumentError("Invalid nnbond type: $(typeof(b)); expected a bonds type or a distance-bonds pair"))
+
+"""
+    setnnbonds(lat, args...; overwrite=false)
+
+Adds the nearest neighbor bonds `args` to the lattice `lat`. If `overwrite` is `true`, the default
+nearest neighbor bonds are replaced by `args`. Otherwise, the new bonds are merged with the default.
+
+Each `args` can be a bonds type or a distance-bonds pair.
+
+## Example
+```jldoctest
+julia> using LatticeModels
+
+julia> lat = SquareLattice(3, 3);
+
+julia> lat2 = setnnbonds(lat, SiteDistance(0..1), SiteDistance(1..2));
+
+julia> lat2.nnbonds
+Nearest neighbor hoppings:
+  #1 =>
+    SiteDistance(0 .. 1)
+  #2 =>
+    SiteDistance(1 .. 2)
+```
+"""
+function setnnbonds(l::AbstractLattice, args::AbstractBonds...)
+    new_nn = DefaultNNBonds(Tuple(NaN for p in args), args)
+    return setnnbonds(l, new_nn)
+end
 
 adapt_bonds(::NearestNeighbor, ::AbstractLattice) = NoBonds()
 function adapt_bonds(b::NearestNeighbor{N}, l::LatticeWithMetadata) where {N}

@@ -104,19 +104,32 @@ A bonds type that connects sites based on the distance between them.
 - `f`: A function that takes a distance and returns if the distance is allowed.
 - `lat`: The lattice where the bonds are defined.
 """
-struct SiteDistance{LT, FT<:Function} <: AbstractBonds{LT}
+struct SiteDistance{LT, FT} <: AbstractBonds{LT}
     f::FT
     lat::LT
 end
-isadjacent(bonds::SiteDistance, s1::AbstractSite, s2::AbstractSite) =
+SiteDistance(f) = SiteDistance(f, UndefinedLattice())
+isadjacent(bonds::SiteDistance{<:Any, <:Function}, s1::AbstractSite, s2::AbstractSite) =
     bonds.f(sitedistance(bonds.lat, s1, s2))
+isadjacent(bonds::SiteDistance, s1::AbstractSite, s2::AbstractSite) =
+    sitedistance(bonds.lat, s1, s2) in bonds.f
 @inline function _destinations(bonds::SiteDistance, site::AbstractSite)
     l = lattice(bonds)
     return (translate_to_nearest(l, site, site2) for site2 in l
         if bonds.f(sitedistance(site, translate_to_nearest(l, site, site2)))
             && site2 > site)
 end
-adapt_bonds(bonds::SiteDistance, ::AbstractLattice) = bonds
+adapt_bonds(bonds::SiteDistance, lat::AbstractLattice) = SiteDistance(bonds.f, lat)
+function Base.show(io::IO, ::MIME"text/plain", sd::SiteDistance)
+    indent = getindent(io)
+    print(io, indent, "SiteDistance(")
+    show(io, sd.f)
+    if sd.lat !== UndefinedLattice()
+        print(io, ", ")
+        summary(io, sd.lat)
+    end
+    print(io, ")")
+end
 
 """
     AdjacencyMatrix{LT} where {LT<:Lattice}
