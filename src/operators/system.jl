@@ -10,6 +10,7 @@ end
 const SampleWithoutInternal{LT} = Sample{LT, Nothing}
 const SampleWithInternal{LT} = Sample{LT, <:Basis}
 
+Base.:(==)(s1::Sample, s2::Sample) = s1.lat == s2.lat && s1.internal == s2.internal
 Base.length(sample::Sample) = length(sample.lat) * length(sample.internal)
 Base.length(sample::SampleWithoutInternal) = length(sample.lat)
 QuantumOpticsBase.basis(sample::SampleWithInternal) = sample.internal ⊗ LatticeBasis(sample.lat)
@@ -93,6 +94,18 @@ function FixedN(sample::SampleT, N; statistics=FermiDirac, T = 0) where SampleT
     FixedN{SampleT}(sample, N, statistics, T)
 end
 
+function Base.:(==)(sys1::OneParticleBasisSystem, sys2::OneParticleBasisSystem)
+    (sys1.sample == sys2.sample && sys1.T == sys2.T) || return false
+    if sys1 isa OneParticleSystem && sys2 isa OneParticleSystem
+        return true
+    elseif sys1 isa FixedMu && sys2 isa FixedMu
+        return sys1.chempotential == sys2.chempotential && sys1.statistics == sys2.statistics
+    elseif sys1 isa FixedN && sys2 isa FixedN
+        return sys1.nparticles == sys2.nparticles && sys1.statistics == sys2.statistics
+    else
+        return false
+    end
+end
 function Base.show(io::IO, mime::MIME"text/plain", sys::OneParticleBasisSystem)
     if sys isa OneParticleSystem
         print(io, "One particle on ")
@@ -149,6 +162,9 @@ NParticles(onep::OneParticleSystem, n; kw...) = NParticles(onep.sample, n;
     T = onep.T, kw...)
 NParticles(l::AbstractLattice, n; kw...) = NParticles(Sample(l, nothing), n; kw...)
 NParticles(l::AbstractLattice, b::Basis, n; kw...) = NParticles(Sample(l, b), n; kw...)
+Base.:(==)(sys1::NParticles, sys2::NParticles) =
+    sys1.sample == sys2.sample && sys1.nparticles == sys2.nparticles &&
+    sys1.statistics == sys2.statistics && sys1.T == sys2.T
 function Base.show(io::IO, mime::MIME"text/plain", sys::NParticles)
     noun = sys.statistics == FermiDirac ? "fermion" : "boson"
     print(io, "NParticles(", fmtnum(sys.nparticles, noun), ") on ")
@@ -269,6 +285,7 @@ function Base.:(+)(op::Operator{B, B}, ham::Hamiltonian{Sys, B}) where {Sys, B}
     return Hamiltonian(ham.sys, op.data + ham.data)
 end
 Base.:(+)(ham::Hamiltonian{Sys, B}, op::Operator{B, B}) where {Sys, B} = op + ham
+Base.:(-)(ham::Hamiltonian) = Hamiltonian(ham.sys, -ham.data)
 function Base.:(-)(op::Operator{B, B}, ham::Hamiltonian{Sys, B}) where {Sys, B}
     QuantumOpticsBase.check_samebases(basis(op), ham.basis_l)
     return Hamiltonian(ham.sys, op.data - ham.data)
@@ -278,12 +295,24 @@ function Base.:(-)(ham::Hamiltonian{Sys, B}, op::Operator{B, B}) where {Sys, B}
     return Hamiltonian(ham.sys, ham.data - op.data)
 end
 
+struct IncompatibleSystems <: Exception
+    sys1::System
+    sys2::System
+end
+function Base.showerror(io::IO, e::IncompatibleSystems)
+    print(io, "Incompatible systems: ")
+    io = IOContext(io, :compact => true)
+    print(io, "  #1: ")
+    show(io, "text/plain", e.sys1)
+    print(io, "\n  #2: ")
+    show(io, "text/plain", e.sys2)
+end
 function Base.:(+)(ham::Hamiltonian{Sys, B}, ham2::Hamiltonian{Sys, B}) where {Sys, B}
-    @assert ham.sys == ham2.sys
+    ham.sys == ham2.sys || throw(IncompatibleSystems(ham.sys, ham2.sys))
     return Hamiltonian(ham.sys, Operator(ham) + Operator(ham2))
 end
 function Base.:(-)(ham::Hamiltonian{Sys, B}, ham2::Hamiltonian{Sys, B}) where {Sys, B}
-    @assert ham.sys == ham2.sys
+    ham.sys == ham2.sys || throw(IncompatibleSystems(ham.sys, ham2.sys))
     return Hamiltonian(ham.sys, Operator(ham) - Operator(ham2))
 end
 

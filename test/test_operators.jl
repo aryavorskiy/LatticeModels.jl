@@ -67,6 +67,8 @@
         @test H ≈ H2
         @test H ≈ H3
         @test H ≈ H4
+        @test H - Operator(H1) ≈ Operator(H2) - H4 atol=1e-10
+        @test H - H1 ≈ -H2 + H4 atol=1e-10
 
         site1, site2 = l[10], l[25]
         sigmaydi10 = sigmay(spin) ⊗ diagonaloperator(l .== Ref(site1))
@@ -126,6 +128,7 @@
         d1 = localdensity(groundstate(H))
         H2 = bosehubbard(l, 2)
         d2 = localdensity(groundstate(H2))
+        @test bosehubbard(l, 2, U = 10) ≈ bosehubbard(l, 2, t1=0.1, U = 0) + bosehubbard(l, 2, t1=0.9, U = 10)
         @test d1.values * 2 ≈ d2.values
     end
 
