@@ -1,6 +1,20 @@
 @testset "Operators" begin
     @testset "Basics" begin
         l = SquareLattice(10, 10)
+        x = coordvalue(l, :x)
+        psi = ketstate(@. exp(-x^2/2 + im * x))
+        psi_t = brastate(@. exp(-x^2/2 - im * x))
+        @test psi.data ≈ @. exp(-x.values^2/2 + im * x.values)
+        @test psi_t.data ≈ @. exp(-x.values^2/2 - im * x.values)
+
+        spin = SpinBasis(1//2)
+        s = basisstate(spin, 1)
+        psic = s ⊗ psi
+        psic2 = @.(exp(-x^2/2 + im * x)) ⊗ s
+        @test psic.data ≈ psic2.data
+        psic_t = @.(exp(-x^2/2 - im * x)) ⊗ s'
+        @test psic_t * psic ≈ psi_t * psi
+
         H_0 = qwz(l)
         H_1 = qwz(l, field=LandauGauge(0.1))
         P = densitymatrix(H_0, statistics=FermiDirac)
