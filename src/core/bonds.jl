@@ -40,15 +40,48 @@ function adapt_bonds(bonds::AbstractBonds{<:AbstractLattice}, l::AbstractLattice
     return bonds
 end
 
-@inline _destinations(bonds::AbstractBonds, site::AbstractSite) =
-    (site2 for site2 in lattice(bonds) if isadjacent(bonds, site, site2) && site2 > site)
-@inline _destinations(bonds::AbstractBonds, rs::ResolvedSite) = _destinations(bonds, rs.site)
+abstract type BondsIterateStyle end
+struct IterateDirect <: BondsIterateStyle end
+struct IterateNearest <: BondsIterateStyle end
+iterstyle(::AbstractBonds) = IterateDirect()
+@inline function _destination_sites(::IterateDirect, bonds::AbstractBonds, site::AbstractSite)
+    l = lattice(bonds)
+    return (site2 for site2 in l
+        if isadjacent(bonds, site, site2) && site2 > site)
+end
+@inline function _destination_sites(::IterateNearest, bonds::AbstractBonds, site::AbstractSite)
+    l = lattice(bonds)
+    return (translate_to_nearest(l, site, site2) for site2 in l
+        if isadjacent(bonds, site, translate_to_nearest(l, site, site2))
+            && site2 > site)
+end
+@inline _destination_sites(bonds::AbstractBonds, site::AbstractSite) =
+    _destination_sites(iterstyle(bonds), bonds, site)
+
+abstract type BondsResolveStyle end
+struct ResolveIndices <: BondsResolveStyle end
+struct ResolveSites <: BondsResolveStyle end
+resolvestyle(::AbstractBonds) = ResolveSites()
+function _resolve_all(::IterateDirect, bonds::AbstractBonds, site, dests)
+    l = lattice(bonds)
+    return (resolve_site(l, dest) for dest in dests)
+end
+function _resolve_all(::IterateNearest, bonds::AbstractBonds, site, dests)
+    l = lattice(bonds)
+    return (resolve_site(l, translate_to_nearest(l, site, dest)) for dest in dests)
+end
+_destinations(::ResolveIndices, bonds::AbstractBonds, rs::ResolvedSite) =
+    _resolve_all(iterstyle(bonds), bonds, rs.site, _destination_inds(bonds, rs.index))
+_destinations(::ResolveSites, bonds::AbstractBonds, rs::ResolvedSite) =
+    _resolve_all(iterstyle(bonds), bonds, rs.site, _destination_sites(bonds, rs.site))
+_destinations(bonds::AbstractBonds, rs::ResolvedSite) =
+    _destinations(resolvestyle(bonds), bonds, rs)
 
 function Base.iterate(bonds::AbstractBonds)
     isempty(lattice(bonds)) && return nothing
     l = lattice(bonds)
     isempty(l) && return nothing
-    targets = _destinations(bonds, first(l))
+    targets = _destinations(bonds, resolve_site(l, 1))
     jst = iterate(targets)
     return iterate(bonds, (1, targets, jst))
 end
@@ -66,7 +99,7 @@ end
     jst === nothing && return iterate(bonds, (i, targets, jst))
 
     rs = resolve_site(l, i)
-    rs2 = resolve_site(l, jst[1])
+    rs2 = jst[1]
     jst = iterate(targets, jst[2])
 
     rs2 === nothing && return iterate(bonds, (i, targets, jst))
@@ -80,6 +113,8 @@ Translate `site2` to its equivalent nearest to `site1` in the lattice `lat`, tak
 boundary conditions into account.
 """
 translate_to_nearest(::AbstractLattice, ::AbstractSite, site2::AbstractSite) = site2
+translate_to_nearest(l::AbstractLattice, site1::AbstractSite, i2::Int) =
+    translate_to_nearest(l, site1, l[i2])
 
 """
     sitedistance([lat, ]site1, site2)
@@ -109,16 +144,11 @@ struct SiteDistance{LT, FT} <: AbstractBonds{LT}
     lat::LT
 end
 SiteDistance(f) = SiteDistance(f, UndefinedLattice())
+iterstyle(::SiteDistance) = IterateNearest()
 isadjacent(bonds::SiteDistance{<:Any, <:Function}, s1::AbstractSite, s2::AbstractSite) =
     bonds.f(sitedistance(bonds.lat, s1, s2))
 isadjacent(bonds::SiteDistance, s1::AbstractSite, s2::AbstractSite) =
     sitedistance(bonds.lat, s1, s2) in bonds.f
-@inline function _destinations(bonds::SiteDistance, site::AbstractSite)
-    l = lattice(bonds)
-    return (translate_to_nearest(l, site, site2) for site2 in l
-        if bonds.f(sitedistance(site, translate_to_nearest(l, site, site2)))
-            && site2 > site)
-end
 adapt_bonds(bonds::SiteDistance, lat::AbstractLattice) = SiteDistance(bonds.f, lat)
 function Base.show(io::IO, ::MIME"text/plain", sd::SiteDistance)
     indent = getindent(io)
@@ -170,18 +200,19 @@ Values in a 4×4 SparseArrays.SparseMatrixCSC{Bool, Int64} with 6 stored entries
  ⋅  1  1  ⋅
 ```
 """
-struct AdjacencyMatrix{LT,MT} <: AbstractBonds{LT}
+struct AdjacencyMatrix{LT,MT,ST} <: AbstractBonds{LT}
     lat::LT
     mat::MT
-    function AdjacencyMatrix(lat::LT, mat::MT) where {LT<:AbstractLattice,MT<:AbstractMatrix{Bool}}
+    iterstyle::ST
+    function AdjacencyMatrix(lat::LT, mat::MT, style::ST=IterateDirect()) where {LT<:AbstractLattice,MT<:AbstractMatrix{Bool}, ST<:BondsIterateStyle}
         @check_size mat :square
         @check_size lat size(mat, 1)
         eye = spdiagm(Fill(true, length(lat)))
-        new{LT,MT}(lat, dropzeros((mat .| transpose(mat)) .& .!eye))
+        new{LT,MT,ST}(lat, dropzeros((mat .| transpose(mat)) .& .!eye), style)
     end
-    function AdjacencyMatrix(l::AbstractLattice)
-        AdjacencyMatrix(l, spzeros(Bool, length(l), length(l)))
-    end
+end
+function AdjacencyMatrix(l::AbstractLattice, style::ST=IterateDirect()) where {ST<:BondsIterateStyle}
+    AdjacencyMatrix(l, spzeros(Bool, length(l), length(l)), style)
 end
 function adapt_bonds(b::AdjacencyMatrix, l::AbstractLattice)
     if l == lattice(b)
@@ -198,7 +229,7 @@ function adapt_bonds(b::AdjacencyMatrix, l::AbstractLattice)
         end
         new_mat = spzeros(Bool, length(l), length(l))
         new_mat[ext_inds, ext_inds] = b.mat[inds, inds]
-        return AdjacencyMatrix(l, new_mat)
+        return AdjacencyMatrix(l, new_mat, b.iterstyle)
     end
 end
 
@@ -211,15 +242,17 @@ function isadjacent(am::AdjacencyMatrix, site1::AbstractSite, site2::AbstractSit
 end
 isadjacent(am::AdjacencyMatrix, s1::ResolvedSite, s2::ResolvedSite) = am.mat[s1.index, s2.index]
 
-@inline _destinations(am::AdjacencyMatrix, rs::ResolvedSite) =
-    (j for j in rs.index + 1:length(lattice(am)) if am.mat[rs.index, j])
-@inline function _destinations(am::AdjacencyMatrix{<:Any,<:SparseMatrixCSC}, rs::ResolvedSite)
-    i = am.mat.colptr[rs.index]
-    j = am.mat.colptr[rs.index + 1]
-    st = findfirst(>(rs.index), @view(am.mat.rowval[i:j-1]))
+iterstyle(adj::AdjacencyMatrix) = adj.iterstyle
+resolvestyle(::AdjacencyMatrix) = ResolveIndices()
+@inline _destination_inds(am::AdjacencyMatrix, i::Int) =
+    (j for j in i + 1:length(lattice(am)) if am.mat[i, j])
+@inline function _destination_inds(am::AdjacencyMatrix{<:Any,<:SparseMatrixCSC}, i::Int)
+    p1 = am.mat.colptr[i]
+    p2 = am.mat.colptr[i + 1]
+    st = findfirst(>(i), @view(am.mat.rowval[p1:p2 - 1]))
     st === nothing && return ()
-    v = @view(am.mat.rowval[i+st-1:j-1])
-    return (v[k] for k in eachindex(v) if am.mat.nzval[i+st-1+k-1])
+    v = @view(am.mat.rowval[p1 + st - 1:p2 - 1])
+    return (v[k] for k in eachindex(v) if am.mat.nzval[p1 + st - 1 + k - 1])
 end
 
 function Base.setindex!(b::AdjacencyMatrix, v, site1::AbstractSite, site2::AbstractSite)
@@ -347,7 +380,7 @@ function destinations end
 function isadjacent(bonds::DirectedBonds, site1::AbstractSite, site2::AbstractSite)
     return site2 in destinations(bonds, site1) || site1 in destinations(bonds, site2)
 end
-_destinations(bonds::DirectedBonds, site::AbstractSite) =
+_destination_sites(bonds::DirectedBonds, site::AbstractSite) =
     destinations(bonds, site)
 function destination(db::DirectedBonds, site::AbstractSite)
     counter = 0

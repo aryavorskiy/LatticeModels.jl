@@ -1,4 +1,4 @@
-import LatticeModels: stripmeta, get_site, BravaisPointer, IncompatibleLattices
+import LatticeModels: stripmeta, bravaispointer_to_site, BravaisPointer, IncompatibleLattices
 
 @testset "Lattice" begin
     @testset "Creation" begin
@@ -62,7 +62,7 @@ import LatticeModels: stripmeta, get_site, BravaisPointer, IncompatibleLattices
         @test_throws IncompatibleLattices hl[x.<y]
 
         @test hl[!, LatticeCoord(1) => 3, j2 = 2, index = 1] ==
-            get_site(stripmeta(hl), BravaisPointer(SA[3, 2], 1))
+            bravaispointer_to_site(stripmeta(hl), BravaisPointer(SA[3, 2], 1))
         @test_throws BoundsError hl[!, LatticeCoord(1) => 100]
 
         sl = SquareLattice(10, 20)
