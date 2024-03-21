@@ -124,11 +124,13 @@
         @test IS1 == IS2
         @test IS2 == IS3
 
+        @test bosehubbard(l, 2, U = 10) ≈
+            bosehubbard(l, 2, t1=0.1, U = 0) + bosehubbard(l, 2, t1=0.9, U = 10)
+
         H = bosehubbard(l, 1)
         d1 = localdensity(groundstate(H))
         H2 = bosehubbard(l, 2)
         d2 = localdensity(groundstate(H2))
-        @test bosehubbard(l, 2, U = 10) ≈ bosehubbard(l, 2, t1=0.1, U = 0) + bosehubbard(l, 2, t1=0.9, U = 10)
         @test d1.values * 2 ≈ d2.values
     end
 
@@ -151,6 +153,20 @@
         d1 = diagonalize(qwz(l, field=PointFlux(0.1, (3.5, 3.5))))
         d2 = diagonalize(qwz(l, field=PointFlux(0.1, (3.5, 3.5), gauge=:singular)))
         @test d1.values ≈ d2.values
+
+        @test_throws ErrorException diagonalize(qwz(l), :invalid_routine)
+        eigk = diagonalize(qwz(l), :krylovkit)
+        @test abs(eigk[1]' * eig[1]) ≈ 1
+
+        sys = System(l, N = 3, T = 1, statistics=FermiDirac)
+        H = tightbinding_hamiltonian(sys)
+        dm = densitymatrix(H)
+        @test tr(dm) ≈ 3
+
+        H2 = tightbinding_hamiltonian(l)
+        P = densitymatrix(H2, T = 0)
+        psi = groundstate(H2)
+        @test P ≈ psi ⊗ psi'
     end
 
     @testset "Green's function" begin

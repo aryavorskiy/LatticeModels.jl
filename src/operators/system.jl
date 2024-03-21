@@ -265,6 +265,20 @@ macro accepts_system_t(fname, default_basis=nothing)
     end)
 end
 
+"""
+    Hamiltonian <: QuantumOpticsBase.DataOperator
+
+A wrapper for a Hamiltonian operator. Contains the operator matrix and the system it acts on.
+
+---
+    Hamiltonian(sys, op)
+
+Create a Hamiltonian operator for a given system and a given operator.
+
+## Arguments
+- `sys`: the system the Hamiltonian acts on.
+- `op`: the operator matrix.
+"""
 struct Hamiltonian{SystemT, BasisT, T} <: DataOperator{BasisT, BasisT}
     sys::SystemT
     basis_l::BasisT

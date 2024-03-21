@@ -83,6 +83,26 @@ Two routines are available:
 The default routine is `:lapack` for dense operators. If the operator matrix is less than
 5000×5000, it is automatically converted to a dense operator. In other cases `:krylovkit`
 is used.
+
+## Example
+```jldoctest
+julia> using LatticeModels
+
+julia> l = SquareLattice(4, 4);
+
+julia> H = tightbinding_hamiltonian(l)
+Hamiltonian(dim=16x16)
+System: One particle on 16-site 2-dim Bravais lattice in 2D space
+16×16 SparseArrays.SparseMatrixCSC{ComplexF64, Int64} with 48 stored entries:
+ ⎡⠪⡢⠑⢄⠀⠀⠀⠀⎤
+ ⎢⠑⢄⠪⡢⠑⢄⠀⠀⎥
+ ⎢⠀⠀⠑⢄⠪⡢⠑⢄⎥
+ ⎣⠀⠀⠀⠀⠑⢄⠪⡢⎦
+
+julia> eig = diagonalize(H)
+Diagonalized hamiltonian (16 eigenvectors)
+Eigenvalues in range -3.23607 .. 3.23607
+System: One particle on 16-site 2-dim Bravais lattice in 2D space
 """
 function diagonalize(ham::Hamiltonian, routine::Val; kw...)
     eig = diagonalize_routine(Operator(ham), routine; kw...)
@@ -110,17 +130,20 @@ Base.extrema(eig::AbstractEigensystem) = eig.values[begin], eig.values[end]
 sample(eig::AbstractEigensystem) = sample(eig.basis)
 sample(eig::HamiltonianEigensystem) = sample(eig.sys)
 QuantumOpticsBase.basis(eig::AbstractEigensystem) = eig.basis
-
-function Base.show(io::IO, ::MIME"text/plain", eig::Eigensystem)
-    println(io, "Eigensystem (", fmtnum(eig, "eigenvector"), ")")
+function Base.show(io::IO, mime::MIME"text/plain", eig::AbstractEigensystem)
+    if eig isa Eigensystem
+        print(io, "Eigensystem")
+    elseif eig isa HamiltonianEigensystem
+        print(io, "Diagonalized hamiltonian")
+    end
+    println(io, " (", fmtnum(eig, "eigenvector"), ")")
     requires_compact(io) && return
-    print(io, "Eigenvalues in range $(minimum(eig.values)) .. $(maximum(eig.values))")
-end
-function Base.show(io::IO, mime::MIME"text/plain", eig::HamiltonianEigensystem)
-    println(io, "Diagonalized hamiltonian (", fmtnum(eig, "eigenvector"), ")")
-    requires_compact(io) && return
-    print(io, "Energies in range $(minimum(eig.values)) .. $(maximum(eig.values))\nSystem: ")
-    show(io, mime, eig.sys)
+    print(io, "Eigenvalues in range ", @sprintf("%.5f", minimum(eig.values)),
+    " .. ", @sprintf("%.5f", maximum(eig.values)))
+    if eig isa HamiltonianEigensystem
+        print(io, "\nSystem: ")
+        show(io, mime, eig.sys)
+    end
 end
 
 function orthogonalize(eig::AbstractEigensystem, vectors, tol)
@@ -209,6 +232,7 @@ end
     return E -> -exp((E - mu) / T) / T / (exp((E - mu) / T) + Int(statistics))^2
 end
 
+const TEMP_TOL = 1e-10
 const DISABLE_INFO = "; set `info=false` to disable this message"
 function groundstate_densitymatrix(eig::AbstractEigensystem; info=true)
     info && @info "Creating density matrix: ground state" * DISABLE_INFO
@@ -217,7 +241,7 @@ function groundstate_densitymatrix(eig::AbstractEigensystem; info=true)
 end
 function gibbs_densitymatrix(eig::AbstractEigensystem; T::Real=0, info=true)
     info && @info "Creating density matrix: Gibbs distribution, T = $T" * DISABLE_INFO
-    if T == 0
+    if abs(T) < TEMP_TOL
         return groundstate_densitymatrix(eig, info=false)
     else
         Z = sum(E -> exp(-E / T), eig.values)
@@ -239,7 +263,7 @@ function fermisphere_densitymatrix(eig::AbstractEigensystem; N::Int, info=true)
 end
 function fixn_densitymatrix(eig::AbstractEigensystem;
         T::Real=0, N::Int, statistics::ParticleStatistics=FermiDirac, maxiter=1000, atol=√eps(), info=true)
-    if T ≈ 0
+    if abs(T) < TEMP_TOL
         if statistics == BoseEinstein
             # condensate
             return groundstate_densitymatrix(eig, info=info) * N
