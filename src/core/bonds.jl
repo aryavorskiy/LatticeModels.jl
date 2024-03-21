@@ -358,13 +358,6 @@ struct UndefinedLattice <: AbstractLattice{NoSite} end
 Base.iterate(::UndefinedLattice) = nothing
 Base.length(::UndefinedLattice) = 0
 
-struct NoBonds <: AbstractBonds{UndefinedLattice} end
-lattice(::NoBonds) = UndefinedLattice()
-isadjacent(::NoBonds, ::AbstractSite, ::AbstractSite) = false
-adapt_bonds(::NoBonds, ::AbstractLattice) = NoBonds()
-adapt_bonds(::NoBonds, ::LatticeWithMetadata) = NoBonds()
-Base.iterate(::NoBonds) = nothing
-
 """
     DirectedBonds{LT} <: AbstractBonds{LT}
 

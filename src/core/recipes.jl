@@ -13,12 +13,6 @@ end
     error("Unsupported lattice plot style '$StyleT'")
 end
 
-@recipe function f(lat::AbstractLattice, styles...)
-    for style in styles
-        @series lat, style
-    end
-end
-
 function _process_axis(ax)
     if ax isa Int
         return ax
@@ -90,7 +84,7 @@ end
     seriestype := :path
     lss = (:solid, :dash, :dot)
     las = (1, 0.6, 0.5)
-    showbonds = get(plotattributes, :showbonds, 1)
+    showbonds = get(plotattributes, :showbonds, _showbonds_default(lat))
     for i in eachindex(showbonds)
         @series begin
             label := ""
@@ -145,10 +139,13 @@ end
     end
 end
 
+_showbonds_default(::AbstractLattice) = ()
+_showbonds_default(l::LatticeWithMetadata) =
+    length(getnnbonds(l)) ≥ 1 ? 1 : _showbonds_default(stripmeta(l))
 @recipe function f(lat::AbstractLattice; showboundaries=true, showbonds=true, shownumbers=false)
     label --> ""
     if showbonds isa Bool
-        showbonds := (showbonds ? (1,) : ())
+        showbonds := (showbonds ? _showbonds_default(lat) : ())
     elseif showbonds isa Union{Int, Tuple}
         showbonds := showbonds
     else
@@ -290,9 +287,6 @@ end
         linealpha := linealphas[1:end-1]
     end
     @series Tuple(rows[i] for i in axis_numbers)
-end
-@recipe function f(::AbstractBonds{UndefinedLattice})
-    nothing
 end
 
 @recipe function f(l::AbstractLattice, b::AbstractBonds)

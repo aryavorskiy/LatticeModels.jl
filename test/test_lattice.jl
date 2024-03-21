@@ -148,6 +148,7 @@ end
         gx = coordvalue(gl, :y)
         @test gx.values == [2, 1, 4]
         @test_throws ArgumentError coordvalue(gl, :j1)
+        @test_throws ArgumentError plot(gl, NearestNeighbor(1))
     end
     @testset "Broadcast" begin
         x4 = l .|> (site -> site.coords[1])
@@ -230,6 +231,16 @@ end
         am2[ls2, ls4] = true
         am2[ls3, ls4] = true
         @test am.mat == am2.mat
+        am3 = AdjacencyMatrix(l) do site1, site2
+            x1, y1 = site1
+            x2, y2 = site2
+            abs(x1 - x2) + abs(y1 - y2) ≤ 1
+        end
+        @test am3.mat == am.mat
+        am4 = AdjacencyMatrix(l, SiteDistance(≤(1)))
+        @test am4.mat == am.mat
+        am5 = AdjacencyMatrix(l, SiteDistance(0..1))
+        @test am5.mat == am.mat
 
         ps = Tuple{Int, Int}[]
         for (s1, s2) in am2

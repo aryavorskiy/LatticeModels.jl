@@ -68,6 +68,7 @@
         xy = x .* y
         p = plot(layout=5)
         plot!(p[1], xy, st=:shape, shape=:circle, markerscale=true)
+        plot!(p[1], xy, st=:shape, shape=:polygon, markerscale=true)
         H = construct_hamiltonian(l, spin,
             sigmaz(spin),
             [1 im; im -1] / 2 => BravaisTranslation(axis = 1),
@@ -79,6 +80,7 @@
         dc = DensityCurrents(H, P)
         plot!(p[1], dc[x.<y])
         scatter!(p[1], l, shownumbers=true)
+        scatter!(p[1], l[2])
         scatter!(p[1], l[x.<y], :high_contrast)
         scatter!(p[1], xy[x.≥y])
         plot!(p[1], AdjacencyMatrix(H))

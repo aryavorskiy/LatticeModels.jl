@@ -82,7 +82,8 @@ function setnnbonds(l::AbstractLattice, args::AbstractBonds...)
     return setnnbonds(l, new_nn)
 end
 
-adapt_bonds(::NearestNeighbor, ::AbstractLattice) = NoBonds()
+adapt_bonds(::NearestNeighbor{N}, ::AbstractLattice) where N =
+    throw(ArgumentError("The lattice does not have nearest neighbor bonds #$(N)"))
 function adapt_bonds(b::NearestNeighbor{N}, l::LatticeWithMetadata) where {N}
     default_nnhops = getnnbonds(l)
     if default_nnhops === nothing || N > length(default_nnhops)

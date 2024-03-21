@@ -14,13 +14,6 @@ end
     Expr(:call, :(SVector{M}), [:(p1[$i] + p2[$i]) for i in 1:mi]...,
         [M > N ? :(p1[$i]) : :(p2[$i]) for i in mi+1:M]...)
 end
-@inline @generated function mm_assuming_zeros(m::SMatrix{M}, v::LenType{N}) where {M, N}
-    if N == 0
-        return :(zero(SVector{$M}))
-    else
-        Expr(:call, :+, [:(m[:, $i] * v[$i]) for i in 1:N]...)
-    end
-end
 
 @generated cartesian_indices(depth::Int, ::Val{M}) where M = quote
     CartesianIndex($((:(-depth) for _ in 1:M)...)):CartesianIndex($((:depth for _ in 1:M)...))
