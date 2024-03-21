@@ -94,15 +94,16 @@ julia> H = tightbinding_hamiltonian(l)
 Hamiltonian(dim=16x16)
 System: One particle on 16-site 2-dim Bravais lattice in 2D space
 16×16 SparseArrays.SparseMatrixCSC{ComplexF64, Int64} with 48 stored entries:
- ⎡⠪⡢⠑⢄⠀⠀⠀⠀⎤
- ⎢⠑⢄⠪⡢⠑⢄⠀⠀⎥
- ⎢⠀⠀⠑⢄⠪⡢⠑⢄⎥
- ⎣⠀⠀⠀⠀⠑⢄⠪⡢⎦
+⎡⠪⡢⠑⢄⠀⠀⠀⠀⎤
+⎢⠑⢄⠪⡢⠑⢄⠀⠀⎥
+⎢⠀⠀⠑⢄⠪⡢⠑⢄⎥
+⎣⠀⠀⠀⠀⠑⢄⠪⡢⎦
 
 julia> eig = diagonalize(H)
 Diagonalized hamiltonian (16 eigenvectors)
 Eigenvalues in range -3.23607 .. 3.23607
 System: One particle on 16-site 2-dim Bravais lattice in 2D space
+```
 """
 function diagonalize(ham::Hamiltonian, routine::Val; kw...)
     eig = diagonalize_routine(Operator(ham), routine; kw...)
@@ -120,8 +121,8 @@ find_routine(op::DataOperator) =
 
 Base.length(eig::AbstractEigensystem) = length(eig.values)
 Base.getindex(eig::AbstractEigensystem, i::Int) = Ket(eig.basis, eig.states[:, i])
-Base.getindex(eig::AbstractEigensystem; value::Number) =
-    Ket(eig.basis, eig.states[:, argmin(@. abs(value - eig.values))])
+Base.getindex(eig::AbstractEigensystem; value::Number) = Ket(eig.basis, eig.states[:,
+        argmin(i -> abs(value - eig.values[i]), eachindex(eig.values))])
 Base.getindex(eig::AbstractEigensystem, mask::AbstractVector) =
     Eigensystem(eig.basis, eig.states[:, mask], eig.values[mask])
 Base.getindex(eig::HamiltonianEigensystem, mask::AbstractVector) =

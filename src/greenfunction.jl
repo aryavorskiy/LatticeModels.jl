@@ -57,18 +57,12 @@ struct GreenFunction{ST, VecC, VecE}
         new{ST, VecT, VecE}(sample, mvps_l, mvps_r, eps .- E0, mvms_l, mvms_r, ems .- E0)
     end
     function GreenFunction(mvps_l::Vector{VecT}, mvps_r::Vector{VecT}, eps::VecE,
-        mvms_l=nothing, mvms_r=nothing, ems=nothing) where
+        mvms_l::Vector{VecT}, mvms_r::Vector{VecT}, ems::VecE) where
         {VecT<:AbstractVector, VecE<:AbstractVector}
         p = length(mvps_l)
         @check_size mvps_r p
-        if mvms_l === nothing && mvms_r === nothing && ems === nothing
-            mvms_l = fill(empty(first(mvps_l)), p)
-            mvms_r = fill(empty(first(mvps_r)), p)
-            ems = empty(eps)
-        else
-            @check_size mvms_l p
-            @check_size mvms_r p
-        end
+        @check_size mvms_l p
+        @check_size mvms_r p
         new{Nothing, VecT, VecE}(nothing, mvps_l, mvps_r, eps, mvms_l, mvms_r, ems)
     end
 end

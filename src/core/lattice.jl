@@ -219,7 +219,6 @@ function Base.filter!(f::Function, l::AbstractLattice)
     return l
 end
 
-sym_to_param_pair(p::Pair{Symbol}) = SitePropertyAlias{p[1]}() => p[2]
 function check_param_pairs(pairs::Tuple{Vararg{Pair}})
     for (prop, _) in pairs
         if prop isa Symbol
@@ -287,7 +286,6 @@ struct IncompatibleLattices <: Exception
     l2::AbstractLattice
     IncompatibleLattices(header, l1, l2) = new(header, lattice(l1), lattice(l2))
 end
-IncompatibleLattices(l1, l2) = IncompatibleLattices("Incompatible lattices", l1, l2)
 
 function Base.showerror(io::IO, ex::IncompatibleLattices)
     print(io, "$(ex.header).\nGot following:\n  #1: ")
@@ -326,13 +324,11 @@ struct ResolvedSite{ST}
     old_site::ST
     index::Int
     factor::ComplexF64
-    function ResolvedSite(site::ST, old_site::ST, index::Int, factor) where ST<:AbstractSite
+    function ResolvedSite(site::ST, old_site::ST, index::Int, factor=1) where ST<:AbstractSite
         new{ST}(site, old_site, index, ComplexF64(factor))
     end
 end
-ResolvedSite(site::AbstractSite, old_site::AbstractSite, index::Int) =
-    ResolvedSite(site, old_site, index, 1)
-ResolvedSite(site::AbstractSite, index::Int) = ResolvedSite(site, site, index, 1)
+ResolvedSite(site::AbstractSite, index::Int) = ResolvedSite(site, site, index)
 function resolve_site_default(l::AbstractLattice, site::AbstractSite)
     index = site_index(l, site)
     index === nothing && return nothing

@@ -146,6 +146,9 @@
         @test eig.values ≈ exact_eig.values
         @test eig.states ≈ exact_eig.vectors
 
+        val = eig.values[1]
+        @test eig[value=val] == eig[1]
+
         e1 = eig[1:4]
         @test e1.values ≈ eig.values[1:4]
         @test e1.states ≈ eig.states[:, 1:4]
