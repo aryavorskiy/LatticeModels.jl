@@ -34,6 +34,8 @@ end
 Base.:(*)(lvw::LatticeValueWrapper, x::Number) = LatticeValueWrapper(lvw.lat, lvw.values * x)
 Base.:(*)(x::Number, lvw::LatticeValueWrapper) = lvw * x
 Base.:(/)(lvw::LatticeValueWrapper, x::Number) = LatticeValueWrapper(lvw.lat, lvw.values / x)
+Base.isapprox(lvw1::LatticeValueWrapper, lvw2::LatticeValueWrapper; kw...) =
+    isapprox(lvw1.values, lvw2.values; kw...)
 
 """
     LatticeValue{T, LT}

@@ -27,6 +27,11 @@
 
         dts = localdensity(-im * (H_1 * P - P * H_1))
         @test dens_dt ≈ dts[site]
+
+        # ptrace
+        @test localdensity(ptrace(P, :internal)) ≈ localdensity(P)
+        @test tr(P) ≈ tr(ptrace(P, :lattice))
+        @test_throws ArgumentError ptrace(P, :invalid_subsp)
     end
 
     @testset "Operator builder" begin
@@ -192,7 +197,7 @@
         Vs = eig.states
         ld1 = imag.(diag_reduce(tr, Operator(basis(eig), Vs * (@.(1 / (Es - E - im * δ)) .* Vs'))))
         ld2 = ldos(G, E, broaden=δ)
-        @test ld2.values ≈ ld1.values
+        @test ld2 ≈ ld1
         @test dos(eig, E, broaden=δ) ≈ sum(ld1)
         @test dos(G, E, broaden=δ) ≈ sum(ld1)
 
