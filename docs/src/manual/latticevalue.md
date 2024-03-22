@@ -27,7 +27,8 @@ There are also other `AbstractVector` methods you can use:
 sum(abs2, v2)
 extrema(v2)
 argmax(v2)
-findall(x -> x > 0, v2)
+ms = findall(x -> x < 3, v2)
+v2[first(ms)]
 ```
 
 ### Indexing and slicing

@@ -306,7 +306,7 @@ Note that if `eig` is a diagonalized `Hamiltonian`, the `μ`, `N` and `statistic
 """
 densitymatrix(ham_eig::HamiltonianEigensystem{<:FixedMu}; kw...) =
     ensemble_densitymatrix(Eigensystem(ham_eig);
-        T=ham_eig.sys.T, statistics=statistics, mu=ham_eig.sys.chempotential, kw...)
+        T=ham_eig.sys.T, statistics=ham_eig.sys.statistics, mu=ham_eig.sys.chempotential, kw...)
 function densitymatrix(ham_eig::HamiltonianEigensystem{<:FixedN}; kw...)
     N = get(kw, :N, ham_eig.sys.nparticles)
     T = get(kw, :T, ham_eig.sys.T)

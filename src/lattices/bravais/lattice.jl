@@ -17,6 +17,7 @@ baslength(any) = length(unitcell(any))
 transform_unitcell(l::BravaisLattice; kw...) = BravaisLattice(transform_unitcell(l.unitcell; kw...), l.pointers)
 transform_unitcell(lw::LatticeWithMetadata; kw...) =
     LatticeWithMetadata(transform_unitcell(lw.lat; kw...), lw.metadata)
+_showbonds_default(::BravaisLattice) = 1
 
 Base.:(==)(l1::BravaisLattice, l2::BravaisLattice) =
     (l1.pointers == l2.pointers) && (l1.unitcell == l2.unitcell)
