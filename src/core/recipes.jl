@@ -85,6 +85,14 @@ end
     lss = (:solid, :dash, :dot)
     las = (1, 0.6, 0.5)
     showbonds = get(plotattributes, :showbonds, _showbonds_default(lat))
+    if showbonds isa Bool
+        showbonds = (showbonds ? _showbonds_default(lat) : ())
+    elseif showbonds isa Union{Int, Tuple}
+        showbonds = showbonds
+    else
+        throw(ArgumentError("Invalid `showbonds` argument: " *
+            "expected Bool, Int, or NTuple{Int}, got $(typeof(showbonds))"))
+    end
     for i in eachindex(showbonds)
         @series begin
             label := ""
@@ -142,15 +150,8 @@ end
 _showbonds_default(::AbstractLattice) = ()
 _showbonds_default(l::LatticeWithMetadata) =
     length(getnnbonds(l)) ≥ 1 ? 1 : _showbonds_default(stripmeta(l))
-@recipe function f(lat::AbstractLattice; showboundaries=true, showbonds=true, shownumbers=false)
+@recipe function f(lat::AbstractLattice; showboundaries=true, shownumbers=false)
     label --> ""
-    if showbonds isa Bool
-        showbonds := (showbonds ? _showbonds_default(lat) : ())
-    elseif showbonds isa Union{Int, Tuple}
-        showbonds := showbonds
-    else
-        throw(ArgumentError(""))
-    end
     @series lat, :bonds
     @series lat, :sites
     showboundaries && @series lat, :boundaries
@@ -203,7 +204,7 @@ end
             shape = getshape(lat)
         else throw(ArgumentError("Unsupported shape type `:$shapetype`"))
         end
-        if scale_markers !== :none
+        if scale_markers !== false
             @series begin
                 seriestype := :path
                 markershape := :none

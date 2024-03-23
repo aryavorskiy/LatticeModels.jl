@@ -6,7 +6,14 @@ This chapter describes how to define bonds between sites in a lattice and how to
 
 There are several ways to define bonds between sites in a lattice. The most general way is to define a function that takes two sites and returns if they are connected. 
 
-A direct implementation of this approach is the [`AdjacencyMatrix`](@ref). It is a simple wrapper around a boolean-valued matrix.
+Generally, all objects that define bonds are subtypes of the `AbstractBonds` type. Here is a short overview of types of bonds that are supported by this package:
+- [`AdjacencyMatrix`](@ref) — a simple matrix that defines if two sites are connected.
+- [`SiteDistance`](@ref) — connectivity based on the distance between sites.
+- [`NearestNeighbor`](@ref) — connects nearest neighbors on a given lattice. You can specify the order of the neighbors (e. g. first, second, etc.) by passing an integer to the constructor: `NearestNeighbor(2)`.
+- [`Translation`](@ref) — connects two sites that are shifted by a certain vector.
+- [`BravaisTranslation`](@ref) — connects two sites in a Bravais lattice unit cell. Unlike the `Translation`, it is defined in terms of the lattice axes and the site indices.
+
+Let's begin with the [`AdjacencyMatrix`](@ref). It is a simple wrapper around a boolean-valued matrix that defines if two sites are connected. Here is an example of how to use it:
 
 ```@example 1
 using LatticeModels, Plots

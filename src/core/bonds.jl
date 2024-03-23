@@ -422,8 +422,6 @@ adjacentsites(bonds::AbstractTranslation, site::AbstractSite) =
     (destination(bonds, site), destination(inv(bonds), site))
 
 Base.:(+)(site::AbstractSite, bonds::DirectedBonds) = destination(bonds, site)
-Base.:(+)(::AbstractSite, ::DirectedBonds{UndefinedLattice}) =
-    throw(ArgumentError("Using a `AbstractBonds`-type object on undefined lattice is allowed only in `construct_operator`. Please define the lattice."))
 Base.:(-)(bonds::DirectedBonds) = inv(bonds)
 Base.:(-)(site::AbstractSite, bonds::DirectedBonds) = destination(inv(bonds), site)
 
