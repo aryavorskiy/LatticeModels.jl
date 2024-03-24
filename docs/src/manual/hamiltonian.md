@@ -71,9 +71,9 @@ sys = System(l, spin, μ = 0, T = 1)
 
 sz = sigmaz(spin)
 H = construct_hamiltonian(sys, 
-    sz => NearNeighbor(1),
-    [1 0; 0 -1] => NextNearNeighbor(2),
-    -0.5 => NextNearNeighbor(3))
+    sz => NearestNeighbor(1),
+    [1 0; 0 -1] => NearestNeighbor(2),
+    -0.5 => NearestNeighbor(3))
 P = densitymatrix(H, info=false)
 heatmap(localdensity(P))
 ```
@@ -199,8 +199,8 @@ Here are all types of gauge fields supported by this package:
 - [`LandauGauge(B)`](@ref LandauGauge) — the Landau gauge, with the magnetic field `B` in the $z$ direction.
 - [`SymmetricGauge(B)`](@ref SymmetricGauge) — the symmetric gauge, with the magnetic field `B` in the $z$ direction.
 - [`PointFlux(Phi, center=(0, 0); gauge=:axial)`](@ref PointFlux) — a point flux in the point `center` with the flux `Phi`. The `gauge` argument can be either `:axial` (default) or `:singular`.
-- [`MagneticField(f; n)`](@ref MagneticField) — a general magnetic field. The `f` is a function that takes a coordinate vector and returns the vector potential ``\mathcal{A}`` at this point. The line integrals are calculated using the `n`-point trapezoidal rule. Note that the `n` must be set explicitly.
-- [`LineIntegralField(f)`](@ref LineIntegralField) — a general magnetic field. The `f` is a function that takes two coordinate vectors and returns the ``\int_{\vec{r}_1}^{\vec{r}_2} \mathcal{A} \cdot d\vec{r}`` line integral of the vector potential between these points.
+- [`GaugeField(f; n)`](@ref GaugeField) — a general magnetic field. The `f` is a function that takes a coordinate vector and returns the vector potential ``\mathcal{A}`` at this point. The line integrals are calculated using the `n`-point trapezoidal rule. Note that the `n` must be set explicitly.
+- [`LineIntegralGaugeField(f)`](@ref LineIntegralGaugeField) — a general magnetic field. The `f` is a function that takes two coordinate vectors and returns the ``\int_{\vec{r}_1}^{\vec{r}_2} \mathcal{A} \cdot d\vec{r}`` line integral of the vector potential between these points.
 
 You can pass these objects using the `field` keyword argument to the `tightbinding_hamiltonian`, `construct_hamiltonian`, and `OperatorBuilder` functions to add the gauge field to the Hamiltonian:
 
