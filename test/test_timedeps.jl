@@ -23,6 +23,19 @@
         @test rec2[t = 0.9..2.1] == TimeSequence([1, 2], [xy, xy .* 2])
         @test integrate(rec) == rec2
         @test_throws KeyError rec2[0.5]
+
+        ts = TimeSequence(0:0.1:10, (0:0.1:10).^ 2)
+        ts2 = empty(ts)
+        @test typeof(ts2) == TimeSequence{Float64}
+        @test length(ts2) == 0
+        for t in 7:0.1:10
+            delete!(ts, t)
+        end
+        delete!(ts, t=5..7)
+        for t in 0:0.1:4.9
+            ts2[t] = t^2
+        end
+        @test ts == ts2
     end
 
     @testset "Evolution" begin
