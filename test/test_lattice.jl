@@ -28,7 +28,7 @@ import LatticeModels: stripmeta, bravaispointer_to_site, BravaisPointer, Incompa
         complexsample = SquareLattice{2}(
             Circle(10), Circle(10, [20, 0]), Circle(10, [10, 10√3]),
             !Circle(5), !Circle(5, [20, 0]), !Circle(5, [10, 10√3]),
-            Rectangle(-5..5, -14..(-12)), Rectangle(15..25, -14..(-12)),
+            Rectangle(-5 .. 5, -14 .. -12), Rectangle(15 .. 25, -14 .. -12),
             Path([-12, 32], [32, 32]), sites=10000
         )
         removedangling!(complexsample, maxdepth=2)
@@ -56,7 +56,7 @@ import LatticeModels: stripmeta, bravaispointer_to_site, BravaisPointer, Incompa
         hl = HoneycombLattice(10, 10)
         xh = LatticeValue(hl, :x)
         j1h = LatticeValue(hl, :j1)
-        h_1 = hl[x = 4..Inf, j1 = 1..3]
+        h_1 = hl[x = 4..Inf, j1 = 1 .. 3]
         h_2 = hl[@. xh ≥ 4 && 1 ≤ j1h ≤ 3]
         @test h_1 == h_2
         @test_throws IncompatibleLattices hl[x.<y]
@@ -239,7 +239,7 @@ end
         @test am3.mat == am.mat
         am4 = AdjacencyMatrix(l, SiteDistance(≤(1)))
         @test am4.mat == am.mat
-        am5 = AdjacencyMatrix(l, SiteDistance(0..1))
+        am5 = AdjacencyMatrix(l, SiteDistance(0 .. 1))
         @test am5.mat == am.mat
 
         ps = Tuple{Int, Int}[]

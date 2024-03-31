@@ -89,12 +89,12 @@ As we see, we can access the properties of the site simply as fields of the site
 Properties like `x`, `j1`, `index` etc. are part of a general `SiteProperty` interface. You can use them to create 'slices' of lattices:
 
 ```@example 2
-slice = l[j1 = 0..2, j2 = -2..0, index=1]  # Get a slice of the lattice
+slice = l[j1 = 0 .. 2, j2 = -2 .. 0, index=1]  # Get a slice of the lattice
 plot(l)
 plot!(slice, c=:red, ms=6)
 ```
 
-Here `0..2` and `-2..0` are intervals defining the ranges of the unit cell indices. You can use any collection instead of then if you need.
+Here `0 .. 2` and `-2 .. 0` are intervals defining the ranges of the unit cell indices. You can use any collection instead of then if you need.
 
 Finding sites by their properties can be done with the same notation:
 
@@ -169,7 +169,7 @@ Here we created a square lattice in shape of a hexagon and a circle. The first a
 complex_l = SquareLattice{2}(   # Here you have to specify the dimension of the lattice
     Circle(10), Circle(10, [20, 0]), Circle(10, [10, 10√3]),
     !Circle(5), !Circle(5, [20, 0]), !Circle(5, [10, 10√3]),
-    Rectangle(-5..5, -14..(-12)), Rectangle(15..25, -14..(-12)),
+    Rectangle(-5 .. 5, -14 .. -12), Rectangle(15 .. 25, -14 .. -12),
     Path([-12, 32], [32, 32]), SiteAt([0, 0]), SiteAt([20, 0])
 )
 plot(complex_l)

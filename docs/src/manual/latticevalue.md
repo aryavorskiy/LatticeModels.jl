@@ -12,8 +12,8 @@ using LatticeModels, Plots
 l = SquareLattice(-2:2, -2:2)
 x = coordvalue(l, :x)       # get the x coordinate of the lattice sites
 v = zeros(Int, l)           # create a lattice value with zeros
-v[x = 1..2, y = 1..2] = x   # set the value to the x coordinate on the top right
-v[x = -2..0] .= 3           # set the value to 3 on the left half of the lattice
+v[x = 1 .. 2, y = 1 .. 2] = x   # set the value to the x coordinate on the top right
+v[x = -2 .. 0] .= 3           # set the value to 3 on the left half of the lattice
 r = randn(l)                # create a random lattice value (normal distribution)
 v2 = v .^ 2 .+ r            # broadcast operations work as expected
 heatmap(v2)
@@ -39,7 +39,7 @@ Let's talk a bit more about the indexing and slicing of `LatticeValue`. There ar
 - `v[[site1, site2, ...]]` returns a `LatticeValue` with the values at the specified sites. `site1`, `site2`, etc. are single sites grouped into an abstract array. The return value is a `LatticeValue` with the same values but narrowed to the specified sites.
 - `v[lat]` returns a `LatticeValue` with the same values but narrowed to the sites of lattice `lat`. `lat` here must be a lattice, which is a subset of the lattice of `v`.
 - `v[mask]` returns a `LatticeValue` with the same values but narrowed to the sites where `mask` is `true`. `mask` here must be a `LatticeValue` of `Bool` type, defined on the same (or a superset of the) lattice.
-- `v[x = 1..2, y = 1..2]` returns a `LatticeValue` with the same values but narrowed to the sites where the x coordinate is in the range `1..2` and the y coordinate is in the range `1..2`. The keyword arguments here must be the names of the site parameters (see [Sites](@ref)), and the values can be any containers or single values. Pair notation is also supported: `v[Coord(1) => 1..2, Coord(2) => 1..2]`.
+- `v[x = 1 .. 2, y = 1 .. 2]` returns a `LatticeValue` with the same values but narrowed to the sites where the x coordinate is in the range `1 .. 2` and the y coordinate is in the range `1 .. 2`. The keyword arguments here must be the names of the site parameters (see [Sites](@ref)), and the values can be any containers or single values. Pair notation is also supported: `v[Coord(1) => 1 .. 2, Coord(2) => 1 .. 2]`.
 
 This indexing is valid for both reading and writing. Remember, however, that the right-hand side of the assignment must be a `LatticeValue` or a scalar value (in which case the destination site must be a single site, otherwise an error will be thrown). 
 
@@ -80,7 +80,7 @@ In many cases, you need to define a parameter that depends on the site that is u
 using LatticeModels
 l = SquareLattice(4, 4)
 v = zeros(l)
-v[y = 0..2] .= 1.0                          # add a potential barrier
+v[y = 0 .. 2] .= 1.0                          # add a potential barrier
 H = tightbinding_hamiltonian(l, v, t1=-1.0) # create a tight-binding Hamiltonian
 ```
 
@@ -112,7 +112,7 @@ using LatticeModels, Statistics
 l = HoneycombLattice(Hexagon(), sites=120)
 H = tightbinding_hamiltonian(l, t1=-1.0)    # create a tight-binding Hamiltonian
 dens = localdensity(groundstate(H))         # calculate the local density of the ground state
-bulk = l[x = 2..9, y = 2..9]
+bulk = l[x = 2 .. 9, y = 2 .. 9]
 edge = setdiff(l, bulk)
 println("Average local density in the bulk: ", mean(dens[bulk]))
 println("Average local density on the edge: ", mean(dens[edge]))

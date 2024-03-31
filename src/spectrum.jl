@@ -100,7 +100,7 @@ System: One particle on 16-site 2-dim Bravais lattice in 2D space
 ⎣⠀⠀⠀⠀⠑⢄⠪⡢⎦
 
 julia> eig = diagonalize(H)
-Diagonalized hamiltonian (16 eigenvectors)
+Diagonalized Hamiltonian (16 eigenvectors)
 Eigenvalues in range -3.23607 .. 3.23607
 System: One particle on 16-site 2-dim Bravais lattice in 2D space
 ```
@@ -135,7 +135,7 @@ function Base.show(io::IO, mime::MIME"text/plain", eig::AbstractEigensystem)
     if eig isa Eigensystem
         print(io, "Eigensystem")
     elseif eig isa HamiltonianEigensystem
-        print(io, "Diagonalized hamiltonian")
+        print(io, "Diagonalized Hamiltonian")
     end
     println(io, " (", fmtnum(eig, "eigenvector"), ")")
     requires_compact(io) && return

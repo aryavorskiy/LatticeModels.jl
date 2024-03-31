@@ -237,7 +237,7 @@ topath2d(f::SiteAt) = [Tuple(f.coords)]
     Rectangle(w, h)
 
 Construct a rectangle with given horizontal and vertical intervals. Usage:
-`Rectangle(1..3, 2..4)`.
+`Rectangle(1 .. 3, 2 .. 4)`.
 
 ## Arguments
 - `w`: The horizontal range.

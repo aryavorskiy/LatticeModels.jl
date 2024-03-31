@@ -173,7 +173,7 @@ the results more interesting. See [`qwz`](@ref) for more information about the Q
 using LatticeModels
 using Plots
 l = SquareLattice(20, 20)
-l_center = l[j1 = 8..13, j2 = 8..13]
+l_center = l[j1 = 8 .. 13, j2 = 8 .. 13]
 setdiff!(l, l_center)   # remove the center
 H = qwz(l)
 

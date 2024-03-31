@@ -215,3 +215,5 @@ end
 H2 = Hamiltonian(builder)
 H == H2
 ```
+
+To find out more about operators, diagonalization and observables, proceed to the next section.

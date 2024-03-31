@@ -67,7 +67,7 @@ julia> using LatticeModels
 
 julia> lat = SquareLattice(3, 3);
 
-julia> lat2 = setnnbonds(lat, SiteDistance(0..1), SiteDistance(1..2));
+julia> lat2 = setnnbonds(lat, SiteDistance(0 .. 1), SiteDistance(1 .. 2));
 
 julia> lat2.nnbonds
 Nearest neighbor hoppings:

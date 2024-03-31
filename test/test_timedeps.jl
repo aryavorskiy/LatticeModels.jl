@@ -20,7 +20,7 @@
         rec2[2] = xy .* 2
         @test rec2[1e-9] == zeros(l)
         @test rec2[1 + 1e-9] == xy
-        @test rec2[t = 0.9..2.1] == TimeSequence([1, 2], [xy, xy .* 2])
+        @test rec2[t = 0.9 .. 2.1] == TimeSequence([1, 2], [xy, xy .* 2])
         @test integrate(rec) == rec2
         @test_throws KeyError rec2[0.5]
 
@@ -31,7 +31,7 @@
         for t in 7:0.1:10
             delete!(ts, t)
         end
-        delete!(ts, t=5..7)
+        delete!(ts, t=5 .. 7)
         for t in 0:0.1:4.9
             ts2[t] = t^2
         end
