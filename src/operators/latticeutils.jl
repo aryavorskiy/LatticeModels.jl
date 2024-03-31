@@ -25,6 +25,7 @@ function localdensity(state::StateType{<:ManyBodyBasis{<:OneParticleBasis}})
     l = lattice(state)
     LatticeValue(l, [sum(@view vs[(i-1)*N+1:i*N]) for i in eachindex(l)])
 end
+localdensity(::StateType) = throw(ArgumentError("State must be defined on a lattice"))
 
 function diag_reduce(f, op::OneParticleOperator)
     l = lattice(op)

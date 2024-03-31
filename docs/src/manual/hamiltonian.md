@@ -18,16 +18,16 @@ heatmap(localdensity(P))
 In this case we have created a system with defined chemical potential and temperature. Note that you can use `mu` instead of `μ` if you prefer (or if you are using a non-UTF8 compatible editor). The [`tightbinding_hamiltonian`](@ref) function creates a tight-binding Hamiltonian for the given system, and the [`densitymatrix`](@ref) function calculates the density matrix.
 
 The first two arguments of the `System` constructor are the lattice and the basis of the on-site degrees of freedom. 
-The latter can be any `QuantumOptics.Basis` object - refer to the [QuantumOptics.jl documentation](https://qojulia.org/docs/) for more information. Omit the second argument if you don't have any on-site degrees of freedom.
+The latter can be any `QuantumOptics.Basis` object — refer to the [QuantumOptics.jl documentation](https://qojulia.org/docs/) for more information. Omit the second argument if you don't have any on-site degrees of freedom.
 
 Here are all parameters that can be passed to the `System` constructor:
 - `mu` or `μ`: the chemical potential of the system.
-- `N`: set this instead of `mu` to fix the number of particles - the chemical potential will be calculated automatically. Setting both `N` and `mu` will raise an error.
+- `N`: set this instead of `mu` to fix the number of particles — the chemical potential will be calculated automatically. Setting both `N` and `mu` will raise an error.
 - `statistics`: the statistics of the particles, either `FermiDirac` or `BoseEinstein`. If not set, the statistics is `FermiDirac` if `mu` or `N` is set, and Gibbs otherwise (i.e. the system consist of one particle).
 - `T`: the temperature of the system. The default is 0.
 
 Note that you can pass the very same arguments directly to the `tightbinding_hamiltonian`. Also keyword arguments 
-can be passed to the `densitymatrix` function - they will be used to evaluate the distribution function. These 
+can be passed to the `densitymatrix` function — they will be used to evaluate the distribution function. These 
 lines are equivalent to the previous example:
 
 ```julia

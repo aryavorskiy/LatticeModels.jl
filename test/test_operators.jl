@@ -27,6 +27,7 @@
 
         dts = localdensity(-im * (H_1 * P - P * H_1))
         @test dens_dt ≈ dts[site]
+        @test_throws ArgumentError localdensity(basisstate(spin, 1))
 
         # ptrace
         @test localdensity(ptrace(P, :internal)) ≈ localdensity(P)

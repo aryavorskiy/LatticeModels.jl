@@ -18,7 +18,7 @@ vector_potential(fld::AbstractField, _) =
 
 Calculates the ``\\int_{p1}^{p2} \\overrightarrow{A} \\cdot \\overrightarrow{dl}`` integral using the trapezoidal rule.
 Increase `n_steps` to improve accuracy (note that for linear field gauges like Landau or symmetrical the formula is already pefrectly accurate).
-If needed, redefine this function for specific field types - this is likely to boost accuracy and performance.
+If needed, redefine this function for specific field types — this is likely to boost accuracy and performance.
 """
 line_integral(field::AbstractField, p1, p2) =
     dot_assuming_zeros(p2 - p1, vector_potential(field, (p2 + p1) / 2))

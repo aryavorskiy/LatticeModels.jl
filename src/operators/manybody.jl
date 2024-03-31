@@ -38,7 +38,7 @@ takes two `K`-tuples of integer numbers, which are site indices for creation and
 operators, and returns the interaction energy.
 
 If `affect_internal` is `true` (default), the interaction operator will act on the internal
-degrees of freedom as well, and `f` will take four `K`-tuples - lattice and internal indices for
+degrees of freedom as well, and `f` will take four `K`-tuples — lattice and internal indices for
 creation and annihilation operators. If the system has no internal degrees of freedom,
 `affect_internal` will automatically be set to `false` and `f` will take two `K`-tuples.
 """

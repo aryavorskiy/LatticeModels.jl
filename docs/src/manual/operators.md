@@ -4,7 +4,7 @@ In the previous section we have seen how to define a Hamiltonian for a lattice m
 
 ## Measurements
 
-The most common type of measurements is the local density: the average number of particles at each site. This can be calculated using the [`localdensity`](@ref) function - it takes a state (a `QuantumOptics.Ket` vector or a `QuantumOptics.Operator` representing the density matrix) and returns a `LatticeValue` with the density at each site.
+The most common type of measurements is the local density: the average number of particles at each site. This can be calculated using the [`localdensity`](@ref) function — it takes a state (a `QuantumOptics.Ket` vector or a `QuantumOptics.Operator` representing the density matrix) and returns a `LatticeValue` with the density at each site.
 
 ```@example 1
 using LatticeModels, Plots
