@@ -15,6 +15,15 @@ import LatticeModels: stripmeta, bravaispointer_to_site, BravaisPointer, Incompa
         @test uc.basissites == [0.25 -0.25; 0 0]
         @test_throws ArgumentError UnitCell([1 0; 0 1], [[0.2, 0] [-0.3, 0]], offset=:AAA)
 
+        uc = UnitCell(SquareLattice{2})
+        @test uc.translations == [1 0; 0 1]
+
+        @test scalefactor(SquareLattice{2}, Square(), sites=4) ≈ √2
+        @test scalefactor(SquareLattice{2}, Square() * √2, sites=4) ≈ 1
+        @test shaperadius(SquareLattice{2}, Circle(), 100) ≈ sqrt(100 / pi)
+        l = SquareLattice{2}(Circle(1000))
+        @test shaperadius(l, Circle()) ≈ 1000 rtol=1e-5
+
         sl = SquareLattice(-1:1, -1:1)
         sl2 = SquareLattice{2}(Square(h = 1))
         @test stripmeta(sl) == stripmeta(sl2)
@@ -25,10 +34,12 @@ import LatticeModels: stripmeta, bravaispointer_to_site, BravaisPointer, Incompa
         circle_l2 = TriangularLattice(Circle(√50), !Square(h = 3))
         @test stripmeta(circle_l) == stripmeta(circle_l2)
 
+        @test_throws ArgumentError SquareLattice{2}(SiteAt([20, 0]), sites=100)
+        @test_throws ArgumentError SquareLattice{2}(Circle(10), SiteAt([20, 0]), sites=100)
         complexsample = SquareLattice{2}(
             Circle(10), Circle(10, [20, 0]), Circle(10, [10, 10√3]),
             !Circle(5), !Circle(5, [20, 0]), !Circle(5, [10, 10√3]),
-            Rectangle(-5 .. 5, -14 .. -12), Rectangle(15 .. 25, -14 .. -12),
+            !!Rectangle(-5 .. 5, -14 .. -12), Rectangle(15 .. 25, -14 .. -12),
             Path([-12, 32], [32, 32]), sites=10000
         )
         removedangling!(complexsample, maxdepth=2)

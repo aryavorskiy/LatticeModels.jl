@@ -103,8 +103,15 @@ end
 end
 
 @recipe function f(shapes::AbstractShape...;)
-    c = get(plotattributes, :scale, 1)
+    c = get(plotattributes, :scale, nothing)
+    seriescolor --> :grey
+    linestyle --> :dash
+    label --> ""
     for shape in shapes
-        @series topath2d(scale(shape, c))
+        if c === nothing
+            @series topath2d(shape)
+        else
+            @series topath2d(scale(shape, c))
+        end
     end
 end

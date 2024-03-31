@@ -85,7 +85,10 @@
         scatter!(p[1], xy[x.≥y])
         plot!(p[1], AdjacencyMatrix(H))
         plot!(p[1], AdjacencyMatrix(BravaisTranslation(l, [1, 1])))
-        surface!(p[2], xy)
+        @test_throws ErrorException surface!(p[2], xy)
+        plot!(p[2], l)
+        plot!(p[2], Circle(10), Rectangle(10 .. 20, -5 .. 5), Hexagon(10, [-10, 0]),
+            SiteAt([0, 0]), Path([-10, -15], [10, 15]))
         plot!(p[3], SquareLattice(3, 4, 5))
         plot!(p[4], project(xy, :x))
         plot!(p[4], project(xy, :j1))

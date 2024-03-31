@@ -39,7 +39,7 @@ function scalefactor(uc::UnitCell, shapes::AbstractShape...; sites::Int)
     n_estimate == 0 && throw(ArgumentError("Cannot rescale shapes with zero volume"))
     return (sites / n_estimate) ^ (1 / dims(uc))
 end
-scalefactor(::Type{LT}, shapes::AbstractShape...; sites::Int) where LT<:BravaisLattice =
+scalefactor(::Type{LT}, shapes::AbstractShape...; sites::Int) where LT<:BravaisLatticeType =
     scalefactor(construct_unitcell(LT), shapes...; sites=sites)
 
 Base.:(*)(shape::AbstractShape, c::Real) = scale(shape, c)

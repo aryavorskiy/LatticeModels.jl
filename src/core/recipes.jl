@@ -225,7 +225,7 @@ end
                     scale_markers === false ? 1 : lv[site] / mx * scale_markers)
             end
         end
-    else
+    elseif plotattributes[:seriestype] == :scatter
         linecolor := :grey
         linealpha := 0.5
         linewidth := 2
@@ -241,6 +241,8 @@ end
             markerstrokewidth --> 0.5
             lat, :sites
         end
+    else
+        error("Unsupported seriestype $(plotattributes[:seriestype])")
     end
 end
 
