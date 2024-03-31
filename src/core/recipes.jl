@@ -238,7 +238,7 @@ end
         @series begin
             markersize := scale_markers === false ? marker_sz :
                 @. marker_sz * abs(lv.values) / mx * scale_markers
-            markerstrokewidth := 0.5
+            markerstrokewidth --> 0.5
             lat, :sites
         end
     end

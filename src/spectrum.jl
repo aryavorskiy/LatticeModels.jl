@@ -214,6 +214,7 @@ returns an `Operator` that projects onto the eigenvectors of the spectrum, defin
 ``\\hat{\\mathcal{P}} = \\sum_i |\\psi_i⟩⟨\\psi_i|``
 """
 projector(eig::AbstractEigensystem) = Operator(eig.basis, eig.states * eig.states')
+projector(ket::Ket) = Operator(ket.basis, ket.data * ket.data')
 
 """
     projector(f, eig::Eigensystem)
