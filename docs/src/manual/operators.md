@@ -2,6 +2,67 @@
 
 In the previous section we have seen how to define a Hamiltonian for a lattice model. In this section we will see how to work with other types of operators, such as measurements and diagonalizing.
 
+## Builtins
+
+There are some basic building blocks that can be used to create states and operators. These are the `basisstate`, `diagonaloperator` and `transition` functions, taken from [QuantumOptics.jl](https://docs.qojulia.org/quantumobjects/operators/) package, but extended to work with lattices.
+
+The `basisstate` function creates a state vector with a in the basis of a lattice. Normally it takes a `QuantumOptics.Basis` and an index as arguments, and returns a `Ket` object. However, you can use a lattice and a site as arguments to create a state vector in the basis of the lattice:
+
+```@repl 0
+using LatticeModels
+l = SquareLattice(6, 6);
+site = l[!, x = 3, y = 3]
+l_bas, ind = LatticeBasis(l), site_index(l, site);
+psi1 = basisstate(l_bas, ind);  # The pure QuantumOptics.jl way
+psi2 = basisstate(l, site);     # The LatticeModels.jl way
+psi1 == psi2
+```
+
+If you work in a composite system (e. g. a lattice with a spin degree of freedom), you can construct the state as tensor product of the states for each subsystem:
+
+```@repl 0
+spin = SpinBasis(1//2)
+psi_composite = basisstate(spin, 1) ⊗ basisstate(l, site)   # Note the order!
+```
+
+!!! note
+    The order of the tensor product is important. **The first argument is the on-site degrees of freedom, and the second is the lattice**. This convention is consistent in the rest of the package — the reason behind this is performance of [`construct_operator`](@ref) and [`OperatorBuilder`](@ref).
+
+    If this order is not followed, you will probably get an error somewhere in your calculations.
+
+The `diagonaloperator` function creates a diagonal operator in the basis of a lattice. Normally it takes a `QuantumOptics.Basis` and a vector of values (or a single value) as arguments, and returns an `Operator` object. There are several convenient ways to use this function with lattices. As an example let's consider the position operator in the basis of a lattice:
+
+```@repl 0
+xval = coordvalue(l, :x)
+X_1 = diagonaloperator(l_bas, xval.values); # The pure QuantumOptics.jl way
+X_2 = diagonaloperator(l, :x);              # The LatticeModels.jl way, with a site property
+X_3 = diagonaloperator(xval);               # The LatticeModels.jl way, with a LatticeValue
+X_1 == X_2 == X_3
+```
+
+This notation allows converting any `LatticeValue` or [Site parameter](@ref Sites) to an operator. Hence, `diagonaloperator(l, Coord(1))` is also valid and will return the same operator.
+
+!!! tip
+    Generally, a good value to create a custom diagonal operator is by using the `LatticeValue` approach. 
+    
+    Consider this example: in the Haldane model the diagonal part is ``m`` on the A sublattice and ``-m`` on the B sublattice. You can create this operator with the following code:
+    
+    ```julia
+    l = HoneycombLattice(6, 6)
+    m = 3
+    ms = LatticeValue(l) do site
+        site.index == 1 ? m : -m
+    end
+    Op = diagonaloperator(ms)
+    ```
+
+Also note the [`coordoperator`](@ref) and [`coordoperators`](@ref) functions that do the same thing as [`coordvalue`](@ref) and [`coordvalues`](@ref), but return the operator instead of the value:
+
+```@repl 0
+X, Y = coordoperators(l);
+X == X_1
+```
+
 ## Measurements
 
 The most common type of measurements is the local density: the average number of particles at each site. This can be calculated using the [`localdensity`](@ref) function — it takes a state (a `QuantumOptics.Ket` vector or a `QuantumOptics.Operator` representing the density matrix) and returns a `LatticeValue` with the density at each site.
@@ -38,8 +99,6 @@ X, Y = coordoperators(sys)
 c = localdensity(-4π * im * P * X * P * Y * P)
 heatmap(c, title="Local Chern marker")
 ```
-
-The [`coordoperators`](@ref) function creates the position operators for a given system.
 
 ## Diagonalizing
 

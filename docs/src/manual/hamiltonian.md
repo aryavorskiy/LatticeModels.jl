@@ -18,7 +18,7 @@ heatmap(localdensity(P))
 In this case we have created a system with defined chemical potential and temperature. Note that you can use `mu` instead of `μ` if you prefer (or if you are using a non-UTF8 compatible editor). The [`tightbinding_hamiltonian`](@ref) function creates a tight-binding Hamiltonian for the given system, and the [`densitymatrix`](@ref) function calculates the density matrix.
 
 The first two arguments of the `System` constructor are the lattice and the basis of the on-site degrees of freedom. 
-The latter can be any `QuantumOptics.Basis` object — refer to the [QuantumOptics.jl documentation](https://qojulia.org/docs/) for more information. Omit the second argument if you don't have any on-site degrees of freedom.
+The latter can be any `QuantumOptics.Basis` object — refer to the [QuantumOptics.jl documentation](https://docs.qojulia.org/quantumobjects/bases/) for more information. Omit the second argument if you don't have any on-site degrees of freedom.
 
 Here are all parameters that can be passed to the `System` constructor:
 - `mu` or `μ`: the chemical potential of the system.

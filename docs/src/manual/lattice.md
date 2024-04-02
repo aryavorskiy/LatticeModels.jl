@@ -119,7 +119,7 @@ l[!, Coord(1) => 1.5]                   # Same as l[!, x = 1.5]
 
 This notation improves performance on Julia 1.7 and earlier, since it does not need any type-inference tricks to work fast. You may also find it useful when you work with multi-dimensional lattices.
 
-Here is a short list of site parameters you can use:
+Here is a short list of site properties you can use:
 - `x`, `y`, `z` — the position of the site. Alternatively, you can use `x1`, `x2`, `x3`, `x4` and so on to access the coordinates of the site in the unit cell. Use `Coord(i)` to access the `i`-th coordinate using pair notation.
 - `j1`, `j2`, `j3` and so on — the indices of the unit cell. Use `LatticeCoord(i)` to access the `i`-th index using pair notation.
 - `index` — the index of the site in the unit cell. Use `BasisIndex()` to access it using pair notation.

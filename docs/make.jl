@@ -21,7 +21,7 @@ makedocs(
             "Adding bonds" => "manual/bonds.md",
             "Working with 'LatticeValue's" => "manual/latticevalue.md",
             "Constructing the Hamiltonian" => "manual/hamiltonian.md",
-            "Operators" => "manual/operators.md",
+            "States and Operators" => "manual/operators.md",
             "Green's function" => "manual/greenfunction.md",
             "Currents" => "manual/currents.md",
             "Unitary evolution" => "manual/evolution.md"

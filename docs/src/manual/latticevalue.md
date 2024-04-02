@@ -1,4 +1,4 @@
-# How to process lattice values
+# Working with `LatticeValue`s
 
 This chapter introduces the `LatticeValue` type, which describes a value defined on the sites of a lattice. `LatticeValue` implements the `AbstractArray` interface and is used to represent quantities such as the magnetization or local density of a state.
 
