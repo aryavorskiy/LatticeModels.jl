@@ -1,6 +1,6 @@
 # States and Operators
 
-In the previous section we have seen how to define a Hamiltonian for a lattice model. In this section we will see how to work with other types of operators, such as measurements and diagonalizing.
+In the previous chapter we have seen how to define a Hamiltonian for a lattice model. In this chapter we will see how to work with other types of operators, such as measurements and diagonalizing.
 
 ## Builtins
 
@@ -46,7 +46,7 @@ This notation allows converting any `LatticeValue` or [Site parameter](@ref Site
     Generally, a good value to create a custom diagonal operator is by using the `LatticeValue` approach. 
     
     Consider this example: in the Haldane model the diagonal part is ``m`` on the A sublattice and ``-m`` on the B sublattice. You can create this operator with the following code:
-    
+
     ```julia
     l = HoneycombLattice(6, 6)
     m = 3

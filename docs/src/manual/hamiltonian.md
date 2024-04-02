@@ -87,7 +87,7 @@ Basically, every term is a pair of an operator acting on the on-site degrees of 
     - A single `site1 => site2` pair describes a single hopping term between `site1` and `site2`.
     - An `AbstractBonds` object describes the hopping topology. See the [Adjacency and boundary conditions](@ref) section for more information on them.
 - **Arbitrary operator**: any `QuantumOptics.Operator` object can be passed as a term, in which case it will be automatically embedded into the Hamiltonian.
-    - Note that a matrix can be passed as an operator, in which case it will be interpreted as one acting on the on-site degrees of freedom. To act on the lattice, use `Operator(l, matrix)` - this will create a lattice operator that acts on the lattice `l` with the given matrix.
+    - Note that a matrix can be passed as an operator, in which case it will be interpreted as one acting on the on-site degrees of freedom. To act on the lattice, use `Operator(l, matrix)` — this will create a lattice operator that acts on the lattice `l` with the given matrix.
 
 To showcase the flexibility of the `construct_hamiltonian` function, let's consider a more complex example. We will create a Hamiltonian of the QWZ model of a topological insulator (on a square lattice).
 

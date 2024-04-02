@@ -6,7 +6,7 @@ import KrylovKit
     SchroedingerSolver
 
 Abstract type for solvers that can be used to evolve states in time according to the
-Schroedinger equation.
+Schrödinger equation.
 
 See also concrete implementations: `CachedExp`, `KrylovKitExp`.
 
@@ -149,7 +149,7 @@ end
     Evolution([solver, ]hamiltonian, states...; timedomain, namedstates...)
 
 Create an `Evolution` object that can be used to evolve states in time according to the
-Schroedinger equation.
+Schrödinger equation.
 
 # Arguments
 - `solver`: A `SchroedingerSolver` object that will be used to evolve the states. If omitted,
@@ -235,6 +235,7 @@ function eval_hamiltonian(ham::QuantumOpticsBase.AbstractTimeDependentOperator, 
     return ham
 end
 function step!(evol::Evolution, dt)
+    dt < -1e-15 && throw(ArgumentError("negative time step"))
     t = evol.time[]
     H = eval_hamiltonian(evol.hamiltonian, t)
     abs(dt) < 1e-15 && return H
@@ -261,9 +262,9 @@ end
 function Base.iterate(iter::EvolutionIterator, st)
     i, p = st
     i > length(iter.times) && return nothing
-    dt = i > 1 ? iter.times[i] - iter.times[i-1] : iter.times[i]
-    t = iter.evol.time[]
+    dt = i > 1 ? iter.times[i] - iter.times[i-1] : iter.times[i] - iter.evol.time[]
     ham = step!(iter.evol, dt)
+    t = iter.evol.time[]
     states = map(first, iter.evol.states)
     next!(p)
     return EvolutionTimestamp(ham, states, Float64(t)), (i+1, p)

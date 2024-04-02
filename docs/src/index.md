@@ -29,7 +29,7 @@ import Pkg; Pkg.add(url="https://github.com/aryavorskiy/LatticeModels.jl")
 
 Packages such as [Quantica.jl](https://github.com/pablosanjose/Quantica.jl), [pybinding](https://docs.pybinding.site/en/stable/index.html) and [Kwant](https://kwant-project.org/) provide similar functionality. However, they are in general designed for other purposes and lack some features that are present in `LatticeModels.jl`:
 
-- **Schroedinger equation solvers with time-dependent Hamiltonians**. Only Kwant provides similar 
+- **Schrödinger equation solvers with time-dependent Hamiltonians**. Only Kwant provides similar 
     functionality with its `Tkwant` module, but it lacks the performance and flexibility in some cases.
 - **Convenient tools for setting periodic boundary conditions and gauge fields**. The only way to do this in 
     Kwant or Pybinding is to manually set the hopping values.

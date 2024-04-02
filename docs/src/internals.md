@@ -54,7 +54,7 @@ It is very easy to diagonalize a matrix in Julia. However, problems can arise wh
 
 ## `SchroedingerSolver`s
 
-The [`LatticeModels.SchroedingerSolver`](@ref) interface is used to solve the time-dependent Schroedinger equation. It is used in the `Evolution` struct to perform unitary evolution. As with the diagonalization problem, one can add a new algorithm to the default toolchain by creating a new `SchroedingerSolver` type.
+The [`LatticeModels.SchroedingerSolver`](@ref) interface is used to solve the time-dependent Schrödinger equation. It is used in the `Evolution` struct to perform unitary evolution. As with the diagonalization problem, one can add a new algorithm to the default toolchain by creating a new `SchroedingerSolver` type.
 
 ## Currents
 
