@@ -3,6 +3,7 @@ module LatticeModels
 using Reexport
 @reexport using QuantumOpticsBase
 @reexport using IntervalSets
+@reexport import SparseArrays: findnz
 
 @static if VERSION < v"1.8"
     allequal(seq) = all(==(first(seq)), seq)

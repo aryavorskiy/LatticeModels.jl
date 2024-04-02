@@ -377,7 +377,7 @@ function Base.show(io::IO, mime::MIME"text/plain", lw::LatticeWithMetadata)
     io = IOContext(io, :maxlines=>4)
     if requires_compact(io)
         show(io, mime, lw.lat)
-        return print(io, " ; metadata keys: ", fieldnames(typeof(lw.metadata)))
+        return print(io, "; metadata keys: ", fieldnames(typeof(lw.metadata)))
     end
     show(io, mime, lw.lat)
     for v in values(lw.metadata)

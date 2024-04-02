@@ -47,7 +47,7 @@ end
 @recipe function f(curr::AbstractCurrents; showsites=false, arrowheadsize=0.15, arrowtransparency=true)
     lat = lattice(curr)
     axes, axis_numbers = _get_axes(lat, get(plotattributes, :axes, nothing))
-    length(axes) != 2 && error("2D axes expected; got $axes")
+    length(axes) != 2 && error("2D axes expected; got $(axes)D")
     ns = SVector(axis_numbers)
     xguide --> axes[1]
     yguide --> axes[2]
@@ -62,9 +62,12 @@ end
         push!(Xs, NaN)
         push!(Ys, NaN)
     end
-    Vs = Float64[]
-    for ((site1, site2), val) in curr
-        abs(val) < 1e-10 && continue
+    Zs = Float64[]
+    Is, Js, Vs = findnz(curr)
+    for ind in 1:length(Is)
+        site1 = lat[Is[ind]]
+        site2 = lat[Js[ind]]
+        val = Vs[ind]
         if val < 0
             site1, site2 = site2, site1
             val = -val
@@ -75,21 +78,21 @@ end
         o = SVector(d[2], -d[1])
         _pushpts!(v1, v2, v2 - arrowheadsize * (d - o / 3),
             v2 - arrowheadsize * (d + o / 3), v2)
-        push!(Vs, val, val, val, val, val, NaN)
+        push!(Zs, val, val, val, val, val, NaN)
     end
-    if isempty(Vs)
+    if isempty(Zs)
         _pushpts!()
-        push!(Vs, NaN)
+        push!(Zs, NaN)
     end
     @series begin
         seriestype := :path
         seriescolor --> :matter
         linewidth --> 2.5
         if arrowtransparency
-            mx = maximum(x -> isnan(x) ? zero(x) : x, Vs)
-            linealpha --> @view(Vs[1:end-1]) / mx
+            mx = maximum(x -> isnan(x) ? zero(x) : x, Zs)
+            linealpha --> @view(Zs[1:end-1]) / mx
         end
-        line_z --> Vs
+        line_z --> Zs
         Xs, Ys
     end
     @series begin

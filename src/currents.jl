@@ -1,6 +1,8 @@
 import Base: getindex, +, -, *, /
 using LinearAlgebra
 
+const CURRENTS_EPS = 1e-10
+
 """
     AbstractCurrents
 
@@ -23,12 +25,8 @@ function Base.show(io::IO, mime::MIME"text/plain", curr::AbstractCurrents)
     summary(io, curr)
     print(io, " on ")
     io = IOContext(io, :compact => true)
-    show(io, mime, lattice(curr))
+    show(io, mime, stripmeta(lattice(curr)))
 end
-
-@inline iszerocurrent(::AbstractCurrents, i::Int, j::Int) = false
-@inline iszerocurrent(curr::AbstractCurrents, s1::AbstractSite, s2::AbstractSite) =
-    iszerocurrent(curr, site_index(lattice(curr), s1), site_index(lattice(curr), s2))
 
 function Base.length(curr::AbstractCurrents)
     le = length(lattice(curr))
@@ -51,7 +49,6 @@ end
         j = i + 1
         j > length(lat) && return nothing
     end
-    iszerocurrent(curr, i, j) && return iterate(curr, i => j)
     return (lat[i] => lat[j], curr[i, j]), i => j
 end
 
@@ -165,16 +162,24 @@ function Base.getindex(curr::Currents, any)
     Currents(curr.lat[inds], curr.currents[inds, inds])
 end
 
-@inline function Base.iterate(curr::Currents{<:SparseMatrixCSC}, state=(1, findnz(curr.currents)))
-    ind, (Is, Js, Vs) = state
-    ind > length(Is) && return nothing
-    i = Is[ind]
-    j = Js[ind]
-    if j ≤ i
-        return iterate(curr, (ind + 1, (Is, Js, Vs)))
+function SparseArrays.findnz(curr::AbstractCurrents)
+    Is = Int[]
+    Js = Int[]
+    Vs = Float64[]
+    lat = lattice(curr)
+    for j in 1:length(lat), i in 1:j-1
+        val = curr[i, j]
+        abs(val) < CURRENTS_EPS && continue
+        push!(Is, i)
+        push!(Js, j)
+        push!(Vs, val)
     end
-    val = Vs[ind]
-    return (curr.lat[Is[ind]] => curr.lat[j], val), (ind + 1, (Is, Js, Vs))
+    return Is, Js, Vs
+end
+function SparseArrays.findnz(curr::Currents{<:SparseMatrixCSC})
+    Is, Js, Vs = findnz(curr.currents)
+    mask = Is .< Js
+    return Is[mask], Js[mask], Vs[mask]
 end
 
 Base.summary(io::IO, ::Currents{T}) where T = print(io, "Currents{", T, "}")
@@ -199,6 +204,27 @@ Creates a `Currents` instance for `currents`.
 - `currents`: The `AbstractCurrents` object to be turned into `Currents`. That might be time-consuming,
     because  this requires evaluation of the current between all pairs.
 - `adjacency_matrix`: If provided, the current will be evaluated only between adjacent sites.
+
+## Examples
+```jldoctest
+julia> using LatticeModels
+
+julia> lat = SquareLattice(4, 4); site1, site2 = lat[1:2];
+
+julia> H0 = tightbinding_hamiltonian(lat); psi = groundstate(H0);
+
+julia> H1 = tightbinding_hamiltonian(lat, field=LandauGauge(0.1));
+
+julia> currents = DensityCurrents(H1, psi)
+Density currents for system:
+One particle on 16-site 2-dim Bravais lattice in 2D space
+
+julia> c2 = Currents(currents)
+Currents{SparseArrays.SparseMatrixCSC{Float64, Int64}} on 16-site 2-dim Bravais lattice in 2D space
+
+julia> c2[site1, site2] ≈ currents[site1, site2]
+true
+```
 """
 function Currents(curr::AbstractCurrents)
     lat = lattice(curr)
@@ -207,7 +233,7 @@ function Currents(curr::AbstractCurrents)
     Vs = Float64[]
     for i in eachindex(lat), j in 1:i-1
         ij_curr = curr[i, j]
-        abs(ij_curr) < 1e-10 && continue
+        abs(ij_curr) < CURRENTS_EPS && continue
         push!(Is, i, j)
         push!(Js, j, i)
         push!(Vs, ij_curr, -ij_curr)
@@ -225,7 +251,7 @@ function Currents(curr::AbstractCurrents, bonds::AbstractBonds)
         i = s1.index
         j = s2.index
         ij_curr = curr[i, j]
-        abs(ij_curr) < 1e-10 && continue
+        abs(ij_curr) < CURRENTS_EPS && continue
         push!(Is, i, j)
         push!(Js, j, i)
         push!(Vs, ij_curr, -ij_curr)
@@ -240,7 +266,7 @@ _mulorder(::Pair, ::Nothing) = 1
 _mulorder(p::Pair, by::Function) = by(p[1]) < by(p[2]) ? 1 : -1
 
 """
-    mapgroup_currents(f, group, currents[; sort=false, sortpairsby])
+    mapgroup_currents(f, group, currents[; sortresults=false, sortpairsby])
 
 Find the current between all possible pairs of sites, apply `f` to every site pair and
 group the result by value of `f`,

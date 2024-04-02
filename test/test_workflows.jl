@@ -79,6 +79,7 @@
 
         dc = DensityCurrents(H, P)
         plot!(p[1], dc[x.<y])
+        plot!(p[1], Currents(dc)[x.<y])
         scatter!(p[1], l, shownumbers=true)
         scatter!(p[1], l[2])
         scatter!(p[1], l[x.<y], :high_contrast)
@@ -93,6 +94,9 @@
         plot!(p[4], project(xy, :x))
         plot!(p[4], project(xy, :j1))
         mpcs = mapgroup_currents(sitedistance, sum, dc, sortresults=true)
+        mpcs2 = mapgroup_currents(sitedistance, sum, Currents(dc), sortresults=true)
+        @test mpcs[1] ≈ mpcs2[1] atol=1e-10
+        @test mpcs[2] ≈ mpcs2[2] atol=1e-10
         plot!(p[4], mpcs)
         plot!(p[5], UnitCell([[1, 0] [0.1, 1]], [[0, 0.1] [-0.2, 0]]))
         true
