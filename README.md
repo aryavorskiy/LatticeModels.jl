@@ -51,7 +51,7 @@ P_0 = densitymatrix(h(0), mu = 0)
 τ = 10
 a = Animation()
 ev = Evolution(t -> h(0.2 * min(t, τ) / τ), P_0)
-for state in ev(0:0.1:2τ)
+anim = @animate for state in ev(0:0.1:2τ)
     P, H, t = state
     p = plot(layout=2, size=(800, 400))
     # Find the local density and plot it
@@ -61,11 +61,10 @@ for state in ev(0:0.1:2τ)
     plot!(p[2], DensityCurrents(H, P), clims=(0, 0.1))
 
     # Some more tweaks to the plot...
-    title!("t = $t")
-    frame(a, p)
+    plot!(plottitle="t = $t")
 end
 
-gif(a, "animation.gif")
+gif(anim, "animation.gif")
 ```
 
 This code creates an animation which displays local density and currents on a plot:

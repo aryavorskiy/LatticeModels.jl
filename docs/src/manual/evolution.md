@@ -59,6 +59,44 @@ Note that we used a different notation to access the state and the time. You can
 
 ## Time-dependent Hamiltonian
 
+If the Hamiltonian is time-dependent, you can pass a function that returns the Hamiltonian at the given time. This function should accept a single argument — the time. An example of a time-dependent Hamiltonian is the one with a magnetic field that changes in time from the [Examples section](@ref "examples"):
+
+```@example 2
+using LatticeModels, Plots
+l = TriangularLattice(Circle(10), !Circle(5))
+removedangling!(l)
+h(B) = tightbinding_hamiltonian(l, field=PointFlux(B))
+diag = diagonalize(h(0))
+
+P_0 = densitymatrix(diag, mu = 0)
+τ = 10
+ht(t) = h(0.1 * min(t, τ) / τ)
+ev = Evolution(ht, P_0)
+
+anim = @animate for moment in ev(0:0.1:2τ)
+    ρ, Ht, t = moment
+    curr = DensityCurrents(Ht, ρ)
+    plot(curr, title="t = $t", clims=(0, 0.005), size=(1000, 700))
+end
+gif(anim, "currents.gif")
+```
+
+Here we applied magnetic field that changes in time. The flux is increased linearly from 0 to 0.1 in 10 time units, and then stays constant. The animation shows the density currents in the lattice at each time step.
+
+To make the Hamiltonian time-dependent in the previous example, we defined a function `ht(t) = h(0.1 * min(t, τ) / τ)`. This function returns the Hamiltonian with the flux `0.1 * min(t, τ) / τ` at the given time `t`. The `Evolution` struct then uses this function to calculate the Hamiltonian at each time step.
+
+The exponent for the time-dependent Hamiltonian is cached for each time step. This means that on the second half of the evolution interval, the exponent is calculated only once, and then reused for each time step. This improves performance. To improve it even more, you can pre-calculate the static Hamiltonian:
+
+```julia
+const H1 = h(0.1)   # Make it constant to enforce type stability
+ht(t) = t > τ ? H1 : h(0.1 * t / τ)
+```
+
+!!! note
+    The `Evolution` checks the Hamiltonian equality by storing a reference to the last Hamiltonian. Thes means that if you return the same object each time in the Hamiltonian function, the exponent will not be recalculated, even if you changed the Hamiltonian. To force the recalculation, wrap the return value into a `Ref`.
+
+    Note that you can also use [`QuantumOptics.TimeDependentOperator`](https://docs.qojulia.org/timeevolution/timedependent-problems/#Time-dependent-operators) interface — this might be more convenient, as it eliminates extra allocations, and exponent caching for them is disabled by default.
+
 ## Solvers
 
 ## TimeSequence

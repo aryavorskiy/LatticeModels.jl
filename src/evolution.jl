@@ -72,6 +72,7 @@ end
 evolution_cache(::CachedExp, state::AbstractVector) = similar(state)
 evolution_cache(::CachedExp, state::AbstractMatrix) = (similar(state), similar(state))
 
+update_solver!(solver::CachedExp, mat::Ref, dt) = update_solver!(solver, mat[], dt, true)
 function update_solver!(solver::CachedExp, mat, dt, force=false)
     factor = -im * dt
     dmat = _data(mat)

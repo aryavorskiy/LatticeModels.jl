@@ -57,9 +57,8 @@ diag = diagonalize(h(0))
 P_0 = densitymatrix(diag, mu = 0)
 # Perform unitary evolution
 τ = 10
-a = Animation()
 ev = Evolution(t -> h(0.1 * min(t, τ) / τ), P_0)
-for state in ev(0:0.1:2τ)
+anim = @animate for state in ev(0:0.1:2τ)
     P, H, t = state
     # Find the density and plot it
     p = plot(layout=2, size=(1000, 500))
@@ -67,12 +66,10 @@ for state in ev(0:0.1:2τ)
 
     # Show currents on the plot
     plot!(p[2], DensityCurrents(H, P), clims=(0, 0.005), lw=1, arrowheadsize=0.3)
-
-    title!("t = $t")
-    frame(a)
+    plot!(plottitle="t = $t")
 end
 
-gif(a, "adiabatic_flux.gif")
+gif(anim, "adiabatic_flux.gif")
 ```
 
 ## Time sequences
@@ -182,7 +179,7 @@ dg = diagonalize(H)
 Es = -4:0.1:4
 Es_d = -4:0.01:4
 G = greenfunction(dg)
-a = @animate for E in Es
+anim = @animate for E in Es
     print("\rE = $E") # hide
     p = plot(layout=2, size=(800, 400))
     plot!(p[1], Es_d, dos(G, broaden=δ), lab="", title="DOS")
@@ -192,5 +189,5 @@ a = @animate for E in Es
     plot!(p, plot_title="E = $E, δ = $δ")
 end
 
-gif(a, "ldos_animation.gif", fps=10)
+gif(anim, "ldos_animation.gif", fps=10)
 ```
