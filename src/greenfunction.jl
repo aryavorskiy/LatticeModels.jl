@@ -1,11 +1,11 @@
-struct GreenFunctionPoint{VecC, VecE}
+struct GreenFunctionElement{VecC, VecE}
     weights_up_l::VecC
     weights_up_r::VecC
     energies_up::VecE
     weights_down_l::VecC
     weights_down_r::VecC
     energies_down::VecE
-    function GreenFunctionPoint(weights_up_l::VecC, weights_up_r::VecC, energies_up::VecE,
+    function GreenFunctionElement(weights_up_l::VecC, weights_up_r::VecC, energies_up::VecE,
         weights_down_l::VecC, weights_down_r::VecC, energies_down::VecE) where {VecC, VecE}
         @check_size weights_up_l length(energies_up)
         @check_size weights_up_r length(energies_up)
@@ -14,7 +14,7 @@ struct GreenFunctionPoint{VecC, VecE}
         new{VecC, VecE}(weights_up_l, weights_up_r, energies_up, weights_down_l, weights_down_r, energies_down)
     end
 end
-function (gf::GreenFunctionPoint)(ω::Number)
+function (gf::GreenFunctionElement)(ω::Number)
     sum_up = sum(Base.broadcasted((wl, wr, e) -> wl' * wr / (ω - e),
         gf.weights_up_l, gf.weights_up_r, gf.energies_up), init=zero(ComplexF64))
     sum_down = -sum(Base.broadcasted((wl, wr, e) -> wl' * wr / (ω + e),
@@ -22,9 +22,9 @@ function (gf::GreenFunctionPoint)(ω::Number)
     return sum_up + sum_down
 end
 
-function Base.show(io::IO, ::MIME"text/plain", gf::GreenFunctionPoint)
-    print(io, "Green's function point with ", length(gf.energies_up), " create-bands and ",
-        length(gf.energies_down), " annihilate-bands")
+function Base.show(io::IO, ::MIME"text/plain", gf::GreenFunctionElement)
+    print(io, "Green's function element (", length(gf.energies_up), " â†, ",
+        length(gf.energies_down), " â bands)")
 end
 
 """
@@ -70,7 +70,7 @@ sample(gf::GreenFunction) = gf.sample
 sample(::GreenFunction{Nothing}) = throw(ArgumentError("GreenFunction has no lattice defined"))
 
 function Base.getindex(gf::GreenFunction, α::Int, β::Int)
-    return GreenFunctionPoint(gf.weights_up_l[α], gf.weights_up_r[β], gf.energies_up,
+    return GreenFunctionElement(gf.weights_up_l[α], gf.weights_up_r[β], gf.energies_up,
         gf.weights_down_l[α], gf.weights_down_r[β], gf.energies_down)
 end
 function Base.getindex(gf::GreenFunction, site1::AbstractSite, site2::AbstractSite)
@@ -111,7 +111,7 @@ end
 function Base.show(io::IO, mime::MIME"text/plain", gf::GreenFunction)
     io = IOContext(io, :compact => true)
     print(io, "Green's function for ")
-    show(io, mime, lattice(gf))
+    show(io, mime, sample(gf))
 end
 
 struct GreenFunctionEval{ST, MT}
@@ -149,9 +149,9 @@ diagonalelements(gf::GreenFunctionEval{<:System{<:SampleWithoutInternal}}) =
 
 function Base.show(io::IO, mime::MIME"text/plain", gf::GreenFunctionEval)
     print(io, "Evaluated Green's function for ")
-    summary(io, lattice(gf))
+    show(io, mime, sample(gf))
     requires_compact(io) && return
-    print(io, "Values in a ")
+    println(io)
     show(io, mime, gf.values)
 end
 
