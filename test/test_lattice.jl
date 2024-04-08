@@ -1,4 +1,4 @@
-import LatticeModels: stripmeta, bravaispointer_to_site, BravaisPointer, IncompatibleLattices
+import LatticeModels: stripmeta, BravaisPointer, BravaisSite, IncompatibleLattices
 
 @testset "Lattice" begin
     @testset "Creation" begin
@@ -11,12 +11,15 @@ import LatticeModels: stripmeta, bravaispointer_to_site, BravaisPointer, Incompa
             (x - 0.5) ^ 2 + (y - 0.5) ^ 2 < 10
         end
         @test su == su2
+        @test SquareLattice(5, 5, boundaries=([5,0] => true)) ==
+            SquareLattice(5, 5, boundaries=([5,0,0,0] => true))
+        @test_throws ArgumentError SquareLattice(5, 5, boundaries=([0,0,1] => true))
+
         uc = UnitCell([1 0; 0 1], [[0.2, 0] [-0.3, 0]], offset=:center)
         @test uc.basissites == [0.25 -0.25; 0 0]
-        @test_throws ArgumentError UnitCell([1 0; 0 1], [[0.2, 0] [-0.3, 0]], offset=:AAA)
-
         uc = UnitCell(SquareLattice{2})
         @test uc.translations == [1 0; 0 1]
+        @test_throws ArgumentError UnitCell([1 0; 0 1], [[0.2, 0] [-0.3, 0]], offset=:AAA)
 
         @test scalefactor(SquareLattice{2}, Square(), sites=4) ≈ √2
         @test scalefactor(SquareLattice{2}, Square() * √2, sites=4) ≈ 1
@@ -48,7 +51,7 @@ import LatticeModels: stripmeta, bravaispointer_to_site, BravaisPointer, Incompa
 
         @test_throws ArgumentError SquareLattice(Circle(10))
     end
-    @testset "Indexing" begin
+    @testset "Interface" begin
         sl = SquareLattice(10, 20)
         x, y = coordvalues(sl)
         s_0 = SquareLattice(10, 20) do (x, y)
@@ -73,7 +76,7 @@ import LatticeModels: stripmeta, bravaispointer_to_site, BravaisPointer, Incompa
         @test_throws IncompatibleLattices hl[x.<y]
 
         @test hl[!, LatticeCoord(1) => 3, j2 = 2, index = 1] ==
-            bravaispointer_to_site(stripmeta(hl), BravaisPointer(SA[3, 2], 1))
+            BravaisSite(BravaisPointer(SA[3, 2], 1), hl.unitcell)
         @test_throws BoundsError hl[!, LatticeCoord(1) => 100]
 
         sl = SquareLattice(10, 20)
@@ -85,7 +88,9 @@ import LatticeModels: stripmeta, bravaispointer_to_site, BravaisPointer, Incompa
         end
         pop!(sl)
         popfirst!(sl)
+        @test s ∈ sl
         delete!(sl, s)
+        @test s ∉ sl
         @test sl == sl2
 
         lwh = SquareLattice(10, 10) do (x, y)
@@ -266,6 +271,7 @@ end
         site2 = site1 + tr
         @test site2 == l[!, j1 = 0, j2 = 2, index = 2]
         @test only(tr.translations) == BravaisTranslation(1 => 2, [-1, 1])
+        @test_throws ArgumentError BravaisTranslation(-1 => 1, [0, 1])
 
         bsm = LatticeModels.BravaisSiteMapping(
             BravaisTranslation(axis=1),
@@ -273,9 +279,12 @@ end
             BravaisTranslation([1, -1]))
         bsm2 = LatticeModels.adapt_bonds(bsm, l)
         @test bsm == union(Bravais[1], Bravais[0, 1], Bravais[1, -1])
+        @test bsm == union(bsm, Bravais[0, 1], Bravais[1, -1])
         @test bsm == union(Bravais[0, 1], bsm)
         @test bsm == union(bsm, bsm)
         @test bsm2 == union(bsm, bsm2)
+        @test LatticeModels.BravaisSiteMapping(Bravais[1, 0]) ==
+            union(Bravais[1, 0], Bravais[1, 0])
 
         t1 = BravaisTranslation(l, axis=1)
         t2 = BravaisTranslation(l, axis=2)

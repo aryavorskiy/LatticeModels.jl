@@ -31,10 +31,6 @@ function check_sameunitcell(l::BravaisLattice, site::BravaisSite)
     l.unitcell != site.unitcell && throw(ArgumentError("Unit cell mismatch: $(l.unitcell) ≠ $(site.unitcell)"))
 end
 
-bravaispointer_to_site(l::BravaisLattice, bp::BravaisPointer) = BravaisSite(bp, l.unitcell)
-bravaispointer_to_site(::BravaisLattice, site::BravaisSite) = site
-bravaispointer_to_site(::BravaisLattice, ::NoSite) = NoSite()
-
 Base.in(bp::BravaisPointer, l::BravaisLattice) = insorted(bp, l.pointers)
 function Base.in(site::BravaisSite{N,NU,B}, l::BravaisLattice{N,NU,B}) where {N,NU,B}
     @boundscheck check_sameunitcell(l, site)
@@ -43,16 +39,11 @@ end
 
 Base.@propagate_inbounds function Base.getindex(l::BravaisLattice, i::Int)
     @boundscheck checkbounds(l, i)
-    return bravaispointer_to_site(l, l.pointers[i])
+    return BravaisSite(l.pointers[i], l.unitcell)
 end
 Base.@propagate_inbounds function Base.getindex(l::BravaisLattice, is::AbstractVector{Int})
     @boundscheck checkbounds(l, is)
     return BravaisLattice(l.unitcell, l.pointers[sort(is)])
-end
-Base.@propagate_inbounds function Base.delete!(l::BravaisLattice, bp::BravaisPointer)
-    i = site_index(l, bp)
-    i !== nothing && deleteat!(l.pointers, i)
-    return l
 end
 Base.@propagate_inbounds function Base.deleteat!(l::BravaisLattice, inds)
     @boundscheck checkbounds(l, inds)
