@@ -204,7 +204,7 @@ Here are all types of gauge fields supported by this package:
 Different types of fields can be added together:
 
 ```jldoctest
-juila> using LatticeModels
+julia> using LatticeModels
 
 julia> f1 = LandauGauge(0.1)
 Landau gauge uniform field; B = 0.1 flux quanta per 1×1 area
