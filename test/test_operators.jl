@@ -1,3 +1,5 @@
+import LatticeModels: Sample
+
 @testset "Operators" begin
     @testset "Basics" begin
         l = SquareLattice(10, 10)
@@ -166,6 +168,12 @@
         @test_throws ErrorException diagonalize(qwz(l), :invalid_routine)
         eigk = diagonalize(qwz(l), :krylovkit)
         @test abs(eigk[1]' * eig[1]) ≈ 1
+
+        spin = SpinBasis(1//2)
+        @test System(l ⊗ spin, N = 3) == LatticeModels.FixedN(Sample(l, spin), 3)
+        @test System(l, mu = 0) == LatticeModels.FixedMu(Sample(l), 0)
+        @test System(l, N = 3) != System(l, mu = 0)
+        @test_throws ArgumentError System(l, N = 3, mu = 0)
 
         sys = System(l, N = 3, T = 1, statistics=FermiDirac)
         H = tightbinding_hamiltonian(sys)

@@ -80,7 +80,7 @@ struct FixedMu{SampleT} <: OneParticleBasisSystem{SampleT}
     statistics::ParticleStatistics
     T::Float64
 end
-function FixedMu(sample::SampleT, μ = nothing, mu = μ; statistics=FermiDirac, T = 0) where SampleT
+function FixedMu(sample::SampleT, mu; statistics=FermiDirac, T = 0) where SampleT
     FixedMu{SampleT}(sample, mu, statistics, T)
 end
 
@@ -160,7 +160,7 @@ function NParticles(sample::SampleT, nparticles; statistics = FermiDirac, T = 0)
 end
 NParticles(onep::OneParticleSystem, n; kw...) = NParticles(onep.sample, n;
     T = onep.T, kw...)
-NParticles(l::AbstractLattice, n; kw...) = NParticles(Sample(l, nothing), n; kw...)
+NParticles(l::AbstractLattice, n; kw...) = NParticles(Sample(l), n; kw...)
 NParticles(l::AbstractLattice, b::Basis, n; kw...) = NParticles(Sample(l, b), n; kw...)
 Base.:(==)(sys1::NParticles, sys2::NParticles) =
     sys1.sample == sys2.sample && sys1.nparticles == sys2.nparticles &&
