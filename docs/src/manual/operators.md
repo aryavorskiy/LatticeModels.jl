@@ -35,8 +35,8 @@ The `diagonaloperator` function creates a diagonal operator in the basis of a la
 ```@repl 0
 xval = coordvalue(l, :x)
 X_1 = diagonaloperator(l_bas, xval.values); # The pure QuantumOptics.jl way
-X_2 = diagonaloperator(l, :x);              # The LatticeModels.jl way, with a site property
-X_3 = diagonaloperator(xval);               # The LatticeModels.jl way, with a LatticeValue
+X_2 = diagonaloperator(l, :x);      # The LatticeModels.jl way, with a site property
+X_3 = diagonaloperator(xval);       # The LatticeModels.jl way, with a LatticeValue
 X_1 == X_2 == X_3
 ```
 

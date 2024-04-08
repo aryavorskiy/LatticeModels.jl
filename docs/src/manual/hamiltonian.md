@@ -123,8 +123,7 @@ H = construct_hamiltonian(sys,
     (sz - im * sy) / 2 => Bravais[0, 1],    # y-direction hoppings
     0.5 => site,                            # Local potential on site (2, 2)
     E * x,                                  # Electric field in the x direction
-    0.1 => NearestNeighbor(2),              # Next-nearest neighbor hopping
-    )
+    0.1 => NearestNeighbor(2))              # Next-nearest neighbor hopping
 
 P = densitymatrix(H, info=false)
 heatmap(localdensity(P))

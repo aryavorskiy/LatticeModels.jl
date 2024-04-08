@@ -235,7 +235,7 @@ end
 end
 
 const TEMP_TOL = 1e-10
-const DISABLE_INFO = "; set `info=false` to disable this message"
+const DISABLE_INFO = "\nset `info=false` to disable this message"
 function groundstate_densitymatrix(eig::AbstractEigensystem; info=true)
     info && @info "Creating density matrix: ground state" * DISABLE_INFO
     ψ = groundstate(eig)
