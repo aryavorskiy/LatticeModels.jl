@@ -52,9 +52,9 @@ site2 = site1 + T               # `site2` is at [2, 1]
 It is very easy to diagonalize a matrix in Julia. However, problems can arise when the matrix is of some custom type
 (e. g. sparse or a GPU array). By default `LatticeModels.jl` makes use of `KrylovKit.jl` to solve the eigenproblem using the Lanczos algorithm for non-trivial matrix types. However, sometimes it is necessary to use a different algorithm. The `LatticeModels.diagonalize_routine` is a simple way to add a new algorithm to the default toolchain.
 
-## `SchroedingerSolver`s
+## `EvolutionSolver`s
 
-The [`LatticeModels.SchroedingerSolver`](@ref) interface is used to solve the time-dependent Schrödinger equation. It is used in the `Evolution` struct to perform unitary evolution. As with the diagonalization problem, one can add a new algorithm to the default toolchain by creating a new `SchroedingerSolver` type.
+The [`LatticeModels.EvolutionSolver`](@ref) interface is used to solve the time-dependent Schrödinger equation. It is used in the `Evolution` struct to perform unitary evolution. As with the diagonalization problem, one can add a new algorithm to the default toolchain by creating a new `EvolutionSolver` type.
 
 ## Currents
 

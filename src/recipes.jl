@@ -41,6 +41,7 @@ end
 
 @recipe function f(tseq::TimeSequence)
     xlabel --> "t"
+    label --> ""
     tseq.times, tseq.values
 end
 

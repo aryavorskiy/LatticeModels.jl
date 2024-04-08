@@ -59,11 +59,11 @@ include("greenfunction.jl")
 export GreenFunction, greenfunction, diagonalelements, dos, ldos
 include("currents.jl")
 export Currents, currentsfrom, currentsfromto, mapgroup_currents
+include("evolution.jl")
+export Evolution, CachedExp, KrylovKitExp
 include("timesequence.jl")
 export integrate, integrate!, differentiate, differentiate!, timestamps,
     TimeSequence
-include("evolution.jl")
-export Evolution, CachedExp, KrylovKitExp
 
 include("zoo/lattices.jl")
 export @bravaisdef
