@@ -90,23 +90,6 @@ end
 
 A helper struct for building custom operators. This struct is used to build operators for a
 given system or lattice.
-
-## Example
-```julia
-l = SquareLattice(5, 5)
-builder = OperatorBuilder(l, field=LandauGauge(0.1), auto_hermitian=true)
-xhop = Bravais[1, 0]
-yhop = Bravais[0, 1]
-for site in l
-    x, y = site
-    builder[site, site] = x + 2y
-    builder[site, site + xhop] = 1
-    builder[site, site + yhop] = 1im
-    site2 = l[rand(1:25)]
-    builder[site, site2] += 1
-end
-H = Hamiltonian(builder)
-```
 """
 struct OperatorBuilder{SystemT, FieldT, T}
     sys::SystemT
@@ -133,7 +116,7 @@ Construct an `OperatorBuilder` for a given system or lattice.
 - `auto_hermitian`: Whether to automatically add the hermitian conjugate of the operator. Defaults to `false`.
 
 ## Example
-```julia
+```jldoctest
 julia> using LatticeModels
 
 julia> l = SquareLattice(5, 5);
@@ -142,12 +125,9 @@ julia> builder = OperatorBuilder(l, field=LandauGauge(0.1), auto_hermitian=true)
 OperatorBuilder(field=LandauGauge(0.1), auto_hermitian=true)
 System: One particle on 25-site SquareLattice in 2D space
 
-julia> for site in l
-    site_hx = site + Bravais[1, 0]
-    builder[site, site_hx] = 1
-    site_hy = site + Bravais[0, 1]
-    builder[site, site_hy] = 1
-end
+julia> hx = Bravais[1, 0]; hy = Bravais[0, 1];
+
+julia> for site in l; builder[site, site + hx] = builder[site, site + hy] = 1; end
 
 julia> H = Hamiltonian(builder)
 Hamiltonian(dim=25x25)
