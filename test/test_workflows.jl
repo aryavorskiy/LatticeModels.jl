@@ -1,5 +1,5 @@
 @testset "Workflows" begin
-    @test begin
+    begin
         l = SquareLattice(10, 10) do (x, y)
             √(x^2 + y^2) < 5
         end
@@ -10,11 +10,12 @@
         H = d + hx + hy
         eig = diagonalize(H)
         P = densitymatrix(eig, statistics=FermiDirac, N = 3)
-        all(isfinite, P.data)
+        @test all(isfinite, P.data)
     end
 
     @test begin
         l = GrapheneRibbon(10, 5, rotate=pi/2)
+        @test_throws ArgumentError haldane(SquareLattice(10, 10), 1, 1, 1)
         H = haldane(l, 1, 1, 1)
         P = densitymatrix(diagonalize(H), statistics=BoseEinstein)
         X, Y = coordoperators(basis(H))

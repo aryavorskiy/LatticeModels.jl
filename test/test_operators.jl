@@ -6,8 +6,9 @@ import LatticeModels: Sample
         x = coordvalue(l, :x)
         psi = ketstate(@. exp(-x^2/2 + im * x))
         psi_t = brastate(@. exp(-x^2/2 - im * x))
-        @test psi.data ≈ @. exp(-x.values^2/2 + im * x.values)
-        @test psi_t.data ≈ @. exp(-x.values^2/2 - im * x.values)
+        @test LatticeValue(psi) == @. exp(-x^2/2 + im * x)
+        @test LatticeValue(psi_t) == @. exp(-x^2/2 - im * x)
+        @test_throws ArgumentError LatticeValue(basisstate(SpinBasis(1//2), 1) ⊗ psi)
 
         spin = SpinBasis(1//2)
         s = basisstate(spin, 1)

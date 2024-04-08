@@ -131,6 +131,39 @@ Construct an `OperatorBuilder` for a given system or lattice.
 ## Keyword arguments
 - `field`: The gauge field to use for the bond operators.
 - `auto_hermitian`: Whether to automatically add the hermitian conjugate of the operator. Defaults to `false`.
+
+## Example
+```julia
+julia> using LatticeModels
+
+julia> l = SquareLattice(5, 5);
+
+julia> builder = OperatorBuilder(l, field=LandauGauge(0.1), auto_hermitian=true)
+OperatorBuilder(field=LandauGauge(0.1), auto_hermitian=true)
+System: One particle on 25-site SquareLattice in 2D space
+
+julia> for site in l
+    site_hx = site + Bravais[1, 0]
+    builder[site, site_hx] = 1
+    site_hy = site + Bravais[0, 1]
+    builder[site, site_hy] = 1
+end
+
+julia> H = Hamiltonian(builder)
+Hamiltonian(dim=25x25)
+System: One particle on 25-site SquareLattice in 2D space
+25×25 SparseArrays.SparseMatrixCSC{ComplexF64, Int64} with 80 stored entries:
+⎡⠪⡢⡈⠢⡀⠀⠀⠀⠀⠀⠀⠀⠀⎤
+⎢⠢⡈⠠⡢⡈⠢⡀⠀⠀⠀⠀⠀⠀⎥
+⎢⠀⠈⠢⡈⠊⡠⡈⠢⡀⠀⠀⠀⠀⎥
+⎢⠀⠀⠀⠈⠢⡈⠪⠂⡈⠢⡀⠀⠀⎥
+⎢⠀⠀⠀⠀⠀⠈⠢⡈⠪⡢⠈⠢⡀⎥
+⎢⠀⠀⠀⠀⠀⠀⠀⠈⠢⡀⠪⡢⡀⎥
+⎣⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠈⠀⎦
+
+julia> H == tightbinding_hamiltonian(l, field=LandauGauge(0.1))
+true
+```
 """
 function OperatorBuilder(T::Type{<:Number}, sys::SystemT;
         field::FieldT=NoField(), auto_hermitian=false) where {SystemT<:System, FieldT<:AbstractField}
