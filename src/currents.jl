@@ -25,7 +25,7 @@ function Base.show(io::IO, mime::MIME"text/plain", curr::AbstractCurrents)
     summary(io, curr)
     print(io, " on ")
     io = IOContext(io, :compact => true)
-    show(io, mime, stripmeta(lattice(curr)))
+    show(io, mime, lattice(curr))
 end
 
 function Base.length(curr::AbstractCurrents)
@@ -217,10 +217,10 @@ julia> H1 = tightbinding_hamiltonian(lat, field=LandauGauge(0.1));
 
 julia> currents = DensityCurrents(H1, psi)
 Density currents for system:
-One particle on 16-site 2-dim Bravais lattice in 2D space
+One particle on 16-site SquareLattice in 2D space
 
 julia> c2 = Currents(currents)
-Currents{SparseArrays.SparseMatrixCSC{Float64, Int64}} on 16-site 2-dim Bravais lattice in 2D space
+Currents{SparseArrays.SparseMatrixCSC{Float64, Int64}} on 16-site SquareLattice in 2D space
 
 julia> c2[site1, site2] ≈ currents[site1, site2]
 true

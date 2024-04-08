@@ -180,7 +180,7 @@ julia> using LatticeModels
 julia> l = SquareLattice(2, 2);
 
 julia> a = AdjacencyMatrix(l)
-Adjacency matrix on 4-site 2-dim Bravais lattice in 2D space
+Adjacency matrix on 4-site SquareLattice in 2D space
 Values in a 4×4 SparseArrays.SparseMatrixCSC{Bool, Int64} with 0 stored entries:
  ⋅  ⋅  ⋅  ⋅
  ⋅  ⋅  ⋅  ⋅
@@ -192,7 +192,7 @@ julia> site1, site2, site3, site4 = l;
 julia> a[site1, site2] = a[site2, site4] = a[site3, site4] = true;
 
 julia> a
-Adjacency matrix on 4-site 2-dim Bravais lattice in 2D space
+Adjacency matrix on 4-site SquareLattice in 2D space
 Values in a 4×4 SparseArrays.SparseMatrixCSC{Bool, Int64} with 6 stored entries:
  ⋅  1  ⋅  ⋅
  1  ⋅  ⋅  1
@@ -439,7 +439,7 @@ A spatial translation on some lattice.
 julia> using LatticeModels
 
 julia> gl = GenericLattice([(1, 1), (1, 2), (2, 1), (2, 2)])
-4-site 2-dim GenericLattice{GenericSite{2}}:
+4-site GenericLattice{GenericSite{2}} in 2D space:
   Site at [1.0, 1.0]
   Site at [1.0, 2.0]
   Site at [2.0, 1.0]
@@ -447,7 +447,7 @@ julia> gl = GenericLattice([(1, 1), (1, 2), (2, 1), (2, 2)])
 
 julia> tr = Translation(gl, [1, 0])     # Translation by [1, 0]
 Translation by [1.0, 0.0]
- on 4-site 2-dim GenericLattice{GenericSite{2}}
+ on 4-site GenericLattice{GenericSite{2}} in 2D space
 
 julia> site1 = gl[!, x = 1, y = 1]      # Site at [1, 1]
 2-dim GenericSite{2} at [1.0, 1.0]

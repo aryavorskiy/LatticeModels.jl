@@ -152,7 +152,7 @@ julia> using LatticeModels
 julia> lat = SquareLattice(3, 3);
 
 julia> NParticles(lat, 4, statistics=BoseEinstein)
-NParticles(4 bosons) on 9-site 2-dim Bravais lattice in 2D space
+NParticles(4 bosons) on 9-site SquareLattice in 2D space
 ```
 """
 function NParticles(sample::SampleT, nparticles; statistics = FermiDirac, T = 0) where SampleT<:Sample
@@ -194,13 +194,13 @@ julia> using LatticeModels
 julia> lat = SquareLattice(3, 3);
 
 julia> System(lat)
-One particle on 9-site 2-dim Bravais lattice in 2D space
+One particle on 9-site SquareLattice in 2D space
 
 julia> System(lat, N=4, statistics=BoseEinstein)
-4 non-interacting bosons on 9-site 2-dim Bravais lattice in 2D space
+4 non-interacting bosons on 9-site SquareLattice in 2D space
 
 julia> System(lat, mu=0, statistics=BoseEinstein)
-Non-interactng bosons with fixed μ=0.0 on 9-site 2-dim Bravais lattice in 2D space
+Non-interactng bosons with fixed μ=0.0 on 9-site SquareLattice in 2D space
 ```
 """
 function System(sample::Sample; μ = nothing, mu = μ, N = nothing, T = 0, statistics=FermiDirac)
@@ -278,6 +278,42 @@ Create a Hamiltonian operator for a given system and a given operator.
 ## Arguments
 - `sys`: the system the Hamiltonian acts on.
 - `op`: the operator matrix.
+
+## Example
+```jldoctest
+julia> using LatticeModels
+
+julia> l = SquareLattice(4, 4);
+
+julia> H = tightbinding_hamiltonian(l)
+Hamiltonian(dim=16x16)
+System: One particle on 16-site SquareLattice in 2D space
+16×16 SparseArrays.SparseMatrixCSC{ComplexF64, Int64} with 48 stored entries:
+⎡⠪⡢⠑⢄⠀⠀⠀⠀⎤
+⎢⠑⢄⠪⡢⠑⢄⠀⠀⎥
+⎢⠀⠀⠑⢄⠪⡢⠑⢄⎥
+⎣⠀⠀⠀⠀⠑⢄⠪⡢⎦
+
+julia> l2 = SquareLattice(5, 5);
+
+julia> H2 = tightbinding_hamiltonian(l2)
+Hamiltonian(dim=25x25)
+System: One particle on 25-site SquareLattice in 2D space
+25×25 SparseArrays.SparseMatrixCSC{ComplexF64, Int64} with 80 stored entries:
+⎡⠪⡢⡈⠢⡀⠀⠀⠀⠀⠀⠀⠀⠀⎤
+⎢⠢⡈⠠⡢⡈⠢⡀⠀⠀⠀⠀⠀⠀⎥
+⎢⠀⠈⠢⡈⠊⡠⡈⠢⡀⠀⠀⠀⠀⎥
+⎢⠀⠀⠀⠈⠢⡈⠪⠂⡈⠢⡀⠀⠀⎥
+⎢⠀⠀⠀⠀⠀⠈⠢⡈⠪⡢⠈⠢⡀⎥
+⎢⠀⠀⠀⠀⠀⠀⠀⠈⠢⡀⠪⡢⡀⎥
+⎣⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠈⠀⎦
+
+julia> H + H2
+ERROR: Incompatible Hamiltonians:
+  #1: One particle on 16-site SquareLattice in 2D space
+  #2: One particle on 25-site SquareLattice in 2D space
+[...]
+```
 """
 struct Hamiltonian{SystemT, BasisT, T} <: DataOperator{BasisT, BasisT}
     sys::SystemT

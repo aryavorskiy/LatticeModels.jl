@@ -74,7 +74,7 @@ julia> H1 = tightbinding_hamiltonian(lat, field=LandauGauge(0.1));
 
 julia> currents = DensityCurrents(H1, psi)
 Density currents for system:
-One particle on 16-site 2-dim Bravais lattice in 2D space
+One particle on 16-site SquareLattice in 2D space
 ```
 """
 struct DensityCurrents{HT, ST} <: AbstractCurrents
@@ -137,7 +137,7 @@ Currents of Operator(Spin(1/2))
  1   0
  0  -1
 For system:
-One particle on (16-site 2-dim Bravais lattice in 2D space) ⊗ Spin(1/2)
+One particle on (16-site SquareLattice in 2D space) ⊗ Spin(1/2)
 
 julia> op2 = one(SpinBasis(3//2));  # Invalid operator
 

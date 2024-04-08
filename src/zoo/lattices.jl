@@ -80,12 +80,13 @@ macro bravaisdef(type, expr)
             LatticeModels.construct_unitcell(::Type{$type}) =
                 throw(ArgumentError("Unknown dimensionality for " * $(string(type)) *
                     "; Try using " * $(string(type)) * "{N}"))
+            LatticeModels.latticename(::Type{$type_expr}) where $N_sym = $(string(type))
         end |> esc
     else
-        unitcell_construct = expr
         return quote
             Core.@__doc__ struct $type <: LatticeModels.BravaisLatticeType end
-            LatticeModels.construct_unitcell(::Type{$type}) = $unitcell_construct
+            LatticeModels.construct_unitcell(::Type{$type}) = $expr
+            LatticeModels.latticename(::Type{$type}) = $(string(type))
         end |> esc
     end
 end

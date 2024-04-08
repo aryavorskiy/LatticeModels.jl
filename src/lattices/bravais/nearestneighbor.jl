@@ -150,7 +150,7 @@ BravaisSiteMapping with 3 translations:
   1 => 2, [0, -1]
   1 => 2, [-1, 0]
   1 => 2, [0, 0]
- on 50-site 2-dim Bravais lattice in 2D space (2-site basis)
+ on 50-site HoneycombLattice in 2D space
 
 julia> lat = SquareLattice(3, 3, 3, 3);
 
@@ -166,7 +166,7 @@ BravaisSiteMapping with 12 translations:
   Bravais[1, -1, -1, 1]
   Bravais[1, 1, -1, 1]
    ⋮
- on 81-site 4-dim Bravais lattice in 4D space
+ on 81-site SquareLattice in 4D space
 ```
 """
 NearestNeighbor(l::BravaisLattice, N=1) = adapt_bonds(NearestNeighbor(N), l)

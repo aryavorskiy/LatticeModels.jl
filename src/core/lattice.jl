@@ -156,8 +156,9 @@ site_index(l::AbstractLattice, site::AbstractSite) = site_index(l, site, eachind
 Base.getindex(::AbstractLattice, ::Nothing) = NoSite()
 Base.pairs(l::AbstractLattice) = Base.Iterators.Pairs(l, 1:length(l))
 
+latticename(any) = string(typeof(any))
 Base.summary(io::IO, l::AbstractLattice{<:AbstractSite{N}}) where N =
-    print(io, length(l), "-site ", N, "-dim ", typeof(l))
+    print(io, length(l), "-site ", latticename(l), " in ", N, "D space")
 function Base.show(io::IO, mime::MIME"text/plain", l::AbstractLattice)
     summary(io, l)
     if !requires_compact(io) && length(l) > 0
@@ -371,14 +372,11 @@ end
 
 Base.show(io::IO, ::Type{<:LatticeWithMetadata{LT, MetaT}}) where {LT, MetaT} =
     print(io, "LatticeWithMetadata{", LT, ", params", fieldnames(MetaT), "}")
-
-Base.summary(io::IO, lw::LatticeWithMetadata) = summary(io, lw.lat)
+latticename(lw::LatticeWithMetadata) =
+    hasmeta(lw, :latticetype) ? latticename(lw.latticetype) : latticename(lw.lat)
 function Base.show(io::IO, mime::MIME"text/plain", lw::LatticeWithMetadata)
     io = IOContext(io, :maxlines=>4)
-    if requires_compact(io)
-        show(io, mime, lw.lat)
-        return print(io, "; metadata keys: ", fieldnames(typeof(lw.metadata)))
-    end
+    requires_compact(io) && return summary(io, lw)
     show(io, mime, lw.lat)
     for v in values(lw.metadata)
         println(io)

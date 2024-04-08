@@ -92,7 +92,7 @@ julia> l = SquareLattice(4, 4);
 
 julia> H = tightbinding_hamiltonian(l)
 Hamiltonian(dim=16x16)
-System: One particle on 16-site 2-dim Bravais lattice in 2D space
+System: One particle on 16-site SquareLattice in 2D space
 16×16 SparseArrays.SparseMatrixCSC{ComplexF64, Int64} with 48 stored entries:
 ⎡⠪⡢⠑⢄⠀⠀⠀⠀⎤
 ⎢⠑⢄⠪⡢⠑⢄⠀⠀⎥
@@ -102,7 +102,7 @@ System: One particle on 16-site 2-dim Bravais lattice in 2D space
 julia> eig = diagonalize(H)
 Diagonalized Hamiltonian (16 eigenvectors)
 Eigenvalues in range -3.23607 .. 3.23607
-System: One particle on 16-site 2-dim Bravais lattice in 2D space
+System: One particle on 16-site SquareLattice in 2D space
 ```
 """
 function diagonalize(ham::Hamiltonian, routine::Val; kw...)
