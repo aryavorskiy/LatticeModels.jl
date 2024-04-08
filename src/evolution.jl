@@ -193,7 +193,7 @@ function Evolution(hamiltonian::EvolutionHamType, states::EvolutionStateType...;
     return Evolution(solver, hamiltonian, states...; namedstates...)
 end
 function Evolution(solver::EvolutionSolver, hamiltonian::EvolutionHamType, states::EvolutionStateType...;
-        timedomain=nothing, namedstates...)
+        timedomain=nothing, showprogress=true, namedstates...)
     final_states = if isempty(states)
         isempty(namedstates) && throw(ArgumentError("No states provided"))
         NamedTuple(namedstates)
@@ -206,7 +206,7 @@ function Evolution(solver::EvolutionSolver, hamiltonian::EvolutionHamType, state
     if timedomain === nothing
         return evol
     else
-        return evol(timedomain)
+        return evol(timedomain, showprogress=showprogress)
     end
 end
 struct IncompleteSolver{SolverT, KWT}
@@ -248,16 +248,18 @@ function step!(evol::Evolution, dt)
     return H
 end
 
-(evol::Evolution)(ts::AbstractVector{<:Real}) = EvolutionIterator(evol, ts)
+(evol::Evolution)(ts::AbstractVector{<:Real}; showprogress=true) =
+    EvolutionIterator(evol, ts, showprogress)
 
 struct EvolutionIterator{EvolutionT,TimesT}
     evol::EvolutionT
     times::TimesT
+    showprogress::Bool
 end
 Base.length(iter::EvolutionIterator) = length(iter.times)
 function Base.iterate(iter::EvolutionIterator)
     p = Progress(length(iter), dt=0.3, desc="Unitary evolution... ", showspeed=true,
-        barglyphs=BarGlyphs("[=> ]"))
+        barglyphs=BarGlyphs("[=> ]"), enabled=iter.showprogress)
     return iterate(iter, (1, p))
 end
 function Base.iterate(iter::EvolutionIterator, st)

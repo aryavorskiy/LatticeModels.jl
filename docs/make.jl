@@ -24,7 +24,7 @@ makedocs(
             "States and Operators" => "manual/operators.md",
             "Green's function" => "manual/greenfunction.md",
             "Currents" => "manual/currents.md",
-            "Unitary evolution" => "manual/evolution.md"
+            "Evolution" => "manual/evolution.md"
         ],
         "Internals" => "internals.md",
         "Library" => "library.md"

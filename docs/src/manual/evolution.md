@@ -187,17 +187,25 @@ ts = 0:0.1:2τ
 site = l[!, x = 20, y = 20]
 
 println("CachedExp:")
-ev1 = Evolution(CachedExp(), ht, psi)
 # We can evaluate the density at x = 20, y = 20 in a one-liner
-dens1 = [localdensity(moment.state)[site] for moment in ev1(ts)]
+@time dens1 = [localdensity(moment.state)[site] for moment in 
+    Evolution(CachedExp(), ht, psi, timedomain=ts, showprogress=false)]
+@time dens1 = [localdensity(moment.state)[site] for moment in 
+    Evolution(CachedExp(), ht, psi, timedomain=ts, showprogress=false)]
+@time dens1 = [localdensity(moment.state)[site] for moment in 
+    Evolution(CachedExp(), ht, psi, timedomain=ts, showprogress=false)]
 
-println("KrylovKitExp:")
-ev2 = Evolution(KrylovKitExp(), ht, psi)
-dens2 = [localdensity(moment.state)[site] for moment in ev2(ts)]
+println("\nKrylovKitExp:")
+@time dens2 = [localdensity(moment.state)[site] for moment in 
+    Evolution(KrylovKitExp(), ht, psi, timedomain=ts, showprogress=false)]
+@time dens2 = [localdensity(moment.state)[site] for moment in 
+    Evolution(KrylovKitExp(), ht, psi, timedomain=ts, showprogress=false)]
+@time dens2 = [localdensity(moment.state)[site] for moment in 
+    Evolution(KrylovKitExp(), ht, psi, timedomain=ts, showprogress=false)]
 nothing # hide
 ```
 
-Let's plot the results to make sure they are the same:
+The first attempt took some time because of the precompilation required, but overall the `KrylovKitExp` solver turned out to be faster in this case. Let's plot the results to make sure they are the same:
 
 ```@example 3
 using Plots
