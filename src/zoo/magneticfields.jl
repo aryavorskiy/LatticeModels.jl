@@ -97,5 +97,7 @@ function line_integral(field::PointFlux{:singular}, p1, p2)
     abs(yintercept) < 1e-11 && @warn FLUX_WARNING
     yintercept > 0 ? zero(field.flux) : field.flux * sign(sg)
 end
-Base.show(io::IO, ::MIME"text/plain", field::PointFlux) =
-    print(io, "Delta flux field through point $(field.point), $(field.gauge) gauge; Φ = $(field.flux) flux quanta")
+Base.show(io::IO, field::PointFlux{GaugeT}) where GaugeT =
+    print(io, "PointFlux(", field.flux, ", ", field.point, "; gauge=:", GaugeT, ")")
+Base.show(io::IO, ::MIME"text/plain", field::PointFlux{GaugeT}) where GaugeT =
+    print(io, "Point flux field through point $(field.point), $(GaugeT) gauge; Φ = $(field.flux) flux quanta")

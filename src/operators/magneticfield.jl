@@ -101,13 +101,12 @@ struct FieldSum{FT<:Tuple} <: AbstractField
 end
 vector_potential(f::FieldSum, p1) = sum(SVector(vector_potential(field, p1)) for field in f.fields)
 line_integral(f::FieldSum, p1, p2) = sum(line_integral(field, p1, p2) for field in f.fields)
-function Base.show(io::IO, m::MIME"text/plain", f::FieldSum)
-    print(io, "Sum of ", fmtnum(length(f.fields), "gauge field term"))
+function Base.show(io::IO, f::FieldSum)
     i = 1
     for field in f.fields
-        print(io, "\n#$i: ")
-        show(io, m, field)
+        show(io, field)
         i += 1
+        i <= length(f.fields) && print(io, " + ")
     end
 end
 

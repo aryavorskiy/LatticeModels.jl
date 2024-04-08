@@ -201,10 +201,28 @@ Here are all types of gauge fields supported by this package:
 - [`GaugeField(f; n)`](@ref GaugeField) — a general magnetic field. The `f` is a function that takes a coordinate vector and returns the vector potential ``\mathcal{A}`` at this point. The line integrals are calculated using the `n`-point trapezoidal rule. Note that the `n` must be set explicitly.
 - [`LineIntegralGaugeField(f)`](@ref LineIntegralGaugeField) — a general magnetic field. The `f` is a function that takes two coordinate vectors and returns the ``\int_{\vec{r}_1}^{\vec{r}_2} \mathcal{A} \cdot d\vec{r}`` line integral of the vector potential between these points.
 
+Different types of fields can be added together:
+
+```jldoctest
+juila> using LatticeModels
+
+julia> f1 = LandauGauge(0.1)
+Landau gauge uniform field; B = 0.1 flux quanta per 1×1 area
+
+julia> f2 = SymmetricGauge(0.2)
+Symmetric gauge uniform field; B = 0.2 flux quanta per 1×1 area
+
+julia> f3 = PointFlux(0.3, (0.5, 0.5))
+Point flux field through point (0.5, 0.5), axial gauge; Φ = 0.3 flux quanta
+
+julia> f1 + f2 + f3
+LandauGauge(0.1) + SymmetricGauge(0.2) + PointFlux(0.3, (0.5, 0.5); gauge=:axial)
+```
+
 You can pass these objects using the `field` keyword argument to the `tightbinding_hamiltonian`, `construct_hamiltonian`, and `OperatorBuilder` functions to add the gauge field to the Hamiltonian:
 
 ```@example 4
-builder = OperatorBuilder(l, auto_hermitian = true, field = LandauGauge(0.1))
+builder = OperatorBuilder(l, auto_hermitian = true, field = LandauGauge(0.1) + PointFlux(0.3, (0.5, 0.5)))
 for site in l
     site_x = site + Bravais[1, 0]
     site_y = site + Bravais[0, 1]
@@ -212,7 +230,7 @@ for site in l
     builder[site, site_y] = 1
 end
 H2 = Hamiltonian(builder)
-H == H2
+H2 == tightbinding_hamiltonian(l, field=LandauGauge(0.1) + PointFlux(0.3, (0.5, 0.5)))
 ```
 
 To find out more about operators, diagonalization and observables, proceed to the next section.
