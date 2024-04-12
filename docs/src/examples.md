@@ -157,7 +157,7 @@ Local density can be a bit ambiguous for degenerate eigenstates. That's where th
 The formula for the LDOS is the following:
 
 ```math
-\text{LDOS}_\alpha(E) = \text{Im} G_{\alpha\alpha}(E - i\delta)
+\text{LDOS}_\alpha(E) = \frac{1}{\pi} \text{Im} G_{\alpha\alpha}(E - i\delta)
 ```
 
 where ``G`` is the Green's function and ``\delta`` is the broadening.

@@ -208,7 +208,7 @@ import LatticeModels: Sample
         δ = 0.2
         Es = eig.values
         Vs = eig.states
-        ld1 = imag.(diag_reduce(tr, Operator(basis(eig), Vs * (@.(1 / (Es - E - im * δ)) .* Vs'))))
+        ld1 = imag.(diag_reduce(tr, Operator(basis(eig), Vs * (@.(1 / pi / (Es - E - im * δ)) .* Vs'))))
         ld2 = ldos(G, E, broaden=δ)
         @test ld2 ≈ ld1
         @test dos(eig, E, broaden=δ) ≈ sum(ld1)

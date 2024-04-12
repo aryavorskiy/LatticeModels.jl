@@ -262,6 +262,11 @@ end
 function greenfunction(psi0::Ket, hamp::Hamiltonian, hamm::Hamiltonian; kw...)
     greenfunction(lattice(psi0), psi0, hamp, hamm; kw...)
 end
+function greenfunction(ham::Hamiltonian, hamp::Hamiltonian, hamm::Hamiltonian; kw...)
+    E, psi = findgroundstate(ham)
+    greenfunction(psi, hamp, hamm; E0 = E, kw...)
+end
+
 
 """
     dos(eig[, E; broaden])
@@ -278,9 +283,9 @@ If `E` is not specified, a function that calculates the DOS at a given energy is
 ## Keyword arguments
 - `broaden` is the broadening factor for the energy levels, default is `0.1`.
 """
-dos(eig::AbstractEigensystem, E; broaden=0.1) = imag(sum(1 ./ (eig.values .- (E + im * broaden))))
+dos(eig::AbstractEigensystem, E; broaden=0.1) = imag(sum(1 ./ (eig.values .- (E + im * broaden)))) / pi
 dos(gf::GreenFunction, E; broaden=0.1) = imag(sum(1 ./ (gf.energies_up .- (E + im * broaden))) -
-    sum(1 ./ (gf.energies_down .+ (E + im * broaden))))
+    sum(1 ./ (gf.energies_down .+ (E + im * broaden)))) / pi
 dos(any; kw...) = E -> dos(any, E; kw...)
 
 """
@@ -292,6 +297,7 @@ Calculates the LDOS (local density of states) for a given Green's function at en
 function ldos(gf::GreenFunction, E::Real; broaden=0.1)
     le = length(lattice(gf))
     N = internal_length(gf)
-    vals = [sum(imag(gf[α, α](E - im * broaden)) for α in (a - 1) * N + 1:a * N) for a in 1:le]
+    vals = [sum(imag(gf[α, α](E - im * broaden)) for α in (a - 1) * N + 1:a * N) / pi
+        for a in 1:le]
     return LatticeValue(lattice(gf), vals)
 end
