@@ -1,9 +1,16 @@
-function hubbard(T::Type, sys::NParticles; U::Real=0, kw...)
+"""
+    hubbard([type, ]sys[; U, T, t1, t2, t3, field])
+
+Generates a Hubbard model hamiltonian on given manybody system `sys`.
+
+See [`fermihubbard`](@ref), [`bosehubbard`](@ref) for more specific models.
+"""
+function hubbard(T::Type, sys::NParticles, args...; U::Real=0, kw...)
     if sys.statistics == FermiDirac && !hasinternal(sys)
         @warn """Fermi-Dirac statistics with no internal degrees of freedom.
         No interaction is possible."""
     end
-    return tightbinding_hamiltonian(T, sys; kw...) +
+    return tightbinding_hamiltonian(T, sys, args...; kw...) +
         interaction((site1, site2) -> (site1 == site2 ? U : zero(U)), T, sys)
 end
 """
@@ -32,7 +39,7 @@ bosehubbard(type::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
 
 ``\\hat{H} =
 \\sum_{i,j}^\\text{sites} t_{ij} c^\\dagger_i c_j +
-\\sum_i^\\text{sites} \\frac{U} \\hat{n}_i^{\\uparrow} \\hat{n}_i^{\\downarrow}``
+\\sum_i^\\text{sites} U \\hat{n}_i^{\\uparrow} \\hat{n}_i^{\\downarrow}``
 
 Generates a Fermi-Hubbard model hamiltonian on given lattice `lat`.
 
