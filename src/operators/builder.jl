@@ -240,7 +240,7 @@ end
 function _construct_manybody_maybe(sys::ManyBodySystem, op::AbstractOperator)
     bas = basis(op)
     check_samebases(bas, onebodybasis(sys))
-    return manybodyoperator(ManyBodyBasis(bas, occupations(sys)), op)
+    return mymanybodyoperator(ManyBodyBasis(bas, occupations(sys)), op)
 end
 _construct_manybody_maybe(::OneParticleBasisSystem, op::AbstractOperator) = op
 function QuantumOpticsBase.Operator(opb::OperatorBuilder; warning=true)

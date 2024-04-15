@@ -124,14 +124,13 @@ import LatticeModels: Sample
         IS1 = interaction(sys2) do site1, site2
             site1 == site2 ? 1.0 : 0.0
         end
-        IS2 = interaction(sys2, 2, affect_internal = false) do (site1, site2), (site3, site4)
-            site1 == site2 == site3 == site4 ? 1.0 : 0.0
-        end
-        IS3 = interaction(sys2, 2) do (site1, site2), is1, (site3, site4), is2
-            (site1 == site2 == site3 == site4 && is1 == is2) ? 1.0 : 0.0
+        IS2 = interaction(sys2, 2) do (site1, site2), is1, (site3, site4), is2
+            (site1 == site2 == site3 == site4) || return 0
+            is1 == is2 && return -1
+            is1 == reverse(is2) && return 1
+            return 0
         end
         @test IS1 == IS2
-        @test IS2 == IS3
 
         @test bosehubbard(l, 2, U = 10) ≈
             bosehubbard(l, 2, t1=0.1, U = 0) + bosehubbard(l, 2, t1=0.9, U = 10)

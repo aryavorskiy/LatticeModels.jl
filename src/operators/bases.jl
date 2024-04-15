@@ -1,6 +1,6 @@
 using SparseArrays
-import QuantumOpticsBase
-import QuantumOpticsBase: basis
+import QuantumOpticsBase: QuantumOpticsBase, basis
+include("manybody_bases.jl")
 
 """
     LatticeBasis <: QuantumOpticsBase.Basis

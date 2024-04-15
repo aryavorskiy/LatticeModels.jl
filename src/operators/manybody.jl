@@ -1,4 +1,5 @@
 import QuantumOpticsBase: Basis, SparseOperator
+# import QuantumOpticsBase: allocate_buffer, state_index, state_transition!
 
 """
     interaction(f, [T, ]sys)
@@ -57,7 +58,7 @@ function interaction(f::Function, T::Type{<:Number}, sys::NParticles, ::Val{K}; 
     vs = T[]
 
     bas = basis(sys)
-    buffer = QuantumOpticsBase.allocate_buffer(bas.occupations)
+    buffer = allocate_buffer(bas)
     for a_inds_c in c_indices
         a_inds = Tuple(a_inds_c)
         issorted(a_inds) || continue
@@ -65,17 +66,16 @@ function interaction(f::Function, T::Type{<:Number}, sys::NParticles, ::Val{K}; 
             at_inds = Tuple(at_inds_c)
             issorted(at_inds) || continue
             for (m, occ) in enumerate(bas.occupations)
-                C = QuantumOpticsBase.state_transition!(buffer, occ, at_inds, a_inds)
+                C = state_transition!(buffer, occ, at_inds, a_inds)
                 C === nothing && continue
-                value = if hasinternal(sys) && affect_internal
-                    f(l_inds(a_inds), i_inds(a_inds), l_inds(at_inds), i_inds(at_inds))::Number
-                elseif hasinternal(sys)
-                    (i_inds(a_inds) == i_inds(at_inds)) * f(l_inds(a_inds), l_inds(at_inds))::Number
+                value = if hasinternal(sys)
+                    f(l_inds(at_inds), i_inds(at_inds), l_inds(a_inds), i_inds(a_inds))::Number
                 else
-                    f(l_inds(a_inds), l_inds(at_inds))::Number
+                    f(l_inds(at_inds), l_inds(a_inds))::Number
                 end
                 value == 0 && continue
-                n = QuantumOpticsBase.state_index(bas.occupations, buffer)
+                @show C, a_inds, at_inds
+                n = state_index(bas.occupations, buffer)
                 push!(is, m)
                 push!(js, n)
                 push!(vs, C * value)
