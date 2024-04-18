@@ -18,18 +18,11 @@ struct LatticeBasis{LT} <: QuantumOpticsBase.Basis
 end
 Base.:(==)(lb1::LatticeBasis, lb2::LatticeBasis) = lb1.lat == lb2.lat
 
-function Base.show(io::IO, ::MIME"text/plain", bas::LatticeBasis)
+function Base.show(io::IO, bas::LatticeBasis)
     print(io, "LatticeBasis(")
     summary(io, bas.lat)
     print(io, ")")
 end
-
-QuantumOpticsBase.basisstate(T::Type, b::LatticeBasis, site::AbstractSite) =
-    basisstate(T, b, site_index(b.lat, site))
-QuantumOpticsBase.basisstate(T::Type, l::AbstractLattice, site::AbstractSite) =
-    basisstate(T, LatticeBasis(l), site)
-QuantumOpticsBase.basisstate(l::AbstractLattice, site::AbstractSite) =
-    basisstate(ComplexF64, l, site)
 
 const CompositeLatticeBasis{S, BT, LT} = CompositeBasis{S, Tuple{BT, LatticeBasis{LT}}}
 const OneParticleBasis = Union{LatticeBasis, CompositeLatticeBasis}
