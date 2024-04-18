@@ -71,15 +71,20 @@ QuantumOpticsBase.basisstate(T::Type, b::LatticeBasis, ind::SampleIndex) =
     basisstate(T, b, to_index(b, ind))
 QuantumOpticsBase.basisstate(T::Type, op::OneParticleBasisSystem, ind::SampleIndex) =
     basisstate(T, basis(op), ind)
+@accepts_system_t QuantumOpticsBase.basisstate
 
-function QuantumOpticsBase.transition(sys::System, site1::AbstractSite, site2::AbstractSite)
-    builder = FastOperatorBuilder(sys)
-    builder[site1, site2] = internal_one(sys)
+function QuantumOpticsBase.transition(b::OneParticleBasis, site1::AbstractSite, site2::AbstractSite)
+    builder = FastOperatorBuilder(OneParticleSystem(sample(b)))
+    builder[site1, site2] += internal_one(b)
     return Operator(builder)
 end
-function QuantumOpticsBase.transition(b::Basis, ind1::SampleIndex, ind2::SampleIndex)
-    return transition(b, to_index(b, ind1), to_index(b, ind2))
+function QuantumOpticsBase.transition(b::OneParticleBasis, ind1::SampleIndex, ind2::SampleIndex)
+    mat = spzeros(ComplexF64, length(b), length(b))
+    mat[to_index(b, ind1), to_index(b, ind2)] = 1
+    return Operator(b, mat)
 end
+QuantumOpticsBase.transition(mb::ManyBodyBasis, ind1::SampleIndex, ind2::SampleIndex) =
+    transition(mb, to_index(mb, ind1), to_index(mb, ind2))
 function QuantumOpticsBase.transition(sys::System, ind1::SampleIndex, ind2::SampleIndex)
     return transition(basis(sys), ind1, ind2)
 end
@@ -89,10 +94,10 @@ QuantumOpticsBase.number(b::Basis, ind1::SampleIndex) = QuantumOpticsBase.transi
 QuantumOpticsBase.number(sys::System, ind1::SampleIndex) = QuantumOpticsBase.transition(sys, ind1, ind1)
 @accepts_system QuantumOpticsBase.number
 
-QuantumOpticsBase.create(b::Basis, ind1::SampleIndex) = create(b, to_index(b, ind1))
+QuantumOpticsBase.create(b::ManyBodyBasis, ind1::SampleIndex) = create(b, to_index(b, ind1))
 QuantumOpticsBase.create(sys::System, ind1::SampleIndex) = create(basis(sys), ind1)
 @accepts_system QuantumOpticsBase.create
 
-QuantumOpticsBase.destroy(b::Basis, ind1::SampleIndex) = destroy(b, to_index(b, ind1))
+QuantumOpticsBase.destroy(b::ManyBodyBasis, ind1::SampleIndex) = destroy(b, to_index(b, ind1))
 QuantumOpticsBase.destroy(sys::System, ind1::SampleIndex) = destroy(basis(sys), ind1)
 @accepts_system QuantumOpticsBase.destroy

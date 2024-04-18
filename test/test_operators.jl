@@ -1,4 +1,6 @@
-import LatticeModels: Sample
+import LatticeModels: Sample, LatticeBasis
+# import QuantumOpticsBase: ManyBodyBasis
+import LatticeModels: ManyBodyBasis
 
 @testset "Operators" begin
     @testset "Basics" begin
@@ -85,7 +87,6 @@ import LatticeModels: Sample
         onedi25 = diagonaloperator(l .== Ref(site2))
         @test 3 * one(spin) ⊗ onedi25 == construct_operator(l, spin, onedi25, site2, [1 0; 0 1] => site2)
         @test one(spin) ⊗ one(LatticeBasis(l)) == construct_operator(l, spin, [1 0; 0 1])
-        @test transition(l, site1, site2) == construct_operator(l, site1 => site2)
         @test_throws ArgumentError construct_operator(l, spin, one(spin) ⊗ one(spin))
     end
 
@@ -105,6 +106,23 @@ import LatticeModels: Sample
         Xs2 = diagonaloperator(l ⊗ spin, LatticeModels.Coord(1))
         @test Xs == Xs1
         @test Xs == Xs2
+
+        site1, site2 = l[10], l[25]
+        tr_op = transition(l, site1, site2)
+        tr_op2 = transition(NLevelBasis(length(l)), 10, 25)
+        @test tr_op.data == tr_op2.data
+        @test transition(l, site1, site2) + transition(l, site2, site1) ==
+            construct_operator(l, site1 => site2)
+        @test transition(l ⊗ spin, site1, site2) == one(spin) ⊗ transition(l, site1, site2)
+        @test transition(l, spin, (site1, 1), (site2, 2)) ==
+            sparse(Operator(spin, [0 1; 0 0])) ⊗ transition(l, site1, site2)
+
+        @test number(l, spin, site1) == number(l, spin, (site1, 1)) + number(l, spin, (site1, 2))
+
+        sys = NParticles(l, 2, statistics=FermiDirac)
+        mbb = ManyBodyBasis(LatticeBasis(l), fermionstates(100, 2))
+        @test create(sys, site1) == create(mbb, 10)
+        @test destroy(sys, site2) == destroy(mbb, 25)
     end
 
     @testset "Interaction" begin

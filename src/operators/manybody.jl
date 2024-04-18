@@ -74,7 +74,6 @@ function interaction(f::Function, T::Type{<:Number}, sys::NParticles, ::Val{K}; 
                     f(l_inds(at_inds), l_inds(a_inds))::Number
                 end
                 value == 0 && continue
-                @show C, a_inds, at_inds
                 n = state_index(bas.occupations, buffer)
                 push!(is, m)
                 push!(js, n)
