@@ -56,23 +56,26 @@ hasinternal(::SampleWithInternal) = true
 hasinternal(::SampleWithoutInternal) = false
 hasinternal(any) = hasinternal(sample(any))
 
+@enum ParticleStatistics begin
+    FermiDirac = 1
+    BoseEinstein = -1
+end
+
 abstract type System{SampleT} end
 abstract type OneParticleBasisSystem{SampleT} <: System{SampleT} end
 sample(sys::System) = sys.sample
 struct OneParticleSystem{SampleT} <: OneParticleBasisSystem{SampleT}
     sample::SampleT
     T::Float64
-    OneParticleSystem(sample::SampleT, T::Real=0) where SampleT = new{SampleT}(sample, Float64(T))
+    statistics::ParticleStatistics
+    OneParticleSystem(sample::SampleT, T::Real=0, statistics=FermiDirac) where SampleT =
+        new{SampleT}(sample, Float64(T), statistics)
 end
-OneParticleSystem(l::AbstractLattice, b::Nullable{Basis}=nothing; T=0) = OneParticleSystem(Sample(l, b), T)
+OneParticleSystem(l::AbstractLattice, b::Nullable{Basis}=nothing; T=0, statistics=FermiDirac) =
+    OneParticleSystem(Sample(l, b), T, statistics)
 
 QuantumOpticsBase.tensor(l::AbstractLattice, b::Basis) = OneParticleSystem(l, b)
 QuantumOpticsBase.tensor(b::Basis, l::AbstractLattice) = OneParticleSystem(l, b)
-
-@enum ParticleStatistics begin
-    FermiDirac = 1
-    BoseEinstein = -1
-end
 
 struct FixedMu{SampleT} <: OneParticleBasisSystem{SampleT}
     sample::SampleT

@@ -7,11 +7,13 @@ This chapter is dedicated to the (time-ordered) Green's function formalism. It i
 In the scope of this package, the (time-ordered) Green's function is defined by this formula:
 
 ```math
-G_{\alpha\beta}(\omega) = \langle 0 | \hat{a}_{\alpha} \frac{1}{\omega - (\hat{H} - E_0)} \hat{a}_{\beta}^{\dagger} | 0 \rangle - 
-\langle 0 | \hat{a}_{\alpha}^{\dagger} \frac{1}{\omega + (\hat{H} - E_0)} \hat{a}_{\beta} | 0 \rangle
+G_{\alpha\beta}(\omega) = \langle 0 | \hat{a}_{\alpha} \frac{1}{\omega - (\hat{H} - E_0)} \hat{a}_{\beta}^{\dagger} | 0 \rangle + q 
+\langle 0 | \hat{a}_{\alpha}^{\dagger} \frac{1}{\omega + (\hat{H} - E_0)} \hat{a}_{\beta} | 0 \rangle, 
+\hspace{1cm} 
+q = \begin{cases} 1 & \text{for fermions} \\ -1 & \text{for bosons} \end{cases}
 ```
 
-where ``H`` is the Hamiltonian of the system, ``| 0 \rangle`` is the ground state of the system (which is the vacuum for non-interacting systems), ``E_0`` is its energy and ``\hat{a}_{\alpha}`` and ``\hat{a}_{\beta}`` are the annihilation operators of the basis states. The Green's function is a matrix-valued function of the frequency ``\omega``. Note that this is the formula for bosons — fermions are not supported yet.
+where ``H`` is the Hamiltonian of the system, ``| 0 \rangle`` is the ground state of the system (which is the vacuum for non-interacting systems), ``E_0`` is its energy and ``\hat{a}_{\alpha}`` and ``\hat{a}_{\beta}`` are the annihilation operators of the basis states. The Green's function is a matrix-valued function of the frequency ``\omega``.
 
 This is how we can calculate the Green's function in the package:
 
@@ -116,7 +118,7 @@ dos(G, 0.1, broaden=0.1)
 dos(G, 0.1, broaden=0.1) == df(0.1)
 ```
 
-You can also calculate the local density of states (LDOS) for a specific frequency. Here is how you do it:
+You can also calculate the local density of states (LDOS) using the [`ldos`](@ref) function. Here is how you do it:
 
 ```@example 2
 ld = ldos(G, 0.1, broaden=0.1)

@@ -218,8 +218,10 @@ import LatticeModels: ManyBodyBasis
         val = point(E)
         @test slice(E)[1, 2] == val
         @test G[1, 4](E) == val
+        @test G[(site1, 1), (site2, 2)](E) == val
         @test G2[1, 4](E) == val
         @test G(E)[1, 4] == val
+        @test G(E)[(site1, 1), (site2, 2)] == val
         @test G(E)[site1, site2] == slice(E)
         @test G2(E)[site1, site2] == slice(E)
         δ = 0.2

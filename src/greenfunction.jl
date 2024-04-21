@@ -5,26 +5,32 @@ struct GreenFunctionElement{VecC, VecE}
     weights_down_l::VecC
     weights_down_r::VecC
     energies_down::VecE
+    statistics::ParticleStatistics
     function GreenFunctionElement(weights_up_l::VecC, weights_up_r::VecC, energies_up::VecE,
-        weights_down_l::VecC, weights_down_r::VecC, energies_down::VecE) where {VecC, VecE}
+        weights_down_l::VecC, weights_down_r::VecC, energies_down::VecE, statistics) where {VecC, VecE}
         @check_size weights_up_l length(energies_up)
         @check_size weights_up_r length(energies_up)
         @check_size weights_down_l length(energies_down)
         @check_size weights_down_r length(energies_down)
-        new{VecC, VecE}(weights_up_l, weights_up_r, energies_up, weights_down_l, weights_down_r, energies_down)
+        new{VecC, VecE}(weights_up_l, weights_up_r, energies_up, weights_down_l, weights_down_r, energies_down, statistics)
     end
 end
 function (gf::GreenFunctionElement)(ω::Number)
     sum_up = sum(Base.broadcasted((wl, wr, e) -> wl' * wr / (ω - e),
         gf.weights_up_l, gf.weights_up_r, gf.energies_up), init=zero(ComplexF64))
-    sum_down = -sum(Base.broadcasted((wl, wr, e) -> wl' * wr / (ω + e),
+    sum_down = sum(Base.broadcasted((wl, wr, e) -> wl' * wr / (ω + e),
         gf.weights_down_l, gf.weights_down_r, gf.energies_down), init=zero(ComplexF64))
-    return sum_up + sum_down
+    return sum_up + sum_down * Int(gf.statistics)
 end
 
 function Base.show(io::IO, ::MIME"text/plain", gf::GreenFunctionElement)
     print(io, "Green's function element (", length(gf.energies_up), " â†, ",
-        length(gf.energies_down), " â bands)")
+        length(gf.energies_down), " â bands")
+    if length(gf.energies_down) > 0
+        print(io, ", ", gf.statistics, " statistics)")
+    else    # one particle -> no statistics
+        print(io, ")")
+    end
 end
 
 """
@@ -40,8 +46,9 @@ struct GreenFunction{ST, VecC, VecE}
     weights_down_l::Vector{VecC}
     weights_down_r::Vector{VecC}
     energies_down::VecE
+    statistics::ParticleStatistics
     function GreenFunction(sample::ST, mvps_l::Vector{VecT}, mvps_r::Vector{VecT}, eps::VecE,
-        mvms_l=nothing, mvms_r=nothing, ems=nothing; E₀=0, E0=E₀) where
+        mvms_l=nothing, mvms_r=nothing, ems=nothing; E₀=0, E0=E₀, statistics) where
             {ST<:Sample, VecT<:AbstractVector, VecE<:AbstractVector}
         p = length(sample)
         @check_size mvps_l p
@@ -54,16 +61,16 @@ struct GreenFunction{ST, VecC, VecE}
             @check_size mvms_l p
             @check_size mvms_r p
         end
-        new{ST, VecT, VecE}(sample, mvps_l, mvps_r, eps .- E0, mvms_l, mvms_r, ems .- E0)
+        new{ST, VecT, VecE}(sample, mvps_l, mvps_r, eps .- E0, mvms_l, mvms_r, ems .- E0, statistics)
     end
     function GreenFunction(mvps_l::Vector{VecT}, mvps_r::Vector{VecT}, eps::VecE,
-        mvms_l::Vector{VecT}, mvms_r::Vector{VecT}, ems::VecE) where
+        mvms_l::Vector{VecT}, mvms_r::Vector{VecT}, ems::VecE; statistics) where
         {VecT<:AbstractVector, VecE<:AbstractVector}
         p = length(mvps_l)
         @check_size mvps_r p
         @check_size mvms_l p
         @check_size mvms_r p
-        new{Nothing, VecT, VecE}(nothing, mvps_l, mvps_r, eps, mvms_l, mvms_r, ems)
+        new{Nothing, VecT, VecE}(nothing, mvps_l, mvps_r, eps, mvms_l, mvms_r, ems, statistics)
     end
 end
 sample(gf::GreenFunction) = gf.sample
@@ -71,23 +78,22 @@ sample(::GreenFunction{Nothing}) = throw(ArgumentError("GreenFunction has no lat
 
 function Base.getindex(gf::GreenFunction, α::Int, β::Int)
     return GreenFunctionElement(gf.weights_up_l[α], gf.weights_up_r[β], gf.energies_up,
-        gf.weights_down_l[α], gf.weights_down_r[β], gf.energies_down)
+        gf.weights_down_l[α], gf.weights_down_r[β], gf.energies_down, gf.statistics)
 end
-function Base.getindex(gf::GreenFunction, site1::AbstractSite, site2::AbstractSite)
+Base.getindex(gf::GreenFunction, ind1::SampleIndex, ind2::SampleIndex) =
+    gf[to_index(gf, ind1), to_index(gf, ind2)]
+function Base.getindex(gf::GreenFunction{<:SampleWithInternal},
+        site1::AbstractSite, site2::AbstractSite)
     l = lattice(gf)
     i1 = site_index(l, site1)
     i1 === nothing && throw(ArgumentError("site1 is not in the lattice"))
     i2 = site_index(l, site2)
     i2 === nothing && throw(ArgumentError("site2 is not in the lattice"))
-    if hasinternal(gf)
-        N = internal_length(gf)
-        is1 = (i1 - 1) * N + 1:i1 * N
-        is2 = (i2 - 1) * N + 1:i2 * N
-        return GreenFunction(gf.weights_up_l[is1], gf.weights_up_r[is2], gf.energies_up,
-            gf.weights_down_l[is1], gf.weights_down_r[is2], gf.energies_down)
-    else
-        return gf[i1, i2]
-    end
+    N = internal_length(gf)
+    is1 = (i1 - 1) * N + 1:i1 * N
+    is2 = (i2 - 1) * N + 1:i2 * N
+    return GreenFunction(gf.weights_up_l[is1], gf.weights_up_r[is2], gf.energies_up,
+        gf.weights_down_l[is1], gf.weights_down_r[is2], gf.energies_down, statistics=gf.statistics)
 end
 inflate_inds(is, N) = N == 1 ? is : [(i - 1) * N + j for i in is for j in 1:N]
 function Base.getindex(gf::GreenFunction, any)
@@ -97,7 +103,8 @@ function Base.getindex(gf::GreenFunction, any)
     N = internal_length(gf)
     inflated_inds = inflate_inds(inds, N)
     return GreenFunction(new_sample, gf.weights_up_l[inflated_inds], gf.weights_up_r[inflated_inds],
-        gf.energies_up, gf.weights_down_l[inflated_inds], gf.weights_down_r[inflated_inds], gf.energies_down)
+        gf.energies_up, gf.weights_down_l[inflated_inds], gf.weights_down_r[inflated_inds],
+        gf.energies_down, statistics=gf.statistics)
 end
 function (gf::GreenFunction)(ω::Number)
     le = length(sample(gf))
@@ -124,18 +131,17 @@ struct GreenFunctionEval{ST, MT}
 end
 sample(gf::GreenFunctionEval) = gf.sample
 Base.getindex(gf::GreenFunctionEval, α::Int, β::Int) = gf.values[α, β]
-function Base.getindex(gf::GreenFunctionEval, site1::AbstractSite, site2::AbstractSite)
+Base.getindex(gf::GreenFunctionEval, ind1::SampleIndex, ind2::SampleIndex) =
+    gf[to_index(gf, ind1), to_index(gf, ind2)]
+function Base.getindex(gf::GreenFunctionEval{<:SampleWithInternal},
+        site1::AbstractSite, site2::AbstractSite)
     l = lattice(gf)
     i1 = site_index(l, site1)
     i1 === nothing && throw(ArgumentError("site1 is not in the lattice"))
     i2 = site_index(l, site2)
     i2 === nothing && throw(ArgumentError("site2 is not in the lattice"))
     N = internal_length(gf)
-    if hasinternal(gf)
-        return gf.values[(i1-1)*N+1:i1*N, (i2-1)*N+1:i2*N]
-    else
-        return gf.values[i1, i2]
-    end
+    return gf.values[(i1-1)*N+1:i1*N, (i2-1)*N+1:i2*N]
 end
 QuantumOpticsBase.Operator(gf::GreenFunctionEval) = Operator(basis(sample(gf)), gf.values)
 
@@ -167,7 +173,7 @@ function greenfunction(l, hameig::HamiltonianEigensystem{<:OneParticleBasisSyste
     basis(hameig) isa OneParticleBasis ||
         throw(ArgumentError("HamiltonianEigensystem must be on a one-particle basis"))
     vecs = [hameig.states[α, :] for α in inflated_inds]
-    GreenFunction(sample(hameig.sys)[inds], vecs, vecs, hameig.values; E0=E0)
+    GreenFunction(sample(hameig.sys)[inds], vecs, vecs, hameig.values; E0=E0, statistics=hameig.sys.statistics)
 end
 function greenfunction(hameig::HamiltonianEigensystem{<:OneParticleBasisSystem}; E₀=0, E0=E₀)
     greenfunction(lattice(hameig), hameig; E0=E0)
@@ -257,7 +263,8 @@ function greenfunction(l, psi0::Ket, hamp::Hamiltonian, hamm::Hamiltonian;
     _weights(states, psis) = [states' * psis[α] for α in 1:length(psis)]
     return GreenFunction(sample(hamp.sys)[inds],
         _weights(ep.states, psips), _weights(ep.states, psips), ep.values,
-        _weights(em.states, psims), _weights(em.states, psims), em.values; E0=E0)
+        _weights(em.states, psims), _weights(em.states, psims), em.values;
+        E0=E0, statistics=hamp.sys.statistics)
 end
 function greenfunction(psi0::Ket, hamp::Hamiltonian, hamm::Hamiltonian; kw...)
     greenfunction(lattice(psi0), psi0, hamp, hamm; kw...)
