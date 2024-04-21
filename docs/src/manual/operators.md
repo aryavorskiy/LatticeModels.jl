@@ -4,9 +4,15 @@ In the previous chapter we have seen how to define a Hamiltonian for a lattice m
 
 ## Builtins
 
-There are some basic building blocks that can be used to create states and operators. These are the `basisstate`, `diagonaloperator` and `transition` functions, taken from [QuantumOptics.jl](https://docs.qojulia.org/quantumobjects/operators/) package, but extended to work with lattices.
+There are some basic building blocks that can be used to create states and operators. These functions are taken from [QuantumOptics.jl](https://docs.qojulia.org/quantumobjects/operators/) package, but extended to work with lattices:
+- `basisstate` creates a state vector in the basis of a lattice.
+- `diagonaloperator` creates a diagonal operator in the basis of a lattice.
+- `transition` creates a transition operator between two states in the basis of a lattice.
+- `number`, `destroy`, and `create` are the number, annihilation, and creation operators in the basis of a lattice.
 
-The `basisstate` function creates a state vector with a in the basis of a lattice. Normally it takes a `QuantumOptics.Basis` and an index as arguments, and returns a `Ket` object. However, you can use a lattice and a site as arguments to create a state vector in the basis of the lattice:
+Remember the general rule of thumb for working with lattices: **You can provide a lattice (and optionally the internal basis) instead of a `QuantumOptics.Basis`, and a site (or a `(site, internal_index)` tuple) instead of an integer index**.
+
+For example, the `basisstate` function creates a state vector in the basis of a lattice. Normally it takes a `QuantumOptics.Basis` and an index as arguments, and returns a `Ket` object. However, you can use a lattice and a site as arguments to create a state vector in the basis of the lattice:
 
 ```@repl 0
 using LatticeModels
@@ -18,11 +24,13 @@ psi2 = basisstate(l, site);     # The LatticeModels.jl way
 psi1 == psi2
 ```
 
-If you work in a composite system (e. g. a lattice with a spin degree of freedom), you can construct the state as tensor product of the states for each subsystem:
+If you work in a composite system (e. g. a lattice with a spin degree of freedom), you can either use composite indexing or construct the state as tensor product of the states for each subsystem:
 
 ```@repl 0
 spin = SpinBasis(1//2)
-psi_composite = basisstate(spin, 1) ⊗ basisstate(l, site)   # Note the order!
+psi1_composite = basisstate(l, spin, (site, 1));
+psi2_composite = basisstate(spin, 1) ⊗ basisstate(l, site); # Note the order!
+psi1_composite == psi2_composite
 ```
 
 !!! note

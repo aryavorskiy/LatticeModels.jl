@@ -53,15 +53,6 @@ state_index(occupations::AbstractVector{T}, occ::T) where {T} = findfirst(==(occ
 state_index(occupations::AbstractVector{T}, occ::Base.RefValue{T}) where {T} = state_index(occupations, occ[])
 state_index(occupations::AbstractVector{T}, occ::Any) where {T} = state_index(occupations, convert(T, occ))
 
-"""
-    ManyBodyBasis(b, occupations)
-
-Basis for a many body system.
-
-The basis has to know the associated one-body basis `b` and which occupation states
-should be included. The occupations_hash is used to speed up checking if two
-many-body bases are equal.
-"""
 struct ManyBodyBasis{B,O,UT} <: Basis
     shape::Int
     onebodybasis::B
@@ -78,15 +69,6 @@ ManyBodyBasis(onebodybasis::B, occupations::Vector{T}) where {B,T} = ManyBodyBas
 allocate_buffer(occ) = similar(occ)
 allocate_buffer(mb::ManyBodyBasis) = allocate_buffer(first(mb.occupations))
 
-"""
-    fermionstates([T, ]Nmodes, Nparticles)
-    fermionstates([T, ]b, Nparticles)
-
-Generate all fermionic occupation states for N-particles in M-modes.
-`Nparticles` can be a vector to define a Hilbert space with variable
-particle number. `T` is the type of the occupation states - default is `Vector{Int}`,
-but can also be `FermionBitstring`.
-"""
 function fermionstates(T::Type, Nmodes::Int, Nparticles::Int)
     occ_buffer = zero(similar(T, Nmodes))
     OT = typeof(occ_buffer)
@@ -96,14 +78,6 @@ fermionstates(T::Type, Nmodes::Int, Nparticles::Vector{Int}) = union((fermionsta
 fermionstates(T::Type, onebodybasis::Basis, Nparticles) = fermionstates(T, length(onebodybasis), Nparticles)
 fermionstates(arg1, arg2) = fermionstates(OccupationNumbers{FermionStatistics,Int}, arg1, arg2)
 
-"""
-    bosonstates(Nmodes, Nparticles)
-    bosonstates(b, Nparticles)
-
-Generate all bosonic occupation states for N-particles in M-modes.
-`Nparticles` can be a vector to define a Hilbert space with variable
-particle number.
-"""
 bosonstates(Nmodes::Int, Nparticles::Int) = SortedVector(
     _distribute_bosons(Nparticles, Nmodes, 1,
     OccupationNumbers(BosonStatistics(), zeros(Int, Nmodes)),
@@ -114,12 +88,6 @@ bosonstates(onebodybasis::Basis, Nparticles) = bosonstates(length(onebodybasis),
 
 Base.:(==)(b1::ManyBodyBasis, b2::ManyBodyBasis) = b1.occupations_hash == b2.occupations_hash && b1.onebodybasis == b2.onebodybasis
 
-"""
-    basisstate([T=ComplexF64,] mb::ManyBodyBasis, occupation::Vector)
-
-Return a ket state where the system is in the state specified by the given
-occupation numbers.
-"""
 function basisstate(::Type{T}, mb::ManyBodyBasis, occupation::Vector) where {T}
     index = state_index(mb.occupations, occupation)
     if isa(index, Nothing)
@@ -128,50 +96,22 @@ function basisstate(::Type{T}, mb::ManyBodyBasis, occupation::Vector) where {T}
     basisstate(T, mb, index)
 end
 
-"""
-    create([T=ComplexF64,] mb::ManyBodyBasis, index)
-
-Creation operator for the i-th mode of the many-body basis `b`.
-"""
 create(::Type{T}, mb::ManyBodyBasis, index) where {T} = transition(T, mb, index, ())
 create(mb::ManyBodyBasis, index) = create(ComplexF64, mb, index)
 
-"""
-    destroy([T=ComplexF64,] mb::ManyBodyBasis, index)
-
-Annihilation operator for the i-th mode of the many-body basis `b`.
-"""
 destroy(::Type{T}, mb::ManyBodyBasis, index) where {T} = transition(T, mb, (), index)
 destroy(mb::ManyBodyBasis, index) = destroy(ComplexF64, mb, index)
 
-"""
-    number([T=ComplexF64,] mb::ManyBodyBasis, index)
-
-Particle number operator for the i-th mode of the many-body basis `b`.
-"""
 function number(::Type{T}, mb::ManyBodyBasis, index) where {T}
     diagonaloperator(mb, T[occ[index] for occ in mb.occupations])
 end
 number(mb::ManyBodyBasis, index) = number(ComplexF64, mb, index)
 
-"""
-    number([T=ComplexF64,] mb::ManyBodyBasis)
-
-Total particle number operator.
-"""
 function number(::Type{T}, mb::ManyBodyBasis) where {T}
     diagonaloperator(mb, T[sum(occ) for occ in mb.occupations])
 end
 number(mb::ManyBodyBasis) = number(ComplexF64, mb)
 
-"""
-    transition([T=ComplexF64,] mb::ManyBodyBasis, to, from)
-
-Operator ``|\\mathrm{to}⟩⟨\\mathrm{from}|`` transferring particles between modes.
-
-Note that `to` and `from` can be collections of indices. The resulting operator in this case
-will be equal to ``\\ldots a^\\dagger_{to_2} a^\\dagger_{to_1} \\ldots a_{from_2} a_{from_1}``.
-"""
 function transition(::Type{T}, mb::ManyBodyBasis, to, from) where {T}
     Is = Int[]
     Js = Int[]
@@ -192,31 +132,6 @@ end
 transition(mb::ManyBodyBasis, to, from) = transition(ComplexF64, mb, to, from)
 
 # Calculate many-Body operator from one-body operator
-"""
-    manybodyoperator(mb::ManyBodyBasis, op)
-
-Create the many-body operator from the given one-body operator `op`.
-
-The given operator can either be a one-body operator or a
-two-body interaction. Higher order interactions are at the
-moment not implemented.
-
-The mathematical formalism for the one-body case is described by
-
-```math
-X = \\sum_{ij} a_i^† a_j ⟨u_i| x | u_j⟩
-```
-
-and for the interaction case by
-
-```math
-X = \\sum_{ijkl} a_i^† a_j^† a_k a_l ⟨u_i|⟨u_j| x |u_k⟩|u_l⟩
-```
-
-where ``X`` is the N-particle operator, ``x`` is the one-body operator and
-``|u⟩`` are the one-body states associated to the
-different modes of the N-particle basis.
-"""
 function mymanybodyoperator(mb::ManyBodyBasis, op)
     @assert op.basis_l == op.basis_r
     if op.basis_l == mb.onebodybasis
@@ -311,11 +226,6 @@ end
 
 
 # Calculate expectation value of one-body operator
-"""
-    onebodyexpect(op, state)
-
-Expectation value of the one-body operator `op` in respect to the many-body `state`.
-"""
 function onebodyexpect(op::AbstractOperator, state::Union{Ket,AbstractOperator})
     bas = basis(state)
     @assert bas isa ManyBodyBasis
@@ -427,15 +337,6 @@ Base.@propagate_inbounds function state_transition!(buffer, occ::OccupationNumbe
     return factor
 end
 
-"""
-    FermionBitstring{T}
-
-Bitstring representation of a fermionic occupation state.
-
----
-
-    FermionBitstring(bits, n)
-"""
 struct FermionBitstring{T}
     bits::T
     n::Int

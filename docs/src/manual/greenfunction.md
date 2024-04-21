@@ -48,8 +48,8 @@ true
 
 Note that the Green's function is evaluated by exactly diagonalizing the Hamiltonian. This is not the most efficient way to calculate it, but it is the easiest to implement. Use brackets `G[site1, site2]` to get the Green's function between two sites, and call it with a frequency to evaluate it. 
 
-Note the three main types that provide the Green's function functionality:
-- The `GreenFunction`, which is the main type for Green's functions. It stores the diagonalized Hamiltonian in an efficient way to optimize the Green's function calculation. Can be indexed with sites and called with a frequency.
+There are three main types that provide the Green's function functionality:
+- The `GreenFunction`, which is the main type for Green's functions. It stores the diagonalized Hamiltonian in an efficient way to optimize the Green's function calculation. Can be indexed with sites (or `(site, internal_ind)` tuples) and called with a frequency.
 - The `GreenFunctionElement`, which is an element of the Green's function matrix. It stores the bands that correspond to the Green's function element. Can be called with a frequency.
 - The `GreenFunctionEval`, which is the result of the Green's function evaluation. It stores the evaluated Green's function and the lattice it corresponds to. Can be indexed with sites.
 
@@ -65,7 +65,7 @@ l = SquareLattice(4, 4)
 H = bosehubbard(l, 2, U = 10) # Bose-Hubbard model, 2 particles
 Hp1 = bosehubbard(l, 3, U = 10) # Bose-Hubbard model, 3 particles
 Hm1 = bosehubbard(l, 1, U = 10) # Bose-Hubbard model, 1 particle
-G = greenfunction(H, Hp1, Hm1, E0=E)
+G = greenfunction(H, Hp1, Hm1)
 nothing # hide
 ```
 

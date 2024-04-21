@@ -76,7 +76,7 @@ QuantumOpticsBase.basisstate(T::Type, op::OneParticleBasisSystem, ind::SampleInd
 function QuantumOpticsBase.transition(b::OneParticleBasis, site1::AbstractSite, site2::AbstractSite)
     builder = FastOperatorBuilder(OneParticleSystem(sample(b)))
     builder[site1, site2] += internal_one(b)
-    return Operator(builder)
+    return Operator(builder, warning=false)
 end
 function QuantumOpticsBase.transition(b::OneParticleBasis, ind1::SampleIndex, ind2::SampleIndex)
     mat = spzeros(ComplexF64, length(b), length(b))
