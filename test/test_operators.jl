@@ -232,14 +232,15 @@ import LatticeModels: ManyBodyBasis
         @test ld2 ≈ ld1
         @test dos(eig, E, broaden=δ) ≈ sum(ld1)
         @test dos(G, E, broaden=δ) ≈ sum(ld1)
+        @test dos(G[site1, site1], E, broaden=δ) ≈ ld1[site1]
 
         l2 = SquareLattice(4, 4)
         U = 0
         G1 = greenfunction(diagonalize(tightbinding_hamiltonian(l2)))
-        E0, gs = findgroundstate(bosehubbard(l2, 2, U = U))
+        H0 = bosehubbard(l2, 2, U = U)
         Hp = bosehubbard(l2, 3, U = U)
         Hm = bosehubbard(l2, 1, U = U)
-        G2 = greenfunction(gs, Hp, Hm, E₀ = E0)
+        G2 = greenfunction(H0, Hp, Hm)
         @test G1(E + 0.1im).values ≈ G2(E + 0.1im).values
     end
 end

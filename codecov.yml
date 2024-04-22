@@ -1,2 +1,3 @@
 ignore:
   - "src/precompile.jl"
+  - "src/operators/manybody_bases.jl"

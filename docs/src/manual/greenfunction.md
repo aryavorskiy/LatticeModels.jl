@@ -7,7 +7,7 @@ This chapter is dedicated to the (time-ordered) Green's function formalism. It i
 In the scope of this package, the (time-ordered) Green's function is defined by this formula:
 
 ```math
-G_{\alpha\beta}(\omega) = \langle 0 | \hat{a}_{\alpha} \frac{1}{\omega - (\hat{H} - E_0)} \hat{a}_{\beta}^{\dagger} | 0 \rangle + q 
+G_{\alpha\beta}(\omega) = \langle 0 | \hat{a}_{\alpha} \frac{1}{\omega - (\hat{H} - E_0)} \hat{a}_{\beta}^{\dagger} | 0 \rangle + q \cdot
 \langle 0 | \hat{a}_{\alpha}^{\dagger} \frac{1}{\omega + (\hat{H} - E_0)} \hat{a}_{\beta} | 0 \rangle, 
 \hspace{1cm} 
 q = \begin{cases} 1 & \text{for fermions} \\ -1 & \text{for bosons} \end{cases}
@@ -73,7 +73,7 @@ Here is what happens in the code above:
 1. Firstly, we find the ground state of the `N`-particle system and its energy. These will be ``| 0 \rangle`` and ``E_0`` in the Green's function formula.
 2. Act with the annihilation and creation operators on ``| 0 \rangle``.
 3. Use [`greenfunction`](@ref) to calculate the Green's function for the `N`-particle system.
-   - The Green's function will be evaluated by exactly diagonalizing the Hamiltonian - this is why `greenfunction` requires the Hamiltonians for `N-1` and `N+1` particles.
+   - The Green's function will be evaluated by exactly diagonalizing the Hamiltonian — this is why `greenfunction` requires the Hamiltonians for `N-1` and `N+1` particles.
    - For large Hamiltonian matrices, full diagonalization can be slow. In this case, the Lanczos algorithm with `` \hat{a}_{\alpha}^{\dagger} | 0 \rangle`` as initial vectors will be used. 
 
 This is how you do it in code, line-by-line:
@@ -109,12 +109,12 @@ where ``\delta`` is the broadening. The DOS is a scalar function of the frequenc
 
 ```@example 2
 df = dos(G, broaden=0.1)
-plot(df, lab="", xlab="ω", ylab="DOS")
+plot(df, lab="", xlab="ω", ylab="DOS", xlims=(-15, 45))
 ```
 
 This will plot the DOS for the Bose-Hubbard model with a broadening of `0.1`. The DOS is a scalar function of the frequency, so it can be plotted as a line plot. 
 
-Here `dos` produced a function that takes the frequency as an argument and returns the DOS at that frequency. You can also calculate the DOS for a specific frequency:
+Here [`dos`](@ref) produced a function that takes the frequency as an argument and returns the DOS at that frequency. You can also calculate the DOS for a specific frequency:
 
 ```@repl 2
 dos(G, 0.1, broaden=0.1)
@@ -130,11 +130,27 @@ plot(ld, st=:shape)
 
 Note that `ld` here is a [`LatticeValue`](@ref) object, which can be plotted as a shape plot. 
 
-!!! tip
-    To efficiently calculate the LDOS on one site, use this notation:
+To efficiently calculate the LDOS on one site, use this notation:
 
-    ```@repl 2
-    site = l[!, x=1, y=1]
-    ld_value = dos(G[site, site], broaden=0.1)
-    ld[site] == ld_value
-    ```
+```@repl 2
+site = l[!, x=1, y=1]
+ld_value = dos(G[site, site], 0.1, broaden=0.1)
+ld[site] == ld_value
+```
+
+This will calculate the LDOS on the site `(1, 1)` of the lattice. This notation is more efficient than calculating the LDOS for the whole lattice and then indexing it, as it doesn't have to calculate the LDOS for the whole lattice and allocate memory for it.
+
+Let's compare the LDOS in the bulk of the lattice and on the edge:
+
+```@example 2
+site_bulk = l[!, x=2, y=2]
+site_edge = l[!, x=1, y=2]
+ld_bulk = dos(G[site_bulk, site_bulk], broaden=0.1)
+ld_edge = dos(G[site_edge, site_edge], broaden=0.1)
+plot(title="LDOS comparison", xlims=(-10, 20), xlab="ω", ylab="LDOS")
+plot!(ld_bulk, lab="Bulk")
+plot!(ld_edge, lab="Edge")
+vline!([-1], lab="Edge modes", c=:grey, ls=:dash)
+```
+
+This will plot the LDOS for the bulk and the edge of the lattice. Note the edge modes — they are visible as peaks in the edge LDOS around `ω = -1`.

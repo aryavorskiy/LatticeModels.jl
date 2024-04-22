@@ -302,8 +302,10 @@ If `E` is not specified, a function that calculates the DOS at a given energy is
 - `broaden` is the broadening factor for the energy levels, default is `0.1`.
 """
 dos(eig::AbstractEigensystem, E; broaden=0.1) = imag(sum(1 ./ (eig.values .- (E + im * broaden)))) / pi
-dos(gf::GreenFunction, E; broaden=0.1) = imag(sum(1 ./ (gf.energies_up .- (E + im * broaden))) -
+dos(gf::GreenFunction, E; broaden=0.1) = imag(
+    sum(1 ./ (gf.energies_up .- (E + im * broaden))) + Integer(gf.statistics) *
     sum(1 ./ (gf.energies_down .+ (E + im * broaden)))) / pi
+dos(gfe::GreenFunctionElement, E; broaden=0.1) = imag(gfe(E - im * broaden)) / pi
 dos(any; kw...) = E -> dos(any, E; kw...)
 
 """
