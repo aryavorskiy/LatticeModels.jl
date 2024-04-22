@@ -1,3 +1,5 @@
+# import QuantumOpticsBase: allocate_buffer, state_transition!, state_index
+
 struct GreenFunctionElement{VecC, VecE}
     weights_up_l::VecC
     weights_up_r::VecC
@@ -182,17 +184,16 @@ end
 function _to(state, index, bas::ManyBodyBasis; create)
     bf = basis(state)::ManyBodyBasis
     zs = zeros(ComplexF64, length(bas))
-    buffer = QuantumOpticsBase.allocate_buffer(bas.occupations)
+    buffer = allocate_buffer(bas)
     for (i, occ) in enumerate(bf.occupations)
         copyto!(buffer, occ)
-        buffer[index] += 1
         if create
-            C = QuantumOpticsBase.state_transition!(buffer, occ, (), index) # create
+            C = state_transition!(buffer, occ, index, ()) # create
         else
-            C = QuantumOpticsBase.state_transition!(buffer, occ, index, ()) # destroy
+            C = state_transition!(buffer, occ, (), index) # destroy
         end
         C === nothing && continue
-        j = QuantumOpticsBase.state_index(bas.occupations, buffer)
+        j = state_index(bas.occupations, buffer)
         if j === nothing
             @warn "Cannot find state in the basis; check particle numbers"
             continue
@@ -203,7 +204,7 @@ function _to(state, index, bas::ManyBodyBasis; create)
 end
 
 """
-    greenfunction(psi0, hamp, hamm[; E₀, tol, kw...])
+    greenfunction(psi0, hamp, hamm[; E₀, tol, showprogress, kw...])
 
 Calculates the Green's function for a many-body system with a given initial state `psi0`.
 
@@ -216,18 +217,28 @@ Calculates the Green's function for a many-body system with a given initial stat
 - `E₀` is the energy shift for the Green's function. Default is `0`. Use `E0` as a synonym
     if Unicode input is not available.
 - `tol` is the tolerance for the new eigenvectors. Default is `1e-5`.
+- `showprogress` is a flag to show the progress bar. Default is `true`.
 All other keyword arguments are passed to the `diagonalize` function. See its documentation for details.
 """
 function greenfunction(l, psi0::Ket, hamp::Hamiltonian, hamm::Hamiltonian;
-        routine=:auto, E₀=0, E0=E₀, tol=1e-5, kw...)
+        routine=:auto, E₀=0, E0=E₀, tol=1e-5, showprogress=true, kw...)
     # Checks...
     bas = basis(psi0)
     bas isa ManyBodyBasis || throw(ArgumentError("`psi0` must be on a many-body basis"))
     obb = bas.onebodybasis
-    basis(hamp) isa OneParticleBasis && throw(ArgumentError("`hamp` must be on a manybody basis"))
-    obb == basis(hamp).onebodybasis || throw(ArgumentError("`hamp` must be on the same one-particle basis as `psi0`"))
-    basis(hamm) isa OneParticleBasis && throw(ArgumentError("`hamm` must be on a manybody basis"))
-    obb == basis(hamm).onebodybasis || throw(ArgumentError("`hamm` must be on the same one-particle basis as `psi0`"))
+    obb == basis(hamp).onebodybasis ||
+        throw(ArgumentError("`hamp` must be on the same one-particle basis as `psi0`"))
+    obb == basis(hamm).onebodybasis ||
+        throw(ArgumentError("`hamm` must be on the same one-particle basis as `psi0`"))
+    sysp = hamp.sys
+    sysm = hamm.sys
+    if sysp isa NParticles && sysm isa NParticles
+        sysp.nparticles == sysm.nparticles + 2 ||
+            throw(ArgumentError("""inconsistent particle numbers.
+                Expected `Np - Nm == 2`, got $(sysp.nparticles - sysm.nparticles)"""))
+    else
+        throw(ArgumentError("Hamiltonians must be on a many-body basis"))
+    end
 
     inds = to_inds(lattice(psi0), l)
     N = internal_length(psi0)
@@ -238,7 +249,7 @@ function greenfunction(l, psi0::Ket, hamp::Hamiltonian, hamm::Hamiltonian;
     psips = typeof(psi0.data)[]
     psims = typeof(psi0.data)[]
     p = Progress(length(inflated_inds), dt=0.25, desc="Computing GreenFunction...",
-        barglyphs=BarGlyphs("[=> ]"))
+        barglyphs=BarGlyphs("[=> ]"), enabled=showprogress)
     for i in inflated_inds
         psip = _to(psi0, i, basis(hamp); create=true)
         push!(psips, psip.data)

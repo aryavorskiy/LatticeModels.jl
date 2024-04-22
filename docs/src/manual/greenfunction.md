@@ -65,7 +65,7 @@ l = SquareLattice(4, 4)
 H = bosehubbard(l, 2, U = 10) # Bose-Hubbard model, 2 particles
 Hp1 = bosehubbard(l, 3, U = 10) # Bose-Hubbard model, 3 particles
 Hm1 = bosehubbard(l, 1, U = 10) # Bose-Hubbard model, 1 particle
-G = greenfunction(H, Hp1, Hm1)
+G = greenfunction(H, Hp1, Hm1, showprogress=false)
 nothing # hide
 ```
 
@@ -86,13 +86,16 @@ E, psi = findgroundstate(H)
 
 Hm1 = bosehubbard(l, 1, U = 10) # Bose-Hubbard model, 1 particle
 Hp1 = bosehubbard(l, 3, U = 10) # Bose-Hubbard model, 3 particles
-G = greenfunction(psi, Hm1, Hp1, E0=E)
+G = greenfunction(psi, Hp1, Hm1, E0=E, showprogress=false)
 nothing # hide
 ```
 
 This is equivalent to the example before, but it allows you to set the ground state of the system manually.
 
 Note that you can pass additional keyword arguments to `greenfunction` to control the diagonalization process. For example, the `routine` keyword argument allows you to choose the diagonalization routine, and the other keyword arguments are passed to the [`diagonalize`](@ref) function, see its documentation for more information.
+
+!!! warning 
+    Remember the order of the Hamiltonians in the `greenfunction` function. The first Hamiltonian should correspond to the `N`-particle system, the second to the `N+1`-particle system and the third to the `N-1`-particle system. If you pass them in the wrong order, an error will be thrown.
 
 ## Density of states
 
@@ -128,10 +131,10 @@ plot(ld, st=:shape)
 Note that `ld` here is a [`LatticeValue`](@ref) object, which can be plotted as a shape plot. 
 
 !!! tip
-   To efficiently calculate the LDOS on one site, use this notation:
+    To efficiently calculate the LDOS on one site, use this notation:
 
-   ```@repl 2
-   site = l[!, x=1, y=1]
-   ld_value = dos(G[site, site], broaden=0.1)
-   ld[site] == ld_value
-   ```
+    ```@repl 2
+    site = l[!, x=1, y=1]
+    ld_value = dos(G[site, site], broaden=0.1)
+    ld[site] == ld_value
+    ```
