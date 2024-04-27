@@ -40,7 +40,7 @@ Also note that the `Currents` object is writable:
 
 ```@example 1
 site4 = l[!, x=2, y=2]
-C1[site1, site2] = 0.05
+C1[site1, site4] = 0.05
 C1[l[!, x=10, y=10], l[!, x=9, y=9]] = 0.05
 plot(C1)
 ```
@@ -84,7 +84,7 @@ Let us continue with the previous example. This will calculate the currents from
 
 ```@example 2
 site = l[!, x = -7, y = 2]
-heatmap(currentsfrom(C, site), c=:balance, clims=(-0.02, 0.02))
+heatmap(currentsfrom(C, site), c=:balance, clims=(-0.06, 0.06))
 plot!(site, label="", title="Currents from site $(site.coords)")
 ```
 
