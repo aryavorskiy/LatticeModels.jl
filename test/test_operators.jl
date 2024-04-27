@@ -232,7 +232,7 @@ import LatticeModels: ManyBodyBasis
         @test ld2 ≈ ld1
         @test dos(eig, E, broaden=δ) ≈ sum(ld1)
         @test dos(G, E, broaden=δ) ≈ sum(ld1)
-        @test dos(G[site1, site1], E, broaden=δ) ≈ ld1[site1]
+        @test ldos(G, E, site1, broaden=δ) ≈ ld1[site1]
 
         l2 = SquareLattice(4, 4)
         U = 0

@@ -134,7 +134,7 @@ To efficiently calculate the LDOS on one site, use this notation:
 
 ```@repl 2
 site = l[!, x=1, y=1]
-ld_value = dos(G[site, site], 0.1, broaden=0.1)
+ld_value = ldos(G, 0.1, site, broaden=0.1)
 ld[site] == ld_value
 ```
 
@@ -145,8 +145,8 @@ Let's compare the LDOS in the bulk of the lattice and on the edge:
 ```@example 2
 site_bulk = l[!, x=2, y=2]
 site_edge = l[!, x=1, y=2]
-ld_bulk = dos(G[site_bulk, site_bulk], broaden=0.1)
-ld_edge = dos(G[site_edge, site_edge], broaden=0.1)
+ld_bulk = ldos(G, site_bulk, broaden=0.1)
+ld_edge = ldos(G, site_edge, broaden=0.1)
 plot(title="LDOS comparison", xlims=(-10, 20), xlab="ω", ylab="LDOS")
 plot!(ld_bulk, lab="Bulk")
 plot!(ld_edge, lab="Edge")

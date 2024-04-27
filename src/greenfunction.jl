@@ -305,19 +305,33 @@ dos(eig::AbstractEigensystem, E; broaden=0.1) = imag(sum(1 ./ (eig.values .- (E 
 dos(gf::GreenFunction, E; broaden=0.1) = imag(
     sum(1 ./ (gf.energies_up .- (E + im * broaden))) + Integer(gf.statistics) *
     sum(1 ./ (gf.energies_down .+ (E + im * broaden)))) / pi
-dos(gfe::GreenFunctionElement, E; broaden=0.1) = imag(gfe(E - im * broaden)) / pi
 dos(any; kw...) = E -> dos(any, E; kw...)
 
 """
-    ldos(gf::GreenFunction, E[; broaden])
+    ldos(gf::GreenFunction, E[, site; broaden])
+    ldos(gf::GreenFunction, site[; broaden])
 
 Calculates the LDOS (local density of states) for a given Green's function at energy `E`.
 `broaden` is the broadening factor for the energy levels, default is `0.1`.
+
+If `site` is not specified, the LDOS for all sites is calculated and returned as a `LatticeValue`.
+Otherwise, the LDOS for the given site is returned as a `Real` value.
+
+If `E` is not specified, a function that calculates the LDOS at site `site` for given energy
+is returned.
 """
-function ldos(gf::GreenFunction, E::Real; broaden=0.1)
-    le = length(lattice(gf))
+function _ldos(gf::GreenFunction, E::Real, ind::Int; broaden=0.1)
     N = internal_length(gf)
-    vals = [sum(imag(gf[α, α](E - im * broaden)) for α in (a - 1) * N + 1:a * N) / pi
-        for a in 1:le]
+    return sum(imag(gf[α, α](E - im * broaden)) for α in (ind - 1) * N + 1:ind * N) / pi
+end
+function ldos(gf::GreenFunction, E::Real, site::AbstractSite; broaden=0.1)
+    l = lattice(gf)
+    ind = site_index(l, site)
+    ind === nothing && throw(ArgumentError("site is not in the lattice"))
+    return _ldos(gf, E, ind; broaden=broaden)
+end
+ldos(gf::GreenFunction, site::AbstractSite; broaden=0.1) = E -> ldos(gf, E, site; broaden=broaden)
+function ldos(gf::GreenFunction, E::Real; broaden=0.1)
+    vals = [_ldos(gf, E, ind; broaden=broaden) for ind in eachindex(lattice(gf))]
     return LatticeValue(lattice(gf), vals)
 end
