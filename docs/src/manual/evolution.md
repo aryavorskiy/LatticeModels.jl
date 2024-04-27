@@ -1,4 +1,4 @@
-# Evolution
+# [Evolution](@id evolution_chapter)
 
 This chapter describes several ways to work with time evolution of quantum systems on lattices. It features [`Evolution`](@ref) — a powerful struct that represents the time evolution of a quantum system according to the Schrödinger equation, and `TimeSequence`, which is used to store and process time-dependent data.
 

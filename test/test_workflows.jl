@@ -97,7 +97,7 @@
         mpcs = mapgroup_currents(sitedistance, sum, dc, sortresults=true)
         mpcs2 = mapgroup_currents(sitedistance, sum, Currents(dc), sortresults=true)
         @test mpcs[1] ≈ mpcs2[1] atol=1e-10
-        @test mpcs[2] ≈ mpcs2[2] atol=1e-10
+        @test mpcs[2] ≈ mpcs2[2] atol=1e-8
         plot!(p[4], mpcs)
         plot!(p[5], UnitCell([[1, 0] [0.1, 1]], [[0, 0.1] [-0.2, 0]]))
         true

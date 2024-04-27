@@ -25,11 +25,20 @@
         @test dc[s1, t1] + dc[s1, t2] + dc[s1, t3] + dc[s1, t4] ≈ dens_dt
         @test currentsfromto(dc, s1) ≈ dens_dt
 
-        # Test state representations
+        # State representations
         ground_state = dg[1]
         c1 = DensityCurrents(H_1, ground_state) |> Currents
         c2 = DensityCurrents(H_1, ground_state ⊗ ground_state') |> Currents
         @test c1 ≈ c2
+
+        # Test iterator
+        n = 0
+        for ((a, b), v) in c1
+            @test v == c1[a, b]
+            @test v ≥ 0
+            n += 1
+        end
+        @test n == length(c1)
 
         # 'materialized' currents
         l2 = SquareLattice(1, 2)

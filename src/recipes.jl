@@ -45,7 +45,8 @@ end
     tseq.times, tseq.values
 end
 
-@recipe function f(curr::AbstractCurrents; showsites=false, arrowheadsize=0.15, arrowtransparency=true)
+@recipe function f(curr::AbstractCurrents;
+        arrowheadsize=0.15, arrowheadwidth=1/3, arrowtransparency=true)
     lat = lattice(curr)
     axes, axis_numbers = _get_axes(lat, get(plotattributes, :axes, nothing))
     length(axes) != 2 && error("2D axes expected; got $(axes)D")
@@ -77,8 +78,8 @@ end
         v2 = site2.coords[ns]
         d = normalize(v2 - v1)
         o = SVector(d[2], -d[1])
-        _pushpts!(v1, v2, v2 - arrowheadsize * (d - o / 3),
-            v2 - arrowheadsize * (d + o / 3), v2)
+        _pushpts!(v1, v2, v2 - arrowheadsize * (d - o * arrowheadwidth),
+            v2 - arrowheadsize * (d + o * arrowheadwidth), v2)
         push!(Zs, val, val, val, val, val, NaN)
     end
     if isempty(Zs)
@@ -100,10 +101,9 @@ end
         seriestype := :scatter
         markersize := 0.5
         markercolor := :grey
-        markeralpha := 0.5
+        markeralpha := 0.2
         lattice(curr), :sites
     end
-    showsites && @series lattice(curr), :high_contrast
 end
 
 @recipe function f(shapes::AbstractShape...;)

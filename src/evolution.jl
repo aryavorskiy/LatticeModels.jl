@@ -84,14 +84,14 @@ function update_solver!(solver::CachedExp, mat, dt, force=false)
     solver.factor = factor
 end
 function myexp!(P::AbstractMatrix, A::AbstractMatrix, factor; threshold=1e-10, nztol=1e-14)
+    copyto!(P, I)
     mat_norm = norm(A, Inf)
-    (iszero(mat_norm) || iszero(factor)) && return one(A)
+    (iszero(mat_norm) || iszero(factor)) && return P
     scaling_factor = nextpow(2, mat_norm * abs(factor))
     A /= scaling_factor
     delta = one(mat_norm)
     @check_size A :square
 
-    P .= one(A)
     next_term = copy(P)
     nt_buffer = similar(next_term)
     n = 1

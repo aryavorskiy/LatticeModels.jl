@@ -32,15 +32,7 @@ function Base.length(curr::AbstractCurrents)
     le = length(lattice(curr))
     return le * (le - 1) ÷ 2
 end
-@inline function Base.iterate(curr::AbstractCurrents)
-    if length(lattice(curr)) < 2
-        return nothing
-    else
-        lat = lattice(curr)
-        return (lat[1] => lat[2], curr[1, 2]), 1 => 2
-    end
-end
-@inline function Base.iterate(curr::AbstractCurrents, pair::Pair{Int, Int})
+@inline function Base.iterate(curr::AbstractCurrents, pair::Pair{Int, Int} = 1 => 1)
     lat = lattice(curr)
     i, j = pair
     j += 1
@@ -49,7 +41,9 @@ end
         j = i + 1
         j > length(lat) && return nothing
     end
-    return (lat[i] => lat[j], curr[i, j]), i => j
+    c = curr[i, j]
+    ret = c > 0 ? (lat[i] => lat[j], c) : (lat[j] => lat[i], -c)
+    return ret, i => j
 end
 
 """
