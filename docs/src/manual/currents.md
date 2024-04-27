@@ -40,7 +40,8 @@ Also note that the `Currents` object is writable:
 
 ```@example 1
 site4 = l[!, x=2, y=2]
-C1[site1, site4] = 1.0
+C1[site1, site2] = 0.05
+C1[l[!, x=10, y=10], l[!, x=9, y=9]] = 0.05
 plot(C1)
 ```
 
@@ -70,7 +71,7 @@ Here we perform a time evolution of the system with a magnetic field that is slo
 The value we evaluated is the currents between two domains `dom1` and `dom2` at each time step. Here are 
 the domains:
 
-```example 2
+```@example 2
 C = currs[τ]
 plot(C)
 plot!(dom1, label="Domain 1")
@@ -82,7 +83,7 @@ Another useful function is [`currentsfrom`](@ref), which calculates currents fro
 Let us continue with the previous example. This will calculate the currents from `site1` in the bottom-left corner to the rest of the lattice:
 
 ```@example 2
-site = l[!, x = -7, y = 3]
+site = l[!, x = -7, y = 2]
 heatmap(currentsfrom(C, site), c=:balance, clims=(-0.02, 0.02))
 plot!(site, label="", title="Currents from site $(site.coords)")
 ```

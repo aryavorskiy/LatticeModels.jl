@@ -307,6 +307,10 @@ dos(gf::GreenFunction, E; broaden=0.1) = imag(
     sum(1 ./ (gf.energies_down .+ (E + im * broaden)))) / pi
 dos(any; kw...) = E -> dos(any, E; kw...)
 
+function _ldos(gf::GreenFunction, E::Real, ind::Int; broaden=0.1)
+    N = internal_length(gf)
+    return sum(imag(gf[α, α](E - im * broaden)) for α in (ind - 1) * N + 1:ind * N) / pi
+end
 """
     ldos(gf::GreenFunction, E[, site; broaden])
     ldos(gf::GreenFunction, site[; broaden])
@@ -320,10 +324,6 @@ Otherwise, the LDOS for the given site is returned as a `Real` value.
 If `E` is not specified, a function that calculates the LDOS at site `site` for given energy
 is returned.
 """
-function _ldos(gf::GreenFunction, E::Real, ind::Int; broaden=0.1)
-    N = internal_length(gf)
-    return sum(imag(gf[α, α](E - im * broaden)) for α in (ind - 1) * N + 1:ind * N) / pi
-end
 function ldos(gf::GreenFunction, E::Real, site::AbstractSite; broaden=0.1)
     l = lattice(gf)
     ind = site_index(l, site)

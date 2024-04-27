@@ -58,7 +58,7 @@ export Eigensystem, diagonalize, projector, densitymatrix, groundstate, findgrou
 include("greenfunction.jl")
 export GreenFunction, greenfunction, diagonalelements, dos, ldos
 include("currents.jl")
-export Currents, currentsfrom, currentsfromto, mapgroup_currents
+export Currents, currentsfrom, currentsfromto
 include("evolution.jl")
 export Evolution, CachedExp, KrylovKitExp
 include("timesequence.jl")

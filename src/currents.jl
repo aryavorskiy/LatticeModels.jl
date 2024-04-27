@@ -253,39 +253,3 @@ function Currents(curr::AbstractCurrents, bonds::AbstractBonds)
     mat = sparse(Is, Js, Vs, length(lat), length(lat))
     return Currents(lat, mat)
 end
-
-_reorder(p::Pair, ::Nothing) = p
-_reorder(p::Pair, by::Function) = by(p[1]) < by(p[2]) ? p : reverse(p)
-_mulorder(::Pair, ::Nothing) = 1
-_mulorder(p::Pair, by::Function) = by(p[1]) < by(p[2]) ? 1 : -1
-
-"""
-    mapgroup_currents(f, group, currents[; sortresults=false, sortpairsby])
-
-Find the current between all possible pairs of sites, apply `f` to every site pair and
-group the result by value of `f`,
-
-## Arguments
-- `f`: This function will be applied to all site pairs. Must accept two `AbstractSite`s.
-- `group`: This function will be used to group the current values for pairs with the same mapped value. Must accept a `Vector` of numbers.
-- `currents`: The `AbstractCurrents` object to process.
-
-## Keyword arguments
-- `sortresults`: if true, the output arrays will be sorted by results of `f`.
-- `sortpairsby`: if provided, the sites in each pair will be sorted by this function.
-    Must accept one `AbstractSite`; by default the order of the sites in the pair matches
-    their order in the lattice. The sign of the current will match the site order.
-"""
-function mapgroup_currents(f::Function, group::Function, curr::AbstractCurrents;
-        sortresults::Bool=false, sortpairsby::Nullable{Function}=nothing)
-    ms = [f(_reorder(pair, sortpairsby)...) for (pair, _) in curr]
-    cs = [val * _mulorder(pair, sortpairsby) for (pair, val) in curr]
-    new_ms = unique(ms)
-    new_cs = [group(cs[ms .== m]) for m in new_ms]
-    if sortresults
-        perm = sortperm(new_ms)
-        permute!(new_ms, perm)
-        permute!(new_cs, perm)
-    end
-    return new_ms, new_cs
-end
