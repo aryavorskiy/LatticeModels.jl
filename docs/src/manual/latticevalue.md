@@ -112,10 +112,11 @@ using LatticeModels, Statistics
 l = HoneycombLattice(Hexagon(), sites=120)
 H = tightbinding_hamiltonian(l, t1=-1.0)    # create a tight-binding Hamiltonian
 dens = localdensity(groundstate(H))         # calculate the local density of the ground state
-bulk = l[x = 2 .. 9, y = 2 .. 9]
+r = shaperadius(l, Hexagon())               # get the radius of the lattice
+bulk = HoneycombLattice(Hexagon(r * 0.8))
 edge = setdiff(l, bulk)
-println("Average local density in the bulk: ", mean(dens[bulk]))
-println("Average local density on the edge: ", mean(dens[edge]))
+println("Average bulk density: ", round(mean(dens[bulk]), digits=6))
+println("Average edge density: ", round(mean(dens[edge]), digits=6))
 ```
 
 The average local density in the bulk is much higher than on the edge, as expected.
@@ -162,3 +163,14 @@ heatmap!(p[4], dens, shape=:circle, markerscale=true, title="Circles, scale")
 !!! tip
     The shape plot is slower than the scatter plot, because it creates a separate shape for each site. If you
     are creating an animation or a large plot, you may want to use the scatter plot with custom-shaped markers instead.
+
+Another important use case is dimension reduction. [Before](@ref Multi-dimensional lattices) we already discovered how to plot a 2D slice of a 3D lattice. Here is an example of plotting a 1D slice of a 2D `LatticeValue`:
+
+```@example 2
+p = plot(size=(1000, 500), layout=(1, 2))
+plot!(p[1], dens, st=:shape)
+plot!(p[1], lattice(dens[j2 = 0]), :high_contrast)
+plot!(p[2], dens[j2 = 0], axes=:x)
+```
+
+By projecting `axes=:x` the selected values on `j2 = 0` (e.g. the horizontal line in the middle of the plot) are shown as a 1D plot. Also we have shown the exact line where we took the slice from by plotting the markers with the `:high_contrast` setting.

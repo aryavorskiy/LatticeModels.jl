@@ -24,15 +24,11 @@ function _process_axis(ax)
     end
     throw(ArgumentError("Invalid axis $ax"))
 end
-function _get_axes(lat, default)
+function _get_axes(lat::AbstractLattice, u_axes)
     lat isa UndefinedLattice && throw(ArgumentError("Cannot plot an undefined lattice."))
-    axes = default !== nothing ? default :
-        (dims(lat) == 3 ? (:x, :y, :z) : (:x, :y))
-    if length(axes) < 2
-        throw(ArgumentError("At least two axes are required; got $axes"))
-    elseif length(axes) > dims(lat)
-        throw(ArgumentError("Cannot display a $(dims(lat))D lattice in $(length(axes)) axes"))
-    end
+    dims(lat) in (2, 3) || throw(ArgumentError("Only 2D and 3D lattices are supported; got $(dims(lat))D."))
+    u_axes isa Union{Tuple,Nothing} || throw(ArgumentError("Invalid `axes` argument: expected Tuple, got $(typeof(u_axes))"))
+    axes = u_axes !== nothing ? u_axes : (dims(lat) == 3 ? (:x, :y, :z) : (:x, :y))
     axis_numbers = _process_axis.(axes)
     allunique(axis_numbers) || throw(ArgumentError("Duplicate axes in $axes"))
     return axes, axis_numbers
@@ -185,64 +181,96 @@ function moveshape(shape, loc::SVector{2}, scale=1)
     xs, ys = shape
     return xs .* scale .+ loc[1], ys .* scale .+ loc[2]
 end
-@recipe function f(lv::LatticeValue{<:Number};)
-    seriestype --> :scatter
-    seriescolor --> :matter
-    label --> ""
-    aspect_ratio := :equal
-    markerscale --> plotattributes[:seriestype] == :scatter
-    scale_markers = plotattributes[:markerscale]
+@recipe function f(lv::LatticeValue{<:Number}, ::Val{:tiles})
+    dims(lv) == 2 || throw(ArgumentError("Only 2D lattices are supported for tiles plot"))
+    :axes in keys(plotattributes) && throw(ArgumentError("Cannot use `axes` argument with tiles plot"))
+    scale_markers = get(plotattributes, :markerscale, false)
     @assert scale_markers isa Real "`markerscale` must be a real number or `Bool`"
     mx = maximum(abs, lv.values)
     lat = lattice(lv)
-    if plotattributes[:seriestype] in (:shape, :heatmap) && dims(lv) == 2
-        :axes in keys(plotattributes) && throw(ArgumentError("Cannot use `:axes` with `:shape` seriestype"))
-        shapetype = get(plotattributes, :markershape, :polygon)
-        if shapetype === :circle
-            shape = getshape(lat, nothing)  # Trigger fallback
-        elseif shapetype === :polygon
-            shape = getshape(lat)
-        else throw(ArgumentError("Unsupported shape type `:$shapetype`"))
-        end
-        if scale_markers !== false
-            @series begin
-                seriestype := :path
-                markershape := :none
-                linecolor := :grey
-                linealpha := 0.5
-                linewidth := 2
-                lat, :bonds
-            end
-        end
-        xguide --> "x"
-        yguide --> "y"
-        for site in lv.lat
-            @series begin
-                seriestype := :shape
-                markershape := :none
-                fill_z := lv[site]
-                moveshape(shape, site.coords,
-                    scale_markers === false ? 1 : lv[site] / mx * scale_markers)
-            end
-        end
-    elseif plotattributes[:seriestype] == :scatter
-        linecolor := :grey
-        linealpha := 0.5
-        linewidth := 2
-        marker_z := lv.values
-        marker_sz = get(plotattributes, :markersize, scale_markers === false ? 4 : 8)
+
+    seriescolor --> :matter
+    shapetype = get(plotattributes, :markershape, :polygon)
+    if shapetype === :circle
+        shape = getshape(lat, nothing)  # Trigger fallback
+    elseif shapetype === :polygon
+        shape = getshape(lat)
+    else throw(ArgumentError("Unsupported shape type `:$shapetype`"))
+    end
+    if scale_markers !== false
         @series begin
-            markersize := 0
-            (lat,)
+            seriestype := :path
+            markershape := :none
+            linecolor := :grey
+            linealpha := 0.5
+            linewidth := 2
+            lat, :bonds
         end
+    end
+    xguide --> "x"
+    yguide --> "y"
+    for site in lv.lat
         @series begin
-            markersize := scale_markers === false ? marker_sz :
-                @. marker_sz * abs(lv.values) / mx * scale_markers
-            markerstrokewidth --> 0.5
-            lat, :sites
+            seriestype := :shape
+            markershape := :none
+            fill_z := lv[site]
+            aspect_ratio := :equal
+            moveshape(shape, site.coords,
+                scale_markers === false ? 1 : lv[site] / mx * scale_markers)
         end
+    end
+end
+@recipe function f(lv::LatticeValue{<:Number}, ::Val{:scatter})
+    scale_markers = get(plotattributes, :markerscale, true)
+    @assert scale_markers isa Real "`markerscale` must be a real number or `Bool`"
+    mx = maximum(abs, lv.values)
+    lat = lattice(lv)
+
+    seriescolor --> :matter
+    linecolor := :grey
+    linealpha := 0.5
+    linewidth := 2
+    marker_z := lv.values
+    marker_sz = get(plotattributes, :markersize, scale_markers === false ? 4 : 8)
+    @series begin
+        markersize := 0
+        (lat,)
+    end
+    @series begin
+        markersize := scale_markers === false ? marker_sz :
+            @. marker_sz * abs(lv.values) / mx * scale_markers
+        markerstrokewidth --> 0.5
+        aspect_ratio := :equal
+        lat, :sites
+    end
+end
+@recipe function f(lv::LatticeValue{<:Number}, ::Val{:line})
+    seriestype --> :path
+    axis = plotattributes[:axes]
+    i = _process_axis(axis)
+    l = lattice(lv)
+    i in 1:dims(l) || throw(ArgumentError("Invalid axis $axis"))
+    @series begin
+        xguide --> i in 1:3 ? (:x, :y, :z)[i] : raw"$x_{$i}"
+        crd = collect_coords(l)[i, :]
+        perm = sortperm(crd)
+        crd[perm], lv.values[perm]
+    end
+end
+
+@recipe function f(lv::LatticeValue{<:Number})
+    label --> ""
+    if !(get(plotattributes, :axes, ()) isa Tuple)
+        @series lv, Val(:line)
     else
-        error("Unsupported seriestype $(plotattributes[:seriestype])")
+        seriestype --> :scatter
+        if plotattributes[:seriestype] in (:shape, :heatmap) && dims(lv) == 2
+            @series lv, Val(:tiles)
+        elseif plotattributes[:seriestype] == :scatter
+            @series lv, Val(:scatter)
+        else
+            error("Unsupported seriestype $(plotattributes[:seriestype])")
+        end
     end
 end
 
@@ -279,6 +307,7 @@ end
     aspect_ratio := :equal
     label := nothing
     axes, axis_numbers = _get_axes(lattice(bonds), get(plotattributes, :axes, nothing))
+    length(axis_numbers) == 2 || throw(ArgumentError("Bonds plot requires 2 axes, got $axes"))
     xguide --> axes[1]
     yguide --> axes[2]
     if length(axes) > 2
