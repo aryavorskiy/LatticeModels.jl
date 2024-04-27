@@ -124,6 +124,9 @@ plot!(p[3], C, arrowheadsize=0.3, arrowheadwidth=1, arrowtransparency=false,
 You can plot an `AbstractCurrents` and a `LatticeValue` object in one axes. However, due to Plots.jl limitations, both series must share the same colorbar. You can bypass this by plotting them on separate axes, or by plotting the currents with a single color. In this case you need to set `line_z=nothing` to disable the colorbar for the arrows. Here is an example of plotting the currents and the lattice together:
 
 ```@example 2
-plot(localdensity(P))
-plot!(C, c=:lawngreen, arrowheadsize=0.3, arrowheadwidth=1, line_z=nothing)
+plot(localdensity(P), st=:shape)
+plot!(C, c=:pink2, arrowheadsize=0.3, arrowheadwidth=0.6, line_z=nothing)
 ```
+
+!!! tip
+    To make the plot more readable and even almost artistic, keep in mind that the arrows should be of similar hue, but different brightness compared to the background. This can be achieved by setting the arrows color to one that fits the background color palette.

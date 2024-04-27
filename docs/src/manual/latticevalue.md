@@ -95,7 +95,7 @@ using LatticeModels
 l = SquareLattice(10, 10)
 x, y = coordvalues(l)
 spin = SpinBasis(1//2)                  # create a spin basis
-gauss = @. exp(-0.5 * ((x - 5) ^ 2 + (y - 5) ^ 2))  # create a Gaussian
+gauss = @. exp(-0.1 * ((x - 5) ^ 2 + (y - 5) ^ 2))  # create a Gaussian
 wave = @. exp(im * (x + y))             # create a plane wave
 ψ = basisstate(spin, 1) ⊗ (@. gauss .* wave) + 
     basisstate(spin, 2) ⊗ (@. gauss * conj(wave))

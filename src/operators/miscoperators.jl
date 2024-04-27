@@ -67,7 +67,7 @@ function to_index(sample::Sample, ind::Tuple{AbstractSite, Int})
 end
 to_index(any, ind::SampleIndex) = to_index(sample(any), ind)
 
-QuantumOpticsBase.basisstate(T::Type, b::LatticeBasis, ind::SampleIndex) =
+QuantumOpticsBase.basisstate(T::Type, b::OneParticleBasis, ind::SampleIndex) =
     basisstate(T, b, to_index(b, ind))
 QuantumOpticsBase.basisstate(T::Type, op::OneParticleBasisSystem, ind::SampleIndex) =
     basisstate(T, basis(op), ind)
