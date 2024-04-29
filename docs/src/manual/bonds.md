@@ -82,7 +82,7 @@ What does this notation mean? We take the first site in the unit cell; then we g
 You can use translations to shift a site, for example: `site2 = site1 + tr`, just like with regular vectors. Another 
 use-case for translations is in defining boundary conditions, as we will see in the next section.
 
-## [Boundary conditions](@id boundary_conditions)
+## [Boundary conditions](@id BoundaryConditions_chapter)
 
 The most general form of boundary conditions supported by this package is this:
 

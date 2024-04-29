@@ -1,4 +1,4 @@
-# Currents
+# [Currents](@id Currents_chapter)
 
 This chapter covers the calculation of currents in the system.
 
@@ -57,8 +57,8 @@ h(t) = tightbinding_hamiltonian(l, field=PointFlux(0.1 * t, (0, 0)))
 P = densitymatrix(h(0), statistics=FermiDirac, mu=0)
 τ = 10
 ev = Evolution(t -> h(min(t, τ)), P)
-dom1 = l[x = -Inf .. 0, y = 0]
-dom2 = l[x = -Inf .. 0, y = 1]
+dom1 = l[x = 0 .. Inf, y = 0]
+dom2 = l[x = 0 .. Inf, y = 1]
 currs = TimeSequence(ev, 0:0.1:2τ) do (Pt, Ht, t)
     Currents(DensityCurrents(Ht, Pt))    # Convert to Currents, since P is reused
 end
@@ -66,7 +66,7 @@ currs_from_to = map(curr -> currentsfromto(curr, dom1, dom2), currs)
 plot(currs_from_to, title="Currents through the circle")
 ```
 
-Here we perform a time evolution of the system with a magnetic field that is slowly increasing from 0 to `0.1 * τ`, after which it remains constant. See the [Evolution](@ref evolution_chapter) chapter for more details about time evolution.
+Here we perform a time evolution of the system with a magnetic field that is slowly increasing from 0 to `0.1 * τ`, after which it remains constant. See the [Evolution](@ref Evolution_chapter) chapter for more details about time evolution.
 
 The value we evaluated is the currents between two domains `dom1` and `dom2` at each time step. Here are 
 the domains:

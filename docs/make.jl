@@ -26,8 +26,8 @@ makedocs(
             "Currents" => "manual/currents.md",
             "Evolution" => "manual/evolution.md"
         ],
-        "Internals" => "internals.md",
-        "Library" => "library.md"
+        "API" => "library.md",
+        "Internals" => "internals.md"
     ]
 )
 

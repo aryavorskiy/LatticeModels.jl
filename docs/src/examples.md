@@ -39,6 +39,8 @@ nothing # hide
 ```
 ![](local_density.png)
 
+Related sections: [Lattices](@ref), [Systems and Hamiltonians](@ref), [Diagonalizing](@ref).
+
 ## Currents on a ring-shaped sample
 
 In this example we create a ring-shaped sample of a triangular lattice.
@@ -72,6 +74,8 @@ end
 gif(anim, "adiabatic_flux.gif")
 ```
 
+Related sections: [Currents](@ref Currents_chapter), [Evolution](@ref Evolution_chapter).
+
 ## Time sequences
 
 In this example we will see how to use `TimeSequence` to store and manipulate time-dependent data.
@@ -102,6 +106,8 @@ plot!(differentiate(ds_bulk), label="dρ(t)/dt (bulk)")
 plot!(ds_edge, label="ρ(t) (edge)")
 plot!(integrate(ds_edge), label="∫ρ(t)dt (edge)")
 ```
+
+Related sections: [Gauge fields](@ref), [Evolution](@ref Evolution_chapter), [TimeSequence](@ref TimeSequence_chapter).
 
 ## Hofstadter butterfly
 
@@ -150,6 +156,8 @@ nothing # hide
 ```
 ![](hofstadter_butterfly.png)
 
+Related sections: [Lattices](@ref), [Boundary conditions](@ref BoundaryConditions_chapter), [Gauge fields](@ref).
+
 ## LDOS animation
 
 Local density can be a bit ambiguous for degenerate eigenstates. That's where the LDOS (e. g. the Local Density of States) will be helpful.
@@ -191,3 +199,5 @@ end
 
 gif(anim, "ldos_animation.gif", fps=10)
 ```
+
+Related sections: [Green's function](@ref GreenFunction_chapter), [Density of states](@ref).

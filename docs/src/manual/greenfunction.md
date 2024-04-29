@@ -1,4 +1,4 @@
-# Green's function
+# [Green's function](@id GreenFunction_chapter)
 
 This chapter is dedicated to the (time-ordered) Green's function formalism. It is a powerful tool for studying many-body systems, especially in the context of condensed matter physics. The Green's function is a matrix-valued function of two variables, which can be used to calculate various physical quantities, such as the density of states or some topological invariants.
 

@@ -95,13 +95,15 @@ using LatticeModels
 l = SquareLattice(10, 10)
 x, y = coordvalues(l)
 spin = SpinBasis(1//2)                  # create a spin basis
-gauss = @. exp(-0.1 * ((x - 5) ^ 2 + (y - 5) ^ 2))  # create a Gaussian
+gauss = @. exp(-0.05 * ((x - 5.5) ^ 2 + (y - 5.5) ^ 2))
 wave = @. exp(im * (x + y))             # create a plane wave
 ψ = basisstate(spin, 1) ⊗ (@. gauss .* wave) + 
     basisstate(spin, 2) ⊗ (@. gauss * conj(wave))
 ```
 
 Here `ψ` is a `QuantumOptics.Ket` wavefunction. In this example it is a superposition of two states with opposite spins and different momenta.
+
+We will discuss this theme in more detail in the [States and Operators] section.
 
 ### Processing data
 
@@ -120,6 +122,8 @@ println("Average edge density: ", round(mean(dens[edge]), digits=6))
 ```
 
 The average local density in the bulk is much higher than on the edge, as expected.
+
+We will discuss this theme in more detail in the [Measurements] section.
 
 ## Visualization
 

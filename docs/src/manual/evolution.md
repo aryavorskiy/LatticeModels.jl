@@ -1,4 +1,4 @@
-# [Evolution](@id evolution_chapter)
+# [Evolution](@id Evolution_chapter)
 
 This chapter describes several ways to work with time evolution of quantum systems on lattices. It features [`Evolution`](@ref) — a powerful struct that represents the time evolution of a quantum system according to the Schrödinger equation, and `TimeSequence`, which is used to store and process time-dependent data.
 
@@ -221,7 +221,7 @@ A significant drawback of `KrylovKitExp` solver is that it works only with wavef
 
     However, a solver for the master equation can be implemented on top of the `Evolution` struct using this `EvolutionSolver` interface. Please file an issue if you are interested in this feature.
 
-## TimeSequence
+## [TimeSequence](@id TimeSequence_chapter)
 
 The [`TimeSequence`](@ref) struct is used to store and manipulate time-dependent data. It is a dictionary-like object that maps time points to values. The values can be any type, including arrays, matrices, and even lattice-specific types like `LatticeValue`.
 
