@@ -95,7 +95,8 @@ Here ``P`` is the projector onto the occupied states (e. g. the density matrix),
 
 Let's do this for a QWZ model Hamiltonian on a square lattice:
 
-```@example 1
+```@example 2
+using LatticeModels, Plots
 l = SquareLattice(6, 6)
 sys = l ⊗ SpinBasis(1//2)
 ms = ones(l)
@@ -108,11 +109,31 @@ c = localdensity(-4π * im * P * X * P * Y * P)
 heatmap(c, title="Local Chern marker")
 ```
 
+A generalization of the density measurement is the [`localexpect`](@ref) function. It takes a local operator ``\hat{A}`` and a state, and calculates the expectation value of the operator at each site: ``A_i = \text{Tr}((\hat{A} \otimes \hat{n}_i) \cdot \hat{\rho})``, where ``\hat{n}_i`` is the number operator at site ``i`` and ``\hat{\rho}`` is the density matrix. Note that the result is a complex numbered `LatticeValue`.
+
+As an example, let us visualize a spin wavefunction on a square lattice:
+
+```@example 3
+using LatticeModels, Plots
+l = SquareLattice(10, 10)
+x, y = coordvalues(l)
+spin = SpinBasis(1//2)
+gauss = @. exp(-0.05 * ((x - 5.5) ^ 2 + (y - 5.5) ^ 2))
+wave = @. exp(im * (x + y))
+ψ = basisstate(spin, 1) ⊗ (@. gauss .* wave) + basisstate(spin, 2) ⊗ (@. gauss * conj(wave))
+normalize!(ψ)
+σx = sigmax(spin)
+
+p = plot(layout=2, size=(800, 400))
+plot!(p[1], localdensity(ψ), title="Local density")
+plot!(p[2], localexpect(σx, ψ) .|> real, title="σx projection")
+```
+
 ## Diagonalizing
 
 To diagonalize a Hamiltonian or any other operator, you can use the [`diagonalize`](@ref) function. It takes an operator and returns a `EigenSystem` object with the eigenvalues and eigenvectors of the operator.
 
-```@example 2
+```@example 4
 using LatticeModels, Plots
 l = GrapheneRibbon(6, 4)
 H = haldane(l, 0.1, 1)
@@ -121,7 +142,7 @@ eig = diagonalize(H)
 
 This struct simplifies the access to the eigenvalues and eigenvectors of the operator. You can access the eigenvalues with `eig.values`, and eigenvectors as `Ket`s can be obtained with the bracket notation `eig[i]` or `eig[value = E]`:
 
-```@example 2
+```@example 4
 # The states are sorted by real part of the eigenvalues, so
 psi = eig[1]                        # `psi` is the ground state
 psi2 = eig[value = 0]               # `psi2` is the state with zero energy
@@ -152,7 +173,7 @@ package, you can pass `:krylovkit` as the second argument. Since this solves the
 can also pass the keyword arguments: `n` for the number of eigenvalues to compute, `v0` for the initial guess, and 
 the keyword arguments for the `eigsolve` function.
 
-```@example 2
+```@example 4
 l = SquareLattice(100, 100)             # A really big lattice
 H = tightbinding_hamiltonian(l)
 eig = diagonalize(H, :krylovkit, n=9)   # Compute only 9 eigenvalues with smallest real part
@@ -173,7 +194,7 @@ nothing                     # hide
 
 After you diagonalize a Hamiltonian, you can calculate the [density matrix](https://en.wikipedia.org/wiki/Density_matrix) for the system. Use the [`densitymatrix`](@ref) function to do this:
 
-```@example 3
+```@example 5
 using LatticeModels
 l = SquareLattice(6, 6)
 sys = System(l, SpinBasis(1//2), mu=0, statistics=FermiDirac, T=0.1)
@@ -187,7 +208,7 @@ nothing # hide
 
 Note that the `densitymatrix` function can also be applied to a `Hamiltonian` object, in which case it will first diagonalize the Hamiltonian and then calculate the density matrix:
 
-```@example 3
+```@example 5
 P1_1 = densitymatrix(H)
 @assert P1 ≈ P1_1
 P2_1 = densitymatrix(H, statistics=BoseEinstein, T=0, mu=1)
