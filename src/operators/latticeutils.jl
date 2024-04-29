@@ -1,6 +1,35 @@
 import QuantumOpticsBase: basis, samebases, check_samebases
 
 """
+    localexpect(op, state)
+
+Compute the expectation values of the operator `op` acting on the local Hilbert space of `state`.
+The result is a `LatticeValue` with the same lattice as the input state.
+
+## Arguments
+- `op`: A `DataOperator` representing the operator.
+- `state`: A `Ket` or `Bra` representing the wavefunction or an `Operator` representing the density matrix.
+"""
+function localexpect(op::DataOperator, state::StateType{<:CompositeLatticeBasis})
+    check_samebases(internal_basis(state), basis(op))
+    l = lattice(state)
+    N = internal_length(state)
+    return LatticeValue(l, [sum(
+        op.data[j, k] * matrix_element(state, (i-1) * N + k, (i-1) * N + j)
+            for j in 1:N, k in 1:N) for i in eachindex(l)])
+end
+function localexpect(op::DataOperator, state::StateType{<:ManyBodyBasis{<:OneParticleBasis}})
+    check_samebases(internal_basis(state), basis(op))
+    l = lattice(state)
+    N = internal_length(state)
+    # TODO: This is a temporary solution. Need to implement a more efficient way to compute
+    return LatticeValue(l, [onebodyexpect(op ⊗ construct_operator(l, site), state) for site in l])
+end
+localexpect(::DataOperator, ::StateType{<:AbstractLatticeBasis}) =
+    throw(ArgumentError("Cannot compute local expectation value for a state without internal degrees of freedom"))
+localexpect(::DataOperator, ::StateType) = throw(ArgumentError("State must be defined on a lattice"))
+
+"""
     localdensity(state)
 
 Compute the local density of given `state`. The result is a `LatticeValue` with the same

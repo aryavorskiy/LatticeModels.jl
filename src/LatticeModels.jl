@@ -51,7 +51,7 @@ export interaction
 include("operators/miscoperators.jl")
 export coordoperator, coordoperators
 include("operators/latticeutils.jl")
-export localdensity, diag_reduce, apply_field!
+export localdensity, localexpect, diag_reduce, apply_field!
 
 include("spectrum.jl")
 export Eigensystem, diagonalize, projector, densitymatrix, groundstate, findgroundstate

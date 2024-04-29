@@ -24,6 +24,15 @@ import LatticeModels: ManyBodyBasis
         H_1 = qwz(l, field=LandauGauge(0.1))
         P = densitymatrix(H_0, statistics=FermiDirac)
 
+        # Check localexpect
+        @test localdensity(P) ≈ localexpect(one(spin), P)
+        small_l = SquareLattice(2, 2)
+        Hmb = qwz(NParticles(small_l, spin, 2))
+        Pmb = densitymatrix(Hmb)
+        @test localdensity(Pmb) ≈ localexpect(one(spin), Pmb)
+        @test_throws ArgumentError localexpect(one(spin), ptrace(P, :internal))
+        @test_throws ArgumentError localexpect(one(spin), ptrace(P, :lattice))
+
         # Check Heisenberg and von Neumann equation
         site = l[11]
         state = basisstate(l, site)
