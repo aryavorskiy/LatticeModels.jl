@@ -177,10 +177,10 @@ plot(complex_l)
 
 Note that adding `!` before the shape inverts it. This is useful when you need to create a lattice with a hole in it.
 
-Sometimes the shape can become ill-formed — this happens when the unit cell has non-trivial geometry. In this case you may need to remove the dangling sites using the [`removedangling!`](@ref) function. For example, they can arise when creating a path on a honeycomb lattice:
+In some cases, the shapes may contain dangling sites. They tend to mess up the calculations, so you can remove them using the `removedangling` keyword or [`removedangling!`](@ref) function. By default, the software performs two passes to remove sites that are connected to only one other site, but you can specify the number of passes or set it to `Inf` to remove all dangling sites recursively:
 
 ```@example 4
-l = HoneycombLattice(Circle(3, [0, 0]), Circle(3, [-2, 10]), Path([0, 0], [-2, 10]))
+l = HoneycombLattice(Circle(3, [0, 0]), Circle(3, [-2, 10]), Path([0, 0], [-2, 10]), removedangling=false)
 p = plot(size=(800, 350), layout=(1, 2))
 plot!(p[1], l, title="With dangling sites")
 removedangling!(l)

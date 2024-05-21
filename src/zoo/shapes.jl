@@ -93,7 +93,7 @@ All other keyword arguments are passed to the lattice constructor. See [`span_un
 for more information.
 """
 function fillshapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...;
-        sites::Nullable{Int}=nothing, scale::Real=1, offset=:origin, rotate=nothing, kw...) where N
+        sites::Nullable{Int}=nothing, scale::Real=1, offset=:origin, rotate=nothing, removedangling=2, kw...) where N
     bps = BravaisPointer{N}[]
     if sites !== nothing
         scale != 1 && @warn "Ignoring scale factor when `sites` is given"
@@ -116,6 +116,7 @@ function fillshapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...;
     end
     b = BravaisLattice(new_unitcell, bps)
     fb = finalize_lattice(b; kw...)
+    removedangling!(fb, removedangling)
     return addtranslations(fb, overwrite=true)
 end
 fillshapes(LT::Type{<:BravaisLatticeType}, shapes::AbstractShape...; kw...) =
@@ -324,13 +325,14 @@ function _countneighbors(check, lat::AbstractLattice, nns::AbstractBonds, i)
 end
 
 """
-    removedangling!(lat[; maxdepth])
+    removedangling!(lat[, maxdepth])
 
 Remove dangling sites from the lattice. A site is considered dangling if it has less than 2
 neighbors. The function will remove all dangling sites and their neighbors recursively up to
-`maxdepth` levels.
+`maxdepth` levels — the default is `Inf`.
 """
-function removedangling!(lat::AbstractLattice; maxdepth=Inf)
+function removedangling!(lat::AbstractLattice, maxdepth=Inf)
+    maxdepth ≤ 0 && return lat
     nns = NearestNeighbor(lat, 1)
     Is = Int[]
     queue = Tuple{Int, Int}[]

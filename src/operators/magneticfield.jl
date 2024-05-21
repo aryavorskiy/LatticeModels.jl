@@ -37,7 +37,7 @@ end
     NoField <: AbstractField
 
 A stub object representing zero magnetic field.
-Use it as a default magnetic field argument in functions - this will not cause any performance overhead.
+Use it as a default magnetic field argument in functions — this will not cause any performance overhead.
 """
 struct NoField <: AbstractField end
 line_integral(::NoField, p1, p2) = 0

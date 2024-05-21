@@ -45,7 +45,7 @@ import LatticeModels: stripmeta, BravaisPointer, BravaisSite, IncompatibleLattic
             !!Rectangle(-5 .. 5, -14 .. -12), Rectangle(15 .. 25, -14 .. -12),
             Path([-12, 32], [32, 32]), sites=10000
         )
-        removedangling!(complexsample, maxdepth=2)
+        removedangling!(complexsample, 2)
         addshapes!(complexsample, SiteAt([0, 0]))
         @test length(complexsample) ≈ 10000 rtol=0.03
 
