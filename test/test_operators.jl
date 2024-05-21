@@ -24,10 +24,14 @@ import LatticeModels: ManyBodyBasis
         H_1 = qwz(l, field=LandauGauge(0.1))
         P = densitymatrix(H_0, statistics=FermiDirac)
 
+        # Check occupation types
+        small_l = SquareLattice(3, 3)
+        Hmb = qwz(NParticles(small_l, spin, 2))
+        Hmb2 = qwz(NParticles(small_l, spin, 2), occupations_type=LatticeModels.FermionBitstring)
+        @test Hmb.data == Hmb2.data
+
         # Check localexpect
         @test localdensity(P) ≈ localexpect(one(spin), P)
-        small_l = SquareLattice(2, 2)
-        Hmb = qwz(NParticles(small_l, spin, 2))
         Pmb = densitymatrix(Hmb)
         @test localdensity(Pmb) ≈ localexpect(one(spin), Pmb)
         @test_throws ArgumentError localexpect(one(spin), ptrace(P, :internal))

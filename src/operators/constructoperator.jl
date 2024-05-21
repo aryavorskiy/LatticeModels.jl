@@ -100,9 +100,9 @@ See documentation for more details.
 ## Keyword Arguments
 - `field`: The gauge field to use for the bond operators. Default is `NoField()`.
 """
-function construct_operator(T::Type, sys::System, args...; field=NoField())
+function construct_operator(T::Type, sys::System, args...; kw...)
     sample = sys.sample
-    builder = FastOperatorBuilder(T, sys; field=field, auto_hermitian=true)
+    builder = FastOperatorBuilder(T, sys; auto_hermitian=true, kw...)
     sizehint!(builder.mat_builder, length(sample) * length(args))
     for arg in args
         pair = arg_to_pair(sample, arg)
@@ -142,9 +142,9 @@ All other arguments are interpreted as terms of the Hamiltonian and passed to `c
     neighbors, respectively.
 - `field`: The gauge field to use for the bond operators. Default is `NoField()`.
 """
-tightbinding_hamiltonian(T::Type, sys::System, args...; t1=1, t2=0, t3=0, field=NoField()) =
+tightbinding_hamiltonian(T::Type, sys::System, args...; t1=1, t2=0, t3=0, kw...) =
     construct_hamiltonian(T, sys, args...,
         t1 => NearestNeighbor(1),
         t2 => NearestNeighbor(2),
-        t3 => NearestNeighbor(3), field=field)
+        t3 => NearestNeighbor(3); kw...)
 @accepts_system_t tightbinding_hamiltonian

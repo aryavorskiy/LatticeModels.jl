@@ -221,7 +221,14 @@ System(onep::OneParticleSystem; kw...) = System(onep.sample; T=onep.T, kw...)
 System(args...; μ = nothing, mu = μ, N = nothing, statistics=FermiDirac, T=0, kw...) =
     System(Sample(args...; kw...), mu=mu, N=N, T=T, statistics=statistics)
 
-function occupations(np::NParticles)
+function occupations(np::NParticles, occupations_type::Type)
+    if np.statistics == FermiDirac
+        fermionstates(occupations_type, length(np.sample), np.nparticles)
+    elseif np.statistics == BoseEinstein
+        bosonstates(occupations_type, length(np.sample), np.nparticles)
+    end
+end
+function occupations(np::NParticles, ::Nothing=nothing)
     if np.statistics == FermiDirac
         fermionstates(length(np.sample), np.nparticles)
     elseif np.statistics == BoseEinstein
