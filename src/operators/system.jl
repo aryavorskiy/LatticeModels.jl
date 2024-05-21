@@ -125,9 +125,9 @@ end
 
 abstract type ManyBodySystem{SampleT} <: System{SampleT} end
 
-struct NParticles{SampleT} <: ManyBodySystem{SampleT}
+struct NParticles{SampleT,NPT} <: ManyBodySystem{SampleT}
     sample::SampleT
-    nparticles::Int
+    nparticles::NPT
     statistics::ParticleStatistics
     T::Float64
 end
@@ -159,7 +159,7 @@ NParticles(4 bosons) on 9-site SquareLattice in 2D space
 ```
 """
 function NParticles(sample::SampleT, nparticles; statistics = FermiDirac, T = 0) where SampleT<:Sample
-    NParticles{SampleT}(sample, nparticles, statistics, T)
+    NParticles{SampleT, typeof(nparticles)}(sample, nparticles, statistics, T)
 end
 NParticles(onep::OneParticleSystem, n; kw...) = NParticles(onep.sample, n;
     T = onep.T, kw...)
@@ -170,7 +170,8 @@ Base.:(==)(sys1::NParticles, sys2::NParticles) =
     sys1.statistics == sys2.statistics && sys1.T == sys2.T
 function Base.show(io::IO, mime::MIME"text/plain", sys::NParticles)
     noun = sys.statistics == FermiDirac ? "fermion" : "boson"
-    print(io, "NParticles(", fmtnum(sys.nparticles, noun), ") on ")
+    n = sys.nparticles
+    print(io, "NParticles(", n isa Int ? fmtnum(n, noun) : string(n) * " $(noun)(s)", ") on ")
     show(io, mime, sys.sample)
 end
 
@@ -222,17 +223,19 @@ System(args...; μ = nothing, mu = μ, N = nothing, statistics=FermiDirac, T=0, 
     System(Sample(args...; kw...), mu=mu, N=N, T=T, statistics=statistics)
 
 function occupations(np::NParticles, occupations_type::Type)
+    n = np.nparticles
     if np.statistics == FermiDirac
-        fermionstates(occupations_type, length(np.sample), np.nparticles)
+        fermionstates(occupations_type, length(np.sample), n isa Int ? n : collect(n))
     elseif np.statistics == BoseEinstein
-        bosonstates(occupations_type, length(np.sample), np.nparticles)
+        bosonstates(occupations_type, length(np.sample), n isa Int ? n : collect(n))
     end
 end
 function occupations(np::NParticles, ::Nothing=nothing)
+    n = np.nparticles
     if np.statistics == FermiDirac
-        fermionstates(length(np.sample), np.nparticles)
+        fermionstates(length(np.sample), n isa Int ? n : collect(n))
     elseif np.statistics == BoseEinstein
-        bosonstates(length(np.sample), np.nparticles)
+        bosonstates(length(np.sample), n isa Int ? n : collect(n))
     end
 end
 
