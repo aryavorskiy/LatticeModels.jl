@@ -61,7 +61,14 @@ See more examples in the [Examples](@ref) section.
 
 Packages such as [Quantica.jl](https://github.com/pablosanjose/Quantica.jl), [pybinding](https://docs.pybinding.site/en/stable/index.html) and [Kwant](https://kwant-project.org/) provide similar functionality. And while they are all great packages, pybinding and Quantica are mostly focused on static properties of lattices. Kwant is more versatile, but its main focus is on quantum transport problems - it provides dynamic simulations in the `Tkwant` package, but `LatticeModels.jl` allows usage of various powerful backends, which improves performance and flexibility.
 
-![Hamiltonian creation](./assets/benchmarks/benchmark_hamiltonian.svg)
+Here are some benchmarks: 
+
+|---|---|---|
+| ![Hamiltonian creation](./assets/benchmarks/benchmark_hamiltonian.svg) | ![Ground state computation](./assets/benchmarks/benchmark_groundstate.svg) | ![Time evolution](./assets/benchmarks/benchmark_evolution_const.svg)
+
+One can see dramatic performance improvements on small lattice sizes, while being competitive on larger ones.
+These benchmarks were run on a 4-core Intel Core i7-10510U, 16 GB RAM machine.
+You can find the benchmarking code in [the `benchmarks` folder of the package repository](https://github.com/aryavorskiy/LatticeModels.jl/tree/master/benchmarks).
 
 There are other nice features that `LatticeModels.jl` provides:
 

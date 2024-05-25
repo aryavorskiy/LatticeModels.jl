@@ -14,7 +14,7 @@ end
 pyexec("""
 import numpy as np
 import scipy.sparse.linalg as sla
-import kwant, cmath, math
+import kwant, tkwant, cmath, math
 import pybinding as pb
 from pybinding.repository import graphene
 import threading
@@ -47,7 +47,7 @@ def make_model_kwant(n, magnetic_field=3):
     a_cc = 0.142
     a = a_cc * math.sqrt(3)
     graphene_lattice = kwant.lattice.general([(a, 0), (a/2, a/2 * math.sqrt(3))],
-                                                [(0, -a_cc/2), (0, a_cc/2)])
+                                    [(0, -a_cc/2), (0, a_cc/2)], norbs=1)
     builder = kwant.Builder()
     builder[graphene_lattice.shape(circle, (0, 0))] = onsite
     builder[graphene_lattice.neighbors()] = hopping
