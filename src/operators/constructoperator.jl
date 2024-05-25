@@ -17,27 +17,41 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:AbstractBonds})
         builder[s1, s2] += op
     end
 end
-function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:BravaisSiteMapping})
-    # Bravais site mapping
-    op, bsm = arg
-    for tr in bsm.translations
-        add_term!(builder, op => tr)
+function _add_term!(builder::OperatorBuilder, Is, Js, Vs, op)
+    N = internal_length(builder)
+    if N == 1
+        abs(only(op)) < 1e-15 && return
+        append!(builder.mat_builder.Is, Is)
+        append!(builder.mat_builder.Js, Js)
+        append!(builder.mat_builder.Vs, (V * only(op) for V in Vs))
+    else
+        for i in 1:N, j in 1:N
+            abs(op[i, j]) < 1e-15 && continue
+            append!(builder.mat_builder.Is, ((I - 1) * N + i for I in Is))
+            append!(builder.mat_builder.Js, ((J - 1) * N + j for J in Js))
+            append!(builder.mat_builder.Vs, (V * op[i, j] for V in Vs))
+        end
     end
 end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:LatticeValue})
     # Onsite term
     op, lv = arg
     N = internal_length(builder)
-    oneto = 1:length(lattice(builder))
-    if N == 1
-        append!(builder.mat_builder.Is, oneto)
-        append!(builder.mat_builder.Js, oneto)
-        append!(builder.mat_builder.Vs, lv.values)
+    Is = 1:length(lattice(builder))
+    if N < 5
+        _add_term!(builder, Is, Is, lv.values, op)
     else
-        for i in 1:oneto    # This avoids finding indices of sites
+        for i in 1:Is    # This avoids finding indices of sites
             is = (i - 1) * N + 1:i * N
             builder.mat_builder[is, is, factor=lv.values[i], overwrite=false] = op
         end
+    end
+end
+function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:BravaisSiteMapping})
+    # Bravais site mapping
+    op, bsm = arg
+    for tr in bsm.translations
+        add_term!(builder, op => tr)
     end
 end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:Number})
