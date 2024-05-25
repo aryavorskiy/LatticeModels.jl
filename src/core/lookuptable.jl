@@ -10,7 +10,7 @@ Works well under following assumptions:
 - The sites in the lattice are ordered by `sitekey`.
 - The numbering is mostly contiguous, i.e. there are no (or few) gaps in the numbering.
 - The `secondarykey` is also integer, mostly contiguous, ordered and unique for all sites with the same `sitekey`.
-Set them to `nothing` to disable usage.
+Set them to `nothing` to disable usage (this is the default behavior).
 """
 struct LookupTable
     firstkey::Int
@@ -28,6 +28,7 @@ function indrange(lt::LookupTable, site::AbstractSite)
     isempty(lt.secondarykeyranges) && return range
     @inbounds skrange = lt.secondarykeyranges[j]
     seckey = secondarykey(site)
+    seckey in skrange || return 1:0
     start = max(range.start, range.stop + seckey - skrange.stop)
     stop = min(range.stop, seckey - skrange.start + range.start)
     return start:stop

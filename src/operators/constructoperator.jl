@@ -17,13 +17,27 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:AbstractBonds})
         builder[s1, s2] += op
     end
 end
+function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:BravaisSiteMapping})
+    # Bravais site mapping
+    op, bsm = arg
+    for tr in bsm.translations
+        add_term!(builder, op => tr)
+    end
+end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:LatticeValue})
     # Onsite term
     op, lv = arg
     N = internal_length(builder)
-    for i in 1:length(lattice(builder)) # This avoids finding indices of sites
-        is = (i - 1) * N + 1:i * N
-        builder.mat_builder[is, is, factor=lv.values[i], overwrite=false] = op
+    oneto = 1:length(lattice(builder))
+    if N == 1
+        append!(builder.mat_builder.Is, oneto)
+        append!(builder.mat_builder.Js, oneto)
+        append!(builder.mat_builder.Vs, lv.values)
+    else
+        for i in 1:oneto    # This avoids finding indices of sites
+            is = (i - 1) * N + 1:i * N
+            builder.mat_builder[is, is, factor=lv.values[i], overwrite=false] = op
+        end
     end
 end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:Number})

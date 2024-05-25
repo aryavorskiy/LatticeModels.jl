@@ -12,6 +12,7 @@ function combine_entries(mw1::ArrayEntry, mw2::ArrayEntry)
     end
 end
 Base.convert(::Type{ArrayEntry{T}}, mw::ArrayEntry) where T = ArrayEntry(convert(T, mw.val), mw.overwrite)
+Base.convert(::Type{ArrayEntry{T}}, x::Any) where T = ArrayEntry(convert(T, x), false)
 Base.zero(::Type{ArrayEntry{T}}) where T = ArrayEntry(zero(T), true)
 to_number(mw::ArrayEntry) = mw.val
 

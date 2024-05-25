@@ -56,8 +56,8 @@ Base.:(!)(n::NotShape) = n.shape
 
 
 """
-    shape_radius(unitcell, shape, sites)
-    shape_radius(lat, shape[, sites])
+    shaperadius(unitcell, shape, sites)
+    shaperadius(lat, shape[, sites])
 
 Calculate the radius of a shape such that it contains appriximately `sites` sites.
 
@@ -318,6 +318,7 @@ function _countneighbors(check, lat::AbstractLattice, nns::AbstractBonds, i)
         if rs2 !== nothing && check(rs2.index)
             rs2.index == i && continue
             counter += 1
+            counter ≥ 2 && return counter, index
             index = rs2.index
         end
     end
@@ -336,8 +337,9 @@ function removedangling!(lat::AbstractLattice, maxdepth=Inf)
     nns = NearestNeighbor(lat, 1)
     Is = Int[]
     queue = Tuple{Int, Int}[]
+    rlat = addlookuptable(lat)
     for i in eachindex(lat)
-        counter, index = _countneighbors(alwaystrue, lat, nns, i)
+        counter, index = _countneighbors(alwaystrue, rlat, nns, i)
         if counter < 2
             push!(Is, i)
             (counter == 1) && push!(queue, (index, 1))
@@ -350,7 +352,7 @@ function removedangling!(lat::AbstractLattice, maxdepth=Inf)
             j += 1
             continue
         end
-        counter, index = _countneighbors(!(in(Is)), lat, nns, i)
+        counter, index = _countneighbors(!(in(Is)), rlat, nns, i)
         if counter < 2
             iind = searchsortedfirst(Is, i)
             insert!(Is, iind, i)
