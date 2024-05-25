@@ -38,10 +38,10 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:LatticeValue})
     op, lv = arg
     N = internal_length(builder)
     Is = 1:length(lattice(builder))
-    if N < 5
+    if N < 0
         _add_term!(builder, Is, Is, lv.values, op)
     else
-        for i in 1:Is    # This avoids finding indices of sites
+        for i in Is    # This avoids finding indices of sites
             is = (i - 1) * N + 1:i * N
             builder.mat_builder[is, is, factor=lv.values[i], overwrite=false] = op
         end
@@ -49,9 +49,10 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:LatticeValue})
 end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:BravaisSiteMapping})
     # Bravais site mapping
+    l = lattice(builder)
     op, bsm = arg
-    for tr in bsm.translations
-        add_term!(builder, op => tr)
+    for translation in bsm.translations
+        add_term!(builder, op => adapt_bonds(translation, l))
     end
 end
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:Number})

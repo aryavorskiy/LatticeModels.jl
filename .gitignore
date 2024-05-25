@@ -9,3 +9,4 @@ Manifest.toml
 test/Manifest.toml
 docs/Manifest.toml
 demo.jl
+CondaPkg.toml

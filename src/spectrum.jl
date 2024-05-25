@@ -190,7 +190,7 @@ E, ψ = findgroundstate(eig)
 ```
 """
 findgroundstate(eig::HamiltonianEigensystem) = eig.values[1], eig[1]
-findgroundstate(ham::Hamiltonian) = findgroundstate(diagonalize(ham))
+findgroundstate(ham::Hamiltonian) = findgroundstate(diagonalize(ham, :krylovkit, n=1, warning=false))
 
 """
     groundstate(eig::HamiltonianEigensystem)
