@@ -19,17 +19,25 @@ import Pkg; Pkg.add(url="https://github.com/aryavorskiy/LatticeModels.jl")
 
 ## Similar packages
 
-There are many packages with similar functionality, such as [Quantica.jl](https://github.com/pablosanjose/Quantica.jl), [pybinding](https://docs.pybinding.site/en/stable/index.html) and [Kwant](https://kwant-project.org/). 
-However, the scope of these packages is different:
+Packages such as [Quantica.jl](https://github.com/pablosanjose/Quantica.jl), [pybinding](https://docs.pybinding.site/en/stable/index.html) and [Kwant](https://kwant-project.org/) provide similar functionality. And while they are all great packages, pybinding and Quantica are mostly focused on static properties of lattices. Kwant is more versatile, but its main focus is on quantum transport problems - it provides dynamic simulations in the `Tkwant` package, but `LatticeModels.jl` allows usage of various powerful backends, which improves performance and flexibility.
 
-- **A flexible interface for defining new types of lattices and bonds**. While other packages are usually 
-    limited to Bravais lattices, `LatticeModels.jl` allows you to define any lattice structure.
-- **Convenient tools for setting boundary conditions and gauge fields**. The only way to do this in 
+Here are some benchmarks: 
+
+![All benchmarks composed](benchmark_all.svg)
+
+One can see dramatic performance improvements on small lattice sizes, while being competitive on larger ones.
+These benchmarks were run on a 4-core Intel Core i7-10510U, 16 GB RAM machine.
+You can find the benchmarking code in [the `benchmarks` folder of the package repository](benchmarks).
+
+There are other nice features that `LatticeModels.jl` provides:
+
+- **Convenient tools for setting periodic boundary conditions and gauge fields**. The only way to do this in 
     Kwant or Pybinding is to manually set the hopping values.
-- **Schrödinger equation solvers with time-dependent hamiltonians**. Only Kwant provides similar functionality 
-    with its `Tkwant` module, but it lacks performance and flexibility in some cases.
-- **Manybody computations**. Kwant and Pybinding are designed mostly for single-particle simulations, while 
-    `LatticeModels.jl` can handle manybody systems with particle interaction.
+- **A flexible interface for defining new types of lattices and bonds**. Random lattices can be implemented
+    on top of [`GenericLattice`](@ref) with ease.
+- **Full-fledged quantum mechanics**. Any quantum operator can be defined and used in the simulations without much struggle.
+- **Manybody computations**. `LatticeModels.jl` can handle manybody systems with particle interaction.
+
 
 ## Example
 

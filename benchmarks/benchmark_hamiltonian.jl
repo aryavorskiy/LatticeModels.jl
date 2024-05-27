@@ -23,11 +23,9 @@ def measure_pb(num_sites):
     return time.elapsed``` => measure_pb
 
 Ns = 10 .^ (2:7)
-@isdefined(benchmark_results) || (benchmark_results = Dict{String, Any}())
+benchmark_results = Dict{String, Any}()
 benchmark_results["LatticeModels"] = run_benchmarks(Ns, measure_lm)
 benchmark_results["Kwant"] = run_benchmarks(Ns, measure_kwant)
 benchmark_results["Pybinding"] = run_benchmarks(Ns, measure_pb)
-
-f, ax = plot_benchmarks(Ns, benchmark_results)
-ax.title = "Hamiltonian creation"
-save("benchmark_hamiltonian.svg", f)
+add_benchmark!("Hamiltonian creation", Ns, benchmark_results)
+plot_benchmarks()

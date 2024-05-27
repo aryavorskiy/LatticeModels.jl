@@ -69,25 +69,53 @@ function run_benchmarks(Ns, f; nrepeat=5, kw...)
     return Ts
 end
 
-function plot_benchmarks(Ns, benchmark_results)
-    f = Figure()
-    ax = Axis(f[1,1],
-        xscale = log10,
-        xlabel = "Number of sites",
-        yscale = log10,
-        ylabel = "Time [s]",
-        yminorticks = IntervalsBetween(5),
-        yminorticksvisible = true,
-        yminorgridvisible = true,
-        yminorgridstyle = :dash
-    )
-    for key in ["LatticeModels", "Kwant", "Pybinding"]
-        key in keys(benchmark_results) || continue
-        value = benchmark_results[key]
-        lines!(ax, Ns, value, label=key)
-        scatter!(ax, Ns, value, label=key)
+@isdefined(benchmark_names) || (benchmark_names = String[])
+@isdefined(benchmark_results_array) || (benchmark_results_array = [])
+function add_benchmark!(name, ns, results)
+    i = findfirst(==(name), benchmark_names)
+    if i === nothing
+        push!(benchmark_names, name)
+        push!(benchmark_results_array, (ns, results))
+    else
+        benchmark_results_array[i] = (ns, results)
     end
-    axislegend(ax, position=:rb, merge=true)
+end
+function plot_benchmarks(;kw...)
+    fig = Figure(;kw...)
+    n = length(benchmark_names)
+    for i in eachindex(benchmark_names)
+        name = benchmark_names[i]
+        ns, results = benchmark_results_array[i]
+        rowi = (i - 1) ÷ 2 + 1
+        coli = (i - 1) % 2 + 1
 
-    return f, ax
+        ax = Axis(fig,
+            xscale = log10,
+            xlabel = "Number of sites",
+            yscale = log10,
+            ylabel = "Time [s]",
+            yminorticks = IntervalsBetween(5),
+            yminorticksvisible = true,
+            yminorgridvisible = true,
+            yminorgridstyle = :dash,
+            alignmode = Outside(),
+            title = name
+        )
+        for key in ["LatticeModels", "Kwant", "Pybinding"]
+            key in keys(results) || continue
+            value = results[key]
+            lines!(ax, ns, value, label=key)
+            scatter!(ax, ns, value, label=key)
+        end
+        axislegend(ax, position=:rb, merge=true)
+
+        if i == n && isodd(n) && n != 1
+            fig[rowi, 2:3] = ax
+        elseif coli == 1
+            fig[rowi, 1:2] = ax
+        else
+            fig[rowi, 3:4] = ax
+        end
+    end
+    fig
 end

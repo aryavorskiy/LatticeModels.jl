@@ -27,10 +27,8 @@ def measure_kwant_ev_const(num_sites):
 ``` => measure_kwant_ev_const
 
 Ns = round.(Int, 10 .^ (2:0.5:5))
-@isdefined(ev_benchmark_results) || (ev_benchmark_results = Dict{String, Any}())
+ev_benchmark_results = Dict{String, Any}()
 ev_benchmark_results["LatticeModels"] = run_benchmarks(Ns, measure_lm_ev_const)
 ev_benchmark_results["Kwant"] = run_benchmarks(Ns, measure_kwant_ev_const)
-
-f, ax = plot_benchmarks(Ns, ev_benchmark_results)
-ax.title = "Evolution, constant Hamiltonian"
-save("benchmark_evolution_const.svg", f)
+add_benchmark!("Evolution, constant Hamiltonian", Ns, ev_benchmark_results)
+plot_benchmarks()

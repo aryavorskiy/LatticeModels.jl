@@ -28,11 +28,9 @@ def measure_pb_groundstate(num_sites):
 """ => measure_pb_groundstate
 
 Ns = round.(Int, 10 .^ (2:0.5:5))
-@isdefined(gs_benchmark_results) || (gs_benchmark_results = Dict{String, Any}())
+gs_benchmark_results = Dict{String, Any}()
 gs_benchmark_results["LatticeModels"] = run_benchmarks(Ns, measure_lm_groundstate)
 gs_benchmark_results["Kwant"] = run_benchmarks(Ns, measure_kwant_groundstate)
 gs_benchmark_results["Pybinding"] = run_benchmarks(Ns, measure_pb_groundstate)
-
-f, ax = plot_benchmarks(Ns, gs_benchmark_results)
-ax.title = "Ground state density computation"
-save("benchmark_groundstate.svg", f)
+add_benchmark!("Ground state density computation", Ns, gs_benchmark_results)
+plot_benchmarks()

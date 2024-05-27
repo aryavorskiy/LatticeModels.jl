@@ -63,8 +63,7 @@ Packages such as [Quantica.jl](https://github.com/pablosanjose/Quantica.jl), [py
 
 Here are some benchmarks: 
 
-|---|---|---|
-| ![Hamiltonian creation](./assets/benchmarks/benchmark_hamiltonian.svg) | ![Ground state computation](./assets/benchmarks/benchmark_groundstate.svg) | ![Time evolution](./assets/benchmarks/benchmark_evolution_const.svg)
+![All benchmarks composed](./assets/benchmarks/benchmark_all.svg)
 
 One can see dramatic performance improvements on small lattice sizes, while being competitive on larger ones.
 These benchmarks were run on a 4-core Intel Core i7-10510U, 16 GB RAM machine.
