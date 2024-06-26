@@ -63,7 +63,7 @@ Packages such as [Quantica.jl](https://github.com/pablosanjose/Quantica.jl), [py
 
 Here are some benchmarks: 
 
-![All benchmarks composed](./assets/benchmarks/benchmark_all.svg)
+![All benchmarks composed](./assets/benchmark_all.svg)
 
 One can see dramatic performance improvements on small lattice sizes, while being competitive on larger ones.
 These benchmarks were run on a 4-core Intel Core i7-10510U, 16 GB RAM machine.
