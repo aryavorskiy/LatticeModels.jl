@@ -1,6 +1,5 @@
 import LatticeModels: Sample, LatticeBasis
-# import QuantumOpticsBase: ManyBodyBasis
-import LatticeModels: ManyBodyBasis
+import LatticeModels: ManyBodyBasis, FermionBitstring
 
 @testset "Operators" begin
     @testset "Basics" begin
@@ -27,7 +26,7 @@ import LatticeModels: ManyBodyBasis
         # Check occupation types
         small_l = SquareLattice(3, 3)
         Hmb = qwz(NParticles(small_l, spin, 2))
-        Hmb2 = qwz(NParticles(small_l, spin, 2), occupations_type=LatticeModels.FermionBitstring)
+        Hmb2 = qwz(NParticles(small_l, spin, 2), occupations_type=FermionBitstring)
         @test Hmb.data == Hmb2.data
 
         # Check localexpect

@@ -1,5 +1,5 @@
 import QuantumOpticsBase: Basis, SparseOperator
-# import QuantumOpticsBase: allocate_buffer, state_index, state_transition!
+import QuantumOpticsBase: allocate_buffer, state_index, state_transition!
 
 """
     interaction(f, [T, ]sys)

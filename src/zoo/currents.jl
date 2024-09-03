@@ -1,5 +1,5 @@
 import QuantumOpticsBase: check_samebases
-# import QuantumOpticsBase: allocate_buffer, state_transition!, state_index
+import QuantumOpticsBase: allocate_buffer, state_transition!, state_index
 
 # Average of creation/destruction operator combination
 function _avg(state::StateType{<:OneParticleBasis}, at_indices, a_indices)

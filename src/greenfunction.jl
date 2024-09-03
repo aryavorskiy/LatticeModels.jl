@@ -1,4 +1,4 @@
-# import QuantumOpticsBase: allocate_buffer, state_transition!, state_index
+import QuantumOpticsBase: allocate_buffer, state_transition!, state_index
 
 struct GreenFunctionElement{VecC, VecE}
     weights_up_l::VecC
@@ -184,7 +184,7 @@ end
 function _to(state, index, bas::ManyBodyBasis; create)
     bf = basis(state)::ManyBodyBasis
     zs = zeros(ComplexF64, length(bas))
-    buffer = allocate_buffer(bas)
+    buffer = allocate_buffer(bf)
     for (i, occ) in enumerate(bf.occupations)
         copyto!(buffer, occ)
         if create
