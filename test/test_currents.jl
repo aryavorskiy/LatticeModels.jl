@@ -5,7 +5,7 @@
     H_1 = qwz(l, field=LandauGauge(0.1))
     dg = diagonalize(H_0)
     gs = dg[1]
-    P = densitymatrix(dg, statistics=FermiDirac)
+    P = densitymatrix(dg, statistics=FermiDirac, info=false)
     dc = DensityCurrents(H_1, P)
 
     @testset "Basics" begin
@@ -45,7 +45,7 @@
         site1, site2 = l2
         m = Currents(l2)
         m[site1, site2] = 2
-        m[site1, site1] = 1
+        @test_logs (:warn, "Attempt to assign nonzero current from site to self") m[site1, site1] = 1
         @test m.currents == [0 2; -2 0]
         mc = Currents(dc)
         @test mc + mc == 2mc + zero(mc)

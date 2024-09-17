@@ -21,7 +21,8 @@ import LatticeModels: ManyBodyBasis, FermionBitstring
 
         H_0 = qwz(l)
         H_1 = qwz(l, field=LandauGauge(0.1))
-        P = densitymatrix(H_0, statistics=FermiDirac)
+        P = @test_logs (:info, """Creating density matrix: FermiDirac distribution, T = 0.0, μ = 0
+        set `info=false` to disable this message""") densitymatrix(H_0, statistics=FermiDirac)
 
         # Check occupation types
         small_l = SquareLattice(3, 3)
@@ -31,7 +32,7 @@ import LatticeModels: ManyBodyBasis, FermionBitstring
 
         # Check localexpect
         @test localdensity(P) ≈ localexpect(one(spin), P)
-        Pmb = densitymatrix(Hmb)
+        Pmb = densitymatrix(Hmb, info=false)
         @test localdensity(Pmb) ≈ localexpect(one(spin), Pmb)
         @test_throws ArgumentError localexpect(one(spin), ptrace(P, :internal))
         @test_throws ArgumentError localexpect(one(spin), ptrace(P, :lattice))
@@ -196,7 +197,8 @@ import LatticeModels: ManyBodyBasis, FermionBitstring
         @test d1.values ≈ d2.values
 
         @test_throws ErrorException diagonalize(qwz(l), :invalid_routine)
-        eigk = diagonalize(qwz(l), :krylovkit)
+        eigk = @test_logs (:warn, """50×50 sparse operator can be diagonalized exactly; consider making is dense with `dense(op)`.
+        Set `warning=false` to disable this warning.""") diagonalize(qwz(l), :krylovkit)
         @test abs(eigk[1]' * eig[1]) ≈ 1
 
         spin = SpinBasis(1//2)
@@ -207,11 +209,13 @@ import LatticeModels: ManyBodyBasis, FermionBitstring
 
         sys = System(l, N = 3, T = 1, statistics=FermiDirac)
         H = tightbinding_hamiltonian(sys)
-        dm = densitymatrix(H)
+        dm = @test_logs (:info, """Creating density matrix: FermiDirac distribution, N = 3 (μ found automatically), T = 1.0
+        set `info=false` to disable this message""") densitymatrix(H)
         @test tr(dm) ≈ 3
 
         H2 = tightbinding_hamiltonian(l)
-        P = densitymatrix(H2, T = 0)
+        P = @test_logs (:info, """Creating density matrix: Gibbs distribution, T = 0
+        set `info=false` to disable this message""") densitymatrix(H2, T = 0)
         psi = groundstate(H2)
         @test P ≈ psi ⊗ psi'
     end

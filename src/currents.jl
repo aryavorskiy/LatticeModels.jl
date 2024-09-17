@@ -143,8 +143,8 @@ function Base.setindex!(curr::Currents, rhs, site1::AbstractSite, site2::Abstrac
     s2 === nothing && return
     i = s1.index
     j = s2.index
-    if i == j
-        @warn "matching source and destination sites"
+    if i == j && abs(rhs) > CURRENTS_EPS
+        @warn "Attempt to assign nonzero current from site to self"
         return
     end
     curr.currents[i, j] = rhs

@@ -9,7 +9,9 @@
         hy = construct_operator(l, BravaisTranslation(axis=2))
         H = d + hx + hy
         eig = diagonalize(H)
-        P = densitymatrix(eig, statistics=FermiDirac, N = 3)
+        P = @test_logs (:info, """Creating density matrix: Fermi sphere, N = 3
+        set `info=false` to disable this message""") (:warn, "degenerate levels on the Fermi sphere"
+            ) densitymatrix(eig, statistics=FermiDirac, N = 3)
         @test all(isfinite, P.data)
     end
 
@@ -17,7 +19,8 @@
         l = GrapheneRibbon(10, 5, rotate=pi/2)
         @test_throws ArgumentError haldane(SquareLattice(10, 10), 1, 1, 1)
         H = haldane(l, 1, 1, 1)
-        P = densitymatrix(diagonalize(H), statistics=BoseEinstein)
+        P = @test_logs (:info, """Creating density matrix: BoseEinstein distribution, T = 0.0, μ = 0
+        set `info=false` to disable this message""") densitymatrix(diagonalize(H), statistics=BoseEinstein)
         X, Y = coordoperators(basis(H))
         d = localdensity(4π * im * P * X * (one(P) - P) * Y * P)
         rd = d .|> real
@@ -45,11 +48,12 @@
                 field = LandauGauge(t)
             )
         end
-        P0 = densitymatrix(diagonalize(H0), μ = 3)
+        P0 = @test_logs (:info, """Creating density matrix: FermiDirac distribution, T = 0.0, μ = 3
+        set `info=false` to disable this message""") densitymatrix(diagonalize(H0), μ = 3)
         X, Y = coordoperators(basis(H0))
         evol = Evolution(h, P = P0)
         densities = TimeSequence{LatticeValue}()
-        for state in evol(0:0.1:10)
+        for state in evol(0:0.1:10, showprogress = false)
             P, H, t = state
             d = localdensity(4π * im * P * X * (one(P) - P) * Y * P)
             ch = Currents(DensityCurrents(H, P))
@@ -76,7 +80,8 @@
             [1 1; -1 -1] / 2 => BravaisTranslation(axis = 2),
             field = LandauGauge(0.5)
         )
-        P = densitymatrix(diagonalize(H), N = 3, T = 1, statistics=FermiDirac)
+        P = @test_logs (:info, """Creating density matrix: FermiDirac distribution, N = 3 (μ found automatically), T = 1
+        set `info=false` to disable this message""") densitymatrix(diagonalize(H), N = 3, T = 1, statistics=FermiDirac)
 
         dc = DensityCurrents(H, P)
         plot!(p[1], dc[x.<y])
