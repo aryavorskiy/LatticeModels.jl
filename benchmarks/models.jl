@@ -55,6 +55,38 @@ def make_model_kwant(n, magnetic_field=3):
 
     return builder.finalized()
 
+def make_model_tkwant(n, magnetic_field=3):
+    radius=calc_radius(n)
+
+    def circle(pos):
+        x, y = pos
+        return x**2 + y**2 < radius**2
+
+    def onsite(site):
+        x, y = site.pos
+        if x**2 + y**2 < (radius / 2)**2:
+            return 0.2
+        else:
+            return 0.0
+
+    def hopping(site_i, site_j, time):
+        xi, yi = site_i.pos
+        xj, yj = site_j.pos
+        phi_ij = 0.5 * magnetic_field * (xi + xj) * (yi - yj) * min(time/5, 1)
+        const = 1.519e-3  # 2*pi*e/h*[nm^2]
+        return -2.8 * cmath.exp(1j * phi_ij * const)
+
+    a_cc = 0.142
+    a = a_cc * math.sqrt(3)
+    graphene_lattice = kwant.lattice.general([(a, 0), (a/2, a/2 * math.sqrt(3))],
+                                    [(0, -a_cc/2), (0, a_cc/2)], norbs=1)
+    builder = kwant.Builder()
+    builder[graphene_lattice.shape(circle, (0, 0))] = onsite
+    builder[graphene_lattice.neighbors()] = hopping
+    builder.eradicate_dangling()
+
+    return builder.finalized()
+
 def make_model_pb(num_sites, warmup=False, plot=False):
     def circular_pn_junction(v0, radius):
         @pb.onsite_energy_modifier

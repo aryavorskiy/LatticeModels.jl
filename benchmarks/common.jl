@@ -1,9 +1,8 @@
-using PythonCall, CondaPkg, CairoMakie
-include("models.jl")
+using CondaPkg
+CondaPkg.add(["numpy", "kwant", "tkwant", "pybinding"], channel="conda-forge")
 
-CondaPkg.add("kwant")
-CondaPkg.add("tkwant")
-CondaPkg.add("pybinding", channel="conda-forge")
+using PythonCall, CairoMakie
+include("models.jl")
 
 pyexec("""
 import threading
