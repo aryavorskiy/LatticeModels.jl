@@ -74,6 +74,26 @@ shaperadius(LT::Type{<:BravaisLatticeType}, shape::AbstractShape, sites::Int) =
 shaperadius(lat::MaybeWithMetadata{BravaisLattice}, shape::AbstractShape, sites=length(lat)) =
     shaperadius(lat.unitcell, shape, sites)
 
+function insertordered!(arr, arr2)
+    isempty(arr2) && return
+    if isempty(arr)
+        append!(arr, arr2)
+        return
+    end
+
+    i = 1
+    for j in eachindex(arr2)
+        while i ≤ length(arr) && arr[i] < arr2[j]
+            i += 1
+        end
+        if i > length(arr)
+            append!(arr, @view arr2[j:end])
+            break
+        end
+        insert!(arr, i, arr2[j])
+    end
+end
+
 """
     fillshapes(uc, shapes...[; sites, scale, kw...])
 
@@ -95,6 +115,7 @@ for more information.
 function fillshapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...;
         sites::Nullable{Int}=nothing, scale::Real=1, offset=:origin, rotate=nothing, removedangling=2, kw...) where N
     bps = BravaisPointer{N}[]
+    bps_buffer = BravaisPointer{N}[]
     if sites !== nothing
         scale != 1 && @warn "Ignoring scale factor when `sites` is given"
         scale = scalefactor(uc, shapes...; sites=sites)
@@ -111,7 +132,9 @@ function fillshapes(uc::UnitCell{Sym,N} where Sym, shapes::AbstractShape...;
                 inshape(shape, BravaisSite(bp, new_unitcell))
             end
         else
-            add_bravaispointers!(site -> inshape(shape, site), bps, uc, bounding_region(uc, shape))
+            empty!(bps_buffer)
+            add_bravaispointers!(site -> inshape(shape, site), bps_buffer, uc, bounding_region(uc, shape))
+            insertordered!(bps, bps_buffer)
         end
     end
     b = BravaisLattice(new_unitcell, bps)

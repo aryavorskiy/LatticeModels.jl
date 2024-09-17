@@ -5,7 +5,12 @@ struct BravaisLattice{N,NU,UnitcellT} <: AbstractLattice{BravaisSite{N,NU,Unitce
     pointers::Vector{BravaisPointer{NU}}
     function BravaisLattice(unitcell::UnitcellT, pointers::Vector{BravaisPointer{NU}}) where {N,NU,UnitcellT<:UnitCell{N,_NU} where _NU}
         ldims(unitcell) != NU && throw(ArgumentError("Dimension mismatch: $(ldims(unitcell)) ≠ $NU"))
-        new{N,NU,UnitcellT}(unitcell, unique!(sort!(pointers)))
+        !issorted(pointers) && throw(ArgumentError("`pointers` must be sorted"))
+        for j in 1:length(pointers) - 1
+            pointers[j] == pointers[j + 1] &&
+                throw(ArgumentError("Duplicate pointer at index $j: $(pointers[j])"))
+        end
+        new{N,NU,UnitcellT}(unitcell, pointers)
     end
 end
 unitcell(l::BravaisLattice) = l.unitcell
@@ -88,7 +93,7 @@ function _sort(i::Integer)
     throw(ArgumentError("Invalid range: $i; must be positive"))
 end
 function _sort(r::OrdinalRange)
-    step(r) > 0 && return reverse(r)
+    step(r) < 0 && return reverse(r)
     return r
 end
 
