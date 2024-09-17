@@ -45,7 +45,7 @@ anim = @animate for state in ev(0:0.1:2τ)
     plot!(p[2], DensityCurrents(H, P), clims=(0, 0.1))
 
     # Some more tweaks to the plot...
-    plot!(plottitle="t = $t")
+    plot!(plot_title="t = $t")
 end
 
 gif(anim, "animation.gif")
