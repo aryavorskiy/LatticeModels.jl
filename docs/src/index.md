@@ -6,11 +6,11 @@ This package provides a set of tools to simulate different quantum lattice syste
 
 Paste the following line into the Julia REPL:
 ```
-]add https://github.com/aryavorskiy/LatticeModels.jl
+]add LatticeModels
 ```
 or
 ```julia
-import Pkg; Pkg.add(url="https://github.com/aryavorskiy/LatticeModels.jl")
+import Pkg; Pkg.add(url="LatticeModels")
 ```
 
 !!! compat
@@ -66,7 +66,7 @@ Here are some benchmarks:
 ![All benchmarks composed](./assets/benchmark_all.svg)
 
 One can see dramatic performance improvements on small lattice sizes, while being competitive on larger ones.
-These benchmarks were run on a 4-core Intel Core i7-10510U, 16 GB RAM machine.
+These benchmarks were run on a regular JuliaHub cluster (one core of Intel(R) Xeon(R) Platinum 8375C, 16GB RAM).
 You can find the benchmarking code in [the `benchmarks` folder of the package repository](https://github.com/aryavorskiy/LatticeModels.jl/tree/master/benchmarks).
 
 There are other nice features that `LatticeModels.jl` provides:

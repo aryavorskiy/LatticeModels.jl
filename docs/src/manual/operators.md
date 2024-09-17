@@ -51,7 +51,7 @@ X_1 == X_2 == X_3
 This notation allows converting any `LatticeValue` or [Site parameter](@ref Sites) to an operator. Hence, `diagonaloperator(l, Coord(1))` is also valid and will return the same operator.
 
 !!! tip
-    Generally, a good value to create a custom diagonal operator is by using the `LatticeValue` approach. 
+    Generally, a good way to create a custom diagonal operator is by using the `LatticeValue` approach. 
     
     Consider this example: in the Haldane model the diagonal part is ``m`` on the A sublattice and ``-m`` on the B sublattice. You can create this operator with the following code:
 
@@ -62,6 +62,14 @@ This notation allows converting any `LatticeValue` or [Site parameter](@ref Site
         site.index == 1 ? m : -m
     end
     Op = diagonaloperator(ms)
+    ```
+
+    Or, the same thing as a one-liner:
+
+    ```julia
+    l = HoneycombLattice(6, 6)
+    m = 3
+    Op = diagonaloperator((LatticeValue(l, :index) .- 1.5) .* 2 .* m)
     ```
 
 Also note the [`coordoperator`](@ref) and [`coordoperators`](@ref) functions that do the same thing as [`coordvalue`](@ref) and [`coordvalues`](@ref), but return the operator instead of the value:
