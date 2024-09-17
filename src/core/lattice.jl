@@ -353,6 +353,7 @@ LatticeWithMetadata(lw::LatticeWithMetadata, newmeta::NamedTuple) =
 allmeta(::AbstractLattice) = NamedTuple()
 allmeta(lw::LatticeWithMetadata) = lw.metadata
 
+Base.:(==)(lw1::LatticeWithMetadata, lw2::LatticeWithMetadata) = lw1.lat == lw2.lat
 Base.length(lw::LatticeWithMetadata) = length(lw.lat)
 Base.getindex(::LatticeWithMetadata, ::Nothing) = NoSite()
 Base.getindex(lw::LatticeWithMetadata, i::Int) = lw.lat[i]

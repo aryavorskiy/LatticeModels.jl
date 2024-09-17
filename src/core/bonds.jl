@@ -392,7 +392,6 @@ Base.inv(::DirectedBonds) = throw(ArgumentError("Inverse of the translation is n
 adjacentsites(bonds::DirectedBonds, site::AbstractSite) =
     Base.Iterators.flatten((destinations(bonds, site), destinations(inv(bonds), site)))
 
-
 """
     AbstractTranslation{LT}
 
