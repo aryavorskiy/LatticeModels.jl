@@ -90,6 +90,7 @@ function insertordered!(arr, arr2)
             append!(arr, @view arr2[j:end])
             break
         end
+        arr[i] == arr2[j] && continue
         insert!(arr, i, arr2[j])
     end
 end
