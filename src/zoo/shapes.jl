@@ -235,31 +235,33 @@ inshape(f::SiteAt, site) = isapprox(site.coords, f.coords, atol=1e-10)
 topath2d(f::SiteAt) = [Tuple(f.coords)]
 
 """
-    Rectangle(w, h)
+    Box(intervals...)
 
-Construct a rectangle with given horizontal and vertical intervals. Usage:
-`Rectangle(1 .. 3, 2 .. 4)`.
+Construct a box with given horizontal and vertical intervals. Usage:
+`Box(1 .. 3, 2 .. 4)`.
 
 ## Arguments
-- `w`: The horizontal range.
-- `h`: The vertical range.
+- `intervals`: The intervals for each dimension.
 """
-struct Rectangle{IT1<:Interval,IT2<:Interval} <: AbstractShape{2}
-    w::IT1
-    h::IT2
+struct Box{N, T} <: AbstractShape{N}
+    intervals::NTuple{N, ClosedInterval{T}}
 end
-function circumscribed_sphere(::UnitCell, f::Rectangle)
-    return hypot(width(f.w), width(f.h)) / 2,
-        SVector{2}(mean(f.w), mean(f.h))
+function Box(ints::Vararg{Interval, N}) where N
+    T = promote_type(eltype.(ints)...)
+    Box{N, T}(ClosedInterval.(ints))
+end
+function circumscribed_sphere(::UnitCell, f)
+    return sqrt(sum(abs2 ∘ width, f.intervals)) / 2,
+        SVector(Tuple(mean(int) for int in f.intervals))
 end
 scale(int::Interval{L, R}, c) where {L, R} =
     Interval{L, R}(c * leftendpoint(int), c * rightendpoint(int))
-scale(f::Rectangle, c) = Rectangle(scale(f.w, c), scale(f.h, c))
-volume(f::Rectangle) = width(f.w) * width(f.h)
-inshape(f::Rectangle, site) = (site.coords[1] in f.w) && (site.coords[2] in f.h)
-function topath2d(f::Rectangle)
-    x1, x2 = endpoints(f.w)
-    y1, y2 = endpoints(f.h)
+scale(f::Box, c) = Box(Tuple(scale(int, c) for int in f.intervals))
+volume(f::Box) = prod(width, f.intervals)
+inshape(f::Box{N}, site) where N = all(i -> site.coords[i] in f.intervals[i], SOneTo{N}())
+function topath2d(f::Box{2})
+    x1, x2 = endpoints(f.intervals[1])
+    y1, y2 = endpoints(f.intervals[2])
     return [(x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)]
 end
 

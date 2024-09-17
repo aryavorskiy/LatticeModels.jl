@@ -163,14 +163,14 @@ l = SquareLattice{2}(Hexagon(10, [-10, 0]), Circle(10, [10, 0]))
 plot(l)
 ```
 
-Here we created a square lattice in shape of a hexagon and a circle. The first argument of the shape is its radius (for the hexagon it is the distance from its center to the vortices), and the second argument is the center of the shape. Other possible shapes include `Rectangle`, `Polygon`, `SiteAt` and `Path`.
+Here we created a square lattice in shape of a hexagon and a circle. The first argument of the shape is its radius (for the hexagon it is the distance from its center to the vortices), and the second argument is the center of the shape. Other possible shapes include `Box`, `Polygon`, `SiteAt` and `Path`.
 
 ```@example 4
 complex_l = SquareLattice{2}(   # Here you have to specify the dimension of the lattice
     Circle(10), Circle(10, [20, 0]), Circle(10, [10, 10√3]),
     !Circle(5), !Circle(5, [20, 0]), !Circle(5, [10, 10√3]),
-    Rectangle(-5 .. 5, -14 .. -12), Rectangle(15 .. 25, -14 .. -12),
-    Path([-12, 32], [32, 32]), SiteAt([0, 0]), SiteAt([20, 0])
+    Box(-5 .. 5, -14 .. -12), Box(15 .. 25, -14 .. -12),
+    Path([-12, 32], [32, 32])
 )
 plot(complex_l)
 ```
