@@ -351,20 +351,10 @@ function _countneighbors(check, lat::AbstractLattice, nns::AbstractBonds, i)
     counter, index
 end
 
-"""
-    removedangling!(lat[, maxdepth])
-
-Remove dangling sites from the lattice. A site is considered dangling if it has less than 2
-neighbors. The function will remove all dangling sites and their neighbors recursively up to
-`maxdepth` levels — the default is `Inf`.
-"""
-function removedangling!(lat::AbstractLattice, maxdepth=Inf)
-    maxdepth ≤ 0 && return lat
-    nns = NearestNeighbor(lat, 1)
+function _removedangling!(rlat, maxdepth, nns)
     Is = Int[]
     queue = Tuple{Int, Int}[]
-    rlat = addlookuptable(lat)
-    for i in eachindex(lat)
+    for i in eachindex(rlat)
         counter, index = _countneighbors(alwaystrue, rlat, nns, i)
         if counter < 2
             push!(Is, i)
@@ -386,5 +376,19 @@ function removedangling!(lat::AbstractLattice, maxdepth=Inf)
         end
         j += 1
     end
-    deleteat!(lat, Is)
+    deleteat!(rlat, Is)
+end
+
+"""
+    removedangling!(lat[, maxdepth])
+
+Remove dangling sites from the lattice. A site is considered dangling if it has less than 2
+neighbors. The function will remove all dangling sites and their neighbors recursively up to
+`maxdepth` levels — the default is `Inf`.
+"""
+function removedangling!(lat::AbstractLattice, maxdepth=Inf)
+    maxdepth ≤ 0 && return lat
+    rlat = addlookuptable(lat)
+    nns = NearestNeighbor(lat, 1)
+    _removedangling!(rlat, maxdepth, nns)
 end
