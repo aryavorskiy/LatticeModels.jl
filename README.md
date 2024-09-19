@@ -14,7 +14,7 @@ Paste the following line into the Julia REPL:
 ```
 or
 ```julia
-import Pkg; Pkg.add(url="LatticeModels")
+import Pkg; Pkg.add("LatticeModels")
 ```
 
 ## Example
@@ -64,7 +64,7 @@ Here are some benchmarks:
 ![All benchmarks composed](docs/src/assets/benchmark_all.svg)
 
 One can see dramatic performance improvements on small lattice sizes, while being competitive on larger ones.
-These benchmarks were run on a regular JuliaHub cluster (one core of Intel(R) Xeon(R) Platinum 8375C, 16GB RAM).
+These benchmarks were run on a regular JuliaHub cluster (one core of Intel Xeon Platinum 8375C, 16GB RAM).
 You can find the benchmarking code in [the `benchmarks` folder of the package repository](benchmarks).
 
 There are other nice features that `LatticeModels.jl` provides:
