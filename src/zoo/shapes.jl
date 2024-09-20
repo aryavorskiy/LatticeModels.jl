@@ -388,7 +388,6 @@ neighbors. The function will remove all dangling sites and their neighbors recur
 """
 function removedangling!(lat::AbstractLattice, maxdepth=Inf)
     maxdepth ≤ 0 && return lat
-    rlat = addlookuptable(lat)
-    nns = NearestNeighbor(lat, 1)
-    _removedangling!(rlat, maxdepth, nns)
+    _removedangling!(addlookuptable(lat), maxdepth, NearestNeighbor(lat, 1))
+    return lat
 end
