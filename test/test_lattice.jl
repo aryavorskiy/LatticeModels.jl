@@ -40,8 +40,8 @@ import LatticeModels: stripmeta, BravaisPointer, BravaisSite, IncompatibleLattic
         @test_throws ArgumentError SquareLattice{2}(SiteAt([20, 0]), sites=100)
         @test_throws ArgumentError SquareLattice{2}(Circle(10), SiteAt([20, 0]), sites=100)
         complexsample = SquareLattice{2}(
-            Circle(10), Circle(10, [20, 0]), Circle(10, [10, 10√3]),
-            !Circle(5), !Circle(5, [20, 0]), !Circle(5, [10, 10√3]),
+            Circle(10), Circle(10, [20, 0]), Circle(10, [10, 10 * √3]),
+            !Circle(5), !Circle(5, [20, 0]), !Circle(5, [10, 10 * √3]),
             !!Box(-5 .. 5, -14 .. -12), Box(15 .. 25, -14 .. -12),
             Path([-12, 32], [32, 32]), sites=10000
         )

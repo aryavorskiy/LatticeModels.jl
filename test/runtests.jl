@@ -8,4 +8,6 @@ include("test_operators.jl")
 include("test_timedeps.jl")
 include("test_currents.jl")
 
-doctest(LatticeModels)
+if VERSION >= v"1.10"
+    doctest(LatticeModels)
+end

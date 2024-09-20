@@ -45,8 +45,8 @@ end
         zguide --> axes[3]
         zwiden --> 1.1
     end
-    rows = eachrow(collect_coords(lat))
-    @series Tuple(rows[i] for i in axis_numbers)
+    crd = collect_coords(lat)
+    @series Tuple(@view(crd[i, :]) for i in axis_numbers)
 end
 
 @recipe function f(lat::AbstractLattice, ::Val{:high_contrast})
@@ -313,11 +313,10 @@ end
         zguide --> axes[3]
     end
     crd, linealphas = collect_coords(bonds, get(plotattributes, :sitealpha, nothing))
-    rows = eachrow(crd)
     if !isempty(linealphas)
         linealpha := linealphas[1:end-1]
     end
-    @series Tuple(rows[i] for i in axis_numbers)
+    @series Tuple(@view(crd[i, :]) for i in axis_numbers)
 end
 
 @recipe function f(l::AbstractLattice, b::AbstractBonds)
