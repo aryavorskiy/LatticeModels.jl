@@ -1,4 +1,4 @@
-include("common.jl")
+println("\nBenchmark: Evolution, time-dependent Hamiltonian")
 
 function measure_lm_evd_const(n)
     H = make_hamiltonian_lm(n)
@@ -33,4 +33,3 @@ evd_benchmark_results = Dict{String, Any}()
 evd_benchmark_results["LatticeModels"] = run_benchmarks(Ns, measure_lm_evd_const)
 evd_benchmark_results["Kwant"] = run_benchmarks(Ns, measure_kwant_evd_const)
 add_benchmark!("Evolution, time-dependent Hamiltonian", Ns, evd_benchmark_results)
-plot_benchmarks()

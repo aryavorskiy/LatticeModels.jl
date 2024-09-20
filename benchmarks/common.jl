@@ -51,10 +51,9 @@ time_function(f::Py, n; maxtime=MAXTIME_DEFAULT) =
     pyconvert(Number, py_measure_time(f, maxtime, n))
 
 function run_benchmarks(Ns, f; nrepeat=5, kw...)
-    println("Benchmarking $(f)...")
     f(first(Ns)) # warmup
     Ts = Float64[]
-    print("[")
+    print("$(f) [")
     for n in Ns
         t = time_function(f, n; kw...)
         for _ in 2:nrepeat
@@ -79,42 +78,46 @@ function add_benchmark!(name, ns, results)
         benchmark_results_array[i] = (ns, results)
     end
 end
-function plot_benchmarks(;kw...)
-    fig = Figure(;kw...)
-    n = length(benchmark_names)
-    for i in eachindex(benchmark_names)
-        name = benchmark_names[i]
-        ns, results = benchmark_results_array[i]
-        rowi = (i - 1) ÷ 2 + 1
-        coli = (i - 1) % 2 + 1
 
-        ax = Axis(fig,
-            xscale = log10,
-            xlabel = "Number of sites",
-            yscale = log10,
-            ylabel = "Time [s]",
-            yminorticks = IntervalsBetween(5),
-            yminorticksvisible = true,
-            yminorgridvisible = true,
-            yminorgridstyle = :dash,
-            alignmode = Outside(),
-            title = name
-        )
-        for key in ["LatticeModels", "Kwant", "Pybinding"]
-            key in keys(results) || continue
-            value = results[key]
-            lines!(ax, ns, value, label=key)
-            scatter!(ax, ns, value, label=key)
-        end
-        axislegend(ax, position=:rb, merge=true)
+include("benchmark_hamiltonian.jl")
+include("benchmark_groundstate.jl")
+include("benchmark_evolution_const.jl")
+include("benchmark_evolution_dynamic.jl")
 
-        if i == n && isodd(n) && n != 1
-            fig[rowi, 2:3] = ax
-        elseif coli == 1
-            fig[rowi, 1:2] = ax
-        else
-            fig[rowi, 3:4] = ax
-        end
+n = length(benchmark_names)
+fig = Figure(size=(1000, 350 * ((n - 1) ÷ 2 + 1)))
+for i in eachindex(benchmark_names)
+    name = benchmark_names[i]
+    ns, results = benchmark_results_array[i]
+    rowi = (i - 1) ÷ 2 + 1
+    coli = (i - 1) % 2 + 1
+
+    ax = Axis(fig,
+        xscale = log10,
+        xlabel = "Number of sites",
+        yscale = log10,
+        ylabel = "Time [s]",
+        yminorticks = IntervalsBetween(5),
+        yminorticksvisible = true,
+        yminorgridvisible = true,
+        yminorgridstyle = :dash,
+        alignmode = Outside(),
+        title = name
+    )
+    for key in ["LatticeModels", "Kwant", "Pybinding"]
+        key in keys(results) || continue
+        value = results[key]
+        lines!(ax, ns, value, label=key)
+        scatter!(ax, ns, value, label=key)
     end
-    fig
+    axislegend(ax, position=:rb, merge=true)
+
+    if i == n && isodd(n) && n != 1
+        fig[rowi, 2:3] = ax
+    elseif coli == 1
+        fig[rowi, 1:2] = ax
+    else
+        fig[rowi, 3:4] = ax
+    end
 end
+save("benchmarks_all.svg", fig)

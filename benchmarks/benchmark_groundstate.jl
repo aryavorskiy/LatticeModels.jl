@@ -1,5 +1,4 @@
-include("common.jl")
-using LatticeModels
+println("\nBenchmark: Ground state density")
 
 function measure_lm_groundstate(n)
     H = make_hamiltonian_lm(n)
@@ -33,4 +32,3 @@ gs_benchmark_results["LatticeModels"] = run_benchmarks(Ns, measure_lm_groundstat
 gs_benchmark_results["Kwant"] = run_benchmarks(Ns, measure_kwant_groundstate)
 gs_benchmark_results["Pybinding"] = run_benchmarks(Ns, measure_pb_groundstate)
 add_benchmark!("Ground state density computation", Ns, gs_benchmark_results)
-plot_benchmarks()

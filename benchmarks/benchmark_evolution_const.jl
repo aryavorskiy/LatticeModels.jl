@@ -1,4 +1,4 @@
-include("common.jl")
+println("\nBenchmark: Evolution, constant Hamiltonian")
 
 function measure_lm_ev_const(n)
     H = make_hamiltonian_lm(n)
@@ -31,4 +31,3 @@ ev_benchmark_results = Dict{String, Any}()
 ev_benchmark_results["LatticeModels"] = run_benchmarks(Ns, measure_lm_ev_const)
 ev_benchmark_results["Kwant"] = run_benchmarks(Ns, measure_kwant_ev_const)
 add_benchmark!("Evolution, constant Hamiltonian", Ns, ev_benchmark_results)
-plot_benchmarks()

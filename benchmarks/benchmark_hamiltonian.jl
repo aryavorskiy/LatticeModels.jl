@@ -1,5 +1,4 @@
-include("common.jl")
-using LatticeModels
+println("\nBenchmark: Hamiltonian creation")
 
 function measure_lm(n)
     @elapsed begin
@@ -28,4 +27,3 @@ benchmark_results["LatticeModels"] = run_benchmarks(Ns, measure_lm)
 benchmark_results["Kwant"] = run_benchmarks(Ns, measure_kwant)
 benchmark_results["Pybinding"] = run_benchmarks(Ns, measure_pb)
 add_benchmark!("Hamiltonian creation", Ns, benchmark_results)
-plot_benchmarks()
