@@ -46,5 +46,4 @@ lattice(state::StateType) = lattice(basis(state))
 LatticeValue(ket::Ket{<:LatticeBasis}) = LatticeValue(lattice(ket), ket.data)
 LatticeValue(bra::Bra{<:LatticeBasis}) = LatticeValue(lattice(bra), bra.data)
 LatticeValue(::StateVector{<:CompositeLatticeBasis}) =
-    throw(ArgumentError("""Cannot convert a state on a lattice basis \
-with on-site degrees of freedom to a lattice value"""))
+    throw(ArgumentError("Cannot convert a state on a lattice basis with on-site degrees of freedom to a lattice value"))

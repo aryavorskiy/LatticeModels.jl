@@ -17,6 +17,8 @@ or
 import Pkg; Pkg.add("LatticeModels")
 ```
 
+This package is compatible with Julia v1.6, but it is recommended to use v1.8 or later for better performance and less TTFX.
+
 ## Example
 
 ```julia

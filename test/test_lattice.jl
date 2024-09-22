@@ -70,8 +70,8 @@ import LatticeModels: stripmeta, BravaisPointer, BravaisSite, IncompatibleLattic
         hl = HoneycombLattice(10, 10)
         xh = LatticeValue(hl, :x)
         j1h = LatticeValue(hl, :j1)
-        h_1 = hl[x = 4..Inf, j1 = 1 .. 3]
-        h_2 = hl[@. xh ≥ 4 && 1 ≤ j1h ≤ 3]
+        h_1 = hl[x = 4 .. Inf, j1 = 1 .. 3]
+        h_2 = hl[@. (xh ≥ 4) & (1 ≤ j1h ≤ 3)]
         @test h_1 == h_2
         @test_throws IncompatibleLattices hl[x.<y]
 
@@ -266,7 +266,7 @@ end
     end
     @testset "Bravais translations" begin
         l = HoneycombLattice(-2:2, -2:2)
-        tr = Translation(l, [0, 2√3/3])
+        tr = Translation(l, [0, 2 * √3/3])
         site1 = l[!, j1 = 1, j2 = 1, index = 1]
         site2 = site1 + tr
         @test site2 == l[!, j1 = 0, j2 = 2, index = 2]

@@ -225,7 +225,7 @@ import LatticeModels: ManyBodyBasis, FermionBitstring
         eig = diagonalize(qwz(ones(l)))
         G = greenfunction(eig)
         x, y = coordvalues(l)
-        G2 = G[x .< 3 .&& y .< 3]
+        G2 = G[@. (x < 3) & (y < 3)]
         E = 2
         site1 = l[1]
         site2 = l[2]
@@ -256,7 +256,7 @@ import LatticeModels: ManyBodyBasis, FermionBitstring
         H0 = bosehubbard(l2, 2, U = U)
         Hp = bosehubbard(l2, 3, U = U)
         Hm = bosehubbard(l2, 1, U = U)
-        G2 = greenfunction(H0, Hp, Hm)
+        G2 = greenfunction(H0, Hp, Hm, showprogress=false)
         @test G1(E + 0.1im).values ≈ G2(E + 0.1im).values
     end
 end

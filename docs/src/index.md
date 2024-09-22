@@ -14,7 +14,7 @@ import Pkg; Pkg.add("LatticeModels")
 ```
 
 !!! compat
-    This package has tested compatibility with Julia v1.6. Use with caution on lower versions.
+    This package has tested compatibility with Julia v1.6. However, it is recommended to use v1.8 or later for better performance and less TTFX.
 
 ## Package features
 - Bravais lattices with arbitrary geometry or boundary conditions.

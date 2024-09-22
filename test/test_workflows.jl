@@ -64,7 +64,7 @@
 
     @test begin
         b = FunctionBoundary([0, 10]) do site
-            exp(im * site.x)
+            exp(im * site.coords[1])
         end
         l = SquareLattice(10, 10, boundaries=(:axis1 => true, b))
         spin = SpinBasis(1//2)
