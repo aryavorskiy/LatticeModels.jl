@@ -79,13 +79,6 @@ include("zoo/currents.jl")
 export DensityCurrents, LocalOperatorCurrents
 
 include("recipes.jl")
-
-using Logging
-try
-    include("precompile.jl")
-    _precompile_()
-catch error
-    @warn "Failed to precompile package due to unhandled exception:" error
-end
+include("precompile.jl")
 
 end # module LatticeModels
