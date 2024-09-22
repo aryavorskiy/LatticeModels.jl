@@ -120,4 +120,4 @@ for i in eachindex(benchmark_names)
         fig[rowi, 3:4] = ax
     end
 end
-save("benchmarks_all.svg", fig)
+save("benchmark_all.svg", fig)
