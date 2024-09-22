@@ -1,7 +1,7 @@
-<p align="center"><img src="docs/src/assets/logo.svg" width="250" /></p>
+![](logo_with_text.svg)
 
-# LatticeModels.jl
-[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://aryavorskiy.github.io/LatticeModels.jl/dev)
+[![version](https://juliahub.com/docs/General/LatticeModels/stable/version.svg)](https://juliahub.com/ui/Packages/General/LatticeModels)
+[![docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://aryavorskiy.github.io/LatticeModels.jl/dev)
 [![codecov](https://codecov.io/gh/aryavorskiy/LatticeModels.jl/branch/master/graph/badge.svg?token=KQN77BL9UV)](https://codecov.io/gh/aryavorskiy/LatticeModels.jl)
 
 This package provides a set of tools to simulate different quantum lattice systems.
@@ -59,15 +59,9 @@ This code creates an animation which displays local density and currents on a pl
 
 ## Similar packages
 
-Packages such as [Quantica.jl](https://github.com/pablosanjose/Quantica.jl), [pybinding](https://docs.pybinding.site/en/stable/index.html) and [Kwant](https://kwant-project.org/) provide similar functionality. And while they are all great packages, pybinding and Quantica are mostly focused on static properties of lattices. Kwant is more versatile, but its main focus is on quantum transport problems — it provides dynamic simulations in the `Tkwant` package, but `LatticeModels.jl` allows usage of various powerful backends, which improves performance and flexibility.
-
-Here are some benchmarks: 
-
-![All benchmarks composed](docs/src/assets/benchmark_all.svg)
-
-One can see dramatic performance improvements on small lattice sizes, while being competitive on larger ones.
-These benchmarks were run on a regular JuliaHub cluster (one core of Intel Xeon Platinum 8375C, 16GB RAM).
-You can find the benchmarking code in [the `benchmarks` folder of the package repository](benchmarks).
+Packages such as [Quantica.jl](https://github.com/pablosanjose/Quantica.jl), [pybinding](https://docs.pybinding.site/en/stable/index.html) and [Kwant](https://kwant-project.org/) provide similar functionality. 
+And while they are all great packages, pybinding and Quantica are mostly focused on static properties of lattices. Kwant is more versatile, but its main focus is on quantum transport problems — 
+it provides dynamic simulations in the `Tkwant` package, but `LatticeModels.jl` allows usage of various powerful backends, which improves performance and flexibility.
 
 There are other nice features that `LatticeModels.jl` provides:
 
@@ -77,3 +71,5 @@ There are other nice features that `LatticeModels.jl` provides:
     on top of `GenericLattice` with ease.
 - **Full-fledged quantum mechanics**. Any quantum operator can be defined and used in the simulations without much struggle.
 - **Manybody computations**. `LatticeModels.jl` can handle manybody systems with particle interaction.
+
+You can find more information and benchmarks on the [docs page](https://aryavorskiy.github.io/LatticeModels.jl/dev/#Similar-packages).
