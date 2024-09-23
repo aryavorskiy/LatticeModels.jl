@@ -258,6 +258,46 @@ end
     end
 end
 
+function heatmap_data(lv::LatticeValue{T}, axis_numbers, bins) where {T<:Number}
+    crd = collect_coords(lattice(lv))[collect(axis_numbers), :]
+    min_pt = vec(minimum(crd, dims=2))
+    max_pt = vec(maximum(crd, dims=2))
+    xbins, ybins = bins
+    if xbins === ybins === nothing
+        r = sqrt(prod(max_pt - min_pt))
+        xbins, ybins = round.(Int, (max_pt - min_pt) / r * sqrt(length(lv)) / √5)
+    elseif xbins === nothing
+        xbins = round(Int, ybins * (max_pt[1] - min_pt[1]) / (max_pt[2] - min_pt[2]))
+    elseif ybins === nothing
+        ybins = round(Int, xbins * (max_pt[2] - min_pt[2]) / (max_pt[1] - min_pt[1]))
+    end
+    bins = (xbins, ybins)
+    prod(bins) > length(lv) &&
+        @warn "$xbins×$ybins ($(prod(bins))) is too many bins for $(length(lv)) data points"
+    counts = zeros(Int, bins)
+    sums = zeros(float(T), bins)
+    @inbounds @simd for i in Base.axes(crd, 2)
+        ix = round(Int, (crd[1, i] - min_pt[1]) / (max_pt[1] - min_pt[1]) * (xbins - 1)) + 1
+        iy = round(Int, (crd[2, i] - min_pt[2]) / (max_pt[2] - min_pt[2]) * (ybins - 1)) + 1
+        counts[ix, iy] += 1
+        sums[ix, iy] += lv.values[i]
+    end
+    xs = range(min_pt[1], max_pt[1], length=xbins)
+    ys = range(min_pt[2], max_pt[2], length=ybins)
+    xs, ys, transpose(sums ./ counts)
+end
+
+@recipe function f(lv::LatticeValue{T}, ::Val{:hmap}; xbins=nothing, ybins=nothing, bins=(xbins, ybins)) where {T<:Number}
+    aspect_ratio := :equal
+    axes, axis_numbers = _get_axes(lattice(lv), get(plotattributes, :axes, nothing))
+    if length(axes) != 2
+        throw(ArgumentError("2D axes expected; got $axes"))
+    end
+    xguide --> axes[1]
+    yguide --> axes[2]
+    heatmap_data(lv, axis_numbers, bins)
+end
+
 @recipe function f(lv::LatticeValue{<:Number})
     label --> ""
     if !(get(plotattributes, :axes, ()) isa Tuple)
@@ -266,6 +306,11 @@ end
         seriestype --> :scatter
         if plotattributes[:seriestype] in (:shape, :heatmap) && dims(lv) == 2
             @series lv, Val(:tiles)
+        elseif plotattributes[:seriestype] in (:histogram2d, :contour)
+            if plotattributes[:seriestype] == :histogram2d
+                plotattributes[:seriestype] = :heatmap
+            end
+            @series lv, Val(:hmap)
         elseif plotattributes[:seriestype] == :scatter
             @series lv, Val(:scatter)
         else

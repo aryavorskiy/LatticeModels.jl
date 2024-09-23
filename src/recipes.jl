@@ -10,7 +10,8 @@ function dummy_lattice(uc::UnitCell{N,NU,NB}) where {N,NU,NB}
 end
 
 @recipe function f(uc::UnitCell{N,NU,NB}; offset=:origin, rotate=nothing) where {N,NU,NB}
-    l = dummy_lattice(transform_unitcell(uc; offset=offset, rotate=rotate))
+    uc = transform_unitcell(uc; offset=offset, rotate=rotate)
+    l = dummy_lattice(uc)
     markeralphas_one = fill(0.5, 1 + 2NU)
     markeralphas_one[NU + 1] = 1
     @series begin
