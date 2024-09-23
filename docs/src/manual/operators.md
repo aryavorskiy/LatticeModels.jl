@@ -183,12 +183,15 @@ the keyword arguments for the `eigsolve` function.
 
 ```@example 4
 l = SquareLattice(100, 100)             # A really big lattice
-H = tightbinding_hamiltonian(l)
-eig = diagonalize(H, :krylovkit, n=9)   # Compute only 9 eigenvalues with smallest real part
-p = plot(layout=9, leg=false, size=(1000, 900))
-for i in 1:9
-    plot!(p[i], localdensity(eig[i]), title="E = $(round(eig.values[i], digits=5))",
-        ms=2, msw=0, msa=0)             # Plot with small markers with no outline
+V = LatticeValue(l) do site             # A potential well
+    x, y = site
+    return (x - 50)^2 + (y - 50)^2 < 40^2 ? -0.5 : 0.0
+end
+H = tightbinding_hamiltonian(l, V)
+eig = diagonalize(H, :krylovkit, n=16)   # Compute only 9 eigenvalues with smallest real part
+p = plot(layout=16, leg=false, size=(1000, 900))
+for i in 1:16
+    histogram2d!(p[i], localdensity(eig[i]), title="E = $(round(eig.values[i], digits=5))")
 end
 plot!()
 savefig("gs_density.png")   # hide

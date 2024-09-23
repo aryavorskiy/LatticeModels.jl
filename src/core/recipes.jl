@@ -265,7 +265,7 @@ function heatmap_data(lv::LatticeValue{T}, axis_numbers, bins) where {T<:Number}
     xbins, ybins = bins
     if xbins === ybins === nothing
         r = sqrt(prod(max_pt - min_pt))
-        xbins, ybins = round.(Int, (max_pt - min_pt) / r * sqrt(length(lv)) / √5)
+        xbins, ybins = round.(Int, (max_pt - min_pt) / r * sqrt(length(lv)) / √2)
     elseif xbins === nothing
         xbins = round(Int, ybins * (max_pt[1] - min_pt[1]) / (max_pt[2] - min_pt[2]))
     elseif ybins === nothing
@@ -284,7 +284,7 @@ function heatmap_data(lv::LatticeValue{T}, axis_numbers, bins) where {T<:Number}
     end
     xs = range(min_pt[1], max_pt[1], length=xbins)
     ys = range(min_pt[2], max_pt[2], length=ybins)
-    xs, ys, transpose(sums ./ counts)
+    return xs, ys, transpose(sums ./ counts)
 end
 
 @recipe function f(lv::LatticeValue{T}, ::Val{:hmap}; xbins=nothing, ybins=nothing, bins=(xbins, ybins)) where {T<:Number}
@@ -295,6 +295,14 @@ end
     end
     xguide --> axes[1]
     yguide --> axes[2]
+    if plotattributes[:seriestype] == :histogram2d
+        plotattributes[:seriestype] = :heatmap
+    elseif plotattributes[:seriestype] == :contour
+        fill --> true
+        linewidth --> 0.7
+    else
+        error("Unsupported seriestype $(plotattributes[:seriestype]) for hmap plot")
+    end
     heatmap_data(lv, axis_numbers, bins)
 end
 
@@ -307,9 +315,6 @@ end
         if plotattributes[:seriestype] in (:shape, :heatmap) && dims(lv) == 2
             @series lv, Val(:tiles)
         elseif plotattributes[:seriestype] in (:histogram2d, :contour)
-            if plotattributes[:seriestype] == :histogram2d
-                plotattributes[:seriestype] = :heatmap
-            end
             @series lv, Val(:hmap)
         elseif plotattributes[:seriestype] == :scatter
             @series lv, Val(:scatter)
