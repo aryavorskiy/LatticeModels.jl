@@ -262,7 +262,13 @@ function heatmap_data(lv::LatticeValue{T}, axis_numbers, bins) where {T<:Number}
     crd = collect_coords(lattice(lv))[collect(axis_numbers), :]
     min_pt = vec(minimum(crd, dims=2))
     max_pt = vec(maximum(crd, dims=2))
-    xbins, ybins = bins
+    if bins isa Number
+        xbins, ybins = round.(Int, sqrt(bins / prod(max_pt - min_pt)) * (max_pt - min_pt))
+    elseif bins isa NTuple{2}
+        xbins, ybins = bins
+    else
+        throw(ArgumentError("Invalid `bins` argument: expected integer or 2-tuple, got $(typeof(bins))"))
+    end
     if xbins === ybins === nothing
         r = sqrt(prod(max_pt - min_pt))
         xbins, ybins = round.(Int, (max_pt - min_pt) / r * sqrt(length(lv)) / √2)

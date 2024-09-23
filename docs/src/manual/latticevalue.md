@@ -190,8 +190,8 @@ histogram2d!(p[1], v, title="Histogram2D")
 contour!(p[2], v, title="Contour")
 
 # Decreasing the number of bins will speed up the plotting, but decrease the quality
-# Set as a tuple or via separate keywords (both can be omitted)
-histogram2d!(p[3], v, xbins=20, ybins=40, title="Histogram2D, 20x40 bins")
+# Set as a tuple, number or via separate keywords `xbins`, `ybins` (can be omitted)
+histogram2d!(p[3], v, xbins=40, title="Histogram2D, 20x40 bins")
 contour!(p[4], v, bins=(30, 30), levels=20, title="Contour, 10 levels")
 savefig(p, "large_lattice.png") # hide
 nothing                     # hide

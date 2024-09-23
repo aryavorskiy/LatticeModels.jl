@@ -90,6 +90,11 @@
         scatter!(p[1], l[2])
         scatter!(p[1], l[x.<y], :high_contrast)
         scatter!(p[1], xy[x.≥y])
+        histogram2d!(p[1], xy)
+        xs, ys, zs = LatticeModels.heatmap_data(xy, (1,2), 100)
+        @test length(xs) == 10
+        @test length(ys) == 10
+        @test size(zs) == (10, 10)
         plot!(p[1], AdjacencyMatrix(H))
         plot!(p[1], AdjacencyMatrix(BravaisTranslation(l, [1, 1])))
         @test_throws ErrorException surface!(p[2], xy)
