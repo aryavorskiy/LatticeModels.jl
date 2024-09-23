@@ -104,7 +104,7 @@
         plot!(p[2], Circle(10), Box(10 .. 20, -5 .. 5), Hexagon(10, [-10, 0]),
             SiteAt([0, 0]), Path([-10, -15], [10, 15]))
         plot!(p[3], SquareLattice(3, 4, 5))
-        plot!(p[4], xy, axis=:x)
+        plot!(p[4], xy, axes=:x)
         plot!(p[5], UnitCell([[1, 0] [0.1, 1]], [[0, 0.1] [-0.2, 0]]))
         true
     end

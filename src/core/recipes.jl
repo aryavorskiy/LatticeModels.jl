@@ -24,11 +24,19 @@ function _process_axis(ax)
     end
     throw(ArgumentError("Invalid axis $ax"))
 end
-function _get_axes(lat::AbstractLattice, u_axes)
+function _get_axes(lat::AbstractLattice, plotattributes)
     lat isa UndefinedLattice && throw(ArgumentError("Cannot plot an undefined lattice."))
-    dims(lat) in (2, 3) || throw(ArgumentError("Only 2D and 3D lattices are supported; got $(dims(lat))D."))
-    u_axes isa Union{Tuple,Nothing} || throw(ArgumentError("Invalid `axes` argument: expected Tuple, got $(typeof(u_axes))"))
-    axes = u_axes !== nothing ? u_axes : (dims(lat) == 3 ? (:x, :y, :z) : (:x, :y))
+    u_axes = plotattributes === nothing ? nothing : get(plotattributes, :axes, nothing)
+    if !(u_axes isa Tuple)
+        u_axes = (u_axes,)
+    end
+    length(u_axes) ≤ 3 || throw(ArgumentError("Only ≤3 spatial dimensions are supported."))
+    if u_axes !== (nothing,)
+        axes = u_axes
+    else
+        dims(lat) > 3 && throw(ArgumentError("No axes specified for $(dims(lat))D lattice"))
+        axes = (:x, :y, :z)[1:dims(lat)]
+    end
     axis_numbers = _process_axis.(axes)
     allunique(axis_numbers) || throw(ArgumentError("Duplicate axes in $axes"))
     return axes, axis_numbers
@@ -36,7 +44,7 @@ end
 @recipe function f(lat::AbstractLattice, ::Val{:sites})
     aspect_ratio := :equal
     seriestype := :scatter
-    axes, axis_numbers = _get_axes(lat, get(plotattributes, :axes, nothing))
+    axes, axis_numbers = _get_axes(lat, plotattributes)
     xguide --> axes[1]
     xwiden --> 1.1
     yguide --> axes[2]
@@ -246,8 +254,7 @@ end
 end
 @recipe function f(lv::LatticeValue{<:Number}, ::Val{:line})
     seriestype --> :path
-    axis = plotattributes[:axes]
-    i = _process_axis(axis)
+    axis, i = only.(_get_axes(lattice(lv), plotattributes))
     l = lattice(lv)
     i in 1:dims(l) || throw(ArgumentError("Invalid axis $axis"))
     @series begin
@@ -295,7 +302,7 @@ end
 
 @recipe function f(lv::LatticeValue{T}, ::Val{:hmap}; xbins=nothing, ybins=nothing, bins=(xbins, ybins)) where {T<:Number}
     aspect_ratio := :equal
-    axes, axis_numbers = _get_axes(lattice(lv), get(plotattributes, :axes, nothing))
+    axes, axis_numbers = _get_axes(lattice(lv), plotattributes)
     if length(axes) != 2
         throw(ArgumentError("2D axes expected; got $axes"))
     end
@@ -314,7 +321,8 @@ end
 
 @recipe function f(lv::LatticeValue{<:Number})
     label --> ""
-    if !(get(plotattributes, :axes, ()) isa Tuple)
+    axes, _ = _get_axes(lattice(lv), plotattributes)
+    if length(axes) == 1
         @series lv, Val(:line)
     else
         seriestype --> :scatter
@@ -362,7 +370,7 @@ end
 @recipe function f(bonds::AbstractBonds)
     aspect_ratio := :equal
     label := nothing
-    axes, axis_numbers = _get_axes(lattice(bonds), get(plotattributes, :axes, nothing))
+    axes, axis_numbers = _get_axes(lattice(bonds), plotattributes)
     xguide --> axes[1]
     yguide --> axes[2]
     if length(axes) > 2
