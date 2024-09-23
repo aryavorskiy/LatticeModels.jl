@@ -152,7 +152,7 @@ Another way to visualize a `LatticeValue` is to use the shape plot `seriestype=:
 heatmap(dens, title="Local density of the ground state")
 ```
 
-You can also use pass `shape=:circle` to create a scatter plot with large circles instead of the default markers. The difference here is that the size of the circles will scale with the plot, unlike the markers in the `scatter` plot. `markerscale` is also supported here, but by default it is set to `false`.
+You can also pass `shape=:circle` to create a scatter plot with large circles instead of the default markers. The difference here is that the size of the circles will scale with the plot, unlike the markers in the `scatter` plot. `markerscale` is also supported here, but by default it is set to `false`.
 
 Let's showcase all of these options:
 
@@ -164,10 +164,6 @@ heatmap!(p[3], dens, shape=:circle, title="Circles, no scale")
 heatmap!(p[4], dens, shape=:circle, markerscale=true, title="Circles, scale")
 ```
 
-!!! tip
-    The shape plot is slower than the scatter plot, because it creates a separate shape for each site. If you
-    are creating an animation or a large plot, you may want to use the scatter plot with custom-shaped markers instead.
-
 Another important use case is dimension reduction. [Before](@ref Multi-dimensional-lattices) we already discussed how to plot a 2D slice of a 3D lattice. Here is an example of plotting a 1D slice of a 2D `LatticeValue`:
 
 ```@example 2
@@ -178,3 +174,30 @@ plot!(p[2], dens[j2 = 0], axes=:x)
 ```
 
 By projecting `axes=:x` the selected values on `j2 = 0` (e.g. the horizontal line in the middle of the plot) are shown as a 1D plot. Also we have shown the exact line where we took the slice from by plotting the markers with the `:high_contrast` setting.
+
+### Large lattices
+
+The shape plot can be slow for large lattices (more than 1000 sites). The scatter plot is much faster, but the markers will overlap for large lattices, and the memory consumption for very big lattices is still very high. In this case, you can use the `histogram2d` or `contour` plots:
+
+```@example 3
+using LatticeModels, Plots
+l = HoneycombLattice(Hexagon(), sites=1_000_000)    # A really big lattice
+v = LatticeValue(l) do (x, y)
+    sin((x + 2y) / 30) * exp(- (x^2 + y^2) / 100^2)
+end
+p = plot(size=(1000, 650), layout=(2, 2))
+histogram2d!(p[1], v, title="Histogram2D")
+contour!(p[2], v, title="Contour")
+
+# Decreasing the number of bins will speed up the plotting, but decrease the quality
+# Set as a tuple, number or via separate keywords `xbins`, `ybins` (can be omitted)
+histogram2d!(p[3], v, xbins=40, title="Histogram2D, 20x40 bins")
+contour!(p[4], v, bins=(30, 30), levels=20, title="Contour, 10 levels")
+savefig(p, "large_lattice.png") # hide
+nothing                     # hide
+```
+
+![](large_lattice.png)
+
+!!! note
+    The `heatmap` plot produces a shape plot, not an actual heatmap. This is more due to historical reasons than anything else. If you need a real heatmap, use the `histogram2d` plot.

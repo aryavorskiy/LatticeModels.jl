@@ -24,11 +24,19 @@ function _process_axis(ax)
     end
     throw(ArgumentError("Invalid axis $ax"))
 end
-function _get_axes(lat::AbstractLattice, u_axes)
+function _get_axes(lat::AbstractLattice, plotattributes)
     lat isa UndefinedLattice && throw(ArgumentError("Cannot plot an undefined lattice."))
-    dims(lat) in (2, 3) || throw(ArgumentError("Only 2D and 3D lattices are supported; got $(dims(lat))D."))
-    u_axes isa Union{Tuple,Nothing} || throw(ArgumentError("Invalid `axes` argument: expected Tuple, got $(typeof(u_axes))"))
-    axes = u_axes !== nothing ? u_axes : (dims(lat) == 3 ? (:x, :y, :z) : (:x, :y))
+    u_axes = plotattributes === nothing ? nothing : get(plotattributes, :axes, nothing)
+    if !(u_axes isa Tuple)
+        u_axes = (u_axes,)
+    end
+    length(u_axes) ≤ 3 || throw(ArgumentError("Only ≤3 spatial dimensions are supported."))
+    if u_axes !== (nothing,)
+        axes = u_axes
+    else
+        dims(lat) > 3 && throw(ArgumentError("No axes specified for $(dims(lat))D lattice"))
+        axes = (:x, :y, :z)[1:dims(lat)]
+    end
     axis_numbers = _process_axis.(axes)
     allunique(axis_numbers) || throw(ArgumentError("Duplicate axes in $axes"))
     return axes, axis_numbers
@@ -36,7 +44,7 @@ end
 @recipe function f(lat::AbstractLattice, ::Val{:sites})
     aspect_ratio := :equal
     seriestype := :scatter
-    axes, axis_numbers = _get_axes(lat, get(plotattributes, :axes, nothing))
+    axes, axis_numbers = _get_axes(lat, plotattributes)
     xguide --> axes[1]
     xwiden --> 1.1
     yguide --> axes[2]
@@ -246,8 +254,7 @@ end
 end
 @recipe function f(lv::LatticeValue{<:Number}, ::Val{:line})
     seriestype --> :path
-    axis = plotattributes[:axes]
-    i = _process_axis(axis)
+    axis, i = only.(_get_axes(lattice(lv), plotattributes))
     l = lattice(lv)
     i in 1:dims(l) || throw(ArgumentError("Invalid axis $axis"))
     @series begin
@@ -258,14 +265,71 @@ end
     end
 end
 
+function heatmap_data(lv::LatticeValue{T}, axis_numbers, bins) where {T<:Number}
+    crd = collect_coords(lattice(lv))[collect(axis_numbers), :]
+    min_pt = vec(minimum(crd, dims=2))
+    max_pt = vec(maximum(crd, dims=2))
+    if bins isa Number
+        xbins, ybins = round.(Int, sqrt(bins / prod(max_pt - min_pt)) * (max_pt - min_pt))
+    elseif bins isa NTuple{2, Any}
+        xbins, ybins = bins
+    else
+        throw(ArgumentError("Invalid `bins` argument: expected integer or 2-tuple, got $(typeof(bins))"))
+    end
+    if xbins === ybins === nothing
+        r = sqrt(prod(max_pt - min_pt))
+        xbins, ybins = round.(Int, (max_pt - min_pt) / r * sqrt(length(lv)) / √2)
+    elseif xbins === nothing
+        xbins = round(Int, ybins * (max_pt[1] - min_pt[1]) / (max_pt[2] - min_pt[2]))
+    elseif ybins === nothing
+        ybins = round(Int, xbins * (max_pt[2] - min_pt[2]) / (max_pt[1] - min_pt[1]))
+    end
+    bins = (xbins, ybins)
+    prod(bins) > length(lv) &&
+        @warn "$xbins×$ybins ($(prod(bins))) is too many bins for $(length(lv)) data points"
+    counts = zeros(Int, bins)
+    sums = zeros(float(T), bins)
+    @inbounds @simd for i in Base.axes(crd, 2)
+        ix = round(Int, (crd[1, i] - min_pt[1]) / (max_pt[1] - min_pt[1]) * (xbins - 1)) + 1
+        iy = round(Int, (crd[2, i] - min_pt[2]) / (max_pt[2] - min_pt[2]) * (ybins - 1)) + 1
+        counts[ix, iy] += 1
+        sums[ix, iy] += lv.values[i]
+    end
+    xs = range(min_pt[1], max_pt[1], length=xbins)
+    ys = range(min_pt[2], max_pt[2], length=ybins)
+    return xs, ys, transpose(sums ./ counts)
+end
+
+@recipe function f(lv::LatticeValue{T}, ::Val{:hmap}; xbins=nothing, ybins=nothing, bins=(xbins, ybins)) where {T<:Number}
+    aspect_ratio := :equal
+    axes, axis_numbers = _get_axes(lattice(lv), plotattributes)
+    if length(axes) != 2
+        throw(ArgumentError("2D axes expected; got $axes"))
+    end
+    xguide --> axes[1]
+    yguide --> axes[2]
+    if plotattributes[:seriestype] == :histogram2d
+        plotattributes[:seriestype] = :heatmap
+    elseif plotattributes[:seriestype] == :contour
+        fill --> true
+        linewidth --> 0.7
+    else
+        error("Unsupported seriestype $(plotattributes[:seriestype]) for hmap plot")
+    end
+    heatmap_data(lv, axis_numbers, bins)
+end
+
 @recipe function f(lv::LatticeValue{<:Number})
     label --> ""
-    if !(get(plotattributes, :axes, ()) isa Tuple)
+    axes, _ = _get_axes(lattice(lv), plotattributes)
+    if length(axes) == 1
         @series lv, Val(:line)
     else
         seriestype --> :scatter
         if plotattributes[:seriestype] in (:shape, :heatmap) && dims(lv) == 2
             @series lv, Val(:tiles)
+        elseif plotattributes[:seriestype] in (:histogram2d, :contour)
+            @series lv, Val(:hmap)
         elseif plotattributes[:seriestype] == :scatter
             @series lv, Val(:scatter)
         else
@@ -306,7 +370,7 @@ end
 @recipe function f(bonds::AbstractBonds)
     aspect_ratio := :equal
     label := nothing
-    axes, axis_numbers = _get_axes(lattice(bonds), get(plotattributes, :axes, nothing))
+    axes, axis_numbers = _get_axes(lattice(bonds), plotattributes)
     xguide --> axes[1]
     yguide --> axes[2]
     if length(axes) > 2

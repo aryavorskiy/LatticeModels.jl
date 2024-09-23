@@ -83,6 +83,7 @@
         P = @test_logs (:info, """Creating density matrix: FermiDirac distribution, N = 3 (μ found automatically), T = 1
         set `info=false` to disable this message""") densitymatrix(diagonalize(H), N = 3, T = 1, statistics=FermiDirac)
 
+        l3d = SquareLattice(3, 4, 5)
         dc = DensityCurrents(H, P)
         plot!(p[1], dc[x.<y])
         plot!(p[1], Currents(dc)[x.<y])
@@ -90,14 +91,25 @@
         scatter!(p[1], l[2])
         scatter!(p[1], l[x.<y], :high_contrast)
         scatter!(p[1], xy[x.≥y])
+        histogram2d!(p[1], xy)
+        contour!(p[1], xy, xbins=5)
+        contour!(p[1], xy, ybins=5)
+        @test_throws ArgumentError contour!(p[1], xy, bins=:auto)
+        @test_logs (:warn, "20×20 (400) is too many bins for 100 data points") contour!(p[1], xy, bins=400)
+        xs, ys, zs = LatticeModels.heatmap_data(xy, (1,2), 100)
+        @test length(xs) == 10
+        @test length(ys) == 10
+        @test size(zs) == (10, 10)
         plot!(p[1], AdjacencyMatrix(H))
         plot!(p[1], AdjacencyMatrix(BravaisTranslation(l, [1, 1])))
         @test_throws ErrorException surface!(p[2], xy)
         plot!(p[2], l)
         plot!(p[2], Circle(10), Box(10 .. 20, -5 .. 5), Hexagon(10, [-10, 0]),
             SiteAt([0, 0]), Path([-10, -15], [10, 15]))
-        plot!(p[3], SquareLattice(3, 4, 5))
-        plot!(p[4], axis=:x)
+        plot!(p[3], l3d)
+        @test_throws ErrorException surface!(p[3], LatticeValue(l3d, :z))
+        @test_throws ArgumentError histogram2d!(p[3], LatticeValue(l3d, :z))
+        plot!(p[4], xy, axes=:x)
         plot!(p[5], UnitCell([[1, 0] [0.1, 1]], [[0, 0.1] [-0.2, 0]]))
         true
     end
