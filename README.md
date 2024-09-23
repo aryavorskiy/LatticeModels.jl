@@ -1,4 +1,4 @@
-![](logo_with_text.svg)
+![logo_with_text](https://raw.githubusercontent.com/aryavorskiy/LatticeModels.jl/refs/heads/master/logo_with_text.svg)
 
 [![version](https://juliahub.com/docs/General/LatticeModels/stable/version.svg)](https://juliahub.com/ui/Packages/General/LatticeModels)
 [![docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://aryavorskiy.github.io/LatticeModels.jl/dev)
@@ -55,7 +55,7 @@ gif(anim, "animation.gif")
 
 This code creates an animation which displays local density and currents on a plot:
 
-![](animation.gif)
+![](https://raw.githubusercontent.com/aryavorskiy/LatticeModels.jl/refs/heads/master/animation.gif)
 
 ## Similar packages
 
