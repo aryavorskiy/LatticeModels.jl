@@ -91,6 +91,8 @@
         scatter!(p[1], l[x.<y], :high_contrast)
         scatter!(p[1], xy[x.≥y])
         histogram2d!(p[1], xy)
+        contour!(p[1], xy, xbins=5)
+        @test_logs (:warn, "20×20 (400) is too many bins for 100 data points") contour!(p[1], xy, bins=400)
         xs, ys, zs = LatticeModels.heatmap_data(xy, (1,2), 100)
         @test length(xs) == 10
         @test length(ys) == 10
@@ -102,7 +104,7 @@
         plot!(p[2], Circle(10), Box(10 .. 20, -5 .. 5), Hexagon(10, [-10, 0]),
             SiteAt([0, 0]), Path([-10, -15], [10, 15]))
         plot!(p[3], SquareLattice(3, 4, 5))
-        plot!(p[4], axis=:x)
+        plot!(p[4], xy, axis=:x)
         plot!(p[5], UnitCell([[1, 0] [0.1, 1]], [[0, 0.1] [-0.2, 0]]))
         true
     end

@@ -264,7 +264,7 @@ function heatmap_data(lv::LatticeValue{T}, axis_numbers, bins) where {T<:Number}
     max_pt = vec(maximum(crd, dims=2))
     if bins isa Number
         xbins, ybins = round.(Int, sqrt(bins / prod(max_pt - min_pt)) * (max_pt - min_pt))
-    elseif bins isa NTuple{2}
+    elseif bins isa NTuple{2, Any}
         xbins, ybins = bins
     else
         throw(ArgumentError("Invalid `bins` argument: expected integer or 2-tuple, got $(typeof(bins))"))
