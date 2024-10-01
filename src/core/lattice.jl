@@ -403,7 +403,7 @@ LatticeWithMetadata(l::AbstractLattice; kw...) = LatticeWithMetadata(l, NamedTup
 
 hasmeta(::AbstractLattice, ::Symbol) = false
 hasmeta(l::LatticeWithMetadata, meta::Symbol) = haskey(l.metadata, meta)
-getmeta(::AbstractLattice, ::Symbol, default=nothong) = default
+getmeta(::AbstractLattice, ::Symbol, default=nothing) = default
 getmeta(l::LatticeWithMetadata, meta::Symbol, default=nothing) = get(l.metadata, meta, default)
 setmeta(l::AbstractLattice, param::Symbol, val) = LatticeWithMetadata(l, NamedTuple{(param,)}((val,)))
 delmeta(l::LatticeWithMetadata, param::Symbol) = LatticeWithMetadata(l.lat, Base.structdiff(l.metadata, NamedTuple{(param,)}))

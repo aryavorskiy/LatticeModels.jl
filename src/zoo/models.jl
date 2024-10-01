@@ -84,7 +84,7 @@ Generates a QWZ model hamiltonian operator on given square lattice `lat`.
 """
 qwz(m::LatticeValue; kw...) = qwz(lattice(m), m; kw...)
 function qwz(sys::System, m=1; kw...)
-    checktype(sys, SquareLattice)
+    checklatticetype(sys, SquareLattice)
     construct_hamiltonian(sys,
     [1 0; 0 -1] => m,
     [1 -im; -im -1] / 2 => BravaisTranslation(axis = 1),
@@ -118,7 +118,7 @@ Generates a Haldane topological insulator hamiltonian operator on given lattice 
 - `statistics` defines the particle statistics, either `FermiDirac` or `BoseEinstein`.
 """
 function haldane(sys::System, t1::Real, t2::Real, m::Real=0; kw...)
-    checktype(sys, HoneycombLattice)
+    checklatticetype(sys, HoneycombLattice)
     construct_hamiltonian(sys,
     lattice(sys) .|> (site -> site.basindex == 1 ? m : -m),
     t1 => NearestNeighbor(1),
@@ -142,9 +142,9 @@ Generates a Kane-Mele hamiltonian operator on given lattice `lat`.
 - `statistics` defines the particle statistics, either `FermiDirac` or `BoseEinstein`.
 """
 function kanemele(sys::System, t1::Real, t2::Real; kw...)
-    checktype(sys, HoneycombLattice)
+    checklatticetype(sys, HoneycombLattice)
     construct_hamiltonian(sys,
-        t1 => default_bonds(sys),
-        im * t2 * sigmaz(internal_basis) => honeycomb_2nn; kw...)
+        t1 => NearestNeighbor(1),
+        im * t2 * sigmaz(internal_basis(sys)) => honeycomb_2nn; kw...)
 end
 @accepts_system kanemele SpinBasis(1//2)

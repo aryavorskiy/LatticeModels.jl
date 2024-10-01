@@ -106,7 +106,7 @@ end
 Base.show(io::IO, ::MIME"text/plain", T::Type{<:BravaisLatticeType}) = print(io, "Lattice type: ", string(T))
 settype(l::AbstractLattice, T::Type{<:BravaisLatticeType}) = pushmeta(l, :latticetype, T)
 gettype(l::AbstractLattice) = getmeta(l, :latticetype, nothing)
-function checktype(l::AbstractLattice, T::Type{<:BravaisLatticeType})
+function checklatticetype(l::AbstractLattice, T::Type{<:BravaisLatticeType})
     AT = gettype(l)
     if AT === nothing
         @warn "Lattice type not defined; expected $T"
@@ -114,7 +114,7 @@ function checktype(l::AbstractLattice, T::Type{<:BravaisLatticeType})
         throw(ArgumentError("Invalid lattice type $AT; expected $T"))
     end
 end
-checktype(any, T) = checktype(lattice(any), T)
+checklatticetype(any, T) = checklatticetype(lattice(any), T)
 
 function _ngonshape(r::SVector{2}, n, skip=true, expand=true)
     expand && (r = r * 1.04)

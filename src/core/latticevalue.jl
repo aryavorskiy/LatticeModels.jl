@@ -132,7 +132,6 @@ Base.fill!(lv::LatticeValue, value) = (fill!(lv.values, value); lv)
 Base.zero(lvw::LatticeValueWrapper) = LatticeValueWrapper(lattice(lvw), zero(lvw.values))
 Base.zeros(T::Type, l::AbstractLattice) = fill(zero(T), l)
 Base.zeros(l::AbstractLattice) = zeros(Float64, l)
-Base.one(lvw::LatticeValueWrapper) = LatticeValueWrapper(lattice(lvw), one(lvw.values))
 Base.ones(T::Type, l::AbstractLattice) = fill(one(T), l)
 Base.ones(l::AbstractLattice) = ones(Float64, l)
 

@@ -265,10 +265,10 @@ end
     end
 end
 
-function heatmap_data(lv::LatticeValue{T}, axis_numbers, bins) where {T<:Number}
+function heatmap_data(lv::LatticeValue{T}, axis_numbers, bins) where {T<:Real}
     crd = collect_coords(lattice(lv))[collect(axis_numbers), :]
-    min_pt = vec(minimum(crd, dims=2))
-    max_pt = vec(maximum(crd, dims=2))
+    min_pt = dropdims(minimum(crd, dims=2), dims=2)
+    max_pt = dropdims(maximum(crd, dims=2), dims=2)
     if bins isa Number
         xbins, ybins = round.(Int, sqrt(bins / prod(max_pt - min_pt)) * (max_pt - min_pt))
     elseif bins isa NTuple{2, Any}

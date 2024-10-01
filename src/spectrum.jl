@@ -258,7 +258,7 @@ end
 function fermisphere_densitymatrix(eig::AbstractEigensystem; N::Int, info=true)
     info && @info "Creating density matrix: Fermi sphere, N = $N" * DISABLE_INFO
     length(eig) < N &&
-        throw(ArgumentError("cannot build Fermi sphere with $N particles: only $(length(Es)) bands present"))
+        throw(ArgumentError("cannot build Fermi sphere with $N particles: only $(length(eig)) bands present"))
     length(eig) == N && return projector(eig)
     eig.values[N] ≈ eig.values[N+1] && @warn "degenerate levels on the Fermi sphere"
     return projector(eig[1:N])

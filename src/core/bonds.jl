@@ -78,10 +78,10 @@ _destinations(bonds::AbstractBonds, rs::ResolvedSite) =
     _destinations(resolvestyle(bonds), bonds, rs)
 
 function Base.iterate(bonds::AbstractBonds)
-    isempty(lattice(bonds)) && return nothing
     l = lattice(bonds)
-    isempty(l) && return nothing
-    targets = _destinations(bonds, resolve_site(l, 1))
+    rs = resolve_site(l, 1)
+    rs === nothing && return nothing
+    targets = _destinations(bonds, rs)
     jst = iterate(targets)
     return iterate(bonds, (1, targets, jst))
 end

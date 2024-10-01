@@ -58,7 +58,7 @@ function BravaisTranslation(lat::AbstractLattice, site_indices::Pair{Int,Int} = 
 end
 
 Base.:(==)(h1::BravaisTranslation, h2::BravaisTranslation) =
-    all(getfield(h1, fn) == getfield(h2, fn) for fn in fieldnames(BravaisTranslation))
+    h1.lat == h2.lat && h1.site_indices == h2.site_indices && h1.translate_uc == h2.translate_uc
 function Base.inv(bsh::BravaisTranslation)
     a, b = bsh.site_indices
     BravaisTranslation(bsh.lat, b => a, -bsh.translate_uc)
@@ -91,7 +91,7 @@ end
         bsh.site_indices[1] != bp.basindex && return nothing
         new_basindex = bsh.site_indices[2]
     end
-    NU > M && any(!=(0), @view bsh.translate_uc[M+1:NU]) && return nothing
+    NU > M && any(!=(0), bsh.translate_uc[SOneTo(NU) .> M]) && return nothing
     return BravaisPointer(add_assuming_zeros(bp.latcoords, bsh.translate_uc), new_basindex)
 end
 @inline destination(bs::BravaisTranslation, site::BravaisSite) =
