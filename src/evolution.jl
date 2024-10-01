@@ -39,6 +39,13 @@ _data(ket::Ket) = ket.data
 _data(bra::Bra) = bra.data
 _data(op::DataOperator) = op.data
 
+_eval_ham(hamiltonian, _) = hamiltonian
+_eval_ham(hamiltonian::Function, t) = hamiltonian(t)
+function _eval_ham(ham::QuantumOpticsBase.AbstractTimeDependentOperator, t)
+    QuantumOpticsBase.set_time!(ham, t)
+    return ham
+end
+_similar_matrix(hamiltonian) = _data(_eval_ham(hamiltonian, 0))
 """
     CachedExp([ham; threshold=1e-10, nztol=1e-14])
 
@@ -58,7 +65,7 @@ mutable struct CachedExp{MT,ET,KWT} <: EvolutionSolver
     factor::ComplexF64
     kw::KWT
 end
-CachedExp(ham; kw...) = CachedExp(zero(_data(ham)), one(complex(float(_data(ham)))), 0.0im, kw)
+CachedExp(ham; kw...) = CachedExp(zero(_similar_matrix(ham)), one(complex(float(_similar_matrix(ham)))), 0.0im, kw)
 function step!(solver::CachedExp, state::AbstractVector, cache)
     copyto!(cache, state)
     mul!(state, solver.matexp, cache)
@@ -73,9 +80,9 @@ evolution_cache(::CachedExp, state::AbstractVector) = similar(state)
 evolution_cache(::CachedExp, state::AbstractMatrix) = (similar(state), similar(state))
 
 update_solver!(solver::CachedExp, mat::Ref, dt) = update_solver!(solver, mat[], dt, true)
-function update_solver!(solver::CachedExp, mat, dt, force=false)
+function update_solver!(solver::CachedExp, mat::AbstractMatrix, dt, force=false)
     factor = -im * dt
-    dmat = _data(mat)
+    dmat =  mat
     if !force
         factor ≈ solver.factor && (solver.mat === dmat || solver.mat == dmat) && return
     end
@@ -135,10 +142,10 @@ mutable struct KrylovKitExp{MT<:AbstractMatrix,KWT} <: EvolutionSolver
     factor::ComplexF64
     kw::KWT
 end
-KrylovKitExp(ham; kw...) = KrylovKitExp(zero(_data(ham)), 0.0im, kw)
-function update_solver!(solver::KrylovKitExp, mat, dt, _force)
+KrylovKitExp(ham; kw...) = KrylovKitExp(zero(_similar_matrix(ham)), 0.0im, kw)
+function update_solver!(solver::KrylovKitExp, mat::AbstractMatrix, dt, _force)
     solver.factor = -im * dt
-    solver.mat = _data(mat)
+    solver.mat = mat
 end
 function step!(solver::KrylovKitExp, state::AbstractVector, _cache)
     newstate, info = KrylovKit.exponentiate(solver.mat, solver.factor, state; solver.kw...)
@@ -189,7 +196,7 @@ struct Evolution{SolverT,HamT,NamedTupleT}
     end
 end
 function Evolution(hamiltonian::EvolutionHamType, states::EvolutionStateType...; namedstates...)
-    solver = CachedExp(eval_hamiltonian(hamiltonian, 0))
+    solver = CachedExp(hamiltonian)
     return Evolution(solver, hamiltonian, states...; namedstates...)
 end
 function Evolution(solver::EvolutionSolver, hamiltonian::EvolutionHamType, states::EvolutionStateType...;
@@ -219,8 +226,7 @@ end
 (::Type{T})(;kw...) where T<:EvolutionSolver = IncompleteSolver{T}(;kw...)
 function Evolution(incompsolver::IncompleteSolver{SolverT}, hamiltonian::EvolutionHamType,
         states::EvolutionStateType...; kw...) where SolverT
-    H = eval_hamiltonian(hamiltonian, 0)
-    solver = SolverT(H; incompsolver.kws...)
+    solver = SolverT(hamiltonian; incompsolver.kws...)
     return Evolution(solver, hamiltonian, states...; kw...)
 end
 function Evolution(solvertype::Type{<:EvolutionSolver}, hamiltonian::EvolutionHamType,
@@ -229,18 +235,13 @@ function Evolution(solvertype::Type{<:EvolutionSolver}, hamiltonian::EvolutionHa
     return Evolution(solver, hamiltonian, states...; kw...)
 end
 
-eval_hamiltonian(hamiltonian, _) = hamiltonian
-eval_hamiltonian(hamiltonian::Function, t) = hamiltonian(t)
-function eval_hamiltonian(ham::QuantumOpticsBase.AbstractTimeDependentOperator, t)
-    QuantumOpticsBase.set_time!(ham, t)
-    return ham
-end
 function step!(evol::Evolution, dt)
     dt < -1e-15 && throw(ArgumentError("negative time step"))
     t = evol.time[]
-    H = eval_hamiltonian(evol.hamiltonian, t)
+    H = _eval_ham(evol.hamiltonian, t)
     abs(dt) < 1e-15 && return H
-    update_solver!(evol.solver, H, dt, H isa QuantumOpticsBase.AbstractTimeDependentOperator)
+    force_update = H isa QuantumOpticsBase.AbstractTimeDependentOperator
+    update_solver!(evol.solver, _data(H), dt, force_update)
     for (state, cache) in values(evol.states)
         step!(evol.solver, state, cache)
     end

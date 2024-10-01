@@ -28,7 +28,7 @@ struct UnitCell{N,NU,NB,NND,NNB}
     translations::SMatrix{N,NU,Float64,NND}
     basissites::SMatrix{N,NB,Float64,NNB}
     function UnitCell(translations::AbstractMatrix,
-            basissites::AbstractMatrix=zeros(size(translations, 1), 1); kw...)
+            basissites::AbstractMatrix=zeros(Float64, size(translations, 1), 1); kw...)
         N, NU = size(translations)
         NB = size(basissites, 2)
         @check_size basissites (N, NB)
