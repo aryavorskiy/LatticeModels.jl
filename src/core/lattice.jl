@@ -330,7 +330,7 @@ struct ResolvedSite{ST}
     end
 end
 ResolvedSite(site::AbstractSite, index::Int) = ResolvedSite(site, site, index)
-function resolve_site_default(l::AbstractLattice, site::AbstractSite)
+@inline function resolve_site_default(l::AbstractLattice, site::AbstractSite)
     index = site_index(l, site)
     index === nothing && return nothing
     ResolvedSite(site, index)

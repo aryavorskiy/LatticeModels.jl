@@ -3,6 +3,7 @@
 [![version](https://juliahub.com/docs/General/LatticeModels/stable/version.svg)](https://juliahub.com/ui/Packages/General/LatticeModels)
 [![docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://aryavorskiy.github.io/LatticeModels.jl/dev)
 [![codecov](https://codecov.io/gh/aryavorskiy/LatticeModels.jl/branch/master/graph/badge.svg?token=KQN77BL9UV)](https://codecov.io/gh/aryavorskiy/LatticeModels.jl)
+[![](https://img.shields.io/badge/%F0%9F%9B%A9%EF%B8%8F_tested_with-JET.jl-233f9a)](https://github.com/aviatesk/JET.jl)
 
 This package provides a set of tools to simulate different quantum lattice systems.
 

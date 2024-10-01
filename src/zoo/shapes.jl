@@ -340,24 +340,12 @@ topath2d(f::Path{2}) = [Tuple(f.start), Tuple(f.stop)]
 @inline _iter_neighbor_indices(lat::AbstractLattice, nns::AbstractBonds, i) =
     Iterators.map(adjacentsites(nns, lat[i])) do site
         rs = resolve_site(lat, site)
-        return rs === nothing ? nothing : rs.index
+        return rs === nothing ? 0 : rs.index
     end
-
-# @inline function _iter_neighbor_indices(lat::MaybeWithMetadata{BravaisLattice}, nns::BravaisSiteMapping, i)
-#     bp = lat.pointers[i]
-#     N = length(nns.translations)
-#     return Iterators.map(1:2N) do j
-#         tr = j > N ? inv(nns.translations[j - N]) : nns.translations[j]
-#         bp2 = _destination_bp(tr, bp)
-#         empty_uc = UnitCell{dims(lat), 1, 1}(SMatrix{0,3,Float64}())
-#         site = BravaisSite(bp2, empty_uc)
-
-#     end
-# end
 function _countneighbors(check, lat::AbstractLattice, nns::AbstractBonds, i)
     counter, index = 0, 0
     for idx in _iter_neighbor_indices(lat, nns, i)
-        if idx !== nothing && check(idx)
+        if idx != 0 && check(idx)
             idx == i && continue
             counter += 1
             counter ≥ 2 && return counter, index
