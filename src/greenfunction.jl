@@ -59,6 +59,8 @@ struct GreenFunction{ST, VecC, VecE}
             mvms_l = fill(empty(first(mvps_l)), p)
             mvms_r = fill(empty(first(mvps_r)), p)
             ems = empty(eps)
+        elseif mvms_l === nothing || mvms_r === nothing || ems === nothing
+            throw(ArgumentError("mvms_l, mvms_r, and ems must be either all or none specified"))
         else
             @check_size mvms_l p
             @check_size mvms_r p

@@ -82,7 +82,7 @@ Base.:(==)(ts1::TimeSequence, ts2::TimeSequence) =
 
 Base.empty(::TimeSequence{ET}) where ET = TimeSequence{ET}()
 Base.empty(::TimeSequence, ::Type, ::VT) where VT =
-    TimeSequence(VT)()
+    TimeSequence{VT}()
 function Base.get(tseq::TimeSequence, t::Real, default)
     f = findfirst(≈(t, atol=√eps()), tseq.times)
     f === nothing ? default : tseq.values[f]

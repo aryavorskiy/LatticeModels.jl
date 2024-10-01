@@ -1,4 +1,4 @@
-import QuantumOpticsBase: basis, check_samebases
+import QuantumOpticsBase: basis, check_samebases, OccupationNumbers, FermionStatistics, BosonStatistics
 
 struct Sample{LT, BasisT}
     lat::LT
@@ -219,23 +219,21 @@ function System(sample::Sample; μ = nothing, mu = μ, N = nothing, T = 0, stati
     end
 end
 System(onep::OneParticleSystem; kw...) = System(onep.sample; T=onep.T, kw...)
-System(args...; μ = nothing, mu = μ, N = nothing, statistics=FermiDirac, T=0, kw...) =
-    System(Sample(args...; kw...), mu=mu, N=N, T=T, statistics=statistics)
-
-function occupations(np::NParticles, occupations_type::Type)
-    n = np.nparticles
-    if np.statistics == FermiDirac
-        fermionstates(occupations_type, length(np.sample), n isa Int ? n : collect(n))
-    elseif np.statistics == BoseEinstein
-        bosonstates(occupations_type, length(np.sample), n isa Int ? n : collect(n))
-    end
+function System(args...; μ = nothing, mu = μ, N = nothing, statistics=FermiDirac, T=0, kw...)
+    isempty(kw) || throw(ArgumentError("Unsupported keyword arguments " * join(keys(kw), ", ")))
+    System(Sample(args...), mu=mu, N=N, T=T, statistics=statistics)
 end
-function occupations(np::NParticles, ::Nothing=nothing)
+
+function occupations(np::NParticles, occupations_type::Union{Type,Nothing}=nothing)
     n = np.nparticles
     if np.statistics == FermiDirac
-        fermionstates(length(np.sample), n isa Int ? n : collect(n))
+        new_occ = occupations_type !== nothing ? occupations_type : OccupationNumbers{FermionStatistics, Int}
+        fermionstates(new_occ, length(np.sample), n isa Int ? n : collect(n))
     elseif np.statistics == BoseEinstein
-        bosonstates(length(np.sample), n isa Int ? n : collect(n))
+        new_occ = occupations_type !== nothing ? occupations_type : OccupationNumbers{BosonStatistics, Int}
+        bosonstates(new_occ, length(np.sample), n isa Int ? n : collect(n))
+    else
+        throw(ArgumentError("Unsupported statistics: $(np.statistics)"))
     end
 end
 

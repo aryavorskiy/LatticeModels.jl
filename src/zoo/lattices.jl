@@ -179,7 +179,7 @@ To get armchair edges, simply rotate the lattice by 90 degrees.
 
 All other keyword arguments are passed to `span_unitcells` (see its documentation for details).
 """
-function GrapheneRibbon(len, wid, center=(0, 0); kw...)
+function GrapheneRibbon(len::Int, wid::Int, center=(0, 0); kw...)
     j1ind = center[1] - wid:len + center[1] - 1
     j2ind = center[2]:wid + center[2] - 1
     default_translations = wid % 2 == 0 ?

@@ -9,6 +9,6 @@ import LinearAlgebra, ProgressMeter, KrylovKit
     )
     rep = report_package(LatticeModels; toplevel_logger=nothing,
         ignored_modules=jet_ignored_modules)
-    @show rep
+    print(rep)
     @test_broken length(JET.get_reports(rep)) == 0
 end

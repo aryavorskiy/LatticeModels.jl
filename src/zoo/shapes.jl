@@ -189,7 +189,7 @@ function circumscribed_sphere(uc::UnitCell, f::BallND)
 end
 scale(f::BallND{N}, c) where N = BallND{N}(c * f.radius, c * f.center)
 volume(f::BallND{N}) where N = ndvol(dims(f)) * f.radius^N
-inshape(f::BallND, site) = sum(abs2, site.coords - f.center) ≤ f.radius^2
+inshape(f::BallND, site::AbstractSite) = sum(abs2, site.coords - f.center) ≤ f.radius^2
 topath2d(f::BallND{2}) =
     [Tuple(f.center .+ f.radius * SA[cos(θ), sin(θ)]) for θ in range(0, 2pi, length=100)]
 
@@ -227,8 +227,8 @@ function circumscribed_sphere(::UnitCell, f::Polygon)
 end
 scale(f::Polygon{N}, c) where N = Polygon{N}(c * f.radius, c * f.center)
 volume(f::Polygon{N}) where N = N / 2 * sin(2pi / N) * f.radius^2
-@generated function inshape(f::Polygon{N}, site) where N
-    exprs = [:(y * $(cos(2pi * i / N)) + x * $(sin(2pi * i / N)) > -h) for i in 1:N]
+@generated function inshape(f::Polygon{N}, site::AbstractSite) where N
+    exprs = Expr[:(y * $(cos(2pi * i / N)) + x * $(sin(2pi * i / N)) > -h) for i in 1:N]
     and_expr = reduce((x, y) -> :($x && $y), exprs)
     quote
         h = f.radius * $(cos(pi / N))
@@ -255,7 +255,7 @@ end
 circumscribed_sphere(::UnitCell, f::SiteAt) = 1, f.coords
 scale(::SiteAt, _) = throw(ArgumentError("SiteAt does not support scaling"))
 volume(::SiteAt) = 0
-inshape(f::SiteAt, site) = isapprox(site.coords, f.coords, atol=1e-10)
+inshape(f::SiteAt, site::AbstractSite) = isapprox(site.coords, f.coords, atol=1e-10)
 topath2d(f::SiteAt) = [Tuple(f.coords)]
 
 """
@@ -282,7 +282,7 @@ scale(int::Interval{L, R}, c) where {L, R} =
     Interval{L, R}(c * leftendpoint(int), c * rightendpoint(int))
 scale(f::Box, c) = Box(Tuple(scale(int, c) for int in f.intervals))
 volume(f::Box) = prod(width, f.intervals)
-inshape(f::Box{N}, site) where N = all(i -> site.coords[i] in f.intervals[i], SOneTo{N}())
+inshape(f::Box{N}, site::AbstractSite) where N = all(i -> site.coords[i] in f.intervals[i], SOneTo{N}())
 function topath2d(f::Box{2})
     x1, x2 = endpoints(f.intervals[1])
     y1, y2 = endpoints(f.intervals[2])
@@ -313,8 +313,8 @@ function inshape(f::Path, site::BravaisSite)
     sb = 0.
     eb = 1.
     j = unitvectors(site.unitcell) \ (f.stop - f.start)
-    k1 = site.latcoords - unitvectors(site.unitcell) \ f.start
-    k2 = site.latcoords  .+ 1 .- unitvectors(site.unitcell) \ f.start
+    k1 = site.latcoords .- unitvectors(site.unitcell) \ f.start
+    k2 = site.latcoords  .+ 1 .- vec(unitvectors(site.unitcell) \ f.start)
     for i in 1:dims(f)
         p1, p2 = extrema((k1[i], k2[i]))
         if j[i] == 0
@@ -337,15 +337,31 @@ function inshape(f::Path, site::BravaisSite)
 end
 topath2d(f::Path{2}) = [Tuple(f.start), Tuple(f.stop)]
 
+@inline _iter_neighbor_indices(lat::AbstractLattice, nns::AbstractBonds, i) =
+    Iterators.map(adjacentsites(nns, lat[i])) do site
+        rs = resolve_site(lat, site)
+        return rs === nothing ? nothing : rs.index
+    end
+
+# @inline function _iter_neighbor_indices(lat::MaybeWithMetadata{BravaisLattice}, nns::BravaisSiteMapping, i)
+#     bp = lat.pointers[i]
+#     N = length(nns.translations)
+#     return Iterators.map(1:2N) do j
+#         tr = j > N ? inv(nns.translations[j - N]) : nns.translations[j]
+#         bp2 = _destination_bp(tr, bp)
+#         empty_uc = UnitCell{dims(lat), 1, 1}(SMatrix{0,3,Float64}())
+#         site = BravaisSite(bp2, empty_uc)
+
+#     end
+# end
 function _countneighbors(check, lat::AbstractLattice, nns::AbstractBonds, i)
     counter, index = 0, 0
-    for site2 in adjacentsites(nns, lat[i])
-        rs2 = resolve_site(lat, site2)
-        if rs2 !== nothing && check(rs2.index)
-            rs2.index == i && continue
+    for idx in _iter_neighbor_indices(lat, nns, i)
+        if idx !== nothing && check(idx)
+            idx == i && continue
             counter += 1
             counter ≥ 2 && return counter, index
-            index = rs2.index
+            index = idx
         end
     end
     counter, index
