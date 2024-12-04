@@ -110,4 +110,10 @@ function Base.show(io::IO, f::FieldSum)
     end
 end
 
-+(f::Vararg{AbstractField}) = FieldSum{typeof(f)}(f)
+_fldterms(f::FieldSum) = f.fields
+_fldterms(f::AbstractField) = (f,)
+function Base.add_sum(f1::FieldSum{<:NTuple{32}}, f2::AbstractField)
+    @warn "FieldSum is not optimized for a large number of fields; expect compiler issues"
+    return f1 + f2
+end
++(f1::AbstractField, f2::AbstractField) = FieldSum((_fldterms(f1)..., _fldterms(f2)...))

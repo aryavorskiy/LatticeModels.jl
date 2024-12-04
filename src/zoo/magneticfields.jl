@@ -1,3 +1,5 @@
+import Base: +
+
 """
     LandauGauge <: AbstractField
 
@@ -53,11 +55,13 @@ particle passes below the point). The default is `:axial`.
 struct PointFlux{GaugeT} <: AbstractField
     flux::Float64
     point::NTuple{2,Float64}
-    function PointFlux(Phi,point=(0,0); gauge=:axial)
-        gauge in DELTA_GAUGES || throw(ArgumentError("Invalid gauge: $gauge; expected one of $DELTA_GAUGES"))
-        new{gauge}(Phi, point)
+    function PointFlux{GaugeT}(phi, point=(0,0)) where GaugeT
+        GaugeT in DELTA_GAUGES || throw(ArgumentError("Invalid gauge: $GaugeT; expected one of $DELTA_GAUGES"))
+        new{GaugeT}(phi, point)
     end
 end
+PointFlux(phi, point=(0,0); gauge=:axial) = new{gauge}(phi, point)
+
 function vector_potential(field::PointFlux{:axial}, p1)
     (x, y) = p1
     normsq = (x^2 + y^2)
@@ -101,3 +105,75 @@ Base.show(io::IO, field::PointFlux{GaugeT}) where GaugeT =
     print(io, "PointFlux(", field.flux, ", ", field.point, "; gauge=:", GaugeT, ")")
 Base.show(io::IO, ::MIME"text/plain", field::PointFlux{GaugeT}) where GaugeT =
     print(io, "Point flux field through point $(field.point), $(GaugeT) gauge; Φ = $(field.flux) flux quanta")
+
+"""
+    PointFluxes{GaugeT} <: AbstractField
+
+An object representing a collection of small magnetic fluxes through given points. The field is directed along z-axis.
+
+## Fields
+- `fluxes`: The magnetic flux values.
+- `points`: A vector of `NTuple{2,Float64}` points.
+"""
+struct PointFluxes{GaugeT} <: AbstractField
+    fluxes::Vector{Float64}
+    points::Vector{NTuple{2,Float64}}
+    function PointFluxes{GaugeT}(fluxes::AbstractVector, points::AbstractVector) where GaugeT
+        GaugeT in DELTA_GAUGES || throw(ArgumentError("Invalid gauge: $GaugeT; expected one of $DELTA_GAUGES"))
+        length(fluxes) == length(points) || throw(ArgumentError("Length of fluxes and points should be the same"))
+        new{GaugeT}(fluxes, points)
+    end
+end
+
+"""
+    PointFluxes(fluxes, points; gauge=:axial)
+
+Construct a `PointFluxes` object with given fluxes and points.
+
+The optional `gauge` argument can be used to specify the gauge of the field.
+
+## Arguments
+- `fluxes`: A vector of flux values. Also can be a single value, in which case it will be broadcasted to all points.
+- `points`: A vector of points.
+- `gauge`: The gauge of the field. Possible values are `:axial` and `:singular`. The default is `:axial`.
+"""
+PointFluxes(fluxes::AbstractVector, points::AbstractVector; gauge=:axial) =
+    PointFluxes{gauge}(fluxes, points)
+PointFluxes(flux::Real, points::AbstractVector; kw...) =
+    PointFluxes(fill(Float64(flux), length(points)), points; kw...)
+
+_fluxgauge(::PointFlux{GaugeT}) where GaugeT = GaugeT
+_fluxgauge(::Any) =
+    throw(ArgumentError("Invalid field type: expected PointFlux, got $(typeof(field))"))
+"""
+    PointFluxes(fields[; gauge])
+
+Construct a `PointFluxes` object from a collection of `PointFlux` objects.
+
+An error is thrown if the gauges of the fields are inconsistent. You can specify the gauge
+of the field explicitly using the `gauge` keyword argument.
+
+See also: [`PointFlux`](@ref).
+"""
+function PointFluxes(fields; gauge=nothing)
+    fluxes = Float64[]
+    points = NTuple{2,Float64}[]
+    for field in fields
+        new_gauge = _fluxgauge(field)
+        if gauge === nothing
+            gauge = new_gauge
+        elseif gauge != new_gauge
+            throw(ArgumentError("Inconsistent gauges"))
+        end
+        push!(fluxes, field.flux)
+        push!(points, field.point)
+    end
+    new{typeof(field)}(fluxes, points)
+end
+vector_potential(field::PointFluxes{GaugeT}, p1) where {GaugeT} =
+    sum(vector_potential(PointFlux{GaugeT}(flux, point), p1) for (flux, point) in zip(field.fluxes, field.points))
+line_integral(field::PointFluxes{GaugeT}, p1, p2) where {GaugeT} =
+    sum(line_integral(PointFlux{GaugeT}(flux, point), p1, p2) for (flux, point) in zip(field.fluxes, field.points))
+Base.show(io::IO, field::PointFluxes{GaugeT}) where GaugeT =
+    print(io, "PointFluxes(", allequal(field.fluxes) ? first(field.fluxes) : field.fluxes,
+    ", ", field.points, "; gauge=:", GaugeT, ")")
