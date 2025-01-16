@@ -1,10 +1,12 @@
+import LatticeModels: line_integral
+
 @testset "Field" begin
     struct LazyLandauGauge <: LatticeModels.AbstractField
         B::Number
     end
-    LatticeModels.vector_potential(field::LazyLandauGauge, p1) = (0, p1[1] * field.B)
+    LatticeModels.vector_potential(field::LazyLandauGauge, p) = (0, p[1] * field.B)
     struct StrangeLandauGauge <: LatticeModels.AbstractField end
-    LatticeModels.vector_potential(::StrangeLandauGauge, point) = (0, point[1] * 0.1)
+    LatticeModels.vector_potential(::StrangeLandauGauge, p) = (0, p[1] * 0.1)
     LatticeModels.line_integral(::StrangeLandauGauge, p1, p2) = 123
     struct EmptyField <: LatticeModels.AbstractField end
     l = SquareLattice(10, 10)
@@ -21,30 +23,40 @@
     @testset "Line integral" begin
         p1 = SA[1, 2]
         p2 = SA[3, 4]
-        @test LatticeModels.line_integral(la, p1, p2) ≈
-              LatticeModels.line_integral(la, p1, p2, 100)
-        @test LatticeModels.line_integral(lla, p1, p2) ≈
-              LatticeModels.line_integral(lla, p1, p2, 100)
-        @test LatticeModels.line_integral(la, p1, p2) ≈
-              LatticeModels.line_integral(lla, p1, p2)
-        @test LatticeModels.line_integral(la, p1, p2) ≈
-              LatticeModels.line_integral(fla, p1, p2)
+        @test line_integral(la, p1, p2) ≈ line_integral(la, p1, p2, 100)
+        @test line_integral(lla, p1, p2) ≈ line_integral(lla, p1, p2, 100)
+        @test line_integral(la, p1, p2) ≈ line_integral(lla, p1, p2)
+        @test line_integral(la, p1, p2) ≈ line_integral(fla, p1, p2)
 
-        @test LatticeModels.line_integral(sla, p1, p2, 100) ≈
-              LatticeModels.line_integral(la, p1, p2)
-        @test LatticeModels.line_integral(sla, p1, p2) == 123
+        @test line_integral(sla, p1, p2, 100) ≈ line_integral(la, p1, p2)
+        @test line_integral(sla, p1, p2) == 123
 
-        @test LatticeModels.line_integral(sym, p1, p2, 1) ≈
-              LatticeModels.line_integral(sym, p1, p2)
-        @test LatticeModels.line_integral(sym, p1, p2, 100) ≈
-              LatticeModels.line_integral(sym, p1, p2)
+        @test line_integral(sym, p1, p2, 1) ≈ line_integral(sym, p1, p2)
+        @test line_integral(sym, p1, p2, 100) ≈ line_integral(sym, p1, p2)
 
-        @test LatticeModels.line_integral(flx, p1, p2, 1000) ≈
-              LatticeModels.line_integral(flx, p1, p2) atol = 1e-8
-        @test LatticeModels.line_integral(flx + sym, p1, p2, 1000) ≈
-              LatticeModels.line_integral(flx + sym, p1, p2) atol = 1e-8
+        @test line_integral(flx, p1, p2, 1000) ≈ line_integral(flx, p1, p2) atol = 1e-8
+        @test line_integral(flx + sym, p1, p2, 1000) ≈ line_integral(flx + sym, p1, p2) atol = 1e-8
 
         @test_throws ArgumentError LatticeModels.vector_potential(emf, SA[1, 2, 3])
+    end
+
+    @testset "Point fluxes" begin
+        p1 = SA[0, 0]
+        p2 = SA[4, 0]
+
+        pf1 = PointFlux(0.1, (1, 2))
+        pf2 = PointFlux(0.1, (3, 4))
+        pfs2 = PointFlux(0.1, (3, 4), gauge=:singular)
+        ps1 = PointFluxes(0.1, [(1, 2), (3, 4)], gauge=:singular)
+        ps2 = PointFluxes([pf1, pfs2], gauge=:singular)
+        ps3 = PointFluxes([pf1, pf2])
+
+        @test_throws TypeError PointFluxes([pf1, 3])
+        @test_throws ArgumentError PointFluxes([pf1, pfs2])
+
+        @test line_integral(pf1 + pf2, p1, p2) ≈ line_integral(ps3, p1, p2) atol = 1e-8
+        @test line_integral(ps1, p1, p2) ≈ 0.2 atol = 1e-8
+        @test line_integral(ps2, p1, p2) ≈ 0.2 atol = 1e-8
     end
 
     @testset "Field application" begin

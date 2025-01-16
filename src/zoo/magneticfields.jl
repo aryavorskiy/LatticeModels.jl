@@ -42,15 +42,6 @@ An object representing a small magnetic flux through given point. The field is d
 ## Fields
 - `flux`: The magnetic flux value.
 - `point`: A `Tuple` of x and y coordinates of the point.
-
----
-    PointFlux(flux, [point; gauge])
-
-Construct a `PointFlux` object with given flux and point.
-
-The optional `gauge` argument can be used to specify the gauge of the field. Possible values
-are `:axial` (``A(r) = B \\times \\frac{r}{|r|}``) and `:singular` (the the phase changes if the
-particle passes below the point). The default is `:axial`.
 """
 struct PointFlux{GaugeT} <: AbstractField
     flux::Float64
@@ -60,7 +51,17 @@ struct PointFlux{GaugeT} <: AbstractField
         new{GaugeT}(phi, point)
     end
 end
-PointFlux(phi, point=(0,0); gauge=:axial) = new{gauge}(phi, point)
+
+"""
+    PointFlux(flux, [point; gauge])
+
+Construct a `PointFlux` object with given flux and point.
+
+The optional `gauge` argument can be used to specify the gauge of the field. Possible values
+are `:axial` (``A(r) = B \\times \\frac{r}{|r|}``) and `:singular` (the the phase changes if the
+particle passes below the point). The default is `:axial`.
+"""
+PointFlux(phi, point=(0,0); gauge=:axial) = PointFlux{gauge}(phi, point)
 
 function vector_potential(field::PointFlux{:axial}, p1)
     (x, y) = p1
@@ -143,8 +144,7 @@ PointFluxes(flux::Real, points::AbstractVector; kw...) =
     PointFluxes(fill(Float64(flux), length(points)), points; kw...)
 
 _fluxgauge(::PointFlux{GaugeT}) where GaugeT = GaugeT
-_fluxgauge(::Any) =
-    throw(ArgumentError("Invalid field type: expected PointFlux, got $(typeof(field))"))
+_fluxgauge(field::Any) = throw(TypeError(:PointFluxes, "_fluxgauge", PointFlux, field))
 """
     PointFluxes(fields[; gauge])
 
@@ -156,19 +156,18 @@ of the field explicitly using the `gauge` keyword argument.
 See also: [`PointFlux`](@ref).
 """
 function PointFluxes(fields; gauge=nothing)
+    isempty(fields) && throw(ArgumentError("Empty field collection"))
+    force_gauge = gauge === nothing ? _fluxgauge(first(fields)) : gauge
     fluxes = Float64[]
     points = NTuple{2,Float64}[]
     for field in fields
-        new_gauge = _fluxgauge(field)
-        if gauge === nothing
-            gauge = new_gauge
-        elseif gauge != new_gauge
-            throw(ArgumentError("Inconsistent gauges"))
+        if gauge === nothing && _fluxgauge(field) !== force_gauge
+            throw(ArgumentError("Inconsistent gauges: $gauge and $force_gauge"))
         end
         push!(fluxes, field.flux)
         push!(points, field.point)
     end
-    new{typeof(field)}(fluxes, points)
+    PointFluxes{force_gauge}(fluxes, points)
 end
 vector_potential(field::PointFluxes{GaugeT}, p1) where {GaugeT} =
     sum(vector_potential(PointFlux{GaugeT}(flux, point), p1) for (flux, point) in zip(field.fluxes, field.points))
