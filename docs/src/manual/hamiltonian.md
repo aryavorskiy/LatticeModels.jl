@@ -198,6 +198,7 @@ Here are all types of gauge fields supported by this package:
 - [`LandauGauge(B)`](@ref LandauGauge) — the Landau gauge, with the magnetic field `B` in the $z$ direction.
 - [`SymmetricGauge(B)`](@ref SymmetricGauge) — the symmetric gauge, with the magnetic field `B` in the $z$ direction.
 - [`PointFlux(Phi, center=(0, 0); gauge=:axial)`](@ref PointFlux) — a point flux in the point `center` with the flux `Phi`. The `gauge` argument can be either `:axial` (default) or `:singular`.
+- [`PointFluxes(fluxes, points; gauge=:axial)`](@ref PointFluxes) — a collection of point fluxes. The `fluxes` is an array of fluxes (or a single flux for all points), and the `points` is an array of points described as `Tuple`s. Go to the type docstring to learn more; see also [`periodic_fluxes`](@ref) if you need periodic point fluxes in your system.
 - [`GaugeField(f; n)`](@ref GaugeField) — a general magnetic field. The `f` is a function that takes a coordinate vector and returns the vector potential ``\mathcal{A}`` at this point. The line integrals are calculated using the `n`-point trapezoidal rule. Note that the `n` must be set explicitly.
 - [`LineIntegralGaugeField(f)`](@ref LineIntegralGaugeField) — a general magnetic field. The `f` is a function that takes two coordinate vectors and returns the ``\int_{\vec{r}_1}^{\vec{r}_2} \mathcal{A} \cdot d\vec{r}`` line integral of the vector potential between these points.
 
@@ -218,6 +219,9 @@ Point flux field through point (0.5, 0.5), axial gauge; Φ = 0.3 flux quanta
 julia> f1 + f2 + f3
 LandauGauge(0.1) + SymmetricGauge(0.2) + PointFlux(0.3, (0.5, 0.5); gauge=:axial)
 ```
+
+!!! warn
+    Note that adding gauge fields together by `+` operator puts extra burden on the compiler. This allows extra performance when the number of the terms in the sum is small, but it can be very slow and cause compiler issues when it is large. In cases where you need a large sum of gauge fields, use more specific field types like `PointFluxes`, or consider creating your own custom field type.
 
 You can pass these objects using the `field` keyword argument to the `tightbinding_hamiltonian`, `construct_hamiltonian`, and `OperatorBuilder` functions to add the gauge field to the Hamiltonian:
 
