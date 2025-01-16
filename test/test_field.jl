@@ -57,6 +57,17 @@ import LatticeModels: line_integral
         @test line_integral(pf1 + pf2, p1, p2) ≈ line_integral(ps3, p1, p2) atol = 1e-8
         @test line_integral(ps1, p1, p2) ≈ 0.2 atol = 1e-8
         @test line_integral(ps2, p1, p2) ≈ 0.2 atol = 1e-8
+
+        ppfs1 = periodic_fluxes(l, PointFlux(0.1, (0.4, 0.4)))
+        ppfs2 = periodic_fluxes(l, PointFlux(0.1, (1.4, 0.4)))
+        ppfs3 = PointFluxes(0.1, l, offset=(0.4, 0.4))
+        # Sort the points, because the order of the points in `periodic_fluxes` is not guaranteed
+        @test all(zip(sort(ppfs1.points), sort(ppfs2.points))) do (p1, p2)
+            sqrt(sum(abs2, p1 .- p2)) < 1e-10
+        end
+        @test all(zip(sort(ppfs1.points), sort(ppfs3.points))) do (p1, p2)
+            sqrt(sum(abs2, p1 .- p2)) < 1e-10
+        end
     end
 
     @testset "Field application" begin

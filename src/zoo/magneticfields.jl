@@ -127,7 +127,7 @@ struct PointFluxes{GaugeT} <: AbstractField
 end
 
 """
-    PointFluxes(fluxes, points; gauge=:axial)
+    PointFluxes(fluxes, points[; offset=(0, 0), gauge=:axial])
 
 Construct a `PointFluxes` object with given fluxes and points.
 
@@ -135,13 +135,18 @@ The optional `gauge` argument can be used to specify the gauge of the field.
 
 ## Arguments
 - `fluxes`: A vector of flux values. Also can be a single value, in which case it will be broadcasted to all points.
-- `points`: A vector of points.
+- `points`: A vector of points or a `AbstractLattice` object. In the latter case the sites will be interpreted as points.
+
+## Keyword arguments
+- `offset`: An offset to add to the points, default is `(0, 0)`. Valid only if `points` is a `AbstractLattice`, otherwise an error is thrown.
 - `gauge`: The gauge of the field. Possible values are `:axial` and `:singular`. The default is `:axial`.
 """
 PointFluxes(fluxes::AbstractVector, points::AbstractVector; gauge=:axial) =
     PointFluxes{gauge}(fluxes, points)
 PointFluxes(flux::Real, points::AbstractVector; kw...) =
     PointFluxes(fill(Float64(flux), length(points)), points; kw...)
+PointFluxes(fluxes::Any, points::AbstractLattice; offset=(0, 0), kw...) =
+    return PointFluxes(fluxes, [(x, y) .+ offset for (x, y) in points]; kw...)
 
 _fluxgauge(::PointFlux{GaugeT}) where GaugeT = GaugeT
 _fluxgauge(field::Any) = throw(TypeError(:PointFluxes, "_fluxgauge", PointFlux, field))
@@ -174,5 +179,25 @@ vector_potential(field::PointFluxes{GaugeT}, p1) where {GaugeT} =
 line_integral(field::PointFluxes{GaugeT}, p1, p2) where {GaugeT} =
     sum(line_integral(PointFlux{GaugeT}(flux, point), p1, p2) for (flux, point) in zip(field.fluxes, field.points))
 Base.show(io::IO, field::PointFluxes{GaugeT}) where GaugeT =
-    print(io, "PointFluxes(", allequal(field.fluxes) ? first(field.fluxes) : field.fluxes,
-    ", ", field.points, "; gauge=:", GaugeT, ")")
+    print(io, "PointFluxes(", !isempty(field.fluxes) && allequal(field.fluxes) ?
+    first(field.fluxes) : field.fluxes, ", ", field.points, "; gauge=:", GaugeT, ")")
+
+"""
+    periodic_fluxes(l, fl)
+
+Construct a `PointFluxes` object by periodic replication of a point flux over a Bravais lattice.
+
+## Arguments
+- `l`: A Bravais lattice.
+- `fl`: A `PointFlux` object.
+"""
+function periodic_fluxes(l::MaybeWithMetadata{BravaisLattice}, fl::PointFlux)
+    uv = unitvectors(l)[:, 1:2]
+    lv0 = round.(uv \ SVector(fl.point))
+    p0 = SVector(fl.point) - uv * lv0
+    points = Set{NTuple{2,Float64}}()
+    for site in l
+        push!(points, Tuple(p0 + uv * site.latcoords))
+    end
+    return PointFluxes{_fluxgauge(fl)}(fill(fl.flux, length(points)), collect(points))
+end
