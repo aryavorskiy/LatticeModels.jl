@@ -300,7 +300,7 @@ end
 Checks if `l1` and `l2` objects are defined on the same lattice. Throws an error if not.
 """
 function check_samelattice(l1, l2)
-    lattice(l1) != lattice(l2) &&
+    lattice(l1) !== lattice(l2) && lattice(l1) != lattice(l2) &&
         throw(IncompatibleLattices("Matching lattices expected", l1, l2))
 end
 

@@ -6,7 +6,7 @@ using Reexport
 @reexport import SparseArrays: findnz
 
 @static if VERSION < v"1.8"
-    allequal(seq) = all(==(first(seq)), seq)
+    allequal(seq) = isempty(seq) || all(==(first(seq)), seq)
 end
 
 const Nullable{T} = Union{Nothing,T}

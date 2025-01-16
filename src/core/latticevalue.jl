@@ -46,7 +46,7 @@ Represents a value of type `T` on a `LT` lattice.
 - lattice: the `AbstractLattice` object the value is defined on
 - values: the values on different sites
 """
-const LatticeValue{T, LT} = LatticeValueWrapper{LT, Vector{T}}
+const LatticeValue{T, LT} = LatticeValueWrapper{LT, <:AbstractVector{T}}
 
 """
     LatticeValue(lat, values)
@@ -138,43 +138,42 @@ Base.ones(l::AbstractLattice) = ones(Float64, l)
 Base.:(==)(lvw1::LatticeValueWrapper, lvw2::LatticeValueWrapper) = (lvw1.lat == lvw2.lat) && (lvw1.values == lvw2.values)
 
 struct LatticeStyle <: Broadcast.BroadcastStyle end
-Base.copyto!(lvw::LatticeValueWrapper, src::Broadcast.Broadcasted{LatticeStyle}) = (copyto!(lvw.values, src); return lvw)
+function _strip_lattice(bc::Broadcast.Broadcasted{LatticeStyle})
+    stripped_contents = _strip_lattice.(bc.args)    # recursive call
+    striped_lats = skiptype(Nothing, map(last, stripped_contents))
+    for j in 2:length(striped_lats)
+        check_samelattice(striped_lats[1], striped_lats[j])
+    end
+    l = isempty(striped_lats) ? nothing : first(striped_lats)
+    stripped_args = map(first, stripped_contents)
+    return Broadcast.broadcasted(bc.f, stripped_args...), l
+end
+_strip_lattice(l::AbstractLattice) = collect(l), l
+_strip_lattice(lv::LatticeValueWrapper) = lv.values, lv.lat
+_strip_lattice(x) = x, nothing
+function Base.copy(src::Broadcast.Broadcasted{LatticeStyle})
+    new_src, l = _strip_lattice(src)
+    LatticeValueWrapper(l, copy(new_src))
+end
+function Base.copyto!(lvw::LatticeValueWrapper, src::Broadcast.Broadcasted{LatticeStyle})
+    new_src, l = _strip_lattice(src)
+    @assert l isa AbstractLattice
+    check_samelattice(lvw, l)
+    copyto!(lvw.values, new_src)
+    return lvw
+end
+function Base.similar(bc::Broadcast.Broadcasted{LatticeStyle}, ::Type{Eltype}) where {Eltype}
+    new_bc, l = _strip_lattice(bc)
+    LatticeValue(l, similar(new_bc, Eltype))
+end
 Base.copyto!(lvw::LatticeValueWrapper, src::Broadcast.Broadcasted{Broadcast.DefaultArrayStyle{0}}) = (copyto!(lvw.values, src); return lvw)
-Base.setindex!(lvw::LatticeValueWrapper, rhs, i::Int) = setindex!(lvw.values, rhs, i)
 Base.broadcastable(lvw::LatticeValueWrapper) = lvw
 Base.broadcastable(l::AbstractLattice) = l
-Base.getindex(lvw::LatticeValueWrapper, i::CartesianIndex{1}) = lvw.values[only(Tuple(i))]
-Base.getindex(l::AbstractLattice, i::CartesianIndex{1}) = l[only(Tuple(i))]
 Base.BroadcastStyle(::Type{<:LatticeValueWrapper}) = LatticeStyle()
 Base.BroadcastStyle(::Type{<:AbstractLattice}) = LatticeStyle()
 Base.BroadcastStyle(bs::Broadcast.BroadcastStyle, ::LatticeStyle) =
     throw(ArgumentError("cannot broadcast LatticeValue along $bs"))
 Base.BroadcastStyle(::Broadcast.DefaultArrayStyle{0}, ::LatticeStyle) = LatticeStyle()
-
-function Base.similar(bc::Broadcast.Broadcasted{LatticeStyle}, ::Type{Eltype}) where {Eltype}
-    l = _extract_lattice(bc)
-    LatticeValue(l, similar(Vector{Eltype}, axes(bc)))
-end
-_extract_lattice(bc::Broadcast.Broadcasted) = _extract_lattice(bc.args)
-_extract_lattice(ext::Broadcast.Extruded) = _extract_lattice(ext.x)
-_extract_lattice(lv::LatticeValueWrapper) = lv.lat
-_extract_lattice(x) = x
-_extract_lattice(::Tuple{}) = nothing
-_extract_lattice(args::Tuple) =
-    _extract_lattice(_extract_lattice(args[begin]), Base.tail(args))
-_extract_lattice(::Any, rem_args::Tuple) = _extract_lattice(rem_args)
-_extract_lattice(l::AbstractLattice, rem_args::Tuple) =
-    _extract_lattice_s(l, rem_args)
-
-_extract_lattice_s(l::AbstractLattice, args::Tuple) =
-    _extract_lattice_s(l, _extract_lattice(args[begin]), Base.tail(args))
-_extract_lattice_s(l::AbstractLattice, ::Tuple{}) = l
-_extract_lattice_s(l::AbstractLattice, ::Any, rem_args::Tuple) =
-    _extract_lattice_s(l, rem_args)
-function _extract_lattice_s(l::AbstractLattice, l2::AbstractLattice, rem_args::Tuple)
-    check_samelattice(l, l2)
-    _extract_lattice_s(l, rem_args)
-end
 
 function Base.show(io::IO, ::MIME"text/plain", lv::LatticeValueWrapper)
     print(io, "LatticeValue{$(eltype(lv))} on a ")
