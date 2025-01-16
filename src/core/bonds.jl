@@ -357,6 +357,8 @@ e. g. in `construct_operator`.
 struct UndefinedLattice <: AbstractLattice{NoSite} end
 Base.iterate(::UndefinedLattice) = nothing
 Base.length(::UndefinedLattice) = 0
+Base.copymutable(::UndefinedLattice) = UndefinedLattice()
+Base.emptymutable(::UndefinedLattice) = UndefinedLattice()
 
 """
     DirectedBonds{LT} <: AbstractBonds{LT}

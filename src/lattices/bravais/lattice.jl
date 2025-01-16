@@ -20,7 +20,7 @@ unitvector(any, i::Int) = unitvector(unitcell(any), i)
 unitvectors(any) = unitvectors(unitcell(any))
 baslength(any) = length(unitcell(any))
 transform_unitcell(l::BravaisLattice; kw...) = BravaisLattice(transform_unitcell(l.unitcell; kw...), l.pointers)
-transform_unitcell(lw::LatticeWithMetadata; kw...) =
+transform_unitcell(lw::LatticeWithMetadata{<:BravaisLattice}; kw...) =
     LatticeWithMetadata(transform_unitcell(lw.lat; kw...), lw.metadata)
 _showbonds_default(::BravaisLattice) = 1
 

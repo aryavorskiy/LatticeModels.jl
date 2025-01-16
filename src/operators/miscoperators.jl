@@ -49,8 +49,8 @@ Generate a coordinate operator for the given lattice.
     coordinate index (e. g. `1` for x, `2` for y, etc.) or a symbol (e. g. `:x`, `:y`, etc.).
 """
 coordoperator(lb::OneParticleBasis, crd) = coordoperator(sample(lb), crd)
-coordoperator(sample::Sample, i::Int) = diagonaloperator(sample, Coord(i))
-coordoperator(sample::Sample, sym::Symbol) = diagonaloperator(sample, SitePropertyAlias{sym}())
+coordoperator(sample::OneParticleBasisSystem, i::Int) = diagonaloperator(sample, Coord(i))
+coordoperator(sample::OneParticleBasisSystem, sym::Symbol) = diagonaloperator(sample, SitePropertyAlias{sym}())
 @accepts_system coordoperator
 
 const SampleIndex = Union{AbstractSite, Tuple{AbstractSite, Int}}
