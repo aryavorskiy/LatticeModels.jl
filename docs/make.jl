@@ -3,8 +3,10 @@ using LatticeModels
 
 push!(LOAD_PATH,"../src/")
 
-format = Documenter.HTML(prettyurls = get(ENV, "CI", nothing) == "true",
-                         assets = [joinpath("assets", "favicon.ico")]
+format = Documenter.HTML(
+    prettyurls = get(ENV, "CI", nothing) == "true",
+    assets = [joinpath("assets", "favicon.ico")],
+    size_threshold_ignore = ["library.md"]
 )
 
 makedocs(
