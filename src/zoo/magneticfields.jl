@@ -127,7 +127,7 @@ struct PointFluxes{GaugeT} <: AbstractField
 end
 
 """
-    PointFluxes(fluxes, points[; offset=(0, 0), gauge=:axial])
+    PointFluxes([fluxes, points; offset=(0, 0), gauge=:axial])
 
 Construct a `PointFluxes` object with given fluxes and points.
 
@@ -136,6 +136,8 @@ The optional `gauge` argument can be used to specify the gauge of the field.
 ## Arguments
 - `fluxes`: A vector of flux values. Also can be a single value, in which case it will be broadcasted to all points.
 - `points`: A vector of points or a `AbstractLattice` object. In the latter case the sites will be interpreted as points.
+
+If both arguments are omitted, an empty field is created. You can add fluxes to it later using `push!` or `append!`.
 
 ## Keyword arguments
 - `offset`: An offset to add to the points, default is `(0, 0)`. Valid only if `points` is a `AbstractLattice`, otherwise an error is thrown.
@@ -147,8 +149,10 @@ PointFluxes(flux::Real, points::AbstractVector; kw...) =
     PointFluxes(fill(Float64(flux), length(points)), points; kw...)
 PointFluxes(fluxes::Any, points::AbstractLattice; offset=(0, 0), kw...) =
     return PointFluxes(fluxes, [(x, y) .+ offset for (x, y) in points]; kw...)
+PointFluxes(;gauge=:axial) = PointFluxes{gauge}([], [])
 
 _fluxgauge(::PointFlux{GaugeT}) where GaugeT = GaugeT
+_fluxgauge(::PointFluxes{GaugeT}) where GaugeT = GaugeT
 _fluxgauge(field::Any) = throw(TypeError(:PointFluxes, "_fluxgauge", PointFlux, field))
 """
     PointFluxes(fields[; gauge])
@@ -167,7 +171,7 @@ function PointFluxes(fields; gauge=nothing)
     points = NTuple{2,Float64}[]
     for field in fields
         if gauge === nothing && _fluxgauge(field) !== force_gauge
-            throw(ArgumentError("Inconsistent gauges: $gauge and $force_gauge"))
+            throw(ArgumentError("Inconsistent gauges: $gauge vs $force_gauge"))
         end
         push!(fluxes, field.flux)
         push!(points, field.point)
@@ -181,6 +185,34 @@ line_integral(field::PointFluxes{GaugeT}, p1, p2) where {GaugeT} =
 Base.show(io::IO, field::PointFluxes{GaugeT}) where GaugeT =
     print(io, "PointFluxes(", !isempty(field.fluxes) && allequal(field.fluxes) ?
     first(field.fluxes) : field.fluxes, ", ", field.points, "; gauge=:", GaugeT, ")")
+
+"""
+    push!(fields, field)
+
+Add a `PointFlux` object to a `PointFluxes` object. An error is thrown if the gauges of the fields are inconsistent.
+"""
+function Base.push!(fields::PointFluxes, flux::PointFlux, fluxes...)
+    if _fluxgauge(flux) !== _fluxgauge(fields)
+        throw(ArgumentError("Inconsistent gauges: $(_fluxgauge(flux)) vs $(_fluxgauge(fields))"))
+    end
+    push!(fields.fluxes, flux.flux)
+    push!(fields.points, flux.point)
+    isempty(fluxes) || push!(fields, fluxes...)
+    return fields
+end
+
+"""
+    append!(fields, fields2)
+
+Add a `PointFluxes` object to another `PointFluxes` object. An error is thrown if the gauges of the fields are inconsistent.
+"""
+function Base.append!(fields::PointFluxes, fields2::PointFluxes)
+    if _fluxgauge(fields2) !== _fluxgauge(fields)
+        throw(ArgumentError("Inconsistent gauges: $(_fluxgauge(fields2)) vs $(_fluxgauge(fields))"))
+    end
+    append!(fields.fluxes, fields2.fluxes)
+    append!(fields.points, fields2.points)
+end
 
 """
     periodic_fluxes(l, fl)

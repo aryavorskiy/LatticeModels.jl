@@ -58,6 +58,13 @@ import LatticeModels: line_integral
         @test line_integral(ps1, p1, p2) ≈ 0.2 atol = 1e-8
         @test line_integral(ps2, p1, p2) ≈ 0.2 atol = 1e-8
 
+        bf1 = PointFluxes()
+        push!(bf1, PointFlux(0.1, (1, 2)), PointFlux(0.1, (3, 4)))
+        bf2 = PointFluxes()
+        append!(bf2, ps3)
+        @test line_integral(bf1, p1, p2) ≈ line_integral(ps3, p1, p2) atol = 1e-8
+        @test line_integral(bf2, p1, p2) ≈ line_integral(ps3, p1, p2) atol = 1e-8
+
         ppfs1 = periodic_fluxes(l, PointFlux(0.1, (0.4, 0.4)))
         ppfs2 = periodic_fluxes(l, PointFlux(0.1, (1.4, 0.4)))
         ppfs3 = PointFluxes(0.1, l, offset=(0.4, 0.4))
