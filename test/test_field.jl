@@ -77,6 +77,25 @@ import LatticeModels: line_integral
         end
     end
 
+    @testset "Fluxes and boundaries" begin
+        lnb = SquareLattice(5, 5)
+        lwb = setboundaries(lnb, :axis1 => true, :axis2 => true)
+
+        flx = PointFlux(0.1, (0.5, 0.5), gauge=:singular)
+        flxs = periodic_fluxes(lnb, flx)
+        flxs2 = periodic_fluxes(lwb, flx)
+        @test flxs.points == flxs2.points
+
+        flx_adn = LatticeModels.adapt_field(flx, lnb)
+        flxs_adn = LatticeModels.adapt_field(flxs, lnb)
+        flx_adw = LatticeModels.adapt_field(flx, lwb)
+        flxs_adw = LatticeModels.adapt_field(flxs, lwb)
+        @test flx_adn isa PointFlux
+        @test length(flxs_adn.points) == 25
+        @test length(flx_adw.points) == 9
+        @test length(flxs_adw.points) == 9 * 25
+    end
+
     @testset "Field application" begin
         H1 = construct_operator(l, BravaisTranslation(axis=1), BravaisTranslation(axis=2), field = la)
         H2 = construct_operator(l, BravaisTranslation(axis=1), BravaisTranslation(axis=2), field = lla)

@@ -238,12 +238,12 @@ function adapt_field(field::PointFluxes, lat::AbstractLattice)
     !hasboundaries(lat) && return field
     _fluxgauge(field) === :singular ||
         @warn "Setting flux gauge to singular for a lattice with periodic boundary conditions"
-    if dims(lat) == 2
+    if dims(lat) != 2
         @warn "Only 2D lattices support periodic fluxes; skipping flux position adjustment"
         return field
     end
     bcs = getboundaries(lat)
-    new_field = PointFluxes{:singular}()
+    new_field = PointFluxes{:singular}([], [])
     for cind in cartesian_indices(lat)
         tup = Tuple(cind)
 
