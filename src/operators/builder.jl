@@ -150,11 +150,12 @@ julia> H == tightbinding_hamiltonian(l, field=LandauGauge(0.1))
 true
 ```
 """
-function OperatorBuilder(T::Type{<:Number}, sys::SystemT;
-        field::FieldT=NoField(), auto_hermitian=false, occupations_type=nothing) where {SystemT<:System, FieldT<:AbstractField}
+function OperatorBuilder(T::Type{<:Number}, sys::SystemT; field::AbstractField=NoField(),
+        auto_hermitian=false, occupations_type=nothing) where {SystemT<:System}
     oneparticle_len = length(onebodybasis(sys))
+    field2 = adapt_field(field, lattice(sys))
     @assert occupations_type === nothing || occupations_type isa Type
-    OperatorBuilder{SystemT, occupations_type, FieldT, ArrayEntry{T}}(sys, field, internal_length(sys),
+    OperatorBuilder{SystemT, occupations_type, typeof(field2), ArrayEntry{T}}(sys, field2, internal_length(sys),
         SparseMatrixBuilder{ArrayEntry{T}}(oneparticle_len, oneparticle_len), auto_hermitian)
 end
 
@@ -167,11 +168,12 @@ uses a slightly faster internal representation of the operator matrix, but only 
 increment/decrement assignments:
 `builder[site1, site2] += 1` is allowed, but `builder[site1, site2] = 1` is not.
 """
-function FastOperatorBuilder(T::Type{<:Number}, sys::SystemT;
-    field::FieldT=NoField(), auto_hermitian=false, occupations_type=nothing) where {SystemT<:System, FieldT<:AbstractField}
+function FastOperatorBuilder(T::Type{<:Number}, sys::SystemT; field::AbstractField=NoField(),
+        auto_hermitian=false, occupations_type=nothing) where {SystemT<:System}
     oneparticle_len = length(onebodybasis(sys))
+    field2 = adapt_field(field, lattice(sys))
     @assert occupations_type === nothing || occupations_type isa Type
-    OperatorBuilder{SystemT, occupations_type, FieldT, T}(sys, field, internal_length(sys),
+    OperatorBuilder{SystemT, occupations_type, typeof(field2), T}(sys, field2, internal_length(sys),
         SparseMatrixBuilder{T}(oneparticle_len, oneparticle_len), auto_hermitian)
 end
 @accepts_system_t OperatorBuilder

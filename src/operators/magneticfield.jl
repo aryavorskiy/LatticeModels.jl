@@ -1,6 +1,7 @@
 import Base: +, *
 using LinearAlgebra, StaticArrays, Logging
 abstract type AbstractField end
+adapt_field(fld::AbstractField, ::AbstractLattice) = fld
 
 """
     vector_potential(field, point)
@@ -117,3 +118,4 @@ function Base.add_sum(f1::FieldSum{<:NTuple{32}}, f2::AbstractField)
     return f1 + f2
 end
 +(f1::AbstractField, f2::AbstractField) = FieldSum((_fldterms(f1)..., _fldterms(f2)...))
+adapt_field(f::FieldSum, l::AbstractLattice) = FieldSum(adapt_field.(f.fields, Ref(l)))

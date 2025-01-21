@@ -233,3 +233,34 @@ function periodic_fluxes(l::MaybeWithMetadata{BravaisLattice}, fl::PointFlux)
     end
     return PointFluxes{_fluxgauge(fl)}(fill(fl.flux, length(points)), collect(points))
 end
+
+function adapt_field(field::PointFluxes, lat::AbstractLattice)
+    !hasboundaries(lat) && return field
+    _fluxgauge(field) === :singular ||
+        @warn "Setting flux gauge to singular for a lattice with periodic boundary conditions"
+    if dims(lat) == 2
+        @warn "Only 2D lattices support periodic fluxes; skipping flux position adjustment"
+        return field
+    end
+    bcs = getboundaries(lat)
+    new_field = PointFluxes{:singular}()
+    for cind in cartesian_indices(lat)
+        tup = Tuple(cind)
+
+        # TODO this is a hack; Better convert the translations to a Translation object
+        site = lat[1]
+        for i in 1:length(tup)
+            site = nshifts(site, bcs[i].translation, tup[i])
+        end
+        r = site.coords - lat[1].coords
+
+        append!(new_field.fluxes, field.fluxes)
+        append!(new_field.points, [Tuple(add_assuming_zeros(p, r)) for p in field.points])
+    end
+    return new_field
+end
+
+function adapt_field(field::PointFlux, lat::AbstractLattice)
+    !hasboundaries(lat) && return field
+    return adapt_field(PointFluxes([field]), lat)
+end

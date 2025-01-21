@@ -150,6 +150,7 @@ end
 adapt_boundaries(bcs::BoundaryConditions, l::AbstractLattice) =
     BoundaryConditions(map(b -> adapt_boundary(b, l), bcs.boundaries); depth=bcs.depth)
 getboundaries(l::AbstractLattice) = adapt_boundaries(getmeta(l, :boundaries, BoundaryConditions()), l)
+hasboundaries(l::AbstractLattice) = isempty(getboundaries(l).boundaries)
 
 function mappings(bcs::BoundaryConditions, site::AbstractSite)
     Base.Iterators.map(cartesian_indices(bcs)) do cind
