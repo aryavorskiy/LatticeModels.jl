@@ -84,7 +84,7 @@ function arg_to_pair(sample::Sample, arg::Pair{<:Union{Number,AbstractMatrix,Dat
 end
 
 """
-    construct_operator([T, ]sys, terms...[; field])
+    construct_operator([T, ]sys, terms...[; field, auto_pbc_field])
     construct_operator([T, ]lat[, internal, terms...; field])
 
 Construct an operator for the given system.
@@ -108,6 +108,8 @@ See documentation for more details.
 
 ## Keyword Arguments
 - `field`: The gauge field to use for the bond operators. Default is `NoField()`.
+- `auto_pbc_field`: Whether to automatically adapt the field to the periodic boundary
+    conditions of the lattice. Defaults to `true`.
 """
 function construct_operator(T::Type, sys::System, args...; kw...)
     sample = sys.sample
@@ -123,8 +125,8 @@ end
 @accepts_system_t construct_operator
 
 """
-    construct_hamiltonian([T, ]sys, terms...[; field])
-    construct_hamiltonian([T, ]lat[, internal, terms...; field])
+    construct_hamiltonian([T, ]sys, terms...[; field, auto_pbc_field])
+    construct_hamiltonian([T, ]lat[, internal, terms...; field, auto_pbc_field])
 
 Construct a Hamiltonian for the given system. Does the same as `construct_operator`, but wraps
 the result in a `Hamiltonian` type.
@@ -134,8 +136,8 @@ construct_hamiltonian(T::Type, sys::System, args...; kw...) =
 @accepts_system_t construct_hamiltonian
 
 """
-    tightbinding_hamiltonian([T, ]sys[, args...; t1=1, t2=0, t3=0, field])
-    tightbinding_hamiltonian([T, ]lat[, internal, args...; t1=1, t2=0, t3=0, field])
+    tightbinding_hamiltonian([T, ]sys[, args...; t1=1, t2=0, t3=0, field, auto_pbc_field])
+    tightbinding_hamiltonian([T, ]lat[, internal, args...; t1=1, t2=0, t3=0, field, auto_pbc_field])
 
 Construct a tight-binding Hamiltonian for the given system.
 
@@ -150,6 +152,8 @@ All other arguments are interpreted as terms of the Hamiltonian and passed to `c
 - `t1`, `t2`, `t3`: The hopping amplitudes for the nearest, next-nearest, and next-next-nearest
     neighbors, respectively.
 - `field`: The gauge field to use for the bond operators. Default is `NoField()`.
+- `auto_pbc_field`: Whether to automatically adapt the field to the periodic boundary
+    conditions of the lattice. Defaults to `true`.
 """
 tightbinding_hamiltonian(T::Type, sys::System, args...; t1=1, t2=0, t3=0, kw...) =
     construct_hamiltonian(T, sys, args...,

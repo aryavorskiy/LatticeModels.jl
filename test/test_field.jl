@@ -58,6 +58,13 @@ import LatticeModels: line_integral
         @test line_integral(ps1, p1, p2) ≈ 0.2 atol = 1e-8
         @test line_integral(ps2, p1, p2) ≈ 0.2 atol = 1e-8
 
+        bf1 = PointFluxes()
+        push!(bf1, PointFlux(0.1, (1, 2)), PointFlux(0.1, (3, 4)))
+        bf2 = PointFluxes()
+        append!(bf2, ps3)
+        @test line_integral(bf1, p1, p2) ≈ line_integral(ps3, p1, p2) atol = 1e-8
+        @test line_integral(bf2, p1, p2) ≈ line_integral(ps3, p1, p2) atol = 1e-8
+
         ppfs1 = periodic_fluxes(l, PointFlux(0.1, (0.4, 0.4)))
         ppfs2 = periodic_fluxes(l, PointFlux(0.1, (1.4, 0.4)))
         ppfs3 = PointFluxes(0.1, l, offset=(0.4, 0.4))
@@ -68,6 +75,25 @@ import LatticeModels: line_integral
         @test all(zip(sort(ppfs1.points), sort(ppfs3.points))) do (p1, p2)
             sqrt(sum(abs2, p1 .- p2)) < 1e-10
         end
+    end
+
+    @testset "Fluxes and boundaries" begin
+        lnb = SquareLattice(5, 5)
+        lwb = setboundaries(lnb, :axis1 => true, :axis2 => true)
+
+        flx = PointFlux(0.1, (0.5, 0.5), gauge=:singular)
+        flxs = periodic_fluxes(lnb, flx)
+        flxs2 = periodic_fluxes(lwb, flx)
+        @test flxs.points == flxs2.points
+
+        flx_adn = LatticeModels.adapt_field(flx, lnb)
+        flxs_adn = LatticeModels.adapt_field(flxs, lnb)
+        flx_adw = LatticeModels.adapt_field(flx, lwb)
+        flxs_adw = LatticeModels.adapt_field(flxs, lwb)
+        @test flx_adn isa PointFlux
+        @test length(flxs_adn.points) == 25
+        @test length(flx_adw.points) == 9
+        @test length(flxs_adw.points) == 9 * 25
     end
 
     @testset "Field application" begin

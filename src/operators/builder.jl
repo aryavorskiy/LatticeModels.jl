@@ -101,7 +101,7 @@ struct OperatorBuilder{SystemT, OccT, FieldT, T}
 end
 
 """
-    OperatorBuilder([T, ]sys, [; field, auto_hermitian, occupations_type])
+    OperatorBuilder([T, ]sys, [; field, auto_hermitian, auto_pbc_field, occupations_type])
     OperatorBuilder([T, ]lat, [internal; field, auto_hermitian, occupations_type])
 
 Construct an `OperatorBuilder` for a given system or lattice.
@@ -113,10 +113,12 @@ Construct an `OperatorBuilder` for a given system or lattice.
 - `internal`: The basis for the internal degrees of freedom.
 
 ## Keyword arguments
-- `field`: The gauge field to use for the bond operators. Defaults to `NoField()`, which
+- `field`: The gauge field to use for the hopping operators. Defaults to `NoField()`, which
     corresponds to zero magnetic field.
 - `auto_hermitian`: Whether to automatically add the hermitian conjugate of the operator.
     Defaults to `false`.
+- `auto_pbc_field`: Whether to automatically adapt the field to the periodic boundary
+    conditions of the lattice. Defaults to `true`.
 - `occupations_type`: The occupations type for the many-body operator. Ignored for one-body
     operators. By default, the occupation numbers are stored in vectors.
 
@@ -150,11 +152,16 @@ julia> H == tightbinding_hamiltonian(l, field=LandauGauge(0.1))
 true
 ```
 """
-function OperatorBuilder(T::Type{<:Number}, sys::SystemT;
-        field::FieldT=NoField(), auto_hermitian=false, occupations_type=nothing) where {SystemT<:System, FieldT<:AbstractField}
+function OperatorBuilder(T::Type{<:Number}, sys::SystemT; field::AbstractField=NoField(),
+        auto_hermitian=false, auto_pbc_field=true, occupations_type=nothing) where {SystemT<:System}
     oneparticle_len = length(onebodybasis(sys))
+    if auto_pbc_field
+        field2 = adapt_field(field, lattice(sys))
+    else
+        field2 = field
+    end
     @assert occupations_type === nothing || occupations_type isa Type
-    OperatorBuilder{SystemT, occupations_type, FieldT, ArrayEntry{T}}(sys, field, internal_length(sys),
+    OperatorBuilder{SystemT, occupations_type, typeof(field2), ArrayEntry{T}}(sys, field2, internal_length(sys),
         SparseMatrixBuilder{ArrayEntry{T}}(oneparticle_len, oneparticle_len), auto_hermitian)
 end
 
@@ -167,11 +174,16 @@ uses a slightly faster internal representation of the operator matrix, but only 
 increment/decrement assignments:
 `builder[site1, site2] += 1` is allowed, but `builder[site1, site2] = 1` is not.
 """
-function FastOperatorBuilder(T::Type{<:Number}, sys::SystemT;
-    field::FieldT=NoField(), auto_hermitian=false, occupations_type=nothing) where {SystemT<:System, FieldT<:AbstractField}
+function FastOperatorBuilder(T::Type{<:Number}, sys::SystemT; field::AbstractField=NoField(),
+        auto_hermitian=false, auto_pbc_field=true, occupations_type=nothing) where {SystemT<:System}
     oneparticle_len = length(onebodybasis(sys))
+    if auto_pbc_field
+        field2 = adapt_field(field, lattice(sys))
+    else
+        field2 = field
+    end
     @assert occupations_type === nothing || occupations_type isa Type
-    OperatorBuilder{SystemT, occupations_type, FieldT, T}(sys, field, internal_length(sys),
+    OperatorBuilder{SystemT, occupations_type, typeof(field2), T}(sys, field2, internal_length(sys),
         SparseMatrixBuilder{T}(oneparticle_len, oneparticle_len), auto_hermitian)
 end
 @accepts_system_t OperatorBuilder
