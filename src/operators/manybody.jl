@@ -3,9 +3,8 @@ import QuantumOpticsBase: allocate_buffer, state_index, state_transition!
 
 _count_onsite(occ::AbstractVector, i, N) = sum(@view occ[(i - 1) * N + 1: i * N])
 function _count_onsite(occ::FermionBitstring, i, N)
-    mask1 = (one(occ.bits) << i * N) - 1
-    mask2 = (one(occ.bits) << (i - 1) * N) - 1
-    return count_ones(occ.bits & mask1 & ~mask2)
+    mask = ((one(occ.bits) << N) - 1) << (N * (i - 1))
+    return count_ones(occ.bits & mask)
 end
 
 function _2p_interaction_collect(f::Function, T::Type{<:Number}, lat::AbstractLattice)
@@ -25,17 +24,17 @@ end
 function _2p_interaction_diags(M::AbstractMatrix, occups, N::Int)
     diags = eltype(M)[]
     for occ in occups
-        int_energy = 0.
+        int_energy = zero(eltype(M))
         for i in 1:size(M, 1)
             occi = _count_onsite(occ, i, N)
             occi == 0 && continue
+            int_energy += M[i, i] * (occi * (occi - 1) ÷ 2)
             for j in 1:i - 1
                 M[i, j] == 0 && continue
                 occj = _count_onsite(occ, j, N)
                 occj == 0 && continue
                 int_energy += M[i, j] * occi * occj
             end
-            int_energy += M[i, i] * (occi * (occi - 1) ÷ 2)
         end
         push!(diags, int_energy)
     end
