@@ -8,6 +8,39 @@ function _count_onsite(occ::FermionBitstring, i, N)
     return count_ones(occ.bits & mask1 & ~mask2)
 end
 
+function _2p_interaction_collect(f::Function, T::Type{<:Number}, lat::AbstractLattice)
+    M = zeros(T, length(lat), length(lat))
+    for i in eachindex(lat)
+        site1 = lat[i]
+        for j in 1:i - 1
+            site2 = translate_to_nearest(lat, site1, lat[j])
+            M[i, j] = f(site1, site2)
+            M[j, i] = M[i, j]
+        end
+        M[i, i] = f(site1, site1)
+    end
+    return M
+end
+
+function _2p_interaction_diags(M::AbstractMatrix, occups, N::Int)
+    diags = eltype(M)[]
+    for occ in occups
+        int_energy = 0.
+        for i in 1:size(M, 1)
+            occi = _count_onsite(occ, i, N)
+            occi == 0 && continue
+            for j in 1:i - 1
+                occj = _count_onsite(occ, j, N)
+                occj == 0 && continue
+                int_energy += M[i, j] * occi * occj
+            end
+            int_energy += M[i, i] * (occi * (occi - 1) ÷ 2)
+        end
+        push!(diags, int_energy)
+    end
+    return diags
+end
+
 """
     interaction(f, [T, ]sys)
 
@@ -16,25 +49,9 @@ arguments, which are the two sites, and returns the interaction energy.
 """
 function interaction(f::Function, T::Type{<:Number}, sys::NParticles; occupations_type = nothing)
     l = lattice(sys)
+    M = _2p_interaction_collect(f, T, l)
     occups = occupations(sys, occupations_type)
-    diags = T[]
-    N = internal_length(sys)
-    for occ in occups
-        int_energy = 0.
-        for i in eachindex(l)
-            occi = _count_onsite(occ, i, N)
-            occi == 0 && continue
-            site1 = l[i]
-            for j in 1:i - 1
-                occj = _count_onsite(occ, j, N)
-                occj == 0 && continue
-                site2 = translate_to_nearest(l, site1, l[j])
-                int_energy += f(site1, site2)::Number * occi * occj
-            end
-            int_energy += f(site1, site1)::Number * occi * (occi - 1) / 2
-        end
-        push!(diags, int_energy)
-    end
+    diags = _2p_interaction_diags(M, occups, internal_length(sys))
     diagonaloperator(ManyBodyBasis(onebodybasis(sys), occups), diags)
 end
 
