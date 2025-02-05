@@ -30,6 +30,7 @@ function _2p_interaction_diags(M::AbstractMatrix, occups, N::Int)
             occi = _count_onsite(occ, i, N)
             occi == 0 && continue
             for j in 1:i - 1
+                M[i, j] == 0 && continue
                 occj = _count_onsite(occ, j, N)
                 occj == 0 && continue
                 int_energy += M[i, j] * occi * occj
