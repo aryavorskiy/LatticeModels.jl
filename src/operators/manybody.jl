@@ -30,7 +30,7 @@ function _2p_interaction_diags(M::AbstractMatrix, occups, N::Int)
             occi == 0 && continue
             int_energy += M[i, i] * (occi * (occi - 1) ÷ 2)
             for j in 1:i - 1
-                M[i, j] == 0 && continue
+                iszero(M[i, j]) && continue
                 occj = _count_onsite(occ, j, N)
                 occj == 0 && continue
                 int_energy += M[i, j] * occi * occj
@@ -42,12 +42,16 @@ function _2p_interaction_diags(M::AbstractMatrix, occups, N::Int)
 end
 
 """
-    interaction(f, [T, ]sys)
+    interaction(f, [T, ]sys[; occupations_type])
 
 Create an two-site interaction operator for a given `NParticles` system. The function `f` takes two
 arguments, which are the two sites, and returns the interaction energy.
+
+`occupations_type` is the occupations type for the many-body operator. By default, the occupation
+numbers are stored in vectors, but you can use, for example, set it to `FermionBitstring` for
+better performance on fermion systems.
 """
-function interaction(f::Function, T::Type{<:Number}, sys::NParticles; occupations_type = nothing)
+function interaction(f::Function, T::Type{<:Number}, sys::NParticles; occupations_type=nothing)
     l = lattice(sys)
     M = _2p_interaction_collect(f, T, l)
     occups = occupations(sys, occupations_type)
@@ -56,7 +60,7 @@ function interaction(f::Function, T::Type{<:Number}, sys::NParticles; occupation
 end
 
 """
-    interaction(f, [T, ]sys, K)
+    interaction(f, [T, ]sys, K[; occupations_type])
 
 Create an `2K`-site interaction operator for a given `NParticles` system. The function `f`
 takes two `K`-tuples of integer numbers, which are site indices for creation and annihilation
@@ -65,8 +69,13 @@ operators, and returns the interaction energy.
 If the system `sys` has internal degrees of freedom, the function `f` should take four `K`-tuples:
 first two are site & internal indices for creation operators, and the last two are the same for
 annihilation operators.
+
+`occupations_type` is the occupations type for the many-body operator. By default, the occupation
+numbers are stored in vectors, but you can use, for example, set it to `FermionBitstring` for
+better performance on fermion systems.
 """
-function interaction(f::Function, T::Type{<:Number}, sys::NParticles, ::Val{K}) where K
+function interaction(f::Function, T::Type{<:Number}, sys::NParticles, ::Val{K};
+        occupations_type=nothing) where K
     # This function uses undocumented QuantumOpticsBase API. Be careful!
     @assert K ≤ sys.nparticles
     l = lattice(sys)
@@ -80,15 +89,17 @@ function interaction(f::Function, T::Type{<:Number}, sys::NParticles, ::Val{K}) 
     js = Int[]
     vs = T[]
 
-    bas = basis(sys)
+    occups = occupations(sys, occupations_type)
+    bas = ManyBodyBasis(onebodybasis(sys), occups)
     buffer = allocate_buffer(bas)
+    warn_flag = false
     for a_inds_c in c_indices
         a_inds = Tuple(a_inds_c)
         issorted(a_inds) || continue
         for at_inds_c in c_indices
             at_inds = Tuple(at_inds_c)
             issorted(at_inds) || continue
-            for (m, occ) in enumerate(bas.occupations)
+            for (m, occ) in enumerate(occups)
                 C = state_transition!(buffer, occ, at_inds, a_inds)
                 C === nothing && continue
                 value = if hasinternal(sys)
@@ -96,15 +107,17 @@ function interaction(f::Function, T::Type{<:Number}, sys::NParticles, ::Val{K}) 
                 else
                     f(l_inds(at_inds), l_inds(a_inds))::Number
                 end
-                value == 0 && continue
-                n = state_index(bas.occupations, buffer)
+                iszero(value) && continue
+                n = state_index(occups, buffer)
+                n === nothing && (warn_flag = true; continue)
                 push!(is, m)
                 push!(js, n)
                 push!(vs, C * value)
             end
         end
     end
-    occ_len = length(bas.occupations)
+    warn_flag && @warn "Some states are not found in the basis."
+    occ_len = length(occups)
     return SparseOperator(bas, sparse(is, js, vs, occ_len, occ_len))
 end
 interaction(f::Function, T::Type{<:Number}, sys::NParticles, K::Int; kw...) =

@@ -120,7 +120,8 @@ Construct an `OperatorBuilder` for a given system or lattice.
 - `auto_pbc_field`: Whether to automatically adapt the field to the periodic boundary
     conditions of the lattice. Defaults to `true`.
 - `occupations_type`: The occupations type for the many-body operator. Ignored for one-body
-    operators. By default, the occupation numbers are stored in vectors.
+    operators. By default, the occupation numbers are stored in vectors, but you can use,
+    for example, set it to `FermionBitstring`s for better performance on fermion systems.
 
 ## Example
 ```jldoctest
