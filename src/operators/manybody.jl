@@ -1,25 +1,32 @@
 import QuantumOpticsBase: Basis, SparseOperator
 import QuantumOpticsBase: allocate_buffer, state_index, state_transition!
 
+_count_onsite(occ::AbstractVector, i, N) = sum(@view occ[(i - 1) * N + 1: i * N])
+function _count_onsite(occ::FermionBitstring, i, N)
+    mask1 = (one(occ.bits) << i * N) - 1
+    mask2 = (one(occ.bits) << (i - 1) * N) - 1
+    return count_ones(occ.bits & mask1 & ~mask2)
+end
+
 """
     interaction(f, [T, ]sys)
 
 Create an two-site interaction operator for a given `NParticles` system. The function `f` takes two
 arguments, which are the two sites, and returns the interaction energy.
 """
-function interaction(f::Function, T::Type{<:Number}, sys::NParticles)
+function interaction(f::Function, T::Type{<:Number}, sys::NParticles; occupations_type = nothing)
     l = lattice(sys)
-    occups = occupations(sys)
+    occups = occupations(sys, occupations_type)
     diags = T[]
     N = internal_length(sys)
     for occ in occups
         int_energy = 0.
         for i in eachindex(l)
-            occi = sum(@view occ[(i - 1) * N + 1: i * N])
+            occi = _count_onsite(occ, i, N)
             occi == 0 && continue
             site1 = l[i]
             for j in 1:i - 1
-                occj = sum(@view occ[(j - 1) * N + 1: j * N])
+                occj = _count_onsite(occ, j, N)
                 occj == 0 && continue
                 site2 = translate_to_nearest(l, site1, l[j])
                 int_energy += f(site1, site2)::Number * occi * occj
@@ -28,7 +35,7 @@ function interaction(f::Function, T::Type{<:Number}, sys::NParticles)
         end
         push!(diags, int_energy)
     end
-    diagonaloperator(basis(sys), diags)
+    diagonaloperator(ManyBodyBasis(onebodybasis(sys), occups), diags)
 end
 
 """
