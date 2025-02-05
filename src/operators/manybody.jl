@@ -56,18 +56,17 @@ function interaction(f::Function, T::Type{<:Number}, sys::NParticles; occupation
 end
 
 """
-    interaction(f, [T, ]sys, K[; affect_internal=true])
+    interaction(f, [T, ]sys, K)
 
 Create an `2K`-site interaction operator for a given `NParticles` system. The function `f`
 takes two `K`-tuples of integer numbers, which are site indices for creation and annihilation
 operators, and returns the interaction energy.
 
-If `affect_internal` is `true` (default), the interaction operator will act on the internal
-degrees of freedom as well, and `f` will take four `K`-tuples — lattice and internal indices for
-creation and annihilation operators. If the system has no internal degrees of freedom,
-`affect_internal` will automatically be set to `false` and `f` will take two `K`-tuples.
+If the system `sys` has internal degrees of freedom, the function `f` should take four `K`-tuples:
+first two are site & internal indices for creation operators, and the last two are the same for
+annihilation operators.
 """
-function interaction(f::Function, T::Type{<:Number}, sys::NParticles, ::Val{K}; affect_internal=true) where K
+function interaction(f::Function, T::Type{<:Number}, sys::NParticles, ::Val{K}) where K
     # This function uses undocumented QuantumOpticsBase API. Be careful!
     @assert K ≤ sys.nparticles
     l = lattice(sys)
