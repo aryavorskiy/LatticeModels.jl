@@ -24,14 +24,9 @@ import LatticeModels: ManyBodyBasis, FermionBitstring
         P = @test_logs (:info, """Creating density matrix: FermiDirac distribution, T = 0.0, μ = 0
         set `info=false` to disable this message""") densitymatrix(H_0, statistics=FermiDirac)
 
-        # Check occupation types
-        small_l = SquareLattice(3, 3)
-        Hmb = qwz(NParticles(small_l, spin, 2))
-        Hmb2 = qwz(NParticles(small_l, spin, 2), occupations_type=FermionBitstring)
-        @test Hmb.data == Hmb2.data
-
         # Check localexpect
         @test localdensity(P) ≈ localexpect(one(spin), P)
+        Hmb = qwz(NParticles(SquareLattice(3, 3), spin, 2))
         Pmb = densitymatrix(Hmb, info=false)
         @test localdensity(Pmb) ≈ localexpect(one(spin), Pmb)
         @test_throws ArgumentError localexpect(one(spin), ptrace(P, :internal))
@@ -138,7 +133,7 @@ import LatticeModels: ManyBodyBasis, FermionBitstring
         @test destroy(sys, site2) == destroy(mbb, 25)
     end
 
-    @testset "Interaction" begin
+    @testset "Manybody" begin
         l = SquareLattice(2, 2)
         # Bose-Hubbard interaction
         sys = NParticles(l, 3, statistics=BoseEinstein)
@@ -171,6 +166,27 @@ import LatticeModels: ManyBodyBasis, FermionBitstring
         H2 = bosehubbard(l, 2)
         d2 = localdensity(groundstate(H2))
         @test d1.values * 2 ≈ d2.values
+
+        # Check occupation types
+        small_l = SquareLattice(3, 3)
+        spin = SpinBasis(1//2)
+
+        Hmb = qwz(NParticles(small_l, spin, 2))
+        Hmb2 = qwz(NParticles(small_l, spin, 2, occupations_type=FermionBitstring))
+        @test Hmb.data == Hmb2.data
+        Hub = fermihubbard(small_l, 3, U = 1)
+        Hub2 = fermihubbard(small_l, 3, U = 1, occupations_type=FermionBitstring)
+        @test Hub.data == Hub2.data
+        Huud = hubbard(FermiHubbardSpinSystem(small_l, 2, 2), U = 1)
+        Huud2 = hubbard(FermiHubbardSpinSystem(small_l, 2, 2,
+            occupations_type=FermionBitstring{BigInt}), U = 1)
+        @test Huud.data == Huud2.data
+        @test length(basis(Huud)) == binomial(length(small_l), 2) ^ 2
+
+        sys1 = FermiHubbardSpinSystem(small_l, 0, 1)
+        sys2 = FermiHubbardSpinSystem(small_l, 1, 0)
+        sys3 = NParticles(small_l ⊗ spin, 1, statistics=FermiDirac)
+        @test basis(union(sys1, sys2)) == basis(sys3)
     end
 
     @testset "Diagonalize" begin

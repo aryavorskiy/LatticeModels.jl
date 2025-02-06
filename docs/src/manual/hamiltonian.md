@@ -1,6 +1,8 @@
 # Systems and Hamiltonians
 
-This section describes how to define the Hamiltonian of a system. The system, in this context, is a lattice, a basis describing on-site degrees of freedom, and some additional parameters like temperature or chemical potential.
+This section describes how to define the Hamiltonian of a system. The system, in this context, is a lattice, a basis describing on-site degrees of freedom, and some additional parameters like temperature or chemical potential. The Hamiltonian, in turn, is just an operator that keeps all the information about the system.
+
+There are several models and Hamiltonians shipped with this package: check out [Built-in models](@ref) section of the API docs for more. But in this section, we will focus on how to create the Hamiltonian from the ground up.
 
 ## Defining the system
 
@@ -34,6 +36,8 @@ lines are equivalent to the previous example:
 H = tightbinding_hamiltonian(l, SpinBasis(1//2))
 P = densitymatrix(H, μ = 0, T = 1, info = false)
 ```
+
+For manybody computations you may find interesting [`NParticles`](@ref), if the number of particles is fixed, or you can use `System(mb_basis[; T])` for any many-body basis `mb_basis` to define the system.
 
 ## Basic tight-binding Hamiltonian
 

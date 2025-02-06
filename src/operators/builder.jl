@@ -92,7 +92,7 @@ end
 A helper struct for building custom operators. This struct is used to build operators for a
 given system or lattice.
 """
-struct OperatorBuilder{SystemT, OccT, FieldT, T}
+struct OperatorBuilder{SystemT, FieldT, T}
     sys::SystemT
     field::FieldT
     internal_length::Int
@@ -101,8 +101,8 @@ struct OperatorBuilder{SystemT, OccT, FieldT, T}
 end
 
 """
-    OperatorBuilder([T, ]sys, [; field, auto_hermitian, auto_pbc_field, occupations_type])
-    OperatorBuilder([T, ]lat, [internal; field, auto_hermitian, occupations_type])
+    OperatorBuilder([T, ]sys, [; field, auto_hermitian, auto_pbc_field])
+    OperatorBuilder([T, ]lat, [internal; field, auto_hermitian])
 
 Construct an `OperatorBuilder` for a given system or lattice.
 
@@ -119,8 +119,6 @@ Construct an `OperatorBuilder` for a given system or lattice.
     Defaults to `false`.
 - `auto_pbc_field`: Whether to automatically adapt the field to the periodic boundary
     conditions of the lattice. Defaults to `true`.
-- `occupations_type`: The occupations type for the many-body operator. Ignored for one-body
-    operators. By default, the occupation numbers are stored in vectors.
 
 ## Example
 ```jldoctest
@@ -153,21 +151,20 @@ true
 ```
 """
 function OperatorBuilder(T::Type{<:Number}, sys::SystemT; field::AbstractField=NoField(),
-        auto_hermitian=false, auto_pbc_field=true, occupations_type=nothing) where {SystemT<:System}
+        auto_hermitian=false, auto_pbc_field=true) where {SystemT<:System}
     oneparticle_len = length(onebodybasis(sys))
     if auto_pbc_field
         field2 = adapt_field(field, lattice(sys))
     else
         field2 = field
     end
-    @assert occupations_type === nothing || occupations_type isa Type
-    OperatorBuilder{SystemT, occupations_type, typeof(field2), ArrayEntry{T}}(sys, field2, internal_length(sys),
+    OperatorBuilder{SystemT, typeof(field2), ArrayEntry{T}}(sys, field2, internal_length(sys),
         SparseMatrixBuilder{ArrayEntry{T}}(oneparticle_len, oneparticle_len), auto_hermitian)
 end
 
 """
-    FastOperatorBuilder([T, ]sys, [; field, auto_hermitian, occupations_type])
-    FastOperatorBuilder([T, ]lat, [internal; field, auto_hermitian, occupations_type])
+    FastOperatorBuilder([T, ]sys, [; field, auto_hermitian])
+    FastOperatorBuilder([T, ]lat, [internal; field, auto_hermitian])
 
 Construct an `OperatorBuilder` for a given system or lattice. This version of the constructor
 uses a slightly faster internal representation of the operator matrix, but only allows
@@ -175,15 +172,14 @@ increment/decrement assignments:
 `builder[site1, site2] += 1` is allowed, but `builder[site1, site2] = 1` is not.
 """
 function FastOperatorBuilder(T::Type{<:Number}, sys::SystemT; field::AbstractField=NoField(),
-        auto_hermitian=false, auto_pbc_field=true, occupations_type=nothing) where {SystemT<:System}
+        auto_hermitian=false, auto_pbc_field=true) where {SystemT<:System}
     oneparticle_len = length(onebodybasis(sys))
     if auto_pbc_field
         field2 = adapt_field(field, lattice(sys))
     else
         field2 = field
     end
-    @assert occupations_type === nothing || occupations_type isa Type
-    OperatorBuilder{SystemT, occupations_type, typeof(field2), T}(sys, field2, internal_length(sys),
+    OperatorBuilder{SystemT, typeof(field2), T}(sys, field2, internal_length(sys),
         SparseMatrixBuilder{T}(oneparticle_len, oneparticle_len), auto_hermitian)
 end
 @accepts_system_t OperatorBuilder
@@ -193,7 +189,7 @@ sample(opb::OperatorBuilder) = sample(opb.sys)
 const OpBuilderWithInternal = OperatorBuilder{<:System{<:SampleWithInternal}}
 const OpBuilderWithoutInternal = OperatorBuilder{<:System{<:SampleWithoutInternal}}
 
-function Base.show(io::IO, mime::MIME"text/plain", opb::OperatorBuilder{Sys,OccT,Field,T}) where {Sys,OccT,Field,T}
+function Base.show(io::IO, mime::MIME"text/plain", opb::OperatorBuilder{Sys,Field,T}) where {Sys,Field,T}
     print(io, "OperatorBuilder(",
     opb.field == NoField() ? "" : "field=$(opb.field), ",
     "auto_hermitian=$(opb.auto_hermitian))\nSystem: ")
@@ -258,17 +254,17 @@ Base.@propagate_inbounds function Base.setindex!(opbuilder::OperatorBuilder, rhs
     return nothing
 end
 
-function _construct_manybody_maybe(occupations_type, sys::ManyBodySystem, op::AbstractOperator)
+function _construct_manybody_maybe(sys::ManyBodySystem, op::AbstractOperator)
     bas = basis(op)
     check_samebases(bas, onebodybasis(sys))
-    return manybodyoperator(ManyBodyBasis(bas, occupations(sys, occupations_type)), op)
+    return manybodyoperator(ManyBodyBasis(bas, occupations(sys)), op)
 end
-_construct_manybody_maybe(::Any, ::OneParticleBasisSystem, op::AbstractOperator) = op
-function QuantumOpticsBase.Operator(opb::OperatorBuilder{<:Any, OccT}; warning=true) where OccT
+_construct_manybody_maybe(::OneParticleBasisSystem, op::AbstractOperator) = op
+function QuantumOpticsBase.Operator(opb::OperatorBuilder{<:Any}; warning=true)
     op = Operator(onebodybasis(opb.sys), to_matrix(opb.mat_builder))
     if warning && !opb.auto_hermitian && !ishermitian(op)
         @warn "The resulting operator is not hermitian. Set `warning=false` to hide this message or add `auto_hermitian=true` to the `OperatorBuilder` constructor."
     end
-    return _construct_manybody_maybe(OccT, opb.sys, op)
+    return _construct_manybody_maybe(opb.sys, op)
 end
 Hamiltonian(opb::OperatorBuilder; kw...) = Hamiltonian(opb.sys, Operator(opb; kw...))

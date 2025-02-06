@@ -5,13 +5,14 @@ Generates a Hubbard model hamiltonian on given manybody system `sys`.
 
 See [`fermihubbard`](@ref), [`bosehubbard`](@ref) for more specific models.
 """
-function hubbard(T::Type, sys::NParticles, args...; U::Real=0, kw...)
-    if sys.statistics == FermiDirac && !hasinternal(sys)
+function hubbard(T::Type, sys::ManyBodySystem, args...; U::Real=0, kw...)
+    if sys isa NParticles && sys.statistics == FermiDirac && !hasinternal(sys)
         @warn """Fermi-Dirac statistics with no internal degrees of freedom.
         No interaction is possible."""
     end
-    return tightbinding_hamiltonian(T, sys, args...; kw...) +
+    op = Operator(tightbinding_hamiltonian(T, sys, args...; kw...)) +
         interaction((site1, site2) -> (site1 == site2 ? U : zero(U)), T, sys)
+    return Hamiltonian(sys, op)
 end
 """
     bosehubbard([type, ]lat, N[; U, T, t1, t2, t3, field])
@@ -32,8 +33,51 @@ Generates a Bose-Hubbard model hamiltonian on given lattice `lat`.
 - `T`: The temperature of the system. Default is zero.
 - `field`: The magnetic field. Default is `NoField()`.
 """
-bosehubbard(type::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
-    hubbard(type, NParticles(l, N; T = T, statistics = BoseEinstein); kw...)
+bosehubbard(type::Type, l::AbstractLattice, N::Int; T = 0, occupations_type=nothing, kw...) =
+    hubbard(type, NParticles(l, N; T = T, statistics = BoseEinstein, occupations_type=occupations_type); kw...)
+
+_nspins(v::AbstractVector, up=true) = sum(@view v[2 - up:2:end])
+_odds_mask(v::Unsigned) = typemax(v) ÷ 3
+function _odds_mask(v::BigInt)
+    lenp = prevpow(2, v)
+    mask = lenp + (lenp - 1) ÷ 3
+    if mask & 1 == 0
+        mask >>= 1
+    end
+    return mask
+end
+function _nspins(v::FermionBitstring, up=true)
+    mask = _odds_mask(v.bits) << (1 - up)
+    return count_ones(v.bits & mask)
+end
+function _filter_occupations!(occ::AbstractVector, N_up, N_down)
+    keep_inds = Int[]
+    for i in eachindex(occ)
+        if _nspins(occ[i]) != N_up || _nspins(occ[i], false) != N_down
+            push!(keep_inds, i)
+        end
+    end
+    if occ isa QuantumOpticsBase.SortedVector
+        deleteat!(occ.sortedvector, keep_inds)
+    else
+        deleteat!(occ, keep_inds)
+    end
+end
+
+"""
+    FermiHubbardSpinSystem(l, N_up, N_down[; occupations_type])
+
+Generates a Fermi-Hubbard model basis system on given lattice `l`. The number of particles is
+`N_up` and `N_down` for spin up and down respectively. The `occupations_type` keyword argument
+defines the type of the occupation basis.
+"""
+function FermiHubbardSpinSystem(l::AbstractLattice, N_up, N_down; occupations_type=nothing, kw...)
+    occ = occupations(NParticles(l ⊗ SpinBasis(1//2), N_up + N_down, occupations_type=occupations_type))
+    _filter_occupations!(occ, N_up, N_down)
+    bas = ManyBodyBasis(basis(l ⊗ SpinBasis(1//2)), occ)
+    return ManyBodyBasisSystem(bas; kw...)
+end
+
 """
     fermihubbard([type, ]lat, N[; U, T, t1, t2, t3, field])
 
@@ -54,8 +98,8 @@ Generates a Fermi-Hubbard model hamiltonian on given lattice `lat`.
 - `T`: The temperature of the system. Default is zero.
 - `field`: The magnetic field. Default is `NoField()`.
 """
-fermihubbard(type::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
-    hubbard(type, NParticles(l ⊗ SpinBasis(1//2), N; T = T, statistics = FermiDirac); kw...)
+fermihubbard(type::Type, l::AbstractLattice, N::Int; T = 0, occupations_type=nothing, kw...) =
+    hubbard(type, NParticles(l ⊗ SpinBasis(1//2), N; T = T, statistics = FermiDirac, occupations_type=occupations_type); kw...)
 @accepts_t hubbard
 @accepts_t bosehubbard
 @accepts_t fermihubbard

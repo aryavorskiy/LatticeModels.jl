@@ -39,6 +39,7 @@ Define this function for your type to implement `Sample` API.
 sample(lb::LatticeBasis) = Sample(lb.lat)
 sample(b::CompositeLatticeBasis) = Sample(b.bases[2].lat, b.bases[1])
 sample(mb::ManyBodyBasis) = sample(mb.onebodybasis)
+sample(b::Basis) = throw(ArgumentError("Basis has no lattice: $b"))
 sample(state::StateType) = sample(basis(state))
 sample(op::AbstractLatticeOperator) = sample(basis(op))
 lattice(sample::Sample) = sample.lat
@@ -125,7 +126,7 @@ end
 
 abstract type ManyBodySystem{SampleT} <: System{SampleT} end
 
-struct NParticles{SampleT,NPT} <: ManyBodySystem{SampleT}
+struct NParticles{OccT,SampleT,NPT} <: ManyBodySystem{SampleT}
     sample::SampleT
     nparticles::NPT
     statistics::ParticleStatistics
@@ -133,8 +134,8 @@ struct NParticles{SampleT,NPT} <: ManyBodySystem{SampleT}
 end
 
 """
-    NParticles(lat[, internal], N[; T=0, statistics=FermiDirac])
-    NParticles(sys, N[; T=0, statistics=FermiDirac])
+    NParticles(lat[, internal], N[; T=0, statistics=FermiDirac, occupations_type])
+    NParticles(sys, N[; T=0, statistics=FermiDirac, occupations_type])
 
 Create a manybody system with a given lattice and a given number of particles.
 
@@ -147,6 +148,9 @@ Create a manybody system with a given lattice and a given number of particles.
 ## Keyword Arguments
 - `T`: the temperature of the system. Default is `0`.
 - `statistics`: the statistics of the particles. Default is `FermiDirac`.
+- `occupations_type`: The occupations type for the many-body operator. By default, the
+    occupation numbers are stored in vectors, but you can use, for example, set it to
+    `FermionBitstring`s for better performance on fermion systems.
 
 ## Example
 ```jldoctest
@@ -158,21 +162,42 @@ julia> NParticles(lat, 4, statistics=BoseEinstein)
 NParticles(4 bosons) on 9-site SquareLattice in 2D space
 ```
 """
-function NParticles(sample::SampleT, nparticles; statistics = FermiDirac, T = 0) where SampleT<:Sample
-    NParticles{SampleT, typeof(nparticles)}(sample, nparticles, statistics, T)
-end
-NParticles(onep::OneParticleSystem, n; kw...) = NParticles(onep.sample, n;
-    T = onep.T, kw...)
+NParticles(sample::SampleT, nparticles; statistics = FermiDirac, T = 0,
+    occupations_type=nothing) where {SampleT<:Sample} =
+    NParticles{occupations_type, SampleT, typeof(nparticles)}(sample, nparticles, statistics, T)
+NParticles(onep::OneParticleSystem, n; kw...) = NParticles(onep.sample, n; T = onep.T, kw...)
 NParticles(l::AbstractLattice, n; kw...) = NParticles(Sample(l), n; kw...)
 NParticles(l::AbstractLattice, b::Basis, n; kw...) = NParticles(Sample(l, b), n; kw...)
 Base.:(==)(sys1::NParticles, sys2::NParticles) =
     sys1.sample == sys2.sample && sys1.nparticles == sys2.nparticles &&
     sys1.statistics == sys2.statistics && sys1.T == sys2.T
-function Base.show(io::IO, mime::MIME"text/plain", sys::NParticles)
+function Base.show(io::IO, mime::MIME"text/plain", sys::NParticles{OccT}) where OccT
     noun = sys.statistics == FermiDirac ? "fermion" : "boson"
     n = sys.nparticles
-    print(io, "NParticles(", n isa Int ? fmtnum(n, noun) : string(n) * " $(noun)(s)", ") on ")
+    print(io, "NParticles(", n isa Int ? fmtnum(n, noun) : string(n) * " $(noun)(s)",
+        OccT === nothing ? "" : ", occupations_type=$OccT", ") on ")
     show(io, mime, sys.sample)
+end
+
+struct ManyBodyBasisSystem{SampleT, MBT<:ManyBodyBasis} <: ManyBodySystem{SampleT}
+    sample::SampleT
+    mb::MBT
+    T::Float64
+    function ManyBodyBasisSystem(mb::MBT; T=0) where {MBT<:ManyBodyBasis}
+        s = sample(mb)
+        new{typeof(s), MBT}(s, mb, T)
+    end
+end
+function Base.show(io::IO, mime::MIME"text/plain", sys::ManyBodyBasisSystem)
+    print(io, "Many-body system on ")
+    show(io, mime, sys.sample)
+    print(io, " ($(length(sys.mb)) states, T=$(sys.T))")
+end
+function Base.union(mbs1::ManyBodyBasisSystem, mbs2::ManyBodyBasisSystem)
+    sample(mbs1) == sample(mbs2) || throw(ArgumentError("Incompatible systems"))
+    mbs1.T == mbs2.T || throw(ArgumentError("Incompatible temperatures"))
+    new_basis = ManyBodyBasis(onebodybasis(mbs1), union(mbs1.mb.occupations, mbs2.mb.occupations))
+    return ManyBodyBasisSystem(new_basis, T=mbs1.T)
 end
 
 """
@@ -224,7 +249,31 @@ function System(args...; μ = nothing, mu = μ, N = nothing, statistics=FermiDir
     System(Sample(args...), mu=mu, N=N, T=T, statistics=statistics)
 end
 
-function occupations(np::NParticles, occupations_type::Union{Type,Nothing}=nothing)
+"""
+    System(mb[; T])
+
+Create a system with a given many-body basis `mb`.
+
+This function is used to create a many-body system from an arbitrary many-body basis with a
+lattice.
+
+## Example
+```jldoctest
+julia> using LatticeModels
+
+julia> lat = SquareLattice(3, 3);
+
+julia> bas = SpinBasis(1//2) ⊗ LatticeBasis(lat);
+
+julia> mbas = ManyBodyBasis(bas, fermionstates(bas, 2));
+
+julia> System(mbas, T=2)
+Many-body system on (9-site SquareLattice in 2D space) ⊗ Spin(1/2) (153 states, T=2.0)
+```
+"""
+System(mb::ManyBodyBasis; T=0) = ManyBodyBasisSystem(mb; T=T)
+_occtype(::NParticles{OccT}) where {OccT} = OccT
+function occupations(np::NParticles, occupations_type::Union{Type,Nothing}=_occtype(np))
     n = np.nparticles
     if np.statistics == FermiDirac
         new_occ = occupations_type !== nothing ? occupations_type : OccupationNumbers{FermionStatistics, Int}
@@ -236,10 +285,12 @@ function occupations(np::NParticles, occupations_type::Union{Type,Nothing}=nothi
         throw(ArgumentError("Unsupported statistics: $(np.statistics)"))
     end
 end
+occupations(sys::ManyBodyBasisSystem) = sys.mb.occupations
 
 onebodybasis(sys::System) = basis(sys.sample)
 QuantumOpticsBase.basis(sys::OneParticleBasisSystem) = onebodybasis(sys)
 QuantumOpticsBase.basis(sys::NParticles) = ManyBodyBasis(basis(sys.sample), occupations(sys))
+QuantumOpticsBase.basis(sys::ManyBodyBasisSystem) = sys.mb
 
 Base.zero(sys::System) = zero(basis(sys))
 

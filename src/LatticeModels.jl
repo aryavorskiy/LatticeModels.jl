@@ -74,7 +74,7 @@ export scalefactor, shaperadius, fillshapes, addshapes!, deleteshapes!, removeda
 include("zoo/magneticfields.jl")
 export LandauGauge, SymmetricGauge, PointFlux, PointFluxes, periodic_fluxes
 include("zoo/models.jl")
-export hubbard, bosehubbard, fermihubbard, qwz, haldane, kanemele
+export FermiHubbardSpinSystem, hubbard, bosehubbard, fermihubbard, qwz, haldane, kanemele
 include("zoo/currents.jl")
 export DensityCurrents, LocalOperatorCurrents
 
