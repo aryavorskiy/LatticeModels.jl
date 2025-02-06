@@ -191,7 +191,7 @@ end
 function Base.show(io::IO, mime::MIME"text/plain", sys::ManyBodyBasisSystem)
     print(io, "Many-body system on ")
     show(io, mime, sys.sample)
-    print(io, " ($(length(sys.mb)) states)")
+    print(io, " ($(length(sys.mb)) states, T=$(sys.T))")
 end
 function Base.union(mbs1::ManyBodyBasisSystem, mbs2::ManyBodyBasisSystem)
     sample(mbs1) == sample(mbs2) || throw(ArgumentError("Incompatible systems"))
@@ -248,6 +248,28 @@ function System(args...; μ = nothing, mu = μ, N = nothing, statistics=FermiDir
     isempty(kw) || throw(ArgumentError("Unsupported keyword arguments " * join(keys(kw), ", ")))
     System(Sample(args...), mu=mu, N=N, T=T, statistics=statistics)
 end
+
+"""
+    System(mb[; T])
+
+Create a system with a given many-body basis `mb`.
+
+This function is used to create a many-body system from an arbitrary many-body basis with a
+lattice.
+
+## Example
+```jldoctest
+julia> using LatticeModels
+
+julia> lat = SquareLattice(3, 3);
+
+julia> bas = SpinBasis(1//2) ⊗ LatticeBasis(lat);
+
+julia> mbas = ManyBodyBasis(bas, fermionstates(bas, 2));
+
+julia> System(mbas, T=2)
+Many-body system on (9-site SquareLattice in 2D space) ⊗ Spin(1/2) (153 states, T=2.0)
+"""
 System(mb::ManyBodyBasis; T=0) = ManyBodyBasisSystem(mb; T=T)
 _occtype(::NParticles{OccT}) where {OccT} = OccT
 function occupations(np::NParticles, occupations_type::Union{Type,Nothing}=_occtype(np))
