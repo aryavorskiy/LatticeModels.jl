@@ -39,21 +39,29 @@ bosehubbard(type::Type, l::AbstractLattice, N::Int; T = 0, occupations_type=noth
 _nspins(v::AbstractVector, up=true) = sum(@view v[2 - up:2:end])
 _odds_mask(v::Unsigned) = typemax(v) ÷ 3
 function _odds_mask(v::BigInt)
-    lenp = prevpow(4, v)
-    return lenp + (lenp - 1) ÷ 3
+    lenp = prevpow(2, v)
+    mask = lenp + (lenp - 1) ÷ 3
+    if mask & 1 == 0
+        mask >>= 1
+    end
+    return mask
 end
 function _nspins(v::FermionBitstring, up=true)
     mask = _odds_mask(v.bits) << (1 - up)
     return count_ones(v.bits & mask)
 end
-function _filter_occupations!(occ, N_up, N_down)
+function _filter_occupations!(occ::AbstractVector, N_up, N_down)
     keep_inds = Int[]
     for i in eachindex(occ)
         if _nspins(occ[i]) == N_up && _nspins(occ[i], false) == N_down
             push!(keep_inds, i)
         end
     end
-    keepat!(occ.sortedvector, keep_inds)
+    if occ isa QuantumOpticsBase.SortedVector
+        keepat!(occ.sortedvector, keep_inds)
+    else
+        keepat!(occ, keep_inds)
+    end
 end
 
 """

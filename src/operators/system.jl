@@ -248,7 +248,7 @@ function System(args...; μ = nothing, mu = μ, N = nothing, statistics=FermiDir
     isempty(kw) || throw(ArgumentError("Unsupported keyword arguments " * join(keys(kw), ", ")))
     System(Sample(args...), mu=mu, N=N, T=T, statistics=statistics)
 end
-System(mb::ManyBodyBasis; T=0) = ManyBodyBasisSystem(mb, T)
+System(mb::ManyBodyBasis; T=0) = ManyBodyBasisSystem(mb; T=T)
 _occtype(::NParticles{OccT}) where {OccT} = OccT
 function occupations(np::NParticles, occupations_type::Union{Type,Nothing}=_occtype(np))
     n = np.nparticles
