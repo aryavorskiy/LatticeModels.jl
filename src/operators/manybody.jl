@@ -42,42 +42,32 @@ function _2p_interaction_diags(M::AbstractMatrix, occups, N::Int)
 end
 
 """
-    interaction(f, [T, ]sys[; occupations_type])
+    interaction(f, [T, ]sys)
 
 Create an two-site interaction operator for a given `NParticles` system. The function `f` takes two
 arguments, which are the two sites, and returns the interaction energy.
-
-`occupations_type` is the occupations type for the many-body operator. By default, the occupation
-numbers are stored in vectors, but you can use, for example, set it to `FermionBitstring` for
-better performance on fermion systems.
 """
-function interaction(f::Function, T::Type{<:Number}, sys::NParticles; occupations_type=nothing)
-    l = lattice(sys)
-    M = _2p_interaction_collect(f, T, l)
-    occups = occupations(sys, occupations_type)
-    diags = _2p_interaction_diags(M, occups, internal_length(sys))
-    diagonaloperator(ManyBodyBasis(onebodybasis(sys), occups), diags)
+function interaction(f::Function, T::Type{<:Number}, sys::ManyBodySystem)
+    bas = basis(sys)
+    M = _2p_interaction_collect(f, T, lattice(sys))
+    diags = _2p_interaction_diags(M, bas.occupations, internal_length(sys))
+    diagonaloperator(bas, diags)
 end
 
 """
-    interaction(f, [T, ]sys, K[; occupations_type])
+    interaction(f, [T, ]sys, K)
 
-Create an `2K`-site interaction operator for a given `NParticles` system. The function `f`
+Create an `2K`-site interaction operator for a given many-body system. The function `f`
 takes two `K`-tuples of integer numbers, which are site indices for creation and annihilation
 operators, and returns the interaction energy.
 
 If the system `sys` has internal degrees of freedom, the function `f` should take four `K`-tuples:
 first two are site & internal indices for creation operators, and the last two are the same for
 annihilation operators.
-
-`occupations_type` is the occupations type for the many-body operator. By default, the occupation
-numbers are stored in vectors, but you can use, for example, set it to `FermionBitstring` for
-better performance on fermion systems.
 """
-function interaction(f::Function, T::Type{<:Number}, sys::NParticles, ::Val{K};
-        occupations_type=nothing) where K
+function interaction(f::Function, T::Type{<:Number}, sys::ManyBodySystem, ::Val{K}) where K
     # This function uses undocumented QuantumOpticsBase API. Be careful!
-    @assert K ≤ sys.nparticles
+    # @assert K ≤ sys.nparticles
     l = lattice(sys)
     N = internal_length(sys)
     le = length(l) * N
@@ -85,13 +75,10 @@ function interaction(f::Function, T::Type{<:Number}, sys::NParticles, ::Val{K};
     l_inds(inds) = inds .|> (i -> l[(i - 1) ÷ N + 1])
     i_inds(inds) = inds .|> (i -> (i - 1) % N + 1)
 
-    is = Int[]
-    js = Int[]
-    vs = T[]
-
-    occups = occupations(sys, occupations_type)
-    bas = ManyBodyBasis(onebodybasis(sys), occups)
+    bas = basis(sys)
+    occ_len = length(bas.occupations)
     buffer = allocate_buffer(bas)
+    builder = SparseMatrixBuilder{T}(occ_len, occ_len)
     warn_flag = false
     for a_inds_c in c_indices
         a_inds = Tuple(a_inds_c)
@@ -99,7 +86,7 @@ function interaction(f::Function, T::Type{<:Number}, sys::NParticles, ::Val{K};
         for at_inds_c in c_indices
             at_inds = Tuple(at_inds_c)
             issorted(at_inds) || continue
-            for (m, occ) in enumerate(occups)
+            for (m, occ) in enumerate(bas.occupations)
                 C = state_transition!(buffer, occ, at_inds, a_inds)
                 C === nothing && continue
                 value = if hasinternal(sys)
@@ -108,19 +95,16 @@ function interaction(f::Function, T::Type{<:Number}, sys::NParticles, ::Val{K};
                     f(l_inds(at_inds), l_inds(a_inds))::Number
                 end
                 iszero(value) && continue
-                n = state_index(occups, buffer)
+                n = state_index(bas.occupations, buffer)
                 n === nothing && (warn_flag = true; continue)
-                push!(is, m)
-                push!(js, n)
-                push!(vs, C * value)
+                builder[n, m] += C * value
             end
         end
     end
     warn_flag && @warn "Some states are not found in the basis."
-    occ_len = length(occups)
-    return SparseOperator(bas, sparse(is, js, vs, occ_len, occ_len))
+    return SparseOperator(bas, to_matrix(builder))
 end
-interaction(f::Function, T::Type{<:Number}, sys::NParticles, K::Int; kw...) =
-    interaction(f, T, sys, Val(K); kw...)
-interaction(f::Function, args...; kw...) = interaction(f, ComplexF64, args...; kw...)
-interaction(f::Function, ::Type, ::Type, args...; kw...) = throw(MethodError(interaction, (f, args...)))
+interaction(f::Function, T::Type{<:Number}, sys::ManyBodySystem, K::Int) =
+    interaction(f, T, sys, Val(K))
+interaction(f::Function, args...) = interaction(f, ComplexF64, args...)
+interaction(f::Function, ::Type, ::Type, args...) = throw(MethodError(interaction, (f, args...)))

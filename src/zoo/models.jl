@@ -11,8 +11,7 @@ function hubbard(T::Type, sys::NParticles, args...; U::Real=0, kw...)
         No interaction is possible."""
     end
     op = Operator(tightbinding_hamiltonian(T, sys, args...; kw...)) +
-        interaction((site1, site2) -> (site1 == site2 ? U : zero(U)), T, sys,
-            occupations_type = get(kw, :occupations_type, nothing))
+        interaction((site1, site2) -> (site1 == site2 ? U : zero(U)), T, sys)
     return Hamiltonian(sys, op)
 end
 """
@@ -34,8 +33,8 @@ Generates a Bose-Hubbard model hamiltonian on given lattice `lat`.
 - `T`: The temperature of the system. Default is zero.
 - `field`: The magnetic field. Default is `NoField()`.
 """
-bosehubbard(type::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
-    hubbard(type, NParticles(l, N; T = T, statistics = BoseEinstein); kw...)
+bosehubbard(type::Type, l::AbstractLattice, N::Int; T = 0, occupations_type=nothing, kw...) =
+    hubbard(type, NParticles(l, N; T = T, statistics = BoseEinstein, occupations_type=occupations_type); kw...)
 """
     fermihubbard([type, ]lat, N[; U, T, t1, t2, t3, field])
 
@@ -56,8 +55,8 @@ Generates a Fermi-Hubbard model hamiltonian on given lattice `lat`.
 - `T`: The temperature of the system. Default is zero.
 - `field`: The magnetic field. Default is `NoField()`.
 """
-fermihubbard(type::Type, l::AbstractLattice, N::Int; T = 0, kw...) =
-    hubbard(type, NParticles(l ⊗ SpinBasis(1//2), N; T = T, statistics = FermiDirac); kw...)
+fermihubbard(type::Type, l::AbstractLattice, N::Int; T = 0, occupations_type=nothing, kw...) =
+    hubbard(type, NParticles(l ⊗ SpinBasis(1//2), N; T = T, statistics = FermiDirac, occupations_type=occupations_type); kw...)
 @accepts_t hubbard
 @accepts_t bosehubbard
 @accepts_t fermihubbard

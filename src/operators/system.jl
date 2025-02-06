@@ -125,7 +125,9 @@ end
 
 abstract type ManyBodySystem{SampleT} <: System{SampleT} end
 
-struct NParticles{SampleT,NPT} <: ManyBodySystem{SampleT}
+# TODO incapsulate occupations type
+# TODO implement ManyBodyBasisSystem (?)
+struct NParticles{OccT,SampleT,NPT} <: ManyBodySystem{SampleT}
     sample::SampleT
     nparticles::NPT
     statistics::ParticleStatistics
@@ -133,8 +135,8 @@ struct NParticles{SampleT,NPT} <: ManyBodySystem{SampleT}
 end
 
 """
-    NParticles(lat[, internal], N[; T=0, statistics=FermiDirac])
-    NParticles(sys, N[; T=0, statistics=FermiDirac])
+    NParticles(lat[, internal], N[; T=0, statistics=FermiDirac, occupations_type])
+    NParticles(sys, N[; T=0, statistics=FermiDirac, occupations_type])
 
 Create a manybody system with a given lattice and a given number of particles.
 
@@ -147,6 +149,9 @@ Create a manybody system with a given lattice and a given number of particles.
 ## Keyword Arguments
 - `T`: the temperature of the system. Default is `0`.
 - `statistics`: the statistics of the particles. Default is `FermiDirac`.
+- `occupations_type`: The occupations type for the many-body operator. By default, the
+    occupation numbers are stored in vectors, but you can use, for example, set it to
+    `FermionBitstring`s for better performance on fermion systems.
 
 ## Example
 ```jldoctest
@@ -158,20 +163,20 @@ julia> NParticles(lat, 4, statistics=BoseEinstein)
 NParticles(4 bosons) on 9-site SquareLattice in 2D space
 ```
 """
-function NParticles(sample::SampleT, nparticles; statistics = FermiDirac, T = 0) where SampleT<:Sample
-    NParticles{SampleT, typeof(nparticles)}(sample, nparticles, statistics, T)
-end
-NParticles(onep::OneParticleSystem, n; kw...) = NParticles(onep.sample, n;
-    T = onep.T, kw...)
+NParticles(sample::SampleT, nparticles; statistics = FermiDirac, T = 0,
+    occupations_type=nothing) where {SampleT<:Sample} =
+    NParticles{occupations_type, SampleT, typeof(nparticles)}(sample, nparticles, statistics, T)
+NParticles(onep::OneParticleSystem, n; kw...) = NParticles(onep.sample, n; T = onep.T, kw...)
 NParticles(l::AbstractLattice, n; kw...) = NParticles(Sample(l), n; kw...)
 NParticles(l::AbstractLattice, b::Basis, n; kw...) = NParticles(Sample(l, b), n; kw...)
 Base.:(==)(sys1::NParticles, sys2::NParticles) =
     sys1.sample == sys2.sample && sys1.nparticles == sys2.nparticles &&
     sys1.statistics == sys2.statistics && sys1.T == sys2.T
-function Base.show(io::IO, mime::MIME"text/plain", sys::NParticles)
+function Base.show(io::IO, mime::MIME"text/plain", sys::NParticles{OccT}) where OccT
     noun = sys.statistics == FermiDirac ? "fermion" : "boson"
     n = sys.nparticles
-    print(io, "NParticles(", n isa Int ? fmtnum(n, noun) : string(n) * " $(noun)(s)", ") on ")
+    print(io, "NParticles(", n isa Int ? fmtnum(n, noun) : string(n) * " $(noun)(s)",
+        OccT === nothing ? "" : ", occupations_type=$OccT", ") on ")
     show(io, mime, sys.sample)
 end
 
@@ -223,8 +228,8 @@ function System(args...; μ = nothing, mu = μ, N = nothing, statistics=FermiDir
     isempty(kw) || throw(ArgumentError("Unsupported keyword arguments " * join(keys(kw), ", ")))
     System(Sample(args...), mu=mu, N=N, T=T, statistics=statistics)
 end
-
-function occupations(np::NParticles, occupations_type::Union{Type,Nothing}=nothing)
+_occtype(::NParticles{OccT}) where {OccT} = OccT
+function occupations(np::NParticles, occupations_type::Union{Type,Nothing}=_occtype(np))
     n = np.nparticles
     if np.statistics == FermiDirac
         new_occ = occupations_type !== nothing ? occupations_type : OccupationNumbers{FermionStatistics, Int}

@@ -27,7 +27,7 @@ import LatticeModels: ManyBodyBasis, FermionBitstring
         # Check occupation types
         small_l = SquareLattice(3, 3)
         Hmb = qwz(NParticles(small_l, spin, 2))
-        Hmb2 = qwz(NParticles(small_l, spin, 2), occupations_type=FermionBitstring)
+        Hmb2 = qwz(NParticles(small_l, spin, 2, occupations_type=FermionBitstring))
         @test Hmb.data == Hmb2.data
         Hub = fermihubbard(small_l, 3, U = 1)
         Hub2 = fermihubbard(small_l, 3, U = 1, occupations_type=FermionBitstring)
