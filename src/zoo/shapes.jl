@@ -342,45 +342,45 @@ topath2d(f::Path{2}) = [Tuple(f.start), Tuple(f.stop)]
         rs = resolve_site(lat, site)
         return rs === nothing ? 0 : rs.index
     end
-function _countneighbors(check, lat::AbstractLattice, nns::AbstractBonds, i)
-    counter, index = 0, 0
-    for idx in _iter_neighbor_indices(lat, nns, i)
-        if idx != 0 && check(idx)
-            idx == i && continue
-            counter += 1
-            counter ≥ 2 && return counter, index
-            index = idx
-        end
+
+function _add_counts!(counts, bs::AbstractBonds)
+    for b in bs
+        b === nothing && continue
+        s1, s2 = b
+        s1 === nothing && continue
+        s2 === nothing && continue
+        counts[s1.index] += 1
+        counts[s2.index] += 1
     end
-    counter, index
+end
+function _add_counts!(counts, bsm::BravaisSiteMapping)
+    l = lattice(bsm)
+    for t in bsm.translations
+        _add_counts!(counts, adapt_bonds(t, l))
+    end
 end
 
 function _removedangling!(rlat, maxdepth, nns)
-    Is = Int[]
-    queue = Tuple{Int, Int}[]
-    for i in eachindex(rlat)
-        counter, index = _countneighbors(alwaystrue, rlat, nns, i)
-        if counter < 2
-            push!(Is, i)
-            (counter == 1) && push!(queue, (index, 1))
+    counts = zeros(Int, length(rlat))
+    _add_counts!(counts, nns)
+    itr_Is = findall(==(1), counts)
+    all_Is = itr_Is
+    iter_count = 1
+    while iter_count < maxdepth
+        for i in itr_Is
+            for j in _iter_neighbor_indices(rlat, nns, i)
+                if j != 0 && !(j in all_Is)
+                    counts[j] -= 1
+                end
+            end
         end
+        counts[itr_Is] .= 0
+        itr_Is = findall(==(1), counts)
+        isempty(itr_Is) && break
+        append!(all_Is, itr_Is)
+        iter_count += 1
     end
-    j = 1
-    while j <= length(queue)
-        i, depth = queue[j]
-        if depth > maxdepth || i in Is
-            j += 1
-            continue
-        end
-        counter, index = _countneighbors(!(in(Is)), rlat, nns, i)
-        if counter < 2
-            iind = searchsortedfirst(Is, i)
-            insert!(Is, iind, i)
-            (counter == 1) && push!(queue, (index, depth + 1))
-        end
-        j += 1
-    end
-    deleteat!(rlat, Is)
+    deleteat!(rlat, all_Is)
 end
 
 """
@@ -392,6 +392,7 @@ neighbors. The function will remove all dangling sites and their neighbors recur
 """
 function removedangling!(lat::AbstractLattice, maxdepth=Inf)
     maxdepth ≤ 0 && return lat
-    _removedangling!(addlookuptable(lat), maxdepth, NearestNeighbor(lat, 1))
+    rlat = addlookuptable(lat)
+    _removedangling!(rlat, maxdepth, NearestNeighbor(rlat, 1))
     return lat
 end
