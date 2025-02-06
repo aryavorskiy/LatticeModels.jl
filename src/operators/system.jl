@@ -269,6 +269,7 @@ julia> mbas = ManyBodyBasis(bas, fermionstates(bas, 2));
 
 julia> System(mbas, T=2)
 Many-body system on (9-site SquareLattice in 2D space) ⊗ Spin(1/2) (153 states, T=2.0)
+```
 """
 System(mb::ManyBodyBasis; T=0) = ManyBodyBasisSystem(mb; T=T)
 _occtype(::NParticles{OccT}) where {OccT} = OccT
