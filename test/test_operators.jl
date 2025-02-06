@@ -32,6 +32,15 @@ import LatticeModels: ManyBodyBasis, FermionBitstring
         Hub = fermihubbard(small_l, 3, U = 1)
         Hub2 = fermihubbard(small_l, 3, U = 1, occupations_type=FermionBitstring)
         @test Hub.data == Hub2.data
+        Huud = hubbard(FermiHubbardSpinSystem(small_l, 2, 2))
+        Huud2 = hubbard(FermiHubbardSpinSystem(small_l, 2, 2, occupations_type=FermionBitstring))
+        @test Huud.data == Huud2.data
+        @test length(basis(Huud)) == binomial(length(small_l), 2) ^ 2
+
+        sys1 = FermiHubbardSpinSystem(small_l, 0, 1)
+        sys2 = FermiHubbardSpinSystem(small_l, 1, 0)
+        sys3 = NParticles(small_l ⊗ spin, 1, statistics=FermiDirac)
+        @test basis(union(sys1, sys2)) == basis(sys3)
 
         # Check localexpect
         @test localdensity(P) ≈ localexpect(one(spin), P)

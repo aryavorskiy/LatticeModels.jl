@@ -5,8 +5,8 @@ Generates a Hubbard model hamiltonian on given manybody system `sys`.
 
 See [`fermihubbard`](@ref), [`bosehubbard`](@ref) for more specific models.
 """
-function hubbard(T::Type, sys::NParticles, args...; U::Real=0, kw...)
-    if sys.statistics == FermiDirac && !hasinternal(sys)
+function hubbard(T::Type, sys::ManyBodySystem, args...; U::Real=0, kw...)
+    if sys isa NParticles && sys.statistics == FermiDirac && !hasinternal(sys)
         @warn """Fermi-Dirac statistics with no internal degrees of freedom.
         No interaction is possible."""
     end
@@ -35,6 +35,41 @@ Generates a Bose-Hubbard model hamiltonian on given lattice `lat`.
 """
 bosehubbard(type::Type, l::AbstractLattice, N::Int; T = 0, occupations_type=nothing, kw...) =
     hubbard(type, NParticles(l, N; T = T, statistics = BoseEinstein, occupations_type=occupations_type); kw...)
+
+_nspins(v::AbstractVector, up=true) = sum(@view v[2 - up:2:end])
+_odds_mask(v::Unsigned) = typemax(v) ÷ 3
+function _odds_mask(v::BigInt)
+    lenp = prevpow(4, v)
+    return lenp + (lenp - 1) ÷ 3
+end
+function _nspins(v::FermionBitstring, up=true)
+    mask = _odds_mask(v.bits) << (1 - up)
+    return count_ones(v.bits & mask)
+end
+function _filter_occupations!(occ, N_up, N_down)
+    keep_inds = Int[]
+    for i in eachindex(occ)
+        if _nspins(occ[i]) == N_up && _nspins(occ[i], false) == N_down
+            push!(keep_inds, i)
+        end
+    end
+    keepat!(occ.sortedvector, keep_inds)
+end
+
+"""
+    FermiHubbardSpinSystem(l, N_up, N_down[; occupations_type])
+
+Generates a Fermi-Hubbard model basis system on given lattice `l`. The number of particles is
+`N_up` and `N_down` for spin up and down respectively. The `occupations_type` keyword argument
+defines the type of the occupation basis.
+"""
+function FermiHubbardSpinSystem(l::AbstractLattice, N_up, N_down; occupations_type=nothing, kw...)
+    occ = occupations(NParticles(l ⊗ SpinBasis(1//2), N_up + N_down, occupations_type=occupations_type))
+    _filter_occupations!(occ, N_up, N_down)
+    bas = ManyBodyBasis(basis(l ⊗ SpinBasis(1//2)), occ)
+    return ManyBodyBasisSystem(bas; kw...)
+end
+
 """
     fermihubbard([type, ]lat, N[; U, T, t1, t2, t3, field])
 

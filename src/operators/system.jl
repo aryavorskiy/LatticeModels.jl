@@ -39,6 +39,7 @@ Define this function for your type to implement `Sample` API.
 sample(lb::LatticeBasis) = Sample(lb.lat)
 sample(b::CompositeLatticeBasis) = Sample(b.bases[2].lat, b.bases[1])
 sample(mb::ManyBodyBasis) = sample(mb.onebodybasis)
+sample(b::Basis) = throw(ArgumentError("Basis has no lattice: $b"))
 sample(state::StateType) = sample(basis(state))
 sample(op::AbstractLatticeOperator) = sample(basis(op))
 lattice(sample::Sample) = sample.lat
@@ -125,8 +126,6 @@ end
 
 abstract type ManyBodySystem{SampleT} <: System{SampleT} end
 
-# TODO incapsulate occupations type
-# TODO implement ManyBodyBasisSystem (?)
 struct NParticles{OccT,SampleT,NPT} <: ManyBodySystem{SampleT}
     sample::SampleT
     nparticles::NPT
@@ -180,6 +179,27 @@ function Base.show(io::IO, mime::MIME"text/plain", sys::NParticles{OccT}) where 
     show(io, mime, sys.sample)
 end
 
+struct ManyBodyBasisSystem{SampleT, MBT<:ManyBodyBasis} <: ManyBodySystem{SampleT}
+    sample::SampleT
+    mb::MBT
+    T::Float64
+    function ManyBodyBasisSystem(mb::MBT; T=0) where {MBT<:ManyBodyBasis}
+        s = sample(mb)
+        new{typeof(s), MBT}(s, mb, T)
+    end
+end
+function Base.show(io::IO, mime::MIME"text/plain", sys::ManyBodyBasisSystem)
+    print(io, "Many-body system on ")
+    show(io, mime, sys.sample)
+    print(io, " ($(length(sys.mb)) states)")
+end
+function Base.union(mbs1::ManyBodyBasisSystem, mbs2::ManyBodyBasisSystem)
+    sample(mbs1) == sample(mbs2) || throw(ArgumentError("Incompatible systems"))
+    mbs1.T == mbs2.T || throw(ArgumentError("Incompatible temperatures"))
+    new_basis = ManyBodyBasis(onebodybasis(mbs1), union(mbs1.mb.occupations, mbs2.mb.occupations))
+    return ManyBodyBasisSystem(new_basis, T=mbs1.T)
+end
+
 """
     System(lat[, internal; T, μ, N, statistics])
 
@@ -228,6 +248,7 @@ function System(args...; μ = nothing, mu = μ, N = nothing, statistics=FermiDir
     isempty(kw) || throw(ArgumentError("Unsupported keyword arguments " * join(keys(kw), ", ")))
     System(Sample(args...), mu=mu, N=N, T=T, statistics=statistics)
 end
+System(mb::ManyBodyBasis; T=0) = ManyBodyBasisSystem(mb, T)
 _occtype(::NParticles{OccT}) where {OccT} = OccT
 function occupations(np::NParticles, occupations_type::Union{Type,Nothing}=_occtype(np))
     n = np.nparticles
@@ -241,10 +262,12 @@ function occupations(np::NParticles, occupations_type::Union{Type,Nothing}=_occt
         throw(ArgumentError("Unsupported statistics: $(np.statistics)"))
     end
 end
+occupations(sys::ManyBodyBasisSystem) = sys.mb.occupations
 
 onebodybasis(sys::System) = basis(sys.sample)
 QuantumOpticsBase.basis(sys::OneParticleBasisSystem) = onebodybasis(sys)
 QuantumOpticsBase.basis(sys::NParticles) = ManyBodyBasis(basis(sys.sample), occupations(sys))
+QuantumOpticsBase.basis(sys::ManyBodyBasisSystem) = sys.mb
 
 Base.zero(sys::System) = zero(basis(sys))
 
