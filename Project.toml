@@ -1,7 +1,7 @@
 name = "LatticeModels"
 uuid = "3c3db7f8-440c-4375-905c-1a18b5307bed"
 authors = ["A. Yavorsky <iavorskii.ar@phystech.edu>"]
-version = "1.0.5"
+version = "1.0.6"
 
 [deps]
 ColorTypes = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
@@ -23,7 +23,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 ColorTypes = "0.11, 0.12"
 FillArrays = "0.13, 1"
 IntervalSets = "0.7"
-KrylovKit = "0.4 - 0.8, 0.9"
+KrylovKit = "0.4 - 0.9"
 PrecompileTools = "1.2"
 ProgressMeter = "1"
 QuantumOpticsBase = "^0.4.22, ^0.5"
