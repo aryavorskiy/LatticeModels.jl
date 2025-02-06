@@ -53,14 +53,14 @@ end
 function _filter_occupations!(occ::AbstractVector, N_up, N_down)
     keep_inds = Int[]
     for i in eachindex(occ)
-        if _nspins(occ[i]) == N_up && _nspins(occ[i], false) == N_down
+        if _nspins(occ[i]) != N_up || _nspins(occ[i], false) != N_down
             push!(keep_inds, i)
         end
     end
     if occ isa QuantumOpticsBase.SortedVector
-        keepat!(occ.sortedvector, keep_inds)
+        deleteat!(occ.sortedvector, keep_inds)
     else
-        keepat!(occ, keep_inds)
+        deleteat!(occ, keep_inds)
     end
 end
 
