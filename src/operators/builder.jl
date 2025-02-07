@@ -94,6 +94,7 @@ mutable struct UniformSparseMatrixBuilder{T} <: AbstractMatrixBuilder{T}
     rowvals::Vector{Int}
     nzvals::Vector{T}
     function UniformSparseMatrixBuilder{T}(szx::Int, szy::Int, maxcollen::Int=4) where T
+        maxcollen = max(maxcollen, 1)
         new{T}((szx, szy), maxcollen, zeros(Int, szy), zeros(Int, maxcollen * szy), zeros(T, maxcollen * szy))
     end
 end

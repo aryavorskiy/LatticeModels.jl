@@ -95,6 +95,7 @@ _count_lcol(::AbstractSite) = 0
 _count_lcol(::SingleBond) = 1
 # op
 _count_lcol(mat::AbstractMatrix) = maximum(count(!=(0), mat, dims=1))
+_count_lcol(op::DataOperator) = _count_lcol(op.data)
 
 """
     construct_operator([T, ]sys, terms...[; field, auto_pbc_field])
