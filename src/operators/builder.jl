@@ -16,35 +16,37 @@ Base.convert(::Type{ArrayEntry{T}}, x::Any) where T = ArrayEntry(convert(T, x), 
 Base.zero(::Type{ArrayEntry{T}}) where T = ArrayEntry(zero(T), true)
 to_number(mw::ArrayEntry) = mw.val
 
-struct SparseMatrixBuilder{T}
+abstract type AbstractMatrixBuilder{T} end
+
+struct SimpleMatrixBuilder{T} <: AbstractMatrixBuilder{T}
     size::Tuple{Int,Int}
     Is::Vector{Int}
     Js::Vector{Int}
     Vs::Vector{T}
-    SparseMatrixBuilder{T}(x::Int, y::Int) where T = new{T}((x, y), Int[], Int[], T[])
+    SimpleMatrixBuilder{T}(x::Int, y::Int) where T = new{T}((x, y), Int[], Int[], T[])
 end
-function to_matrix(A::SparseMatrixBuilder)
+function to_matrix(A::SimpleMatrixBuilder)
     sparse(A.Is, A.Js, A.Vs, A.size...)
 end
-function to_matrix(A::SparseMatrixBuilder{<:ArrayEntry})
+function to_matrix(A::SimpleMatrixBuilder{<:ArrayEntry})
     _mat = sparse(A.Is, A.Js, A.Vs, A.size..., combine_entries)
     return SparseMatrixCSC(_mat.m, _mat.n, _mat.colptr, _mat.rowval, to_number.(_mat.nzval))
 end
 
-function Base.sizehint!(A::SparseMatrixBuilder, n::Int)
+function Base.sizehint!(A::SimpleMatrixBuilder, n::Int)
     sizehint!(A.Is, n)
     sizehint!(A.Js, n)
     sizehint!(A.Vs, n)
 end
 
-Base.@propagate_inbounds function Base.setindex!(A::SparseMatrixBuilder{<:ArrayEntry}, B::Number, i1::Int, i2::Int; overwrite=true, factor=1)
+Base.@propagate_inbounds function Base.setindex!(A::SimpleMatrixBuilder{<:ArrayEntry}, B::Number, i1::Int, i2::Int; overwrite=true, factor=1)
     # number increment
     push!(A.Is, i1)
     push!(A.Js, i2)
     push!(A.Vs, ArrayEntry(B * factor, overwrite))
     return nothing
 end
-Base.@propagate_inbounds function Base.setindex!(A::SparseMatrixBuilder, B::Number, i1::Int, i2::Int; overwrite=true, factor=1)
+Base.@propagate_inbounds function Base.setindex!(A::SimpleMatrixBuilder, B::Number, i1::Int, i2::Int; overwrite=true, factor=1)
     # number increment
     overwrite && throw(ArgumentError("FastOperatorBuilder does not support overwriting setindex!"))
     push!(A.Is, i1)
@@ -52,15 +54,14 @@ Base.@propagate_inbounds function Base.setindex!(A::SparseMatrixBuilder, B::Numb
     push!(A.Vs, B * factor)
     return nothing
 end
-Base.@propagate_inbounds function Base.setindex!(A::SparseMatrixBuilder, B::AbstractMatrix,
+Base.@propagate_inbounds function Base.setindex!(A::AbstractMatrixBuilder, B::AbstractMatrix,
         is1::AbstractArray, is2::AbstractArray; overwrite=true, factor=1)
     for (i1, j1) in enumerate(is1), (i2, j2) in enumerate(is2)
         v = B[i1, i2]
         iszero(v) || (A[j1, j2, overwrite=overwrite, factor=factor] = v)
     end
 end
-Base.@propagate_inbounds function increment!(A::SparseMatrixBuilder,
-        B::SparseMatrixCSC; factor=1)
+Base.@propagate_inbounds function increment!(A::SimpleMatrixBuilder, B::SparseMatrixCSC; factor=1)
     # global increment
     nis, njs, nvs = findnz(B)
     append!(A.Is, nis)
@@ -80,10 +81,69 @@ Base.:(+)(v::BuilderView, B) = BuilderIncrementIndex(v.axes, B, 1)
 Base.:(-)(v::BuilderView, B) = BuilderIncrementIndex(v.axes, B, -1)
 Base.adjoint(incr::BuilderIncrementIndex) = BuilderIncrementIndex(reverse(incr.axes), incr.B', incr.factor')
 
-Base.getindex(::SparseMatrixBuilder, I...) = BuilderView(I)
-Base.@propagate_inbounds function Base.setindex!(b::SparseMatrixBuilder, incr::BuilderIncrementIndex, I...; factor=1)
+Base.getindex(::AbstractMatrixBuilder, I...) = BuilderView(I)
+Base.@propagate_inbounds function Base.setindex!(b::AbstractMatrixBuilder, incr::BuilderIncrementIndex, I...; factor=1)
     @boundscheck incr.axes != I && throw(ArgumentError("Invalid indexing. Only `A[I...] (+=|-=|=) B` is allowed."))
     b[I..., overwrite=false, factor=incr.factor * factor] = incr.B
+end
+
+mutable struct UniformSparseMatrixBuilder{T} <: AbstractMatrixBuilder{T}
+    sz::Tuple{Int,Int}
+    maxcollen::Int
+    collens::Vector{Int}
+    rowvals::Vector{Int}
+    nzvals::Vector{T}
+    function UniformSparseMatrixBuilder{T}(szx::Int, szy::Int, maxcollen::Int=4) where T
+        new{T}((szx, szy), maxcollen, zeros(Int, szy), zeros(Int, maxcollen * szy), zeros(T, maxcollen * szy))
+    end
+end
+
+function _grow_to!(b::UniformSparseMatrixBuilder, new_maxcollen)
+    new_rowvals = zeros(Int, (new_maxcollen, b.sz[2]))
+    new_nzvals = similar(b.nzvals, (new_maxcollen, b.sz[2]))
+    copyto!(@view(new_rowvals[1:b.maxcollen, :]), b.rowvals)
+    copyto!(@view(new_nzvals[1:b.maxcollen, :]), b.nzvals)
+
+    b.rowvals = vec(new_rowvals)
+    b.nzvals = vec(new_nzvals)
+    b.maxcollen = new_maxcollen
+end
+
+Base.@propagate_inbounds function Base.setindex!(b::UniformSparseMatrixBuilder, x, i::Int, j::Int; overwrite=true, factor=1)
+    if b.collens[j] == b.maxcollen
+        _grow_to!(b, b.maxcollen * 2)
+    end
+    col_start = (j - 1) * b.maxcollen + 1
+    col_end = col_start + b.collens[j] - 1
+    I = col_start
+    for _ in 1:b.collens[j]
+        b.rowvals[I] >= i && break
+        I += 1
+    end
+    new_entry = b.rowvals[I] != i
+    if b.rowvals[I] != i
+        b.collens[j] += 1
+        for i in col_end:-1:I
+            b.rowvals[i + 1] = b.rowvals[i]
+            b.nzvals[i + 1] = b.nzvals[i]
+        end
+        b.rowvals[I] = i
+    end
+    if overwrite || new_entry
+        b.nzvals[I] = x * factor
+    else
+        b.nzvals[I] += x * factor
+    end
+end
+
+function to_matrix(b::UniformSparseMatrixBuilder)
+    mask = b.rowvals .== 0
+    rowval = deleteat!(b.rowvals, mask)
+    nzval = deleteat!(b.nzvals, mask)
+    b.collens[1] += 1
+    colptr = cumsum(b.collens)
+    pushfirst!(colptr, 1)
+    return SparseMatrixCSC(b.sz[1], b.sz[2], colptr, rowval, nzval)
 end
 
 """
@@ -92,11 +152,11 @@ end
 A helper struct for building custom operators. This struct is used to build operators for a
 given system or lattice.
 """
-struct OperatorBuilder{SystemT, FieldT, T}
+struct OperatorBuilder{SystemT, FieldT, BuilderT <: AbstractMatrixBuilder}
     sys::SystemT
     field::FieldT
     internal_length::Int
-    mat_builder::SparseMatrixBuilder{T}
+    mat_builder::BuilderT
     auto_hermitian::Bool
 end
 
@@ -158,8 +218,8 @@ function OperatorBuilder(T::Type{<:Number}, sys::SystemT; field::AbstractField=N
     else
         field2 = field
     end
-    OperatorBuilder{SystemT, typeof(field2), ArrayEntry{T}}(sys, field2, internal_length(sys),
-        SparseMatrixBuilder{ArrayEntry{T}}(oneparticle_len, oneparticle_len), auto_hermitian)
+    OperatorBuilder{SystemT, typeof(field2), SimpleMatrixBuilder{ArrayEntry{T}}}(sys, field2, internal_length(sys),
+        SimpleMatrixBuilder{ArrayEntry{T}}(oneparticle_len, oneparticle_len), auto_hermitian)
 end
 
 """
@@ -179,11 +239,23 @@ function FastOperatorBuilder(T::Type{<:Number}, sys::SystemT; field::AbstractFie
     else
         field2 = field
     end
-    OperatorBuilder{SystemT, typeof(field2), T}(sys, field2, internal_length(sys),
-        SparseMatrixBuilder{T}(oneparticle_len, oneparticle_len), auto_hermitian)
+    OperatorBuilder{SystemT, typeof(field2), SimpleMatrixBuilder{T}}(sys, field2,
+        internal_length(sys), SimpleMatrixBuilder{T}(oneparticle_len, oneparticle_len), auto_hermitian)
 end
 @accepts_system_t OperatorBuilder
 @accepts_system_t FastOperatorBuilder
+
+function UniformOperatorBuilder(T::Type{<:Number}, sys::SystemT; field::AbstractField=NoField(),
+        auto_hermitian=false, auto_pbc_field=true, lcolhint=4) where {SystemT<:System}
+    oneparticle_len = length(onebodybasis(sys))
+    if auto_pbc_field
+        field2 = adapt_field(field, lattice(sys))
+    else
+        field2 = field
+    end
+    OperatorBuilder{SystemT, typeof(field2), UniformSparseMatrixBuilder{T}}(sys, field2, internal_length(sys),
+        UniformSparseMatrixBuilder{T}(oneparticle_len, oneparticle_len, lcolhint), auto_hermitian)
+end
 
 sample(opb::OperatorBuilder) = sample(opb.sys)
 const OpBuilderWithInternal = OperatorBuilder{<:System{<:SampleWithInternal}}
@@ -228,7 +300,6 @@ end
     field_fact = exp(-2π * im * line_integral(field, s1.old_site.coords, s2.old_site.coords))
     return s1.index, s2.index, s2.factor * field_fact * s1.factor'
 end
-
 Base.getindex(::OperatorBuilder, axes...) = BuilderView(axes)
 
 function _preprocess_op(sample::Sample, uvw::BuilderIncrementIndex, axes, new_axes)

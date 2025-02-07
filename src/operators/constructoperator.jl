@@ -83,6 +83,19 @@ function arg_to_pair(sample::Sample, arg::Pair{<:Union{Number,AbstractMatrix,Dat
     return op_to_matrix(sample, op) => new_onlat
 end
 
+_count_lcol(p::Pair) = _count_lcol(p[1]) * _count_lcol(p[2])
+# onlat
+_count_lcol(::Number) = 1
+_count_lcol(::LatticeValue) = 1
+_count_lcol(::AbstractTranslation) = 2
+_count_lcol(btr::BravaisTranslation) = 1 + allequal(btr.site_indices)
+_count_lcol(bsm::BravaisSiteMapping) = sum(_count_lcol, bsm.translations)
+_count_lcol(::AbstractBonds) = 4
+_count_lcol(::AbstractSite) = 0
+_count_lcol(::SingleBond) = 1
+# op
+_count_lcol(mat::AbstractMatrix) = maximum(count(!=(0), mat, dims=1))
+
 """
     construct_operator([T, ]sys, terms...[; field, auto_pbc_field])
     construct_operator([T, ]lat[, internal, terms...; field])
@@ -113,8 +126,12 @@ See documentation for more details.
 """
 function construct_operator(T::Type, sys::System, args...; kw...)
     sample = sys.sample
-    builder = FastOperatorBuilder(T, sys; auto_hermitian=true, kw...)
-    sizehint!(builder.mat_builder, length(sample) * length(args))
+    # builder = FastOperatorBuilder(T, sys; auto_hermitian=true, kw...)
+    # sizehint!(builder.mat_builder, length(sample) * length(args))
+    lcnt = sum(args) do arg
+        _count_lcol(arg_to_pair(sample, arg))
+    end
+    builder = UniformOperatorBuilder(T, sys; auto_hermitian=true, lcolhint=lcnt, kw...)
     for arg in args
         pair = arg_to_pair(sample, arg)
         pair isa Pair && iszero(first(pair)) && continue
