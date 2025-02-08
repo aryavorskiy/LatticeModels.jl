@@ -94,6 +94,7 @@ _count_lcol(::AbstractBonds) = 4
 _count_lcol(::AbstractSite) = 0
 _count_lcol(::SingleBond) = 1
 # op
+_count_lcol(mat::SparseMatrixCSC) = maximum(diff(mat.colptr))
 _count_lcol(mat::AbstractMatrix) = maximum(count(!=(0), mat, dims=1))
 _count_lcol(op::DataOperator) = _count_lcol(op.data)
 
@@ -129,12 +130,10 @@ function construct_operator(T::Type, sys::System, args...; kw...)
     sample = sys.sample
     # builder = FastOperatorBuilder(T, sys; auto_hermitian=true, kw...)
     # sizehint!(builder.mat_builder, length(sample) * length(args))
-    lcnt = sum(args) do arg
-        _count_lcol(arg_to_pair(sample, arg))
-    end
-    builder = UniformOperatorBuilder(T, sys; auto_hermitian=true, lcolhint=lcnt, kw...)
-    for arg in args
-        pair = arg_to_pair(sample, arg)
+    arg_pairs = map(arg -> arg_to_pair(sample, arg), args)
+    builder = UniformOperatorBuilder(T, sys; auto_hermitian=true,
+        lcolhint=sum(_count_lcol, arg_pairs), kw...)
+    for pair in arg_pairs
         pair isa Pair && iszero(first(pair)) && continue
         add_term!(builder, pair)
     end

@@ -110,7 +110,7 @@ function _grow_to!(b::UniformSparseMatrixBuilder, new_maxcollen)
     b.maxcollen = new_maxcollen
 end
 
-Base.@propagate_inbounds function Base.setindex!(b::UniformSparseMatrixBuilder, x, i::Int, j::Int; overwrite=true, factor=1)
+Base.@propagate_inbounds function Base.setindex!(b::UniformSparseMatrixBuilder, x::Number, i::Int, j::Int; overwrite=true, factor=1)
     if b.collens[j] == b.maxcollen
         _grow_to!(b, b.maxcollen * 2)
     end
@@ -134,6 +134,13 @@ Base.@propagate_inbounds function Base.setindex!(b::UniformSparseMatrixBuilder, 
         b.nzvals[I] = x * factor
     else
         b.nzvals[I] += x * factor
+    end
+end
+function increment!(b::AbstractMatrixBuilder, x::SparseMatrixCSC)
+    for j in 1:b.sz[2]
+        for i in x.colptr[j]:x.colptr[j + 1] - 1
+            b[x.rowval[i], j, overwrite=false] = x.nzval[i]
+        end
     end
 end
 

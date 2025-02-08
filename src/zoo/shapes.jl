@@ -360,6 +360,19 @@ function _add_counts!(counts, bsm::BravaisSiteMapping)
     end
 end
 
+function mergesorted!(arr, arr2)
+    i = 1
+    for j in eachindex(arr2)
+        i = searchsortedfirst(arr, arr2[j], i, length(arr), Base.Order.Forward)
+        if i > length(arr)
+            append!(arr, @view arr2[j:end])
+            break
+        end
+        insert!(arr, i, arr2[j])
+        i += 1
+    end
+end
+
 function _removedangling!(rlat, maxdepth, nns)
     counts = zeros(Int, length(rlat))
     _add_counts!(counts, nns)
@@ -377,7 +390,7 @@ function _removedangling!(rlat, maxdepth, nns)
         counts[itr_Is] .= 0
         itr_Is = findall(==(1), counts)
         isempty(itr_Is) && break
-        append!(all_Is, itr_Is)
+        mergesorted!(all_Is, itr_Is)
         iter_count += 1
     end
     deleteat!(rlat, all_Is)
