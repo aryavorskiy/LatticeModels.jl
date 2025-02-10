@@ -74,7 +74,7 @@ QuantumOpticsBase.basisstate(T::Type, op::OneParticleBasisSystem, ind::SampleInd
 @accepts_system_t QuantumOpticsBase.basisstate
 
 function QuantumOpticsBase.transition(b::OneParticleBasis, site1::AbstractSite, site2::AbstractSite)
-    builder = FastOperatorBuilder(OneParticleSystem(sample(b)))
+    builder = OperatorBuilder(OneParticleSystem(sample(b)))
     builder[site1, site2] += internal_one(b)
     return Operator(builder, warning=false)
 end

@@ -1,4 +1,5 @@
 import QuantumOpticsBase: DataOperator
+using LinearAlgebra
 
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:SingleBond})
     # Single bond
@@ -83,20 +84,22 @@ function arg_to_pair(sample::Sample, arg::Pair{<:Union{Number,AbstractMatrix,Dat
     return op_to_matrix(sample, op) => new_onlat
 end
 
-_count_lcol(p::Pair) = _count_lcol(p[1]) * _count_lcol(p[2])
+_colsize_est(p::Pair) = _colsize_est(p[1]) * _colsize_est(p[2])
 # onlat
-_count_lcol(::Number) = 1
-_count_lcol(::LatticeValue) = 1
-_count_lcol(::AbstractTranslation) = 2
-_count_lcol(btr::BravaisTranslation) = 1 + allequal(btr.site_indices)
-_count_lcol(bsm::BravaisSiteMapping) = sum(_count_lcol, bsm.translations)
-_count_lcol(::AbstractBonds) = 4
-_count_lcol(::AbstractSite) = 0
-_count_lcol(::SingleBond) = 1
+_colsize_est(::Number) = 1
+_colsize_est(::LatticeValue) = 1
+_colsize_est(::AbstractTranslation) = 2
+_colsize_est(btr::BravaisTranslation) = 1 + allequal(btr.site_indices)
+_colsize_est(bsm::BravaisSiteMapping) = sum(_colsize_est, bsm.translations)
+_colsize_est(::AbstractBonds) = 4
+_colsize_est(::AbstractSite) = 0
+_colsize_est(::SingleBond) = 1
 # op
-_count_lcol(mat::SparseMatrixCSC) = maximum(diff(mat.colptr))
-_count_lcol(mat::AbstractMatrix) = maximum(count(!=(0), mat, dims=1))
-_count_lcol(op::DataOperator) = _count_lcol(op.data)
+_colsize_est(mat::SparseMatrixCSC) = maximum(diff(mat.colptr))
+_colsize_est(mat::AbstractMatrix) = maximum(count(!=(0), mat, dims=1))
+_colsize_est(::Diagonal) = 1
+_colsize_est(::SMatrix{N}) where N = N
+_colsize_est(op::DataOperator) = _colsize_est(op.data)
 
 """
     construct_operator([T, ]sys, terms...[; field, auto_pbc_field])
@@ -128,16 +131,19 @@ See documentation for more details.
 """
 function construct_operator(T::Type, sys::System, args...; kw...)
     sample = sys.sample
-    # builder = FastOperatorBuilder(T, sys; auto_hermitian=true, kw...)
-    # sizehint!(builder.mat_builder, length(sample) * length(args))
     arg_pairs = map(arg -> arg_to_pair(sample, arg), args)
-    builder = UniformOperatorBuilder(T, sys; auto_hermitian=true,
-        lcolhint=sum(_count_lcol, arg_pairs), kw...)
+    colsize_hint = sum(_colsize_est, arg_pairs)
+    if colsize_hint > 1000
+        mat_builder = SimpleMatrixBuilder{T}(length(sample), length(sample), colsize_hint * length(sample))
+    else
+        mat_builder = UniformMatrixBuilder{T}(length(sample), length(sample), colsize_hint)
+    end
+    op_builder = OperatorBuilder(sys, mat_builder; auto_hermitian=true, kw...)
     for pair in arg_pairs
         pair isa Pair && iszero(first(pair)) && continue
-        add_term!(builder, pair)
+        add_term!(op_builder, pair)
     end
-    Operator(builder)
+    Operator(op_builder)
 end
 @accepts_system_t construct_operator
 

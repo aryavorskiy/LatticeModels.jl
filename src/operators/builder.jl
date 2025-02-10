@@ -1,5 +1,7 @@
 import QuantumOpticsBase: Operator, manybodyoperator, check_samebases
 
+abstract type AbstractMatrixBuilder{T} end
+
 struct ArrayEntry{T}
     val::T
     overwrite::Bool
@@ -15,8 +17,6 @@ Base.convert(::Type{ArrayEntry{T}}, mw::ArrayEntry) where T = ArrayEntry(convert
 Base.convert(::Type{ArrayEntry{T}}, x::Any) where T = ArrayEntry(convert(T, x), false)
 Base.zero(::Type{ArrayEntry{T}}) where T = ArrayEntry(zero(T), true)
 to_number(mw::ArrayEntry) = mw.val
-
-abstract type AbstractMatrixBuilder{T} end
 
 struct SimpleMatrixBuilder{T} <: AbstractMatrixBuilder{T}
     size::Tuple{Int,Int}
@@ -37,8 +37,10 @@ function Base.sizehint!(A::SimpleMatrixBuilder, n::Int)
     sizehint!(A.Is, n)
     sizehint!(A.Js, n)
     sizehint!(A.Vs, n)
+    return A
 end
-
+SimpleMatrixBuilder{T}(x::Int, y::Int, size_hint::Int) where T =
+    sizehint!(SimpleMatrixBuilder{T}(x, y), size_hint)
 Base.@propagate_inbounds function Base.setindex!(A::SimpleMatrixBuilder{<:ArrayEntry}, B::Number, i1::Int, i2::Int; overwrite=true, factor=1)
     # number increment
     push!(A.Is, i1)
@@ -87,43 +89,45 @@ Base.@propagate_inbounds function Base.setindex!(b::AbstractMatrixBuilder, incr:
     b[I..., overwrite=false, factor=incr.factor * factor] = incr.B
 end
 
-mutable struct UniformSparseMatrixBuilder{T} <: AbstractMatrixBuilder{T}
+mutable struct UniformMatrixBuilder{T} <: AbstractMatrixBuilder{T}
     sz::Tuple{Int,Int}
-    maxcollen::Int
-    collens::Vector{Int}
+    maxcolsize::Int
+    colsizes::Vector{Int}
     rowvals::Vector{Int}
     nzvals::Vector{T}
-    function UniformSparseMatrixBuilder{T}(szx::Int, szy::Int, maxcollen::Int=4) where T
-        maxcollen = max(maxcollen, 1)
-        new{T}((szx, szy), maxcollen, zeros(Int, szy), zeros(Int, maxcollen * szy), zeros(T, maxcollen * szy))
+    function UniformMatrixBuilder{T}(szx::Int, szy::Int, size_hint::Int=4) where T
+        size_hint = max(size_hint, 1)
+        new{T}((szx, szy), size_hint, zeros(Int, szy), zeros(Int, size_hint * szy), zeros(T, size_hint * szy))
     end
 end
 
-function _grow_to!(b::UniformSparseMatrixBuilder, new_maxcollen)
+function _grow_to!(b::UniformMatrixBuilder, new_maxcollen)
     new_rowvals = zeros(Int, (new_maxcollen, b.sz[2]))
     new_nzvals = similar(b.nzvals, (new_maxcollen, b.sz[2]))
-    copyto!(@view(new_rowvals[1:b.maxcollen, :]), b.rowvals)
-    copyto!(@view(new_nzvals[1:b.maxcollen, :]), b.nzvals)
+    copyto!(@view(new_rowvals[1:b.maxcolsize, :]), b.rowvals)
+    copyto!(@view(new_nzvals[1:b.maxcolsize, :]), b.nzvals)
 
     b.rowvals = vec(new_rowvals)
     b.nzvals = vec(new_nzvals)
-    b.maxcollen = new_maxcollen
+    b.maxcolsize = new_maxcollen
+    return b
 end
+Base.sizehint!(b::UniformMatrixBuilder, n::Int) = n > b.maxcolsize ? _grow_to!(b, n) : b
 
-Base.@propagate_inbounds function Base.setindex!(b::UniformSparseMatrixBuilder, x::Number, i::Int, j::Int; overwrite=true, factor=1)
-    if b.collens[j] == b.maxcollen
-        _grow_to!(b, b.maxcollen * 2)
+Base.@propagate_inbounds function Base.setindex!(b::UniformMatrixBuilder, x::Number, i::Int, j::Int; overwrite=true, factor=1)
+    if b.colsizes[j] == b.maxcolsize
+        _grow_to!(b, b.maxcolsize * 2)
     end
-    col_start = (j - 1) * b.maxcollen + 1
-    col_end = col_start + b.collens[j] - 1
+    col_start = (j - 1) * b.maxcolsize + 1
+    col_end = col_start + b.colsizes[j] - 1
     I = col_start
-    for _ in 1:b.collens[j]
+    for _ in 1:b.colsizes[j]
         b.rowvals[I] >= i && break
         I += 1
     end
     new_entry = b.rowvals[I] != i
     if b.rowvals[I] != i
-        b.collens[j] += 1
+        b.colsizes[j] += 1
         for i in col_end:-1:I
             b.rowvals[i + 1] = b.rowvals[i]
             b.nzvals[i + 1] = b.nzvals[i]
@@ -144,12 +148,12 @@ function increment!(b::AbstractMatrixBuilder, x::SparseMatrixCSC)
     end
 end
 
-function to_matrix(b::UniformSparseMatrixBuilder)
+function to_matrix(b::UniformMatrixBuilder)
     mask = b.rowvals .== 0
     rowval = deleteat!(b.rowvals, mask)
     nzval = deleteat!(b.nzvals, mask)
-    b.collens[1] += 1
-    colptr = cumsum(b.collens)
+    b.colsizes[1] += 1
+    colptr = cumsum(b.colsizes)
     pushfirst!(colptr, 1)
     return SparseMatrixCSC(b.sz[1], b.sz[2], colptr, rowval, nzval)
 end
@@ -160,12 +164,21 @@ end
 A helper struct for building custom operators. This struct is used to build operators for a
 given system or lattice.
 """
-struct OperatorBuilder{SystemT, FieldT, BuilderT <: AbstractMatrixBuilder}
+struct OperatorBuilder{SystemT<:System, FieldT<:AbstractField, BuilderT<:AbstractMatrixBuilder}
     sys::SystemT
-    field::FieldT
-    internal_length::Int
     mat_builder::BuilderT
+    field::FieldT
     auto_hermitian::Bool
+end
+function OperatorBuilder(sys::SystemT, mat_builder::BuilderT; field::FieldT=NoField(),
+        auto_hermitian=false, auto_pbc_field=true) where
+    {SystemT<:System, FieldT<:AbstractField, BuilderT<:AbstractMatrixBuilder}
+    if auto_pbc_field
+        field2 = adapt_field(field, lattice(sys))
+    else
+        field2 = field
+    end
+    return OperatorBuilder(sys, mat_builder, field2, auto_hermitian)
 end
 
 """
@@ -218,52 +231,18 @@ julia> H == tightbinding_hamiltonian(l, field=LandauGauge(0.1))
 true
 ```
 """
-function OperatorBuilder(T::Type{<:Number}, sys::SystemT; field::AbstractField=NoField(),
-        auto_hermitian=false, auto_pbc_field=true) where {SystemT<:System}
+function OperatorBuilder(BT::Type{BuilderType}, sys::SystemT; size_hint=nothing, kw...) where
+        {BuilderType<:AbstractMatrixBuilder, SystemT<:System}
     oneparticle_len = length(onebodybasis(sys))
-    if auto_pbc_field
-        field2 = adapt_field(field, lattice(sys))
+    if size_hint === nothing
+        builder = BT(oneparticle_len, oneparticle_len)
     else
-        field2 = field
+        builder = BT(oneparticle_len, oneparticle_len, size_hint)
     end
-    OperatorBuilder{SystemT, typeof(field2), SimpleMatrixBuilder{ArrayEntry{T}}}(sys, field2, internal_length(sys),
-        SimpleMatrixBuilder{ArrayEntry{T}}(oneparticle_len, oneparticle_len), auto_hermitian)
+    OperatorBuilder(sys, BT(oneparticle_len, oneparticle_len); kw...)
 end
-
-"""
-    FastOperatorBuilder([T, ]sys, [; field, auto_hermitian])
-    FastOperatorBuilder([T, ]lat, [internal; field, auto_hermitian])
-
-Construct an `OperatorBuilder` for a given system or lattice. This version of the constructor
-uses a slightly faster internal representation of the operator matrix, but only allows
-increment/decrement assignments:
-`builder[site1, site2] += 1` is allowed, but `builder[site1, site2] = 1` is not.
-"""
-function FastOperatorBuilder(T::Type{<:Number}, sys::SystemT; field::AbstractField=NoField(),
-        auto_hermitian=false, auto_pbc_field=true) where {SystemT<:System}
-    oneparticle_len = length(onebodybasis(sys))
-    if auto_pbc_field
-        field2 = adapt_field(field, lattice(sys))
-    else
-        field2 = field
-    end
-    OperatorBuilder{SystemT, typeof(field2), SimpleMatrixBuilder{T}}(sys, field2,
-        internal_length(sys), SimpleMatrixBuilder{T}(oneparticle_len, oneparticle_len), auto_hermitian)
-end
-@accepts_system_t OperatorBuilder
-@accepts_system_t FastOperatorBuilder
-
-function UniformOperatorBuilder(T::Type{<:Number}, sys::SystemT; field::AbstractField=NoField(),
-        auto_hermitian=false, auto_pbc_field=true, lcolhint=4) where {SystemT<:System}
-    oneparticle_len = length(onebodybasis(sys))
-    if auto_pbc_field
-        field2 = adapt_field(field, lattice(sys))
-    else
-        field2 = field
-    end
-    OperatorBuilder{SystemT, typeof(field2), UniformSparseMatrixBuilder{T}}(sys, field2, internal_length(sys),
-        UniformSparseMatrixBuilder{T}(oneparticle_len, oneparticle_len, lcolhint), auto_hermitian)
-end
+OperatorBuilder(T::Type{<:Number}, sys::SystemT; kw...) where {SystemT<:System} =
+    OperatorBuilder(SimpleMatrixBuilder{ArrayEntry{T}}, sys; kw...)
 
 sample(opb::OperatorBuilder) = sample(opb.sys)
 const OpBuilderWithInternal = OperatorBuilder{<:System{<:SampleWithInternal}}
