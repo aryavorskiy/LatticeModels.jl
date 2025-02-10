@@ -52,7 +52,7 @@ import LatticeModels: ManyBodyBasis, FermionBitstring
         l = SquareLattice(10, 10)
         spin = SpinBasis(1//2)
         builder = OperatorBuilder(l, spin, auto_hermitian=true, field=LandauGauge(0.1))
-        builder2 = FastOperatorBuilder(l ⊗ spin, field=LandauGauge(0.1))
+        builder2 = OperatorBuilder(SimpleMatrixBuilder{ComplexF64}, l ⊗ spin, field=LandauGauge(0.1))
         builder3 = OperatorBuilder(ComplexF16, l, spin, auto_hermitian=true, field=LandauGauge(0.1))
 
         site = l[10]

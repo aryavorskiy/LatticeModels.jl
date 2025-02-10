@@ -50,6 +50,13 @@ function add_term!(builder::OperatorBuilder, arg::DataOperator)
     increment!(builder.mat_builder, arg.data)
 end
 
+function add_terms!(opb::OperatorBuilder, arg, args...)
+    pair = arg_to_pair(sample(opb), arg)
+    (pair isa Pair && iszero(first(pair))) || add_term!(opb, pair)
+    add_terms!(opb, args...)
+end
+add_terms!(::OperatorBuilder) = nothing
+
 function arg_to_pair(sample::Sample, arg::DataOperator)
     if samebases(basis(arg), basis(sample))
         return sparse(arg)
@@ -98,7 +105,6 @@ _colsize_est(::SingleBond) = 1
 _colsize_est(mat::SparseMatrixCSC) = maximum(diff(mat.colptr))
 _colsize_est(mat::AbstractMatrix) = maximum(count(!=(0), mat, dims=1))
 _colsize_est(::Diagonal) = 1
-_colsize_est(::SMatrix{N}) where N = N
 _colsize_est(op::DataOperator) = _colsize_est(op.data)
 
 """
@@ -129,21 +135,21 @@ See documentation for more details.
 - `auto_pbc_field`: Whether to automatically adapt the field to the periodic boundary
     conditions of the lattice. Defaults to `true`.
 """
-function construct_operator(T::Type, sys::System, args...; kw...)
-    sample = sys.sample
-    arg_pairs = map(arg -> arg_to_pair(sample, arg), args)
+function construct_operator(BT::Type{<:AbstractMatrixBuilder{T}}, sys::System, args...; kw...) where T
+    opb = OperatorBuilder(BT, sys; auto_hermitian=true, kw...)
+    add_terms!(opb, args...)
+    return Operator(opb)
+end
+function construct_operator(T::Type{<:Number}, sys::System, args...; kw...)
+    arg_pairs = map(arg -> arg_to_pair(sys.sample, arg), args)
     colsize_hint = sum(_colsize_est, arg_pairs)
-    if colsize_hint > 1000
-        mat_builder = SimpleMatrixBuilder{T}(length(sample), length(sample), colsize_hint * length(sample))
+    if colsize_hint < 1000
+        construct_operator(UniformMatrixBuilder{T}, sys, args...;
+            size_hint=colsize_hint, kw...)
     else
-        mat_builder = UniformMatrixBuilder{T}(length(sample), length(sample), colsize_hint)
+        construct_operator(SimpleMatrixBuilder{T}, sys, args...;
+            size_hint=colsize_hint, kw...)
     end
-    op_builder = OperatorBuilder(sys, mat_builder; auto_hermitian=true, kw...)
-    for pair in arg_pairs
-        pair isa Pair && iszero(first(pair)) && continue
-        add_term!(op_builder, pair)
-    end
-    Operator(op_builder)
 end
 @accepts_system_t construct_operator
 
@@ -178,9 +184,8 @@ All other arguments are interpreted as terms of the Hamiltonian and passed to `c
 - `auto_pbc_field`: Whether to automatically adapt the field to the periodic boundary
     conditions of the lattice. Defaults to `true`.
 """
-tightbinding_hamiltonian(T::Type, sys::System, args...; t1=1, t2=0, t3=0, kw...) =
-    construct_hamiltonian(T, sys, args...,
+tightbinding_hamiltonian(args...; t1=1, t2=0, t3=0, kw...) =
+    construct_hamiltonian(args...,
         t1 => NearestNeighbor(1),
         t2 => NearestNeighbor(2),
         t3 => NearestNeighbor(3); kw...)
-@accepts_system_t tightbinding_hamiltonian

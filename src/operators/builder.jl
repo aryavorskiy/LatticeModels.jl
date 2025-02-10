@@ -64,7 +64,6 @@ Base.@propagate_inbounds function Base.setindex!(A::AbstractMatrixBuilder, B::Ab
     end
 end
 Base.@propagate_inbounds function increment!(A::SimpleMatrixBuilder, B::SparseMatrixCSC; factor=1)
-    # global increment
     nis, njs, nvs = findnz(B)
     append!(A.Is, nis)
     append!(A.Js, njs)
@@ -243,6 +242,7 @@ function OperatorBuilder(BT::Type{BuilderType}, sys::SystemT; size_hint=nothing,
 end
 OperatorBuilder(T::Type{<:Number}, sys::SystemT; kw...) where {SystemT<:System} =
     OperatorBuilder(SimpleMatrixBuilder{ArrayEntry{T}}, sys; kw...)
+@accepts_system_t OperatorBuilder
 
 sample(opb::OperatorBuilder) = sample(opb.sys)
 const OpBuilderWithInternal = OperatorBuilder{<:System{<:SampleWithInternal}}
