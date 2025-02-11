@@ -39,8 +39,8 @@ function Base.sizehint!(A::SimpleMatrixBuilder, n::Int)
     sizehint!(A.Vs, n)
     return A
 end
-SimpleMatrixBuilder{T}(x::Int, y::Int, size_hint::Int) where T =
-    sizehint!(SimpleMatrixBuilder{T}(x, y), size_hint)
+SimpleMatrixBuilder{T}(x::Int, y::Int, col_hint::Int) where T =
+    sizehint!(SimpleMatrixBuilder{T}(x, y), col_hint * x)
 Base.@propagate_inbounds function Base.setindex!(A::SimpleMatrixBuilder{<:ArrayEntry}, B::Number, i1::Int, i2::Int; overwrite=true, factor=1)
     # number increment
     push!(A.Is, i1)
@@ -62,12 +62,6 @@ Base.@propagate_inbounds function Base.setindex!(A::AbstractMatrixBuilder, B::Ab
         v = B[i1, i2]
         iszero(v) || (A[j1, j2, overwrite=overwrite, factor=factor] = v)
     end
-end
-Base.@propagate_inbounds function increment!(A::SimpleMatrixBuilder, B::SparseMatrixCSC; factor=1)
-    nis, njs, nvs = findnz(B)
-    append!(A.Is, nis)
-    append!(A.Js, njs)
-    append!(A.Vs, nvs * factor)
 end
 
 struct BuilderView{AT}
@@ -94,9 +88,9 @@ mutable struct UniformMatrixBuilder{T} <: AbstractMatrixBuilder{T}
     colsizes::Vector{Int}
     rowvals::Vector{Int}
     nzvals::Vector{T}
-    function UniformMatrixBuilder{T}(szx::Int, szy::Int, size_hint::Int=4) where T
-        size_hint = max(size_hint, 1)
-        new{T}((szx, szy), size_hint, zeros(Int, szy), zeros(Int, size_hint * szy), zeros(T, size_hint * szy))
+    function UniformMatrixBuilder{T}(szx::Int, szy::Int, col_hint::Int=4) where T
+        col_hint = max(col_hint, 1)
+        new{T}((szx, szy), col_hint, zeros(Int, szy), zeros(Int, col_hint * szy), zeros(T, col_hint * szy))
     end
 end
 
@@ -120,14 +114,14 @@ Base.@propagate_inbounds function Base.setindex!(b::UniformMatrixBuilder, x::Num
     col_start = (j - 1) * b.maxcolsize + 1
     col_end = col_start + b.colsizes[j] - 1
     I = col_start
-    for _ in 1:b.colsizes[j]
+    @inbounds for _ in 1:b.colsizes[j]
         b.rowvals[I] >= i && break
         I += 1
     end
     new_entry = b.rowvals[I] != i
     if b.rowvals[I] != i
         b.colsizes[j] += 1
-        for i in col_end:-1:I
+        @inbounds for i in col_end:-1:I
             b.rowvals[i + 1] = b.rowvals[i]
             b.nzvals[i + 1] = b.nzvals[i]
         end
@@ -137,13 +131,6 @@ Base.@propagate_inbounds function Base.setindex!(b::UniformMatrixBuilder, x::Num
         b.nzvals[I] = x * factor
     else
         b.nzvals[I] += x * factor
-    end
-end
-function increment!(b::AbstractMatrixBuilder, x::SparseMatrixCSC)
-    for j in 1:b.sz[2]
-        for i in x.colptr[j]:x.colptr[j + 1] - 1
-            b[x.rowval[i], j, overwrite=false] = x.nzval[i]
-        end
     end
 end
 
@@ -230,13 +217,13 @@ julia> H == tightbinding_hamiltonian(l, field=LandauGauge(0.1))
 true
 ```
 """
-function OperatorBuilder(BT::Type{BuilderType}, sys::SystemT; size_hint=nothing, kw...) where
+function OperatorBuilder(BT::Type{BuilderType}, sys::SystemT; col_hint=nothing, kw...) where
         {BuilderType<:AbstractMatrixBuilder, SystemT<:System}
     oneparticle_len = length(onebodybasis(sys))
-    if size_hint === nothing
+    if col_hint === nothing
         builder = BT(oneparticle_len, oneparticle_len)
     else
-        builder = BT(oneparticle_len, oneparticle_len, size_hint)
+        builder = BT(oneparticle_len, oneparticle_len, col_hint)
     end
     OperatorBuilder(sys, BT(oneparticle_len, oneparticle_len); kw...)
 end
@@ -318,11 +305,13 @@ function _construct_manybody_maybe(sys::ManyBodySystem, op::AbstractOperator)
     return manybodyoperator(ManyBodyBasis(bas, occupations(sys)), op)
 end
 _construct_manybody_maybe(::OneParticleBasisSystem, op::AbstractOperator) = op
-function QuantumOpticsBase.Operator(opb::OperatorBuilder{<:Any}; warning=true)
+function to_operator(opb::OperatorBuilder, additional_term=nothing)
     op = Operator(onebodybasis(opb.sys), to_matrix(opb.mat_builder))
-    if warning && !opb.auto_hermitian && !ishermitian(op)
-        @warn "The resulting operator is not hermitian. Set `warning=false` to hide this message or add `auto_hermitian=true` to the `OperatorBuilder` constructor."
+    if additional_term === nothing
+        return _construct_manybody_maybe(opb.sys, op)
+    else
+        return _construct_manybody_maybe(opb.sys, op + additional_term)
     end
-    return _construct_manybody_maybe(opb.sys, op)
 end
-Hamiltonian(opb::OperatorBuilder; kw...) = Hamiltonian(opb.sys, Operator(opb; kw...))
+QuantumOpticsBase.Operator(opb::OperatorBuilder) = to_operator(opb)
+Hamiltonian(opb::OperatorBuilder) = Hamiltonian(opb.sys, Operator(opb))

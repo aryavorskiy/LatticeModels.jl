@@ -45,17 +45,15 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:Number})
         builder.mat_builder[is, is, factor=n, overwrite=false] = op
     end
 end
-function add_term!(builder::OperatorBuilder, arg::DataOperator)
-    # Arbitrary sparse operator
-    increment!(builder.mat_builder, arg.data)
-end
 
-function add_terms!(opb::OperatorBuilder, arg, args...)
-    pair = arg_to_pair(sample(opb), arg)
-    (pair isa Pair && iszero(first(pair))) || add_term!(opb, pair)
-    add_terms!(opb, args...)
+@inline function add_pair_terms!(opb::OperatorBuilder, pair::Pair, args...)
+    iszero(first(pair)) || add_term!(opb, pair)
+    add_pair_terms!(opb, args...)
 end
-add_terms!(::OperatorBuilder) = nothing
+@inline add_pair_terms!(opb::OperatorBuilder, op::DataOperator, args...) =
+    add_pair_terms!(opb, args..., op)
+@inline add_pair_terms!(::OperatorBuilder, ops::DataOperator...) = +(ops...)
+add_pair_terms!(::OperatorBuilder) = nothing
 
 function arg_to_pair(sample::Sample, arg::DataOperator)
     if samebases(basis(arg), basis(sample))
@@ -90,6 +88,7 @@ function arg_to_pair(sample::Sample, arg::Pair{<:Union{Number,AbstractMatrix,Dat
     return op_to_matrix(sample, op) => new_onlat
 end
 
+# Estimate the nz count in a column per term
 _colsize_est(p::Pair) = _colsize_est(p[1]) * _colsize_est(p[2])
 # onlat
 _colsize_est(::Number) = 1
@@ -135,19 +134,24 @@ See documentation for more details.
     conditions of the lattice. Defaults to `true`.
 """
 function construct_operator(BT::Type{<:AbstractMatrixBuilder{T}}, sys::System, args...; kw...) where T
-    opb = OperatorBuilder(BT, sys; auto_hermitian=true, kw...)
-    add_terms!(opb, args...)
-    return Operator(opb)
+    arg_pairs = map(arg -> arg_to_pair(sample(sys), arg), args)
+    col_hint = get(kw, :col_hint, nothing)
+    if col_hint === nothing
+        col_hint = sum(_colsize_est, arg_pairs)
+    end
+    opb = OperatorBuilder(BT, sys; auto_hermitian=true, kw..., col_hint=col_hint)
+    ops_sum = add_pair_terms!(opb, arg_pairs...)
+    return to_operator(opb, ops_sum)
 end
 function construct_operator(T::Type{<:Number}, sys::System, args...; kw...)
     arg_pairs = map(arg -> arg_to_pair(sys.sample, arg), args)
-    colsize_hint = sum(_colsize_est, arg_pairs)
-    if colsize_hint < 1000
+    col_hint = sum(_colsize_est, arg_pairs)
+    if col_hint < 1000
         construct_operator(UniformMatrixBuilder{T}, sys, arg_pairs...;
-            size_hint=colsize_hint, kw...)
+            col_hint=col_hint, kw...)
     else
         construct_operator(SimpleMatrixBuilder{T}, sys, arg_pairs...;
-            size_hint=colsize_hint, kw...)
+            col_hint=col_hint, kw...)
     end
 end
 @accepts_system_t construct_operator
