@@ -248,12 +248,12 @@ sample(opb::OperatorBuilder) = sample(opb.sys)
 const OpBuilderWithInternal = OperatorBuilder{<:System{<:SampleWithInternal}}
 const OpBuilderWithoutInternal = OperatorBuilder{<:System{<:SampleWithoutInternal}}
 
-function Base.show(io::IO, mime::MIME"text/plain", opb::OperatorBuilder{Sys,Field,T}) where {Sys,Field,T}
+function Base.show(io::IO, mime::MIME"text/plain", opb::OperatorBuilder{Sys,Field,BT}) where {Sys,Field,BT}
     print(io, "OperatorBuilder(",
     opb.field == NoField() ? "" : "field=$(opb.field), ",
     "auto_hermitian=$(opb.auto_hermitian))\nSystem: ")
     show(io, mime, opb.sys)
-    if !(T<:ArrayEntry)
+    if BT <: SimpleMatrixBuilder{<:Number}
         print(io, "\nOnly increment/decrement assignments allowed")
     end
 end

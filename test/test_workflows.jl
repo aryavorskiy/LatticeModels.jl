@@ -10,8 +10,7 @@
         H = d + hx + hy
         eig = diagonalize(H)
         P = @test_logs (:info, """Creating density matrix: Fermi sphere, N = 3
-        set `info=false` to disable this message""") (:warn, "degenerate levels on the Fermi sphere"
-            ) densitymatrix(eig, statistics=FermiDirac, N = 3)
+        set `info=false` to disable this message""") densitymatrix(eig, statistics=FermiDirac, N = 3)
         @test all(isfinite, P.data)
     end
 

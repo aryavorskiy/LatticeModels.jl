@@ -74,8 +74,7 @@ function arg_to_pair(sample::Sample, arg::DataOperator)
 end
 
 arg_to_pair(sample::Sample, arg::AbstractMatrix) = op_to_matrix(sample, arg) => 1
-arg_to_pair(sample::Sample, arg) = _internal_one_mat(sample) => arg
-
+arg_to_pair(sample::Sample, arg) = arg_to_pair(sample, 1 => arg)
 function arg_to_pair(sample::Sample, arg::Pair{<:Union{Number,AbstractMatrix,DataOperator}})
     op, onlat = arg
     if onlat isa LatticeValue
@@ -144,10 +143,10 @@ function construct_operator(T::Type{<:Number}, sys::System, args...; kw...)
     arg_pairs = map(arg -> arg_to_pair(sys.sample, arg), args)
     colsize_hint = sum(_colsize_est, arg_pairs)
     if colsize_hint < 1000
-        construct_operator(UniformMatrixBuilder{T}, sys, args...;
+        construct_operator(UniformMatrixBuilder{T}, sys, arg_pairs...;
             size_hint=colsize_hint, kw...)
     else
-        construct_operator(SimpleMatrixBuilder{T}, sys, args...;
+        construct_operator(SimpleMatrixBuilder{T}, sys, arg_pairs...;
             size_hint=colsize_hint, kw...)
     end
 end
