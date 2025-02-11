@@ -270,7 +270,8 @@ op_to_matrix(::SampleWithoutInternal, ::DataOperator) =
 op_to_matrix(::Sample, op) =
     throw(ArgumentError("cannot interpret $(typeof(op)) as on-site operator"))
 
-function expand_bond(l::AbstractLattice, site1::AbstractSite, site2::AbstractSite, field::AbstractField)
+const UnresolvedSite = Union{AbstractSite, ResolvedSite, Int}
+function expand_bond(l::AbstractLattice, site1::UnresolvedSite, site2::UnresolvedSite, field::AbstractField)
     s1 = resolve_site(l, site1)
     s2 = resolve_site(l, site2)
     s1 === nothing && return nothing
