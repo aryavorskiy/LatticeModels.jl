@@ -150,7 +150,7 @@ function construct_operator(T::Type{<:Number}, sys::System, args...; kw...)
         construct_operator(UniformMatrixBuilder{T}, sys, arg_pairs...;
             col_hint=col_hint, kw...)
     else
-        construct_operator(SimpleMatrixBuilder{T}, sys, arg_pairs...;
+        construct_operator(VectorMatrixBuilder{T}, sys, arg_pairs...;
             col_hint=col_hint, kw...)
     end
 end

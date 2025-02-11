@@ -78,7 +78,7 @@ function interaction(f::Function, T::Type{<:Number}, sys::ManyBodySystem, ::Val{
     bas = basis(sys)
     occ_len = length(bas.occupations)
     buffer = allocate_buffer(bas)
-    builder = SimpleMatrixBuilder{T}(occ_len, occ_len)
+    builder = VectorMatrixBuilder{T}(occ_len, occ_len)
     warn_flag = false
     for a_inds_c in c_indices
         a_inds = Tuple(a_inds_c)

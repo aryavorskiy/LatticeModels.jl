@@ -18,37 +18,38 @@ Base.convert(::Type{ArrayEntry{T}}, x::Any) where T = ArrayEntry(convert(T, x), 
 Base.zero(::Type{ArrayEntry{T}}) where T = ArrayEntry(zero(T), true)
 to_number(mw::ArrayEntry) = mw.val
 
-struct SimpleMatrixBuilder{T} <: AbstractMatrixBuilder{T}
+struct VectorMatrixBuilder{T} <: AbstractMatrixBuilder{T}
     size::Tuple{Int,Int}
     Is::Vector{Int}
     Js::Vector{Int}
     Vs::Vector{T}
-    SimpleMatrixBuilder{T}(x::Int, y::Int) where T = new{T}((x, y), Int[], Int[], T[])
+    VectorMatrixBuilder{T}(x::Int, y::Int) where T = new{T}((x, y), Int[], Int[], T[])
 end
-function to_matrix(A::SimpleMatrixBuilder)
+const FlexMatrixBuilder{T} = VectorMatrixBuilder{ArrayEntry{T}}
+function to_matrix(A::VectorMatrixBuilder)
     sparse(A.Is, A.Js, A.Vs, A.size...)
 end
-function to_matrix(A::SimpleMatrixBuilder{<:ArrayEntry})
+function to_matrix(A::FlexMatrixBuilder)
     _mat = sparse(A.Is, A.Js, A.Vs, A.size..., combine_entries)
     return SparseMatrixCSC(_mat.m, _mat.n, _mat.colptr, _mat.rowval, to_number.(_mat.nzval))
 end
 
-function Base.sizehint!(A::SimpleMatrixBuilder, n::Int)
+function Base.sizehint!(A::VectorMatrixBuilder, n::Int)
     sizehint!(A.Is, n)
     sizehint!(A.Js, n)
     sizehint!(A.Vs, n)
     return A
 end
-SimpleMatrixBuilder{T}(x::Int, y::Int, col_hint::Int) where T =
-    sizehint!(SimpleMatrixBuilder{T}(x, y), col_hint * x)
-Base.@propagate_inbounds function Base.setindex!(A::SimpleMatrixBuilder{<:ArrayEntry}, B::Number, i1::Int, i2::Int; overwrite=true, factor=1)
+VectorMatrixBuilder{T}(x::Int, y::Int, col_hint::Int) where T =
+    sizehint!(VectorMatrixBuilder{T}(x, y), col_hint * x)
+Base.@propagate_inbounds function Base.setindex!(A::FlexMatrixBuilder, B::Number, i1::Int, i2::Int; overwrite=true, factor=1)
     # number increment
     push!(A.Is, i1)
     push!(A.Js, i2)
     push!(A.Vs, ArrayEntry(B * factor, overwrite))
     return nothing
 end
-Base.@propagate_inbounds function Base.setindex!(A::SimpleMatrixBuilder, B::Number, i1::Int, i2::Int; overwrite=true, factor=1)
+Base.@propagate_inbounds function Base.setindex!(A::VectorMatrixBuilder, B::Number, i1::Int, i2::Int; overwrite=true, factor=1)
     # number increment
     overwrite && throw(ArgumentError("FastOperatorBuilder does not support overwriting setindex!"))
     push!(A.Is, i1)
@@ -106,7 +107,11 @@ function _grow_to!(b::UniformMatrixBuilder, new_maxcollen)
     b.maxcolsize = new_maxcollen
     return b
 end
-Base.sizehint!(b::UniformMatrixBuilder, n::Int) = n > b.maxcolsize ? _grow_to!(b, n) : b
+function Base.sizehint!(b::UniformMatrixBuilder, n::Int)
+    new_nrows = n ÷ b.sz[2] + 1
+    new_nrows > b.maxcolsize && _grow_to!(b, new_nrows)
+    return b
+end
 
 Base.@propagate_inbounds function Base.setindex!(b::UniformMatrixBuilder, x::Number, i::Int, j::Int; overwrite=true, factor=1)
     if b.colsizes[j] == b.maxcolsize
@@ -229,7 +234,7 @@ function OperatorBuilder(BT::Type{BuilderType}, sys::SystemT; col_hint=nothing, 
     OperatorBuilder(sys, builder; kw...)
 end
 OperatorBuilder(T::Type{<:Number}, sys::SystemT; kw...) where {SystemT<:System} =
-    OperatorBuilder(SimpleMatrixBuilder{ArrayEntry{T}}, sys; kw...)
+    OperatorBuilder(FlexMatrixBuilder{T}, sys; kw...)
 @accepts_system_t OperatorBuilder
 
 sample(opb::OperatorBuilder) = sample(opb.sys)
@@ -241,10 +246,12 @@ function Base.show(io::IO, mime::MIME"text/plain", opb::OperatorBuilder{Sys,Fiel
     opb.field == NoField() ? "" : "field=$(opb.field), ",
     "auto_hermitian=$(opb.auto_hermitian))\nSystem: ")
     show(io, mime, opb.sys)
-    if BT <: SimpleMatrixBuilder{<:Number}
+    if (BT <: VectorMatrixBuilder) && !(BT <: FlexMatrixBuilder)
         print(io, "\nOnly increment/decrement assignments allowed")
     end
 end
+
+Base.sizehint!(opb::OperatorBuilder, n::Int) = sizehint!(opb.mat_builder, n)
 
 _internal_one_mat(sample::SampleWithInternal) = internal_one(sample).data
 _internal_one_mat(::SampleWithoutInternal) = SMatrix{1,1}(1)

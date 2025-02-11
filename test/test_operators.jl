@@ -52,8 +52,8 @@ import LatticeModels: ManyBodyBasis, FermionBitstring
         l = SquareLattice(10, 10)
         spin = SpinBasis(1//2)
         builder = OperatorBuilder(l, spin, auto_hermitian=true, field=LandauGauge(0.1))
-        builder2 = OperatorBuilder(SimpleMatrixBuilder{ComplexF64}, l ⊗ spin, field=LandauGauge(0.1))
-        builder3 = OperatorBuilder(ComplexF16, l, spin, auto_hermitian=true, field=LandauGauge(0.1))
+        builder2 = OperatorBuilder(VectorMatrixBuilder{ComplexF64}, l ⊗ spin, field=LandauGauge(0.1))
+        builder3 = OperatorBuilder(UniformMatrixBuilder{ComplexF16}, l, spin, auto_hermitian=true, field=LandauGauge(0.1))
 
         site = l[10]
         builder[site, site] = 1234  # This should be overwritten
@@ -86,8 +86,8 @@ import LatticeModels: ManyBodyBasis, FermionBitstring
         @test H ≈ H2
         @test H ≈ H3
         @test H ≈ H4
-        @test H - Operator(H1) ≈ Operator(H2) - H4 atol=1e-10
-        @test H - H1 ≈ -H2 + H4 atol=1e-10
+        @test H - Operator(H1) ≈ Operator(H2) - H4 atol=1e-10   # Hamiltonian-operator conversion
+        @test H - H1 ≈ -H2 + H4 atol=1e-10                      # Hamiltonian maths
 
         site1, site2 = l[10], l[25]
         sigmaydi10 = sigmay(spin) ⊗ diagonaloperator(l .== Ref(site1))
