@@ -383,8 +383,8 @@ struct Hamiltonian{SystemT, BasisT, T} <: DataOperator{BasisT, BasisT}
     basis_r::BasisT
     data::T
 end
-Hamiltonian(sys::System, op::Operator) = Hamiltonian(sys, basis(op), basis(op), op.data)
 Hamiltonian(sys::System, data::AbstractMatrix) = Hamiltonian(sys, basis(sys), basis(sys), data)
+Hamiltonian(sys::System, op::Operator) = Hamiltonian(sys, op.data)
 
 QuantumOpticsBase.Operator(ham::Hamiltonian) = Operator(ham.basis_l, ham.data)
 sample(ham::Hamiltonian) = sample(ham.sys)

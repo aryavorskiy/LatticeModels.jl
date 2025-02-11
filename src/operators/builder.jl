@@ -90,7 +90,8 @@ mutable struct UniformMatrixBuilder{T} <: AbstractMatrixBuilder{T}
     nzvals::Vector{T}
     function UniformMatrixBuilder{T}(szx::Int, szy::Int, col_hint::Int=4) where T
         col_hint = max(col_hint, 1)
-        new{T}((szx, szy), col_hint, zeros(Int, szy), zeros(Int, col_hint * szy), zeros(T, col_hint * szy))
+        new{T}((szx, szy), col_hint,
+            zeros(Int, szy), zeros(Int, col_hint * szy), Array{T}(undef, col_hint * szy))
     end
 end
 
@@ -225,7 +226,7 @@ function OperatorBuilder(BT::Type{BuilderType}, sys::SystemT; col_hint=nothing, 
     else
         builder = BT(oneparticle_len, oneparticle_len, col_hint)
     end
-    OperatorBuilder(sys, BT(oneparticle_len, oneparticle_len); kw...)
+    OperatorBuilder(sys, builder; kw...)
 end
 OperatorBuilder(T::Type{<:Number}, sys::SystemT; kw...) where {SystemT<:System} =
     OperatorBuilder(SimpleMatrixBuilder{ArrayEntry{T}}, sys; kw...)
