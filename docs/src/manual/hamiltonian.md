@@ -143,7 +143,7 @@ Note that the [`qwz`](@ref) function can be used to create the QWZ Hamiltonian i
 
 ## The operator builder
 
-The `construct_hamiltonian` function is a convenient way to create Hamiltonians, but it is sometimes more convenient to set all the individual ``c_i^\dagger c_j`` terms manually. This can be done using the `OperatorBuilder` object.
+The `construct_hamiltonian` function is a convenient way to create Hamiltonians, but it is sometimes more convenient to set all the individual ``c_i^\dagger c_j`` terms manually. This can be done using the [`OperatorBuilder`](@ref) class.
 
 Here is an example of how to create the same Hamiltonian as in the previous example using the `OperatorBuilder`:
 
@@ -155,6 +155,7 @@ sys = System(l, spin, μ = 0, T = 1)
 
 sx, sy, sz = sigmax(spin), sigmay(spin), sigmaz(spin)
 builder = OperatorBuilder(sys, auto_hermitian = true)
+sizehint!(builder, length(l) * 5) # You can pre-allocate memory for the builder
 for site in l
     site_x = site + Bravais[1, 0]
     site_y = site + Bravais[0, 1]
@@ -177,11 +178,8 @@ P = densitymatrix(H, info=false)
 heatmap(localdensity(P))
 ```
 
-Note that `builder[site1, site2]` is not a regular indexing operation. The return value of it is not an matrix or operator, but rather a special object that makes increment/decrement operations possible. Do not use this value in other contexts.
-
-!!! tip
-    Use `FastOperatorBuilder` instead of `OperatorBuilder` if you need to create a large Hamiltonian. It is a little 
-    bit faster, but doesn't support direct assignment `builder[site, site] = ...`; use `+=` or `-=` instead.
+!!! warn
+    Note that `builder[site1, site2]` is not a regular indexing operation. The return value of it is not an matrix or operator, but rather a special object that makes increment/decrement operations possible. Do not use this value in other contexts.
 
 ## Gauge fields
 

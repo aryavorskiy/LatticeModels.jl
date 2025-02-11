@@ -28,8 +28,11 @@ makedocs(
             "Currents" => "manual/currents.md",
             "Evolution" => "manual/evolution.md"
         ],
+        "Advanced usage" => [
+            "Performance tips" => "performance.md",
+            "Interfaces" => "interfaces.md"
+        ],
         "API" => "library.md",
-        "Internals" => "internals.md"
     ]
 )
 

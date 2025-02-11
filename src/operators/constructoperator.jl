@@ -1,4 +1,5 @@
 import QuantumOpticsBase: DataOperator
+using LinearAlgebra
 
 function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:SingleBond})
     # Single bond
@@ -44,10 +45,15 @@ function add_term!(builder::OperatorBuilder, arg::Pair{<:Any, <:Number})
         builder.mat_builder[is, is, factor=n, overwrite=false] = op
     end
 end
-function add_term!(builder::OperatorBuilder, arg::DataOperator)
-    # Arbitrary sparse operator
-    increment!(builder.mat_builder, arg.data)
+
+@inline function add_pair_terms!(opb::OperatorBuilder, pair::Pair, args...)
+    iszero(first(pair)) || add_term!(opb, pair)
+    add_pair_terms!(opb, args...)
 end
+@inline add_pair_terms!(opb::OperatorBuilder, op::DataOperator, args...) =
+    add_pair_terms!(opb, args..., op)
+@inline add_pair_terms!(::OperatorBuilder, ops::DataOperator...) = +(ops...)
+add_pair_terms!(::OperatorBuilder) = nothing
 
 function arg_to_pair(sample::Sample, arg::DataOperator)
     if samebases(basis(arg), basis(sample))
@@ -66,8 +72,7 @@ function arg_to_pair(sample::Sample, arg::DataOperator)
 end
 
 arg_to_pair(sample::Sample, arg::AbstractMatrix) = op_to_matrix(sample, arg) => 1
-arg_to_pair(sample::Sample, arg) = _internal_one_mat(sample) => arg
-
+arg_to_pair(sample::Sample, arg) = arg_to_pair(sample, 1 => arg)
 function arg_to_pair(sample::Sample, arg::Pair{<:Union{Number,AbstractMatrix,DataOperator}})
     op, onlat = arg
     if onlat isa LatticeValue
@@ -82,6 +87,23 @@ function arg_to_pair(sample::Sample, arg::Pair{<:Union{Number,AbstractMatrix,Dat
     end
     return op_to_matrix(sample, op) => new_onlat
 end
+
+# Estimate the nz count in a column per term
+_colsize_est(p::Pair) = _colsize_est(p[1]) * _colsize_est(p[2])
+# onlat
+_colsize_est(::Number) = 1
+_colsize_est(::LatticeValue) = 1
+_colsize_est(::AbstractTranslation) = 2
+_colsize_est(btr::BravaisTranslation) = 1 + allequal(btr.site_indices)
+_colsize_est(bsm::BravaisSiteMapping) = sum(_colsize_est, bsm.translations)
+_colsize_est(::AbstractBonds) = 4
+_colsize_est(::AbstractSite) = 0
+_colsize_est(::SingleBond) = 1
+# op
+_colsize_est(mat::SparseMatrixCSC) = maximum(diff(mat.colptr))
+_colsize_est(mat::AbstractMatrix) = maximum(count(!=(0), mat, dims=1))
+_colsize_est(::Diagonal) = 1
+_colsize_est(op::DataOperator) = _colsize_est(op.data)
 
 """
     construct_operator([T, ]sys, terms...[; field, auto_pbc_field])
@@ -111,16 +133,26 @@ See documentation for more details.
 - `auto_pbc_field`: Whether to automatically adapt the field to the periodic boundary
     conditions of the lattice. Defaults to `true`.
 """
-function construct_operator(T::Type, sys::System, args...; kw...)
-    sample = sys.sample
-    builder = FastOperatorBuilder(T, sys; auto_hermitian=true, kw...)
-    sizehint!(builder.mat_builder, length(sample) * length(args))
-    for arg in args
-        pair = arg_to_pair(sample, arg)
-        pair isa Pair && iszero(first(pair)) && continue
-        add_term!(builder, pair)
+function construct_operator(BT::Type{<:AbstractMatrixBuilder{T}}, sys::System, args...; kw...) where T
+    arg_pairs = map(arg -> arg_to_pair(sample(sys), arg), args)
+    col_hint = get(kw, :col_hint, nothing)
+    if col_hint === nothing
+        col_hint = sum(_colsize_est, arg_pairs)
     end
-    Operator(builder)
+    opb = OperatorBuilder(BT, sys; auto_hermitian=true, kw..., col_hint=col_hint)
+    ops_sum = add_pair_terms!(opb, arg_pairs...)
+    return to_operator(opb, ops_sum)
+end
+function construct_operator(T::Type{<:Number}, sys::System, args...; kw...)
+    arg_pairs = map(arg -> arg_to_pair(sys.sample, arg), args)
+    col_hint = sum(_colsize_est, arg_pairs)
+    if col_hint < 1000
+        construct_operator(UniformMatrixBuilder{T}, sys, arg_pairs...;
+            col_hint=col_hint, kw...)
+    else
+        construct_operator(VectorMatrixBuilder{T}, sys, arg_pairs...;
+            col_hint=col_hint, kw...)
+    end
 end
 @accepts_system_t construct_operator
 
@@ -155,9 +187,8 @@ All other arguments are interpreted as terms of the Hamiltonian and passed to `c
 - `auto_pbc_field`: Whether to automatically adapt the field to the periodic boundary
     conditions of the lattice. Defaults to `true`.
 """
-tightbinding_hamiltonian(T::Type, sys::System, args...; t1=1, t2=0, t3=0, kw...) =
-    construct_hamiltonian(T, sys, args...,
+tightbinding_hamiltonian(args...; t1=1, t2=0, t3=0, kw...) =
+    construct_hamiltonian(args...,
         t1 => NearestNeighbor(1),
         t2 => NearestNeighbor(2),
         t3 => NearestNeighbor(3); kw...)
-@accepts_system_t tightbinding_hamiltonian
