@@ -1,12 +1,10 @@
 .vscode/
 docs/build/
-profile.pb.gz
-demo.ipynb
+*.pb.gz
+*.ipynb
 lol*.gif
 docs/src/assets/favicon.svg
-precompiles/
 Manifest.toml
-test/Manifest.toml
-docs/Manifest.toml
-demo.jl
+*/Manifest.toml
 CondaPkg.toml
+demo.jl
