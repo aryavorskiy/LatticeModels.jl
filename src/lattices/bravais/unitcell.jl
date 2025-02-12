@@ -83,15 +83,15 @@ Base.:(==)(b1::UnitCell, b2::UnitCell) =
 
 function print_vectors(io::IO, a::AbstractMatrix)
     indent = getindent(io)
-    println(io, indent, "┌      ┐ " ^ size(a, 2))
     for i in 1:size(a, 1)
         print(io, indent)
+        vec_edges = i == 1 ? ("⎡", "⎤") : i == size(a, 1) ? ("⎣", "⎦") : ("⎢", "⎥")
         for j in 1:size(a, 2)
-            print(io, @sprintf("│%6.3f│ ", a[i, j]))
+            eb, ee = vec_edges
+            print(io, eb, @sprintf("%6.3f", a[i, j]), ee, "  ")
         end
-        println(io)
+        i != size(a, 1) && println(io)
     end
-    print(io, indent, "└      ┘ " ^ size(a, 2))
 end
 Base.summary(io::IO, ::UnitCell{N,ND,NB}) where {N,ND,NB} =
     print(io, "$NB-site Unit cell of a $ND-dim Bravais lattice in $(N)D space")

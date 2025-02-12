@@ -410,6 +410,7 @@ An abstract type for translations on some lattice.
 - `inv(bonds::AbstractTranslation)`: Returns the inverse of the translation, if any.
 """
 abstract type AbstractTranslation{LT} <: DirectedBonds{LT} end
+destination(tr::AbstractTranslation, site::AbstractSite) = throw(MethodError(destination, (tr, site)))
 destinations(bonds::AbstractTranslation, site::AbstractSite) = (destination(bonds, site),)
 @inline function Base.iterate(bonds::AbstractTranslation, i = 1)
     l = lattice(bonds)

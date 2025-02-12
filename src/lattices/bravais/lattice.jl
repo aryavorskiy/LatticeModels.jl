@@ -148,15 +148,11 @@ julia> using LatticeModels
 julia> uc = UnitCell([[1, 0] [0, 1]])
 1-site Unit cell of a 2-dim Bravais lattice in 2D space:
   Basis site coordinates:
-    ┌      ┐
-    │ 0.000│
-    │ 0.000│
-    └      ┘
+    ⎡ 0.000⎤
+    ⎣ 0.000⎦
   Translation vectors:
-    ┌      ┐ ┌      ┐
-    │ 1.000│ │ 0.000│
-    │ 0.000│ │ 1.000│
-    └      ┘ └      ┘
+    ⎡ 1.000⎤  ⎡ 0.000⎤
+    ⎣ 0.000⎦  ⎣ 1.000⎦
 
 julia> span_unitcells(uc, 3, 3) == SquareLattice(3, 3)
 true

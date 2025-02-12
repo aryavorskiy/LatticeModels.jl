@@ -40,15 +40,11 @@ julia> MyBravaisLattice(3, 3)
 9-site 2-dim Bravais lattice in 2D space
 Unit cell:
   Basis site coordinates:
-    ┌      ┐
-    │ 0.000│
-    │ 0.000│
-    └      ┘
+    ⎡ 0.000⎤
+    ⎣ 0.000⎦
   Translation vectors:
-    ┌      ┐ ┌      ┐
-    │ 1.000│ │ 0.000│
-    │ 0.000│ │ 1.000│
-    └      ┘ └      ┘
+    ⎡ 1.000⎤  ⎡ 0.000⎤
+    ⎣ 0.000⎦  ⎣ 1.000⎦
 Lattice type: MyBravaisLattice
 Default translations:
   :axis1 → Bravais[3, 0]

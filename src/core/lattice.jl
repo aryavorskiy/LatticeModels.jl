@@ -50,15 +50,11 @@ julia> l[x = 1]                 # Get sublattice with x = 1
 3-site 2-dim Bravais lattice in 2D space
 Unit cell:
   Basis site coordinates:
-    ┌      ┐
-    │ 0.000│
-    │ 0.000│
-    └      ┘
+    ⎡ 0.000⎤
+    ⎣ 0.000⎦
   Translation vectors:
-    ┌      ┐ ┌      ┐
-    │ 1.000│ │ 0.000│
-    │ 0.000│ │ 1.000│
-    └      ┘ └      ┘
+    ⎡ 1.000⎤  ⎡ 0.000⎤
+    ⎣ 0.000⎦  ⎣ 1.000⎦
 Lattice type: SquareLattice{2}
 Default translations:
   :axis1 → Bravais[3, 0]
