@@ -65,8 +65,28 @@ Here are some benchmarks:
 
 ![All benchmarks composed](./assets/benchmark_all.svg)
 
+```@raw html
+<details><summary>Benchmarks were run using this machine and Julia version.</summary>
+```
+
+```
+Julia Version 1.11.3
+Commit d63adeda50d (2025-01-21 19:42 UTC)
+Build Info:
+  Official https://julialang.org/ release
+Platform Info:
+  OS: Linux (x86_64-linux-gnu)
+  CPU: 64 × Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz
+  WORD_SIZE: 64
+  LLVM: libLLVM-16.0.6 (ORCJIT, skylake-avx512)
+Threads: 2 default, 0 interactive, 1 GC (on 64 virtual cores)
+```
+
+```@raw html
+</details>
+```
+
 One can see dramatic performance improvements on small lattice sizes, while being competitive on larger ones.
-These benchmarks were run on a regular JuliaHub cluster (Julia v1.10, one core of Intel Xeon Platinum 8375C, 16GB RAM).
 You can find the benchmarking code in [the `benchmarks` folder of the package repository](https://github.com/aryavorskiy/LatticeModels.jl/tree/master/benchmarks).
 
 There are other nice features that `LatticeModels.jl` provides:

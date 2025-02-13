@@ -1,7 +1,7 @@
-using CondaPkg
+using PythonCall, CondaPkg
 CondaPkg.add(["numpy", "kwant", "tkwant", "pybinding"], channel="conda-forge")
 
-using PythonCall, CairoMakie
+using CairoMakie
 include("models.jl")
 
 pyexec("""
@@ -50,14 +50,17 @@ def py_measure_time(func, maxtime, *args):
 time_function(f::Py, n; maxtime=MAXTIME_DEFAULT) =
     pyconvert(Number, py_measure_time(f, maxtime, n))
 
-function run_benchmarks(Ns, f; nrepeat=5, kw...)
+function run_benchmarks(Ns, f; nrepeat=5, maxtime=MAXTIME_DEFAULT)
     f(first(Ns)) # warmup
     Ts = Float64[]
     print("$(f) [")
     for n in Ns
-        t = time_function(f, n; kw...)
+        t = time_function(f, n; maxtime=maxtime)
         for _ in 2:nrepeat
-            (t < 1) && (t = time_function(f, n; kw...))
+            if t < maxtime / nrepeat
+                t2 = time_function(f, n; maxtime=maxtime)
+                isfinite(t2) && (t = min(t, t2))
+            end
         end
         print(round(t, sigdigits=5))
         n == Ns[end] || print(", ")
